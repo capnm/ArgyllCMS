@@ -43,9 +43,9 @@
 /* so long shouldn't really be used in any code.... */
 /* (duplicated in icc.h) */ 
 
-/* Use __LP64__ as cross platform 64 bit pointer #define */
-#if !defined(__LP64__) && defined(_WIN64)
-# define __LP64__ 1
+/* Use __P64__ as cross platform 64 bit pointer #define */
+#if defined(__LP64__) || defined(__ILP64__) || defined(__LLP64__) || defined(_WIN64)
+# define __P64__ 1
 #endif
 
 #ifndef ORD32
@@ -59,16 +59,24 @@
 #define INR8   int8_t		/* 8 bit signed */
 #define INR16  int16_t		/* 16 bit signed */
 #define INR32  int32_t		/* 32 bit signed */
-#define INR64  int64_t		/* 64 bit signed - not used in icclib */
+#define INR64  int64_t		/* 64 bit signed */
 #define ORD8   uint8_t		/* 8 bit unsigned */
 #define ORD16  uint16_t		/* 16 bit unsigned */
 #define ORD32  uint32_t		/* 32 bit unsigned */
-#define ORD64  uint64_t		/* 64 bit unsigned - not used in icclib */
+#define ORD64  uint64_t		/* 64 bit unsigned */
 
 #define PNTR intptr_t
 
 #define PF64PREC "ll"		/* printf format precision specifier */
 #define CF64PREC "LL"		/* Constant precision specifier */
+
+#ifndef ATTRIBUTE_NORETURN
+# ifdef _MSC_VER
+#  define ATTRIBUTE_NORETURN __declspec(noreturn)
+# else
+#  define ATTRIBUTE_NORETURN __attribute__((noreturn))
+# endif
+#endif
 
 #else  /* !__STDC_VERSION__ */
 
@@ -77,16 +85,20 @@
 #define INR8   __int8				/* 8 bit signed */
 #define INR16  __int16				/* 16 bit signed */
 #define INR32  __int32				/* 32 bit signed */
-#define INR64  __int64				/* 64 bit signed - not used in icclib */
+#define INR64  __int64				/* 64 bit signed */
 #define ORD8   unsigned __int8		/* 8 bit unsigned */
 #define ORD16  unsigned __int16		/* 16 bit unsigned */
 #define ORD32  unsigned __int32		/* 32 bit unsigned */
-#define ORD64  unsigned __int64		/* 64 bit unsigned - not used in icclib */
+#define ORD64  unsigned __int64		/* 64 bit unsigned */
 
 #define PNTR UINT_PTR
 
 #define PF64PREC "I64"				/* printf format precision specifier */
 #define CF64PREC "LL"				/* Constant precision specifier */
+
+#ifndef ATTRIBUTE_NORETURN
+# define ATTRIBUTE_NORETURN __declspec(noreturn)
+#endif
 
 #else  /* !_MSC_VER */
 
@@ -101,29 +113,28 @@
 #define ORD32  unsigned int		/* 32 bit unsigned */
 
 #ifdef __GNUC__
-# define INR64  long long			/* 64 bit signed - not used in icclib */
-# define ORD64  unsigned long long	/* 64 bit unsigned - not used in icclib */
-# define PF64PREC "ll"			/* printf format precision specifier */
-# define CF64PREC "LL"			/* Constant precision specifier */
+# ifdef __LP64__	/* long long could be 128 bit ? */
+#  define INR64  long				/* 64 bit signed */
+#  define ORD64  unsigned long		/* 64 bit unsigned */
+#  define PF64PREC "l"			/* printf format precision specifier */
+#  define CF64PREC "L"			/* Constant precision specifier */
+# else
+#  define INR64  long long			/* 64 bit signed */
+#  define ORD64  unsigned long long	/* 64 bit unsigned */
+#  define PF64PREC "ll"			/* printf format precision specifier */
+#  define CF64PREC "LL"			/* Constant precision specifier */
+# endif /* !__LP64__ */
 #endif /* __GNUC__ */
 
 #define PNTR unsigned long 
 
-#endif /* !_MSC_VER */
-#endif /* !__STDC_VERSION__ */
-#endif /* !ORD32 */
-
-#ifdef _MSC_VER
-#ifndef ATTRIBUTE_NORETURN
-# define ATTRIBUTE_NORETURN __declspec(noreturn)
-#endif
-#endif
-
-#ifdef __GNUC__
 #ifndef ATTRIBUTE_NORETURN
 # define ATTRIBUTE_NORETURN __attribute__((noreturn))
 #endif
-#endif
+
+#endif /* !_MSC_VER */
+#endif /* !__STDC_VERSION__ */
+#endif /* !ORD32 */
 
 /* =========================================================== */
 /* System compatibility #defines */
@@ -515,6 +526,34 @@ INR64 read_INR64_be(ORD8 *p);
 INR64 read_INR64_le(ORD8 *p);
 void write_INR64_be(ORD8 *p, INR64 d);
 void write_INR64_le(ORD8 *p, INR64 d);
+
+/*******************************************/
+
+/* Sleep for the given number of msec */
+void msec_sleep(unsigned int msec);
+
+/* Return the current time in msec since */
+/* the first invokation of msec_time() */
+unsigned int msec_time();
+
+/* Return the current time in usec */
+/* (The first invokation of usec_time() returns zero) */
+double usec_time();
+
+/*******************************************/
+/* Debug convenience functions (duplicated in icc) */
+
+/* Print an int vector to a string. */
+/* Returned static buffer is re-used every 5 calls. */
+char *debPiv(int di, int *p);
+
+/* Print a double color vector to a string. */
+/* Returned static buffer is re-used every 5 calls. */
+char *debPdv(int di, double *p);
+
+/* Print a float color vector to a string. */
+/* Returned static buffer is re-used every 5 calls. */
+char *debPfv(int di, float *p);
 
 /*******************************************/
 /* Numerical diagnostics */

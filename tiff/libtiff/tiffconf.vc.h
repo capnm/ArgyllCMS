@@ -61,19 +61,11 @@
 /* Signed size type */
 #ifdef _WIN64
 # define TIFF_SSIZE_T signed __int64
+# define TIFF_SSIZE_FORMAT "%I64d"
 #else
 # define TIFF_SSIZE_T signed __int32
+# define TIFF_SSIZE_FORMAT "%ld"
 #endif
-
-/* Signed size type formatter */
-#if defined(_WIN64)
-#define TIFF_SSIZE_FORMAT "%I64d"
-#else
-#define TIFF_SSIZE_FORMAT "%ld"
-#endif
-
-/* Pointer difference type */
-#define TIFF_PTRDIFF_T long
 
 /* Compatibility stuff. */
 

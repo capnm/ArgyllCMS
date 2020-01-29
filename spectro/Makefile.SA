@@ -39,18 +39,21 @@ WIN_STDHDRS = $(INCFLAG)usb$(SLASH)driver
 all:: libinst$(SUFLIB) libinstappsup$(SUFLIB) spotread$(SUFEXE) oeminst$(SUFEXE) 
 
 INSTHEADERS = dtp20.h dtp22.h dtp41.h dtp51.h dtp92.h ss.h ss_imp.h i1disp.h i1d3.h i1pro.h i1pro_imp.h munki.h munki_imp.h hcfr.h huey.h colorhug.h spyd2.h specbos.h kleink10.h
-INSOBJS = dtp20$(SUFOBJ) dtp22$(SUFOBJ) dtp41$(SUFOBJ) dtp51$(SUFOBJ) dtp92$(SUFOBJ) ss$(SUFOBJ) ss_imp$(SUFOBJ) i1disp$(SUFOBJ) i1d3$(SUFOBJ) i1pro$(SUFOBJ) i1pro_imp$(SUFOBJ) munki$(SUFOBJ) munki_imp$(SUFOBJ) hcfr$(SUFOBJ) huey$(SUFOBJ) colorhug$(SUFOBJ) spyd2$(SUFOBJ) specbos$(SUFOBJ) kleink10$(SUFOBJ)
+INSOBJS = dtp20$(SUFOBJ) dtp22$(SUFOBJ) dtp41$(SUFOBJ) dtp51$(SUFOBJ) dtp92$(SUFOBJ) ss$(SUFOBJ) ss_imp$(SUFOBJ) i1disp$(SUFOBJ) i1d3$(SUFOBJ) i1pro$(SUFOBJ) i1pro_imp$(SUFOBJ) munki$(SUFOBJ) munki_imp$(SUFOBJ) hcfr$(SUFOBJ) huey$(SUFOBJ) colorhug$(SUFOBJ) spyd2$(SUFOBJ) specbos$(SUFOBJ) kleink10$(SUFOBJ) ex1$(SUFOBJ) smcube$(SUFOBJ)
 
-HEADERS = pollem.h conv.h aglob.h hidio.h icoms.h inst.c inst.h insttypeinst.h insttypes.h disptechs.h  $(INSTHEADERS) usbio.h xspect.h rspl1.h sort.h xdg_bds.h ccss.h ccmx.h pars.h cgats.h instappsup.h usb$(SLASH)driver$(SLASH)driver_api.h
+HEADERS = pollem.h conv.h sa_conv.h aglob.h hidio.h icoms.h inst.c inst.h insttypeinst.h insttypes.h disptechs.h rspec.h xrga.h $(INSTHEADERS) usbio.h xspect.h rspl1.h sort.h xdg_bds.h ccss.h ccmx.h pars.h cgats.h instappsup.h usb$(SLASH)driver$(SLASH)driver_api.h
 
 # libinst objects
-OBJS = conv$(SUFOBJ) aglob$(SUFOBJ) inst$(SUFOBJ) numsup$(SUFOBJ) rspl1$(SUFOBJ) icoms$(SUFOBJ) usbio$(SUFOBJ) hidio$(SUFOBJ) insttypes$(SUFOBJ) disptechs$(SUFOBJ) pollem$(SUFOBJ) xspect$(SUFOBJ) xdg_bds$(SUFOBJ) ccss$(SUFOBJ) ccmx$(SUFOBJ) pars$(SUFOBJ) cgats$(SUFOBJ) $(INSOBJS)
+OBJS = conv$(SUFOBJ) sa_conv$(SUFOBJ) aglob$(SUFOBJ) inst$(SUFOBJ) numsup$(SUFOBJ) rspl1$(SUFOBJ) icoms$(SUFOBJ) usbio$(SUFOBJ) hidio$(SUFOBJ) insttypes$(SUFOBJ) disptechs$(SUFOBJ) rspec$(SUFOBJ) xrga$(SUFOBJ) pollem$(SUFOBJ) xspect$(SUFOBJ) xdg_bds$(SUFOBJ) ccss$(SUFOBJ) ccmx$(SUFOBJ) pars$(SUFOBJ) cgats$(SUFOBJ) $(INSOBJS)
 
 
 # instrument library
 
 conv$(SUFOBJ): conv.c $(HEADERS)
 	$(CC) conv.c
+
+sa_conv$(SUFOBJ): sa_conv.c $(HEADERS)
+	$(CC) sa_conv.c
 
 aglob$(SUFOBJ): aglob.c $(HEADERS)
 	$(CC) aglob.c
@@ -75,6 +78,12 @@ hidio$(SUFOBJ): hidio.c $(HEADERS)
 
 insttypes$(SUFOBJ): insttypes.c $(HEADERS)
 	$(CC) insttypes.c
+
+rspec$(SUFOBJ): rspec.c $(HEADERS)
+	$(CC) rspec.c
+
+xrga$(SUFOBJ): xrga.c $(HEADERS)
+	$(CC) xrga.c
 
 disptechs$(SUFOBJ): disptechs.c $(HEADERS)
 	$(CC) disptechs.c
@@ -147,6 +156,12 @@ specbos$(SUFOBJ): specbos.c $(HEADERS)
 
 kleink10$(SUFOBJ): kleink10.c $(HEADERS)
 	$(CC) kleink10.c
+
+ex1$(SUFOBJ): ex1.c $(HEADERS)
+	$(CC) ex1.c
+
+smcube$(SUFOBJ): smcube.c $(HEADERS)
+	$(CC) smcube.c
 
 oemarch$(SUFOBJ): oemarch.c $(HEADERS)
 	$(CC) oemarch.c

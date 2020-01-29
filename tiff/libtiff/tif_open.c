@@ -1,4 +1,4 @@
-/* $Id: tif_open.c,v 1.46 2010-12-06 16:54:54 faxguy Exp $ */
+/* $Id$ */
 
 /*
  * Copyright (c) 1988-1997 Sam Leffler
@@ -168,7 +168,7 @@ TIFFClientOpen(
 	 * The following flags may be used to control intrinsic library
 	 * behaviour that may or may not be desirable (usually for
 	 * compatibility with some application that claims to support
-	 * TIFF but only supports some braindead idea of what the
+	 * TIFF but only supports some brain dead idea of what the
 	 * vendor thinks TIFF is):
 	 *
 	 * 'l' use little-endian byte order for creating a file
@@ -198,8 +198,8 @@ TIFFClientOpen(
 	 * The 'L', 'B', and 'H' flags are intended for applications
 	 * that can optimize operations on data by using a particular
 	 * bit order.  By default the library returns data in MSB2LSB
-	 * bit order for compatibiltiy with older versions of this
-	 * library.  Returning data in the bit order of the native cpu
+	 * bit order for compatibility with older versions of this
+	 * library.  Returning data in the bit order of the native CPU
 	 * makes the most sense but also requires applications to check
 	 * the value of the FillOrder tag; something they probably do
 	 * not do right now.
@@ -513,7 +513,7 @@ TIFFSetFileName(TIFF* tif, const char *name)
 /*
  * Return open file's I/O descriptor.
  */
-tfd_t
+int
 TIFFFileno(TIFF* tif)
 {
 	return (tif->tif_fd);
@@ -522,10 +522,10 @@ TIFFFileno(TIFF* tif)
 /*
  * Set open file's I/O descriptor, and return previous value.
  */
-tfd_t
-TIFFSetFileno(TIFF* tif, tfd_t fd)
+int
+TIFFSetFileno(TIFF* tif, int fd)
 {
-    tfd_t old_fd = tif->tif_fd;
+        int old_fd = tif->tif_fd;
 	tif->tif_fd = fd;
 	return old_fd;
 }

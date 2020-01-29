@@ -249,7 +249,7 @@ struct _gamut {
 	double xvra;		/* Extra vertex ratio - set/used by nssverts() */
 	int    ssnverts;	/* total ss verticies - set/used by nssverts() */
 	int	   ssvertn;		/* Number of verts created for current triangle */
-	sobol *ss;			/* Sibol ss generator currently being used */
+	sobol *ss;			/* Sobol ss generator currently being used */
 
 	gtri *nexttri;		/* Context for getnexttri() */
 
@@ -315,14 +315,22 @@ struct _gamut {
 								/* Initialise this gamut with the intersection of the */
 								/* the two given gamuts. */
 
+	int (*exp_cyl)(struct _gamut *s, struct _gamut *s1, double ratio);
+								/* Initialise this gamut with the source gamut */
+								/* expanded cylindrically around the nautral axis by */ 
+								/* the given ratio. */
+
 	int (*nexpintersect)(struct _gamut *s, struct _gamut *s1, struct _gamut *s2);
-								/* Return s1 expanded with neutral axis points */
-								/* and then intersected with s2. */
+								/* Initialise this gamut with neutral axis points from sa, */
+								/* and then intersected with sb. */
 
 	int (*expdstbysrcmdst)(struct _gamut *s,
 	                       struct _gamut *dst, struct _gamut *sc, struct _gamut *dc,
                            void (*cvect)(void *cntx, double *p2, double *p1), void *cntx);
 								/* Expand dst by ((dc - sc) > 0) */
+								/* Initialise this gamut with the image/destination gamut sc */
+								/* expanded by the amount that dest (dc) colorspace is outside */
+								/* the source colorspace gamut. */
 
 	double (*radial)(struct _gamut *s, double out[3], double in[3]);
 								/* return point on surface in same radial direction. */

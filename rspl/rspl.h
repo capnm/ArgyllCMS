@@ -19,6 +19,9 @@
 
 /** Configuration **/
 
+#undef CHECK_NNLU		/* [und] Check nn lookup results against exaustive searches */
+						/*       as well as other asserts. */
+
 /** General Limits **/
 
 #define MXDI 10			/* Maximum input dimensionality */
@@ -43,6 +46,7 @@
 #define POW2MXRI 16		/* 2 ^ MXRI */
 #define POW3MXRI 81		/* 3 ^ MXRI */
 #define HACOMPS ((POW3MXRI + 2 * MXRI + 1)/2) /* Maximum number of array components */
+#define POW2MXRO 1024	/* 2 ^ MXRO */
 
 #if MXRI > MXRO		/* Maximum of either RI or RO */
 # define MXRIRO MXRI
@@ -175,7 +179,7 @@ struct _rspl {
 						/* Array is res[] ^ di entries float[fdi+G_XTRA], offset by G_XTRA */
 						/* (But is expanded when spline interpolaton is active) */
 						/* float[-1] contains the ink limit function value, L_UNINIT if not initd */
-						/* float[-2] contains the edge flag values, 2 bits per in dim. */
+						/* float[-2] contains the edge flag values, 3 bits per in dim. */
 						/* float[-3] contains the touched flag generation count. */
 						/* (k value for non-linear fit would be another entry.) */
 						/* Flag values are 3 bits for each dimension. Bits 1,0 form */
@@ -188,9 +192,15 @@ struct _rspl {
 		/* Uninitialised limit value */
 #define L_UNINIT ((float)-1e38)
 
+#define FL_BITS 3	/* flag bits per dimension */
 		/* Macros to access flags. Arguments are a pointer to base grid point and  */
 		/* Flag value is distance from edge in bottom 2 bits, values 0, 1 or 2 maximum. */
-		/* bit 2 is set if the distance is to the lower edge. */
+		/* bit 2 is set if the distance is to the lower edge. ie: */
+		/* 0 = at top edge */
+		/* 1 = next to top edge */
+		/* 2, 6 = not at or next to any edge */
+		/* 4 = at bottom edge */
+		/* 5 = next to bottom edge */
 #define FLV(fp) (*((unsigned int *)((fp)-2)))
 		/* Init the flag values to 0 */
 #define I_FL(fp) (FLV(fp) = 0)
@@ -407,8 +417,8 @@ struct _rspl {
 	void
 	(*scan_rspl)(
 		struct _rspl *s,	/* this */
-		int flags,		/* Combination of flags (not used) */
-		void *cbntx,	/* Opaque function context */
+		int flags,			/* Combination of flags (not used) */
+		void *cbntx,		/* Opaque function context */
 		void (*func)(void *cbntx, double *out, double *in) /* Function that gets given values */
 	);
 
@@ -442,8 +452,8 @@ struct _rspl {
 	void
 	(*filter_rspl)(
 		struct _rspl *s,	/* this */
-		int flags,		/* Combination of flags (not used) */
-		void *cbntx,	/* Opaque function context */
+		int flags,			/* Combination of flags (not used) */
+		void *cbntx,		/* Opaque function context */
 		void (*func)(void *cbntx, float **out, double *in, int cvi) /* Function to set from */
 	);
 
@@ -510,17 +520,26 @@ struct _rspl {
 		double *limitv		/* Return limit value */
 	);
 
+	/* Set the RSPL_NEARCLIP LCh weightings. */
+	/* Will only work with L*a*b* like output spaces. */
+	/* Calling this will clear the reverse interpolaton cache. */
+	void (*rev_set_lchw)(
+		struct _rspl *s,	/* this */
+		double lchw[MXRO]	/* Weighting */
+	);
+
 	/* Possible reverse hint flags */
-#define RSPL_WILLCLIP 0x0001		/* Hint that clipping will be needed */
-#define RSPL_EXACTAUX 0x0002		/* Hint that auxiliary target will be matched exactly */
-#define RSPL_MAXAUX   0x0004		/* If not possible to match exactly, return the */
+#define RSPL_WILLCLIP  0x0001		/* Hint that clipping will be needed */
+#define RSPL_EXACTAUX  0x0002		/* Hint that auxiliary target will be matched exactly */
+#define RSPL_MAXAUX    0x0004		/* If not possible to match exactly, return the */
 									/* closest value larger than the target, rather than */
 									/* absolute closest. */
-#define RSPL_AUXLOCUS 0x0008		/* Auxiliary target is proportion of locus, not */
+#define RSPL_AUXLOCUS  0x0008		/* Auxiliary target is proportion of locus, not */
 									/* absolute. Implies EXACTAUX hint. */
-#define RSPL_NEARCLIP 0x0010		/* If clipping occurs, return the nearest solution, */
+#define RSPL_NEARCLIP  0x0010		/* If clipping occurs, return the nearest solution, */
 									/* rather than the one in the clip direction. */
-
+#define RSPL_NONNSETUP 0x0020		/* Sets RSPL_FASTREVSETUP flag, which avoids NN grid */
+									/* setup if this is the first call using RSPL_NEARCLIP. */
 	/* Return value masks */
 #define RSPL_DIDCLIP 0x8000		/* If this bit is set, at least one soln. and clipping occured */
 #define RSPL_NOSOLNS 0x7fff		/* And return value with this mask to get number of solutions */
@@ -586,6 +605,9 @@ struct _rspl {
 		struct _rspl *s);			/* this */
 
 #   define wvals ad##jw
+
+	/* Return a pointer to the resolution array */
+	int *(*get_res)(struct _rspl *s);
 
 	/* Return non-zero if this rspl can be */
 	/* used with Restricted Size functions. */

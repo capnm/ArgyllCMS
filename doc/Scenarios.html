@@ -184,6 +184,9 @@
 
 
 
+
+
+
       and profiling a display that doesn't have VideoLUT access</a>.<br>
     <br>
     <h3><a name="PM1b"></a>Adjusting and Calibrating Displays</h3>
@@ -206,6 +209,9 @@
     your display is currently set up. (you may have to run this as <span
       style="text-decoration: underline; color: rgb(204, 51, 204);">dispcal
 -yl
+
+
+
 
 
 
@@ -480,6 +486,15 @@
       fogra39l.icm</a> <a href="colprof.html#c">-cpp</a> <a
       href="colprof.html#d">-dmt</a> <a href="colprof.html#p1">DisplayA</a><br>
     <br>
+    A fallback to using a specific source profile/gamut is to use a
+    general compression percentage as a gamut mapping:<br>
+    <br>
+    <a href="colprof.html">colprof</a> <a href="colprof.html#v">-v</a>
+    <a href="colprof.html#E">-D"Display A"</a> <a href="colprof.html#q">-qm</a>
+    <a href="file:///D:/src/argyll/doc/colprof.html#S">-S</a><a
+      href="colprof.html#S"> 20</a> <a href="colprof.html#c">-cpp</a> <a
+      href="colprof.html#d">-dmt</a> <a href="colprof.html#p1">DisplayA</a><br>
+    <br>
     Make sure you check the delta E report at the end of the profile
     creation, to see if the sample data and profile is behaving
     reasonably.<br>
@@ -650,6 +665,9 @@
 
 
 
+
+
+
     (<span style="font-weight: bold;">-Iw</span>) changes by doing on
     the fly calibrations during the measurements. Instrument black level
     drift and display white level drift can be combined (<span
@@ -665,6 +683,9 @@
     displays,&nbsp; (ie. you have a Wide Gamut Display), then you may
     get disappointing results with a Colorimeter. One way of addressing
     this problem is to use a <a href="File_Formats.html#.ccmx">Colorimeter
+
+
+
 
 
 
@@ -894,6 +915,9 @@
 
 
 
+
+
+
       SG</a> charts:<br>
     <br>
     <img src="DC.jpg" alt="GretagMacbeth ColorChecker DC chart"
@@ -965,6 +989,9 @@
 
 
 
+
+
+
       HCT</a> :<br>
     <br>
     <img alt="HutchColor HCT" src="HCT.jpg" style="width: 182px; height:
@@ -972,16 +999,22 @@
     <br>
     <br>
     and <a href="http://www.cmp-color.fr/DT3.html">Christophe
-      Métairie's Digital TargeT 003</a> and <a
+      Métairie's Digital TargeT 003</a>, <a
       href="http://www.cmp-color.fr/digital%20target.html">Christophe
-      Métairie's Digital Target - 4</a> :<br>
+      Métairie's Digital Target - 4</a> , and <a
+      href="http://www.cmp-color.fr/digital%20target.html">Christophe
+      Métairie's Digital Target - 7</a>:<br>
     <br>
     <img alt="CMP_DT_003" src="CMP_DT_003.jpg" style="width: 186px;
       height: 141px;">&nbsp; <img style="width: 203px; height: 140px;"
       alt="CMP_Digital_Target-4" src="CMP_Digital_Target-4.jpg"
-      width="203" height="140"><br>
+      width="203" height="140">&nbsp; <img alt="CMP_Digital_Target-4"
+      src="CMP_Digital_Target-7.jpg" width="202" height="146"><br>
     <br>
     and the <a href="http://www.silverfast.com/show/dc-targets/en.html">LaserSoft
+
+
+
 
 
 
@@ -1114,8 +1147,14 @@
 
 
 
+
+
+
       201</a>:&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; <a
 href="http://www.qpcard.com/en_b2c/color-reference-cards/instant-camera-raw-profiling-with-qpcard-202.html">QPcard
+
+
+
 
 
 
@@ -1308,17 +1347,21 @@ href="http://www.xrite.com/documents/apps/public/digital_colorchecker_sg_l_a_b.t
 
 
 
+
+
+
         header</a>, and appending <a href="SG_footer.txt">this footer</a>,
-      making sure there are no blank lines inserted in the process.
+      making sure there are no blank lines inserted in the process. Name
+      the resulting file <b>ColorCheckerSG.cie</b>.<br>
       There are reports that X-Rite have experimented with different ink
       formulations for certain patches, so the above reference may not
       be as accurate as desired, and it is preferable to measure your
       own chart using a spectrometer, if you have the capability.<br>
       If you do happen to have access to a more comprehensive instrument
       measurement of the ColorChecker SG, or you have measured it
-      yourself using a color instrument,<br>
-      then you <span style="text-decoration: underline;">may</span>
-      need to convert the reference information from spectral <span
+      yourself using chart reading software other than ArgyllCMS, then
+      you <span style="text-decoration: underline;">may</span> need to
+      convert the reference information from spectral only <span
         style="font-weight: bold;">ColorCheckerSG.txt</span> file to CIE
       value <span style="font-weight: bold;">ColorCheckerSG.cie</span>
       reference file, follow the following steps:<br>
@@ -1355,6 +1398,15 @@ href="http://www.xrite.com/documents/apps/public/digital_colorchecker_sg_l_a_b.t
       file should be used, and the cie reference <span
         style="font-weight: bold;"></span>files come with the chart.<br>
       <br>
+      For the Christophe Métairie's Digital Target-7 chart with 570
+      patches, the <span style="font-weight: bold;">ref/CMP_Digital_Target-7.cht</span>
+      file should be used, and the spectral .txt file should be
+      converted to a cie reference file:<br>
+      &nbsp;&nbsp;&nbsp; <a href="txt2ti3.html">txt2ti3</a>
+      DT7_XXXXX_Spectral.txt temp<br>
+      &nbsp;&nbsp;&nbsp; <a href="spec2cie.html">spec2cie</a> temp.ti3
+      DT7_XXXXX.cie<br>
+      <br>
       For the LaserSoft DCPro chart, the <span style="font-weight:
         bold;">ref/LaserSoftDCPro.cht</span> file should be used, and
       reference <span style="font-weight: bold;">.txt</span> file
@@ -1374,6 +1426,9 @@ href="http://www.xrite.com/documents/apps/public/digital_colorchecker_sg_l_a_b.t
       For the Datacolor SpyderCheckr, the <span style="font-weight:
         bold;">ref/SpyderChecker24.cht</span> file should be used, and a
       reference <span style="font-weight: bold;">ref/SpyderChecker24.cie
+
+
+
 
       </span>file made from measuring a sample chart is also available.
       Alternately you could create your own reference file by
@@ -1395,6 +1450,9 @@ href="http://www.xrite.com/documents/apps/public/digital_colorchecker_sg_l_a_b.t
     For any other type of chart, a chart recognition template file will
     need to be created (this is beyond the scope of the current
     documentation, although see&nbsp; the <a href="cht_format.html">.cht_format
+
+
+
 
 
 
@@ -1909,6 +1967,9 @@ href="http://www.xrite.com/documents/apps/public/digital_colorchecker_sg_l_a_b.t
 
 
 
+
+
+
         scanner or camera must be configured and used exactly the same
         as it was when it was profiled.</span></big><br>
     <br>
@@ -2061,6 +2122,9 @@ then
 
 
 
+
+
+
     it can save considerable processing time and space if the -b flag is
     used, and the -S flag not used.<br>
     <br>
@@ -2090,6 +2154,15 @@ then
       href="colprof.html#d">-dpp</a> options, leave them out, and
     evaluate what, if any appearance transformation is appropriate for
     your environment at a later stage.<br>
+    <br>
+    A fallback to using a specific source profile/gamut is to use a
+    general compression percentage as a gamut mapping:<br>
+    <br>
+    <a href="colprof.html">colprof</a> <a href="colprof.html#v">-v</a>
+    <a href="colprof.html#E">-D"Printer A"</a> <a href="colprof.html#q">-qm</a>
+    <a href="file:///D:/src/argyll/doc/colprof.html#S">-S</a><a
+      href="colprof.html#S"> 20</a> <a href="colprof.html#c">-cmt</a> <a
+      href="colprof.html#d">-dpp</a> <a href="colprof.html#p1">PrinterA</a><br>
     <br>
     Make sure you check the delta E report at the end of the profile
     creation, to see if the sample data and profile is behaving
@@ -2138,6 +2211,9 @@ then
     profile (using <a href="colprof.html#q">-ql</a> <a
       href="colprof.html#b">-b</a> <a href="colprof.html#ni">-no</a>, <a
       href="colprof.html#no">-ni</a> and no <a href="colprof.html#S">-S</a>),
+
+
+
 
 
 
@@ -2664,6 +2740,9 @@ chart,
 
 
 
+
+
+
     and/or to have it included in .ti3 file.<br>
     &nbsp;&nbsp;&nbsp; <a href="cctiff.html#p2">cctiff</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 To
@@ -2733,8 +2812,14 @@ an
 
 
 
+
+
+
     image file.<br>
     &nbsp;&nbsp;&nbsp; <a href="applycal.html#p1">applycal</a>&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
 
 
 
@@ -2863,6 +2948,9 @@ a
 
 
 
+
+
+
     profile chart.<br>
     <br>
     <br>
@@ -2910,20 +2998,16 @@ a
     <br>
     To apply color management and calibration to a raster image:<br>
     <br>
-    &nbsp;&nbsp;&nbsp; <a href="cctiff.html">cctiff</a>
-    <a href="cctiff.html#p1">Source.icm</a> <a
-      href="cctiff.html#p1">PrinterA.icm</a> <a
-      href="cctiff.html#p2">PrinterA_c.cal</a>
-    <a href="cctiff.html#p3">infile.tif</a> <a
-      href="cctiff.html#p4">outfile.tif</a><br>
+    &nbsp;&nbsp;&nbsp; <a href="cctiff.html">cctiff</a> <a
+      href="cctiff.html#p1">Source.icm</a> <a href="cctiff.html#p1">PrinterA.icm</a>
+    <a href="cctiff.html#p2">PrinterA_c.cal</a> <a
+      href="cctiff.html#p3">infile.tif</a> <a href="cctiff.html#p4">outfile.tif</a><br>
     <br>
     or<br>
     <br>
-    &nbsp;&nbsp;&nbsp; <a href="cctiff.html">cctiff</a>
-    <a href="cctiff.html#p1">Source.icm</a> <a
-      href="cctiff.html#p1">PrinterA_c.icm</a>
-    <a href="cctiff.html#p3">infile.tif</a> <a
-      href="cctiff.html#p4">outfile.tif</a><br>
+    &nbsp;&nbsp;&nbsp; <a href="cctiff.html">cctiff</a> <a
+      href="cctiff.html#p1">Source.icm</a> <a href="cctiff.html#p1">PrinterA_c.icm</a>
+    <a href="cctiff.html#p3">infile.tif</a> <a href="cctiff.html#p4">outfile.tif</a><br>
     <br>
     [ Note that cctiff will also process JPEG raster images. ]<br>
     <br>
@@ -3072,13 +3156,11 @@ a
       href="collink.html#Gp">image.gam</a> <a href="collink.html#si">-ip</a>
     <a href="collink.html#c">-cmt</a> <a href="collink.html#d">-dpp</a>
     <a href="collink.html#p1">ProPhoto.icm</a> <a
-      href="collink.html#p2">RGBDestinationProfile.icm</a>
-    <a href="collink.html#p3">Source2Destination.icm</a><br>
+      href="collink.html#p2">RGBDestinationProfile.icm</a> <a
+      href="collink.html#p3">Source2Destination.icm</a><br>
     <br>
-    <a href="cctiff.html">cctiff</a> <a
-      href="cctiff.html#p1">Source2Destination.icm</a>
-    <a href="cctiff.html#p3">image.tif</a> <a
-      href="cctiff.html#p4">printfile.tif</a><br>
+    <a href="cctiff.html">cctiff</a> <a href="cctiff.html#p1">Source2Destination.icm</a>
+    <a href="cctiff.html#p3">image.tif</a> <a href="cctiff.html#p4">printfile.tif</a><br>
     <br>
     The printfile.tif is then send to the printer without color
     management, (i.e. in the same way the printer characterization test
@@ -3213,6 +3295,9 @@ a
 
 
 
+
+
+
       madvr</b>" in dispcal, dispread and dispwin. Leave the MadTPG
     "VideoLUT" and "3dluts" buttons in their default&nbsp; (enabled)
     state, as the various tools will automatically take care of
@@ -3277,6 +3362,9 @@ a
 
 
 
+
+
+
         interactive adjustment mode can be used to set the white point.
         Note that while adjusting the neutral axis for neutrality may
         help, the Device Link will override the transfer curve
@@ -3299,6 +3387,9 @@ a
         taken, then the resulting calibration file should be provided to
         dispread as the <a href="dispcal.html#k">-k parameter</a> or <a
           href="dispcal.html#K">-K parameter</a>.&nbsp; See also below <b>Choice
+
+
+
 
 
 
@@ -3550,14 +3641,13 @@ a
       since it gives good results with a single parameter.<br>
     </p>
     <p>The addition of a second optional parameter <a
-        href="collink.html#Ib">-I b:p.p:g.g</a>
-      allows control over the degree of black point offset accounted for
-      as an output offset, as opposed to input offset Once the effective
-      gamma value has been chosen to suite the viewing conditions and
-      set the overall contrast for mid greys, increasing the proportion
-      of black offset accounted for in the output of the curve is a way
-      of reducing the deep shadow detail, if it is being overly
-      emphasized. </p>
+        href="collink.html#Ib">-I b:p.p:g.g</a> allows control over the
+      degree of black point offset accounted for as an output offset, as
+      opposed to input offset Once the effective gamma value has been
+      chosen to suite the viewing conditions and set the overall
+      contrast for mid greys, increasing the proportion of black offset
+      accounted for in the output of the curve is a way of reducing the
+      deep shadow detail, if it is being overly emphasized. </p>
     <p> An alternate approach to making this adjustment is to take
       advantage of the viewing conditions adjustment using the CIECAM02
       model available in collink. Some control over the degree of
@@ -3808,9 +3898,15 @@ a
 
 
 
+
+
+
         TV.cal </tt>EBU3213_PAL.icm TV.icm SD_PAL.icm</tt><tt><br>
     </tt><tt> </tt><tt><br>
     </tt><tt> &nbsp;&nbsp;&nbsp; collink -v -3m -et -Et -Ib -b -G -ir </tt><tt><tt>-H
+
+
+
 
 
 
@@ -3871,9 +3967,15 @@ a
 
 
 
+
+
+
         TV.cal </tt>EBU3213_PAL.icm TV.icm SD_PAL.icm</tt><tt><br>
     </tt><tt> </tt><tt><br>
     </tt><tt> &nbsp;&nbsp;&nbsp; collink -v -3m -et -Et -Ib -b -G -ir </tt><tt><tt>-a
+
+
+
 
 
 

@@ -1816,18 +1816,15 @@ static int xfit_fit(
 
 		icmAry2XYZ(_wp, p->wp);
 
-		/* Absolute->Aprox. Relative Adaptation matrix */
-		if (p->picc != NULL)
-			p->picc->chromAdaptMatrix(p->picc, ICM_CAM_NONE, icmD50, _wp, p->fromAbs);
-		else
-			icmChromAdaptMatrix(ICM_CAM_BRADFORD, icmD50, _wp, p->fromAbs);
-	
+		/* Absolute->Aprox. Relative Adaptation matrix and */
 		/* Aproximate relative to absolute conversion matrix */
-		if (p->picc != NULL)
-			p->picc->chromAdaptMatrix(p->picc, ICM_CAM_NONE, _wp, icmD50, p->toAbs);
-		else
+		if (p->picc != NULL) {
+			p->picc->chromAdaptMatrix(p->picc, ICM_CAM_NONE, p->toAbs, p->fromAbs, icmD50, _wp);
+		} else {
+			icmChromAdaptMatrix(ICM_CAM_BRADFORD, icmD50, _wp, p->fromAbs);
 			icmChromAdaptMatrix(ICM_CAM_BRADFORD, _wp, icmD50, p->toAbs);
-
+		}
+	
 		if (p->verb) {
 			double lab[3];
 			icmXYZ2Lab(&icmD50, lab, p->wp);
@@ -2664,7 +2661,7 @@ printf("~1 ipos[%d][%d] = %f\n",e,i,cv);
 			/* Matrix needed to correct approx rel wp to target D50 */
 			icmAry2XYZ(_wp, wcc.v);		/* Aprox relative target white point */
 			if (p->picc != NULL)	/* Correction */
-				p->picc->chromAdaptMatrix(p->picc, ICM_CAM_NONE, icmD50, _wp, p->cmat);
+				p->picc->chromAdaptMatrix(p->picc, ICM_CAM_NONE, NULL, p->cmat, icmD50, _wp);
 			else
 				icmChromAdaptMatrix(ICM_CAM_BRADFORD, icmD50, _wp, p->cmat);
 
@@ -2687,8 +2684,7 @@ printf("~1 ipos[%d][%d] = %f\n",e,i,cv);
 			/* Fix absolute conversions to leave absolute response unchanged. */
 			icmAry2XYZ(_wp, wp);		/* Actual white point */
 			if (p->picc != NULL) {
-				p->picc->chromAdaptMatrix(p->picc, ICM_CAM_NONE, icmD50, _wp, p->fromAbs);
-				p->picc->chromAdaptMatrix(p->picc, ICM_CAM_NONE, _wp, icmD50, p->toAbs);
+				p->picc->chromAdaptMatrix(p->picc, ICM_CAM_NONE, p->toAbs, p->fromAbs, icmD50, _wp);
 			} else {
 				icmChromAdaptMatrix(ICM_CAM_BRADFORD, icmD50, _wp, p->fromAbs);
 				icmChromAdaptMatrix(ICM_CAM_BRADFORD, _wp, icmD50, p->toAbs);

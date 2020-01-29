@@ -1,8 +1,11 @@
 
 /* 
- * Argyll Color Correction System
  * Calibration curve class.
+ */
+
+/*
  *
+ * Argyll Color Correction System
  * Author: Graeme W. Gill
  * Date:   30/10/2005
  *
@@ -26,10 +29,20 @@
 #include <sys/types.h>
 #include <time.h>
 #include <string.h>
+#ifndef SALONEINSTLIB
 #include "copyright.h"
 #include "aconfig.h"
 #include "numlib.h"
 #include "xicc.h"
+#else
+#include "sa_config.h"
+#include "numsup.h"
+#include "rspl1.h"
+#include "cgats.h"
+#include "sa_conv.h"
+#include "xcolorants.h"
+#include "xcal.h"
+#endif /* SALONEINSTLIB */
 
 #ifdef NT       /* You'd think there might be some standards.... */
 # ifndef __BORLANDC__
@@ -196,11 +209,14 @@ static int xcal_read_cgats(xcal *p, cgats *tcg, int table, char *filename) {
 	return 0;
 }
 
+#ifndef SALONEINSTLIB
+
 /* Read a calibration file from an ICC vcgt tag */
 /* Return nz if this fails */
 int xcal_read_icc(xcal *p, icc *c) {
 	icmVideoCardGamma *vg;
 	icmTextDescription *td;
+	icmText *tx;
 	int res, i, j;
 
 	/* See if there is a vcgt tag */
@@ -229,8 +245,8 @@ int xcal_read_icc(xcal *p, icc *c) {
 	if ((td = (icmTextDescription *)c->read_tag(c, icSigProfileDescriptionTag)) != NULL) {
 		p->xpi.profDesc = strdup(td->desc);
 	} 
-	if ((td = (icmTextDescription *)c->read_tag(c, icSigCopyrightTag)) != NULL) {
-		p->xpi.copyright = strdup(td->desc);
+	if ((tx = (icmText *)c->read_tag(c, icSigCopyrightTag)) != NULL) {
+		p->xpi.copyright = strdup(tx->data);
 	} 
 
 	/* Decide the lut resolution */
@@ -279,6 +295,8 @@ int xcal_read_icc(xcal *p, icc *c) {
 
 	return 0;
 }
+
+#endif /* !SALONEINSTLIB */
 
 /* Read a calibration file */
 /* Return nz if this fails */
@@ -342,7 +360,11 @@ static int xcal_write_cgats(xcal *p, cgats *tcg) {
 	else if (p->devclass == icSigDisplayClass)
 		tcg->add_kword(tcg, table, "DEVICE_CLASS","DISPLAY", NULL);
 	else {
+#ifdef SALONEINSTLIB
+		sprintf(p->err,"Unknown device class 0x%x",p->devclass);
+#else
 		sprintf(p->err,"Unknown device class '%s'",icm2str(icmProfileClassSignature,p->devclass));
+#endif
 		return p->errc = 1;
 	}
 
@@ -382,7 +404,7 @@ static int xcal_write_cgats(xcal *p, cgats *tcg) {
 		return p->errc = 2;
 	}
 
-	calres = p->cals[0]->g.res[0];
+	calres = p->cals[0]->get_res(p->cals[0])[0];
 
 	for (i = 0; i < calres; i++) {
 		double vv = i/(calres-1.0);
@@ -448,6 +470,8 @@ static void xcal_interp(xcal *p, double *out, double *in) {
 	}
 }
 
+#ifndef SALONEINSTLIB
+
 #define MAX_INVSOLN 10  /* Rspl maximum reverse solutions */
 
 /* Translate a value backwards through the curves. */
@@ -497,6 +521,8 @@ static int xcal_inv_interp(xcal *p, double *out, double *in) {
 	return rv;
 }
 
+#endif /* !SALONEINSTLIB */
+
 /* Translate a value through one of the curves */
 static double xcal_interp_ch(xcal *p, int ch, double in) {
 	co tp;
@@ -508,6 +534,8 @@ static double xcal_interp_ch(xcal *p, int ch, double in) {
 	p->cals[ch]->interp(p->cals[ch], &tp);
 	return tp.v[0];
 }
+
+#ifndef SALONEINSTLIB
 
 /* Translate a value backwards through one of the curves */
 /* Return -1.0 if the inversion fails */
@@ -522,7 +550,7 @@ static double xcal_inv_interp_ch(xcal *p, int ch, double in) {
 
 	pp[0].v[0] = in;
 
-	nsoln = p->cals[ch]->rev_interp (
+	nsoln = p->cals[ch]->rev_interp(
 		p->cals[ch],	 	/* this */
 		RSPL_NEARCLIP,		/* Clip to nearest (faster than vector) */
 		MAX_INVSOLN,		/* Maximum number of solutions allowed for */
@@ -552,6 +580,8 @@ static double xcal_inv_interp_ch(xcal *p, int ch, double in) {
 	}
 	return pp[k].p[0];
 }
+
+#endif /* !SALONEINSTLIB */
 
 /* Delete an xcal */
 static void xcal_del(xcal *p) {
@@ -583,14 +613,20 @@ xcal *new_xcal(void) {
 	/* Init method pointers */
 	p->del            = xcal_del;
 	p->read_cgats     = xcal_read_cgats;
+#ifndef SALONEINSTLIB
 	p->read_icc       = xcal_read_icc;
+#endif /* !SALONEINSTLIB */
 	p->read           = xcal_read;
 	p->write_cgats    = xcal_write_cgats;
 	p->write          = xcal_write;
 	p->interp         = xcal_interp;
+#ifndef SALONEINSTLIB
 	p->inv_interp     = xcal_inv_interp;
+#endif /* !SALONEINSTLIB */
 	p->interp_ch      = xcal_interp_ch;
+#ifndef SALONEINSTLIB
 	p->inv_interp_ch  = xcal_inv_interp_ch;
+#endif /* !SALONEINSTLIB */
 
 	return p;
 }

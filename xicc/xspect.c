@@ -42,6 +42,7 @@
 # include "plot.h"			/* For debugging */
 #else
 # include "numsup.h"
+# include "sa_conv.h"
 #endif
 #include "conv.h"
 #include "xspect.h"
@@ -291,7 +292,6 @@ static xspect il_D65 = {
 	}
 };
 
-#ifndef SALONEINSTLIB
 /* General temperature Daylight spectra (Using OLDER CIE 1960 u,v CCT) */
 /* 300 - 830nm ub 5nm intervals. */
 /* Fill in the given xspect with the specified daylight illuminant */
@@ -510,8 +510,6 @@ static int daylight_il(xspect *sp, double ct) {
 
 	return 0;
 }
-
-#endif /* !SALONEINSTLIB */
 
 /* General temperature Planckian (black body) spectra using CIE 15:2004 */
 /* Fill in the given xspect with the specified Planckian illuminant */
@@ -744,11 +742,11 @@ double temp					/* Optional temperature in degrees kelvin, for Dtemp and Ptemp *
 		case icxIT_Spectrocam:
 			*sp = il_Spectrocam;
 			return 0;
+#endif 
 		case icxIT_ODtemp:
 			return daylight_old_il(sp, temp);
 		case icxIT_Dtemp:
 			return daylight_il(sp, temp);
-#endif 
 		case icxIT_OPtemp:
 			return planckian_old_il(sp, temp);
 		case icxIT_Ptemp:
@@ -3819,10 +3817,37 @@ static xspect FWA1_emit = {
 #endif /* STOCKFWA */
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+/* Return a string describing the inst_meas_type */
+char *meas_type2str(inst_meas_type mt) {
+
+	switch (mt) {
+		case inst_mrt_none:
+			return "None";
+		case inst_mrt_emission:
+			return "Emission";
+		case inst_mrt_ambient:
+			return "Ambient";
+		case inst_mrt_emission_flash:
+			return "Emission Flash";
+		case inst_mrt_ambient_flash:
+			return "Ambient Flash";
+		case inst_mrt_reflective:
+			return "Reflective";
+		case inst_mrt_transmissive:
+			return "Transmissive";
+		case inst_mrt_sensitivity:
+			return "Sensitivity";
+		case inst_mrt_frequency:
+			return "Frequency";
+	}
+	return "Unknown";
+}
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 /* save a set of spectrum to a CGATS file */
 /* type 0 = SPECT, 1 = CMF */
 /* Return NZ on error */
-int write_nxspect(char *fname, xspect *sp, int nspec, int type) {
+int write_nxspect(char *fname, inst_meas_type mt, xspect *sp, int nspec, int type) {
 	char buf[100];
 	time_t clk = time(0);
 	struct tm *tsp = localtime(&clk);
@@ -3843,6 +3868,33 @@ int write_nxspect(char *fname, xspect *sp, int nspec, int type) {
 	ocg->add_kword(ocg, 0, "ORIGINATOR", "Argyll CMS", NULL);
 	atm[strlen(atm)-1] = '\000';	/* Remove \n from end */
 	ocg->add_kword(ocg, 0, "CREATED",atm, NULL);
+
+	if (mt != inst_mrt_none) {
+		char *tag = NULL;
+		switch (mt) {
+			case inst_mrt_emission:
+				tag = "EMISSION";	break;
+			case inst_mrt_ambient:
+				tag = "AMBIENT";	break;
+			case inst_mrt_emission_flash:
+				tag = "EMISSION_FLASH";	break;
+			case inst_mrt_ambient_flash:
+				tag = "AMBIENT_FLASH";	break;
+			case inst_mrt_reflective:
+				tag = "REFLECTIVE";	break;
+			case inst_mrt_transmissive:
+				tag = "TRANSMISSIVE";	break;
+			case inst_mrt_sensitivity:
+				tag = "SENSITIVITY";	break;
+			default:
+				break;
+		}
+		if (tag != NULL)
+			ocg->add_kword(ocg, 0, "MEAS_TYPE",tag, NULL);
+	}
+
+	sprintf(buf,"%d", sp->spec_n);
+	ocg->add_kword(ocg, 0, "SPECTRAL_BANDS",buf, NULL);
 
 	sprintf(buf,"%d", sp->spec_n);
 	ocg->add_kword(ocg, 0, "SPECTRAL_BANDS",buf, NULL);
@@ -3889,13 +3941,14 @@ int write_nxspect(char *fname, xspect *sp, int nspec, int type) {
 }
 
 /* Restore a set of spectrum from a CGATS file. */
-/* Up to nspec will be restored starting at offset off.. */
+/* Up to nspec will be restored starting at offset off. */
 /* The number restored from the file will be written to *nret */
-/* type: 0 = any, mask: 1 = SPECT, 2 = CMF, 4 = ccss */
+/* File type: 0 = any, mask: 1 = SPECT, 2 = CMF, 4 = ccss */
 /* (Note that not all ccss information is read. Use ccss->read_ccss() for this. */
 /* Return NZ on error */
 /* (Would be nice to return an error message!) */
-int read_nxspect(xspect *sp, char *fname, int *nret, int off, int nspec, int type) {
+int read_nxspect(xspect *sp, inst_meas_type *mt, char *fname,
+                 int *nret, int off, int nspec, int type) {
 	cgats *icg;				/* input cgats structure */
 	char buf[100];
 	int sflds[XSPECT_MAX_BANDS];
@@ -3929,6 +3982,26 @@ int read_nxspect(xspect *sp, char *fname, int *nret, int off, int nspec, int typ
 		DBG("Input file doesn't contain exactly one table\n");
 		icg->del(icg);
 		return 1;
+	}
+
+	if (mt != NULL && (ii = icg->find_kword(icg, 0, "MEAS_TYPE")) >= 0) {
+		
+		if (strcmp(icg->t[0].kdata[ii], "EMISSION") == 0)
+			*mt = inst_mrt_emission;
+		else if (strcmp(icg->t[0].kdata[ii], "AMBIENT") == 0)
+			*mt = inst_mrt_ambient;
+		else if (strcmp(icg->t[0].kdata[ii], "EMISSION_FLASH") == 0)
+			*mt = inst_mrt_emission_flash;
+		else if (strcmp(icg->t[0].kdata[ii], "AMBIENT_FLASH") == 0)
+			*mt = inst_mrt_ambient_flash;
+		else if (strcmp(icg->t[0].kdata[ii], "REFLECTIVE") == 0)
+			*mt = inst_mrt_reflective;
+		else if (strcmp(icg->t[0].kdata[ii], "TRANSMISSIVE") == 0)
+			*mt = inst_mrt_transmissive;
+		else if (strcmp(icg->t[0].kdata[ii], "SENSITIVITY") == 0)
+			*mt = inst_mrt_sensitivity;
+		else
+			*mt = inst_mrt_none;
 	}
 
 	if ((ii = icg->find_kword(icg, 0, "SPECTRAL_BANDS")) < 0) {
@@ -3980,12 +4053,12 @@ int read_nxspect(xspect *sp, char *fname, int *nret, int off, int nspec, int typ
 	}
 
 	/* Read all the spectra */
-	for (j = off; j < nspec && j < icg->t[0].nsets; j++) {
+	for (j = off; j < (off + nspec) && j < icg->t[0].nsets; j++) {
 
-		XSPECT_COPY_INFO(&sp[j], &proto);
+		XSPECT_COPY_INFO(&sp[j-off], &proto);
 
 		for (i = 0; i < proto.spec_n; i++) {
-			sp[j].spec[i] = *((double *)icg->t[0].fdata[j][sflds[i]]);
+			sp[j-off].spec[i] = *((double *)icg->t[0].fdata[j][sflds[i]]);
 		}
 	}
 	if (nret != NULL)
@@ -4000,17 +4073,17 @@ int read_nxspect(xspect *sp, char *fname, int *nret, int off, int nspec, int typ
 
 /* save a spectrum to a CGATS file */
 /* Return NZ on error */
-int write_xspect(char *fname, xspect *sp) {
-	return write_nxspect(fname, sp, 1, 0);
+int write_xspect(char *fname, inst_meas_type mt, xspect *sp) {
+	return write_nxspect(fname, mt, sp, 1, 0);
 }
 
 /* restore a spectrum from a CGATS file */
 /* Return NZ on error */
 /* (Would be nice to return an error message!) */
-int read_xspect(xspect *sp, char *fname) {
+int read_xspect(xspect *sp, inst_meas_type *mt, char *fname) {
 	int rv, nret;
 
-	if ((rv = read_nxspect(sp, fname, &nret, 0, 1, 1)) != 0)
+	if ((rv = read_nxspect(sp, mt, fname, &nret, 0, 1, 1)) != 0)
 		return rv;
 	if (nret != 1) {
 		DBG("Didn't read one spectra\n");
@@ -4024,18 +4097,24 @@ int read_xspect(xspect *sp, char *fname) {
 /* save a set of 3 spectrum to a CGATS CMF file */
 /* Return NZ on error */
 int write_cmf(char *fname, xspect sp[3]) {
-	return write_nxspect(fname, sp, 3, 1);
+	return write_nxspect(fname, inst_mrt_sensitivity, sp, 3, 1);
 }
 
 /* restore a spectrum from a CGATS file */
 /* Return NZ on error */
 /* (Would be nice to return an error message!) */
 int read_cmf(xspect sp[3], char *fname) {
+	inst_meas_type mt;
 	int rv, nret;
 
-	if ((rv = read_nxspect(sp, fname, &nret, 0, 3, 2)) != 0) {
+	/* Hmm. Should we check inst_meas_type is none || sensitivity ? */
+	if ((rv = read_nxspect(sp, &mt, fname, &nret, 0, 3, 2)) != 0) {
 		DBG("read_nxspect failed\n");
 		return rv;
+	}
+	if (mt != inst_mrt_none && mt != inst_mrt_sensitivity) {
+		DBG("read_nxspect - wrong measurement type\n");
+		return 1;
 	}
 	if (nret != 3) {
 		DBG("Didn't read three spectra\n");
@@ -4050,7 +4129,7 @@ int read_cmf(xspect sp[3], char *fname) {
 
 
 /* Get a raw 3rd order polinomial interpolated spectrum value. */
-/* Return NZ if value is valid, Z and last valid value */
+/* Return NZ if value is valid, Z and xtrapolated value */
 /* if outside the range */
 /* NOTE: Returned value isn't normalised by sp->norm */ 
 static int getval_raw_xspec_poly3(xspect *sp, double *rv, double xw) {
@@ -4072,32 +4151,28 @@ static int getval_raw_xspec_poly3(xspect *sp, double *rv, double xw) {
 		rc = 0;
 	}
 
-	/* Compute fraction 0.0 - 1.0 out of known spectrum */
+	/* Compute fraction 0.0 - 1.0 out of known spectrum. */
+	/* Place it so that the target wavelength lands in middle section */
+	/* of Lagrange basis points. */
 	spcing = (sp->spec_wl_long - sp->spec_wl_short)/(sp->spec_n-1.0);
 	f = (xw - sp->spec_wl_short) / (sp->spec_wl_long - sp->spec_wl_short);
 	f *= (sp->spec_n - 1.0);
 	i = (int)floor(f);			/* Base grid coordinate */
 
-	if (i < 0)					/* Limit to valid cube base index range */
-		i = 0;
-	else if (i > (sp->spec_n - 2))
-		i = (sp->spec_n - 2);
+	if (i < 1)					/* Limit to valid Lagrange basis index range, */
+		i = 1;					/* and extrapolate from that at ends. */
+	else if (i > (sp->spec_n - 3))
+		i = (sp->spec_n - 3);
 
 	/* Setup the surrounding values */
 	x[0] = sp->spec_wl_short + (i-1) * spcing;
-	if (i == 0)
-		y[0] = sp->spec[i];
-	else
-		y[0] = sp->spec[i-1];
+	y[0] = sp->spec[i-1];
 	x[1] = sp->spec_wl_short + i * spcing;
 	y[1] = sp->spec[i];
 	x[2] = sp->spec_wl_short + (i+1) * spcing;
 	y[2] = sp->spec[i+1];
 	x[3] = sp->spec_wl_short + (i+2) * spcing;
-	if ((i+2) < sp->spec_n)
-		y[3] = sp->spec[i+2];
-	else
-		y[3] = sp->spec[i+1];
+	y[3] = sp->spec[i+2];
 
 #ifndef NEVER
 	/* Compute interpolated value using Lagrange: */
@@ -4346,13 +4421,14 @@ void xspect2xspect(xspect *dst, xspect *targ, xspect *src) {
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 /* Plot up to 3 spectra */
-void xspect_plot(xspect *sp1, xspect *sp2, xspect *sp3) {
-	double xx[XSPECT_MAX_BANDS];
-	double y1[XSPECT_MAX_BANDS];
-	double y2[XSPECT_MAX_BANDS];
-	double y3[XSPECT_MAX_BANDS];
+void xspect_plot_w(xspect *sp1, xspect *sp2, xspect *sp3, int wait) {
+	static double xx[XSPECT_MAX_BANDS];
+	static double y1[XSPECT_MAX_BANDS];
+	static double y2[XSPECT_MAX_BANDS];
+	static double y3[XSPECT_MAX_BANDS];
 	int j;
 	double wl, wlshort, wllong;
+	double ymax = 0.0;
 
 	if (sp1 == NULL)
 		return;
@@ -4384,14 +4460,28 @@ void xspect_plot(xspect *sp1, xspect *sp2, xspect *sp3) {
 #endif
 		xx[j] = wl;
 		y1[j] = value_xspect(sp1, wl);
-		if (sp2 != NULL)
+		if (y1[j] > ymax)
+			ymax = y1[j];
+		if (sp2 != NULL) {
 			y2[j] = value_xspect(sp2, wl);
-		if (sp3 != NULL)
+			if (y2[j] > ymax)
+				ymax = y2[j];
+		}
+		if (sp3 != NULL) {
 			y3[j] = value_xspect(sp3, wl);
+			if (y3[j] > ymax)
+				ymax = y3[j];
+		}
 	}
-	do_plot(xx, y1, sp2 != NULL ? y2 : NULL, sp3 != NULL ? y3 : NULL, j);
+//	do_plot(xx, y1, sp2 != NULL ? y2 : NULL, sp3 != NULL ? y3 : NULL, j);
+	do_plot_x(xx, y1, sp2 != NULL ? y2 : NULL, sp3 != NULL ? y3 : NULL, j, 
+	                                    wait, 0.0,  -1.0,  0.0, ymax, 1.0);
 }
 
+/* Plot up to 3 spectra & wait for key */
+void xspect_plot(xspect *sp1, xspect *sp2, xspect *sp3) {
+	xspect_plot_w(sp1, sp2, sp3, 1);
+}
 
 /* Plot up to 10 spectra */
 void xspect_plot10(xspect *sp, int n) {
@@ -5644,12 +5734,10 @@ xspect *in			/* Spectrum to be converted */
 #endif /* CLAMP_XYZ */
 	}
 
-#ifndef SALONEINSTLIB
 	/* If Lab is target, convert to D50 Lab */
 	if (p->doLab) {
 		icmXYZ2Lab(&icmD50, out, out);
 	}
-#endif /* !SALONEINSTLIB */
 
 	if (sout != NULL) {
 		*sout = *in;	/* Structure copy */
@@ -5682,9 +5770,9 @@ xsp2cie *p
 /* Create and return a new spectral conversion object */
 xsp2cie *new_xsp2cie(
 icxIllumeType ilType,			/* Illuminant */
-xspect        *custIllum,		/* Optional custom illuminant */
+xspect        *custIllum,		/* Custom illuminant if ilType == icxIT_custom */
 icxObserverType obType,			/* Observer */
-xspect        custObserver[3],	/* Optional custom observer */
+xspect        custObserver[3],	/* Custom observer if obType == icxOT_custom */
 icColorSpaceSignature  rcs,		/* Return color space, icSigXYZData or D50 icSigLabData */
 								/* ** Must be icSigXYZData if SALONEINSTLIB ** */
 icxClamping clamp				/* NZ to clamp XYZ/Lab to be +ve */
@@ -7781,6 +7869,7 @@ int viscct				/* nz to use visual CIEDE2000, 0 to use CCT CIE 1960 UCS. */
 /* An observer type can be chosen for interpretting the spectrum of the input and */
 /* the illuminant. */
 /* Return -1.0 on erorr */
+/* (Faster, slightly less accurate version of icx_XYZ2ill_ct()) */
 double icx_XYZ2ill_ct2(
 double txyz[3],			/* If not NULL, return the XYZ of the locus temperature */
 icxIllumeType ilType,	/* Type of illuminant, icxIT_[O]Dtemp or icxIT_[O]Ptemp */
@@ -7828,6 +7917,7 @@ int viscct				/* nz to use visual CIEDE2000, 0 to use CCT CIE 1960 UCS. */
 /* An observer type can be chosen for interpretting the spectrum of the input and */
 /* the illuminant. */
 /* Return xyz[0] = -1.0 on erorr */
+/* (Faster, slightly less accrurate alternative to standardIlluminant()) */
 void icx_ill_ct2XYZ(
 double xyz[3],			/* Return the XYZ value */
 icxIllumeType ilType,	/* Type of illuminant, icxIT_[O]Dtemp or icxIT_[O]Ptemp */
@@ -8780,9 +8870,44 @@ double ct				/* Input temperature in degrees K */
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
+/* Given a reflectance/transmittance spectrum, */
+/* an illuminant definition and an observer model, return */
+/* the XYZ value for that spectrum. */
+/* Return 0 on sucess, 1 on error */
+/* (One shot version of xsp2cie etc.) */
+int icx_sp2XYZ(
+double xyz[3],			/* Return XYZ value */
+icxObserverType obType,	/* Observer */
+xspect custObserver[3],	/* Optional custom observer */
+icxIllumeType ilType,	/* Type of illuminant, icxIT_[O]Dtemp or icxIT_[O]Ptemp */
+double ct,				/* Input temperature in degrees K */
+xspect *custIllum,		/* Optional custom illuminant */
+xspect *sp				/* Spectrum to be converted */
+) {
+	xspect ill;			/* Xspect to fill in */
+	xsp2cie *conv;		/* Means of converting spectrum to XYZ */
+
+	if (ilType == icxIT_custom)
+		ill = *custIllum;
+	else if (standardIlluminant(&ill, ilType, ct) != 0)
+		return 1;
+
+	if ((conv = new_xsp2cie(icxIT_custom, &ill, obType, custObserver, icSigXYZData, 1)) == NULL)
+		return 1;
+
+	conv->convert(conv, xyz, sp);
+
+	conv->del(conv);
+
+	return 0;
+}
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
 /* Given an illuminant definition and an observer model, return */
 /* the normalised XYZ value for that spectrum. */
 /* Return 0 on sucess, 1 on error */
+/* (One shot version of xsp2cie etc.) */
 int icx_ill_sp2XYZ(
 double xyz[3],			/* Return XYZ value with Y == 1 */
 icxObserverType obType,	/* Observer */
@@ -8816,9 +8941,9 @@ xspect *custIllum		/* Optional custom illuminant */
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - */
 /* Aproximate CCT using polinomial. No good < 3000K */
-/* Use this for sanity check  */
 #ifdef NEVER
-static double aprox_CCT(double xyz[3]) {
+/* Hernndez-Andrs, Lee & Romero exponential approximation (more fragile) */
+static double aprox_CCT_Yxy(double Yxy[3]) {
 	double xe = 0.3366;
 	double ye = 0.1735;
 	double A0 = -949.86315;
@@ -8828,28 +8953,61 @@ static double aprox_CCT(double xyz[3]) {
 	double t2 = 0.20039;
 	double A3 = 0.00004;
 	double t3 = 0.07125;
-	double Yxy[3];
 	double n;
 	double cct;
 
-	icmXYZ2Yxy(Yxy, xyz);
 	n = (Yxy[1] - xe)/(Yxy[2] - ye); 
 	cct = A0 + A1 * exp(-n/t1) + A2 * exp(-n/t2) + A3 * exp(-n/t3);
 
 	return cct;
 }
 #else
-static double aprox_CCT(double xyz[3]) {
-	double Yxy[3];
+/* McCamy's cubic approximation: (more robust) */
+static double aprox_CCT_Yxy(double Yxy[3]) {
 	double n;
 	double cct;
 
-	icmXYZ2Yxy(Yxy, xyz);
 	n = (Yxy[1] - 0.3320)/(Yxy[2] - 0.1858); 
 	cct = -449.0 * n * n * n + 3525.0 * n * n - 6823.3 * n + 5520.33;
 	return cct;
 }
 #endif
+
+double aprox_CCT(double xyz[3]) {
+	double Yxy[3];
+
+	icmXYZ2Yxy(Yxy, xyz);
+
+	return aprox_CCT_Yxy(Yxy);
+}
+
+/* Aproximate x,y from CCT using Kim et al's cubic spline. */
+/* Invalid < 1667 and > 25000 */
+/* (Doesn't set Yxy[0]) */
+void aprox_plankian(double Yxy[3], double ct) {
+	double t1 = 1e3/ct; 
+	double t2 = t1 * t1;
+	double t3 = t2 * t1;
+	double xc, xc2, xc3, yc;
+
+	if (ct <= 4000.0)
+		xc = -0.2661239 * t3 - 0.2343580 * t2 + 0.8776956 * t1 + 0.179910;
+	else
+		xc = -3.0258469 * t3 + 2.1070379 * t2 + 0.2226347 * t2 + 0.240390; 
+
+	xc2 = xc * xc;
+	xc3 = xc2 * xc;
+
+	if (ct <= 2222.0)
+		yc = -1.1063814 * xc3 - 1.34811020 * xc2 + 2.18555832 * xc - 0.20219683;
+	else if (ct <= 4000.0)
+		yc = -0.9549476 * xc3 - 1.37418593 * xc2 + 2.09137015 * xc - 0.16748867;
+	else
+		yc = 3.0817580 * xc3 - 5.87338670 * xc2 + 3.75112997 * xc - 0.37001483;
+
+	Yxy[1] = xc;
+	Yxy[2] = yc;
+}
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - */
 /* Full precision CCT */

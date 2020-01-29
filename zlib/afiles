@@ -42,7 +42,6 @@ zlib.3.pdf
 zlib.h
 zlib.map
 zlib.pc.in
-zlib125.zip
 zlib2ansi
 zutil.c
 zutil.h

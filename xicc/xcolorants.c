@@ -2,7 +2,9 @@
 /* 
  * International Color Consortium color transform expanded support
  * Known colorants support.
- *
+ */
+
+/*
  * Author:  Graeme W. Gill
  * Date:    24/2/2002
  * Version: 1.00
@@ -24,7 +26,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#ifndef SALONEINSTLIB
 #include "icc.h"
+#else
+#include "numsup.h"
+#include "sa_conv.h"
+#endif
 #include "xcolorants.h"
 #include "sort.h"
 
@@ -126,6 +133,10 @@ static struct {
 	                                                    "CMYK + Red + Blue" },
 	{ ICX_CMYKOG,     ICX_W,           icSig6colorData, icSigMch6Data,
 	                                                    "CMYK + Orange + Green" },
+	{ ICX_CMYKRGB,    ICX_W,           icSig7colorData, icSigMch7Data,
+	                                                    "CMYK + Red + Green + Blue" },
+	{ ICX_CMYKOGB,    ICX_W,           icSig7colorData, icSigMch7Data,
+	                                                    "CMYK + Orange + Green + Blue" },
 	{ ICX_CMYKcmk1k,  ICX_CMYK,        icSig8colorData, icSigMch8Data,
 	                                                    "CMYK + Light CMK + Light Light K" },
 	{ ICX_CMYKOGcm,   ICX_CMYKOG,      icSig8colorData, icSigMch8Data,
@@ -608,7 +619,6 @@ inkmask mask			/* Colorant combination mask */
 	}
 	return 0;
 }
-
 
 
 /* - - - - - - - - - - - - - - - - - */

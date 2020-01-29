@@ -73,11 +73,11 @@ WINSHLWAPI LPWSTR WINAPI PathFindFileNameW(LPCWSTR);
 
 #endif /* NT */
 
-#ifdef __APPLE__	/* Assume OS X Cocoa */
+#ifdef UNIX_APPLE	/* Assume OS X Cocoa */
 
 #include <Carbon/Carbon.h>		/* To declare CGDirectDisplayID  */
 
-#endif /* __APPLE__ */
+#endif /* UNIX_APPLE */
 
 #if defined(UNIX_X11)
 #include <X11/Xlib.h>
@@ -114,9 +114,9 @@ typedef struct {
 	char monid[128];	/* Monitor ID */
 	int prim;			/* NZ if primary display monitor */
 #endif /* NT */
-#ifdef __APPLE__
+#ifdef UNIX_APPLE
 	CGDirectDisplayID ddid;
-#endif /* __APPLE__ */
+#endif /* UNIX_APPLE */
 #if defined(UNIX_X11)
 	int screen;				/* Screen to select */
 	int uscreen;			/* Underlying screen */
@@ -158,9 +158,17 @@ struct _ramdac {
 	/* Should have separate frame buffer depth + representation to account */
 	/* for floating point frame buffers, even though this isn't currently used. */
 
-	int pdepth;		/* Frame buffer depth into RAMDAC, usually 8 */
-	int nent;		/* Number of entries, =  2^pdepth */
-	double *v[3];	/* 2^pdepth entries for RGB, values 0.0 - 1.0 */
+	int fdepth;		/* Frame buffer depth, typically 8, could be more. */
+	int rdepth;		/* Expected ramdac index depth. May be different to fdepth */
+					/* if there is another level of mapping between the frame buffer */
+					/* and ramdac, i.e. X11 DirectorColor Colormap. */
+
+	int ndepth;		/* Actual ramdac depth, typically = rdepth */
+	int nent;		/* Number of entries, = 2^ndepth, typically = 2^rdepth, */
+					/* but may be different for some video cards. */
+					/* Will be 0 if ramdac is not accessible */
+					
+	double *v[3];	/* nent entries for RGB, values 0.0 - 1.0 */
 
 	/* Clone ourselves */
 	struct _ramdac *(*clone)(struct _ramdac *p);
@@ -255,12 +263,12 @@ struct _dispwin {
 
 #endif /* NT */
 
-#ifdef __APPLE__
+#ifdef UNIX_APPLE
 	CGDirectDisplayID ddid;
 	void *osx_cntx;			/* OSX specific info */	
 	int btf;				/* Flag, nz if window has been brought to the front once */
 	int winclose;			/* Flag, set to nz if window was closed */
-#endif /* __APPLE__ */
+#endif /* UNIX_APPLE */
 
 #if defined(UNIX_X11)
 	Display *mydisplay;
@@ -270,6 +278,9 @@ struct _dispwin {
 	Atom icc_atom;			/* ICC profile root atom for this display */
 	unsigned char *edid;	/* 128 or 256 bytes of monitor EDID, NULL if none */
 	int edid_len;			/* 128 or 256 */
+
+	int shift[3];			/* Bit shift to create RGB value from components */
+	int *rmap[3];			/* Map of fdepth to rdepth values */
 
 #if RANDR_MAJOR == 1 && RANDR_MINOR >= 2
 	/* Xrandr stuff - output is connected 1:1 to a display */
@@ -308,10 +319,21 @@ struct _dispwin {
 	volatile int cberror;		/* NZ if error detected in a callback routine */
 	int ddebug;					/* >0 to print debug to stderr */
 
+	int warned;		/* Warning message has been issued */
+
 /* public: */
-	int pdepth;		/* Frame buffer plane depth of display */
-	int edepth;		/* Notional ramdac entry size in bits. (Bits actually used may be less) */
-					/* This is used to scale out_tvenc appropriately */
+	int fdepth;		/* Frame buffer depth, typically 8, could be more */
+	int rdepth;		/* Expected ramdac index depth. May be different to fdepth */
+					/* if there is another level of mapping between the frame buffer */
+					/* and ramdac, i.e. X11 DirectorColor Colormap. */
+
+	int ndepth;		/* Actual ramdac depth, typically = rdepth */
+	int nent;		/* Number of entries, = s^ndepth, typically = 2^rdepth, */
+					/* but may be different for some video cards. */
+					/* Will be 0 if ramdac is not accessible */
+					
+	int edepth;		/* Notional frame buffer/ramdac entry size in bits. (Bits actually used  */
+					/* may be less). This is just used to scale out_tvenc appropriately. */
 
 	/* Get RAMDAC values. ->del() when finished. */
 	/* Return NULL if not possible */

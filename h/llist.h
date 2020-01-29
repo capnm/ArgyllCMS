@@ -1,9 +1,13 @@
-/* A set of linked list utilities, implimented as macros. */
+/* A set of doubly linked list utilities, implimented as macros. */
 /* Copyright 1995, 2000 Graeme W. Gill */
 
 #ifndef _LLIST_H_
 
-/* A link list structure */
+#ifdef __cplusplus
+	extern "C" {
+#endif
+
+/* A doubly link list structure */
 #define LINKSTRUCT(obj) \
 struct {				\
 	obj   *fwd;			/* Forward link */		\
@@ -86,6 +90,10 @@ struct {				\
 /* test if the given object is the only one */
 #define IS_ONE_ITEM(objp) \
 	((objp) == (objp)->_llistp.fwd)
+
+#ifdef __cplusplus
+	}
+#endif
 
 #define _LLIST_H_
 #endif /* _LLIST_H_ */

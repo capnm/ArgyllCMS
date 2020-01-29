@@ -1,3 +1,5 @@
+#ifndef _TIF_CONFIG_H_
+#define _TIF_CONFIG_H_
 
 /* We're using win32 file i/o because it works */
 #define USE_WIN32_FILEIO
@@ -33,11 +35,40 @@
 /* Define to 1 if you have the `setmode' function. */
 #define HAVE_SETMODE 1
 
+/* Define to 1 if you have the declaration of `optarg', and to 0 if you don't. */
+#define HAVE_DECL_OPTARG 0
+
 /* The size of a `int', as computed by sizeof. */
 #define SIZEOF_INT 4
 
 /* The size of a `long', as computed by sizeof. */
 #define SIZEOF_LONG 4
+
+#ifdef _WIN64
+
+/*
+  Windows 64-bit build
+*/
+
+/* Unsigned size type */
+#  define TIFF_SIZE_T TIFF_UINT64_T
+
+/* Size type formatter */
+#  define TIFF_SIZE_FORMAT TIFF_INT64_FORMAT
+
+#else
+
+/*
+  Windows 32-bit build
+*/
+
+/* Unsigned size type */
+#  define TIFF_SIZE_T TIFF_UINT64_T
+
+/* Size type formatter */
+#  define TIFF_SIZE_FORMAT "%u"
+
+#endif
 
 /* Set the native cpu bit order */
 #define HOST_FILLORDER FILLORDER_LSB2MSB
@@ -64,6 +95,10 @@
 #endif
 
 #define lfind _lfind
+
+#pragma warning(disable : 4996) /* function deprecation warnings */
+
+#endif /* _TIF_CONFIG_H_ */
 /*
  * Local Variables:
  * mode: c

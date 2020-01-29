@@ -42,8 +42,8 @@
 #include "cast_channel.pb-c.h"
 #include "ccmes.h"
 
-#undef LOWVERBTRACE		/* Low verboseness message trace */
-#undef DEBUG			/* Full message trace + debug */
+#undef LOWVERBTRACE		/* [und] Low verboseness message trace */
+#undef DEBUG			/* [und] Full message trace + debug */
 
 /* ------------------------------------------------------------------- */
 
@@ -115,7 +115,7 @@ static void mes_dump(ccmes *mes, char *pfx) {
 		/* Would like to pretty print the JSON data */
 		/* ie. convert json_reformat.c to a function */
 #ifdef DEBUG
-		a1logd(g_log,0,"  %d bytes of text data:\n",strlen(mes->data));
+		a1logd(g_log,0,"  %d bytes of text data:\n",strlen((char *)mes->data));
 		a1logd(g_log,0,"  '%s'\n",mes->data);
 #else
 		yajl_val tnode, v, i;

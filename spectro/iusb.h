@@ -10,6 +10,10 @@
  * see the License2.txt file for licencing details.
  */
 
+#ifdef __cplusplus
+	extern "C" {
+#endif
+
 /* Device and/or Interface Class codes */
 #define IUSB_CLASS_PER_INTERFACE     0x00    /* for DeviceClass */
 #define IUSB_CLASS_AUDIO             0x01
@@ -126,6 +130,10 @@
 #define IUSB_DEVICE_STATUS_SELFPWR        0x0001
 #define IUSB_DEVICE_STATUS_REMOTE_WAKEUP  0x0002
 #define IUSB_ENDPOINT_STATUS_HALT         0x0001
+
+#ifdef __cplusplus
+	}
+#endif
 
 #define _IUSB_H_
 #endif /* _IUSB_H_ */

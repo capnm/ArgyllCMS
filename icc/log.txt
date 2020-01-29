@@ -1,6 +1,10 @@
 
  Change History: (See ArgyllCMS log.txt too)
 
+ 2.21
+	Automatically repair icmTextDescription strings have an allocation that is longer
+	than their size.
+
  2.20
    Add better cross compatibility with non-Argyll ICC profiles:
    + Use "wrong Von Kries" media white point adapation for non-Argyll non-display profile

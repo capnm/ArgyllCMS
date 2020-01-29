@@ -23,8 +23,12 @@
  *	There is a general expectation (especially in comparing products)
  *  that the profile colorimetric intent be not strictly minimum delta E,
  *  but that it correct neutral axis, luminence range and keep hue
- *  proportionality. Ideally there should be an intent that matches
+ *  proportionality (i.e. clip with constant Hue and Luminance).
+ *  Ideally there should be an intent that matches
  *  this, that can be selected for the colorimetric table (or perhaps be default).
+ *  !! Maybe even the normal perceptual gamut mapping should use a !!
+ *  !! Hue and Luminance preserving clipping ? Should this be the default !!
+ *  !! for all inverse lookups ?? !!
  *
  *	It might be good to offer the black mapping method as an option (icx_BPmap),
  *  as well as offering different profile (xicc/xlut.c) black point options
@@ -37,7 +41,7 @@
  *  messing up the guide vector mappings. Even if this is fixed, the
  *  actual neutral aim point within nearsmooth is Jab 0,0, while
  *  the mapping in gammap is from the source neutral to the chosen
- *  ??????
+ *  ?????? (is this fixed to some degree ?)
  */
 
 
@@ -519,10 +523,12 @@ static void map_trans(void *cntx, double out[3], double in[3]);
 /* Return NULL on error. */
 gammap *new_gammap(
 	int verb,			/* Verbose flag */
-	gamut *sc_gam,		/* Source colorspace gamut */
+	gamut *sc_gam,		/* Source colorspace gamut (L gamut if sh_gam != NULL) */
 	gamut *isi_gam,		/* Input source image gamut (NULL if none) */
 	gamut *d_gam,		/* Destination colorspace gamut */
 	icxGMappingIntent *gmi,	/* Gamut mapping specification */
+	gamut *sh_gam,		/* If not NULL, then use sc_gam for the luminence */
+						/* mapping, and sh_gam for the hull mapping (i.e. general compression) */
 	int src_kbp,		/* Use K only black point as src gamut black point */
 	int dst_kbp,		/* Use K only black point as dst gamut black point */
 	int dst_cmymap,		/* masks C = 1, M = 2, Y = 4 to force 100% cusp map */
@@ -533,8 +539,8 @@ gammap *new_gammap(
 	char *diagname		/* If non-NULL, write a gamut mapping diagnostic WRL */
 ) {
 	gammap *s;				/* This */
-	gamut *si_gam = NULL;	/* Source image gamut (intersected with sc_gam) */
-	gamut *scl_gam;			/* Source colorspace gamut with rotation and L mapping applied */
+	gamut *si_gam = NULL;	/* Source image gamut (intersected with sc_gam), assm. NULL if sh_gam */
+	gamut *scl_gam = NULL;	/* Source colorspace gamut with rotation and L mapping applied */
 	gamut *sil_gam;			/* Source image gamut with rotation and L mapping applied */
 
 	double s_cs_wp[3];	/* Source colorspace white point */
@@ -1261,18 +1267,28 @@ glumknf	= 1.0;
 		}
 #endif
 
-		if ((scl_gam = parttransgamut(s, sc_gam)) == NULL) {
-			fprintf(stderr,"gamut map: parttransgamut failed\n");
-			if (si_gam != sc_gam)
-				si_gam->del(si_gam);
-			free(s);
-			return NULL;
+		/* If we were provided with a distinct source gamut hull, i.e. because */
+		/* we are doing a general compression/expansion, and sh_gam is an expanded/compressed */
+		/* destination gamut, use it for creating the nearsmth vectors */
+		if (sh_gam != NULL) {
+			scl_gam = sh_gam;
+
+		/* Map the source colorspace gamut through the L mapping */ 
+		} else {
+			if ((scl_gam = parttransgamut(s, sc_gam)) == NULL) {
+				fprintf(stderr,"gamut map: parttransgamut failed\n");
+				if (si_gam != sc_gam)
+					si_gam->del(si_gam);
+				free(s);
+				return NULL;
+			}
 		}
 
 		if (sc_gam == si_gam)
 			sil_gam = scl_gam;
 
 		else {
+			/* Map the source image gamut through the L mapping */ 
 			if ((sil_gam = parttransgamut(s, si_gam)) == NULL) {
 				fprintf(stderr,"gamut map: parttransgamut failed\n");
 				if (si_gam != sc_gam)
@@ -1322,7 +1338,8 @@ typedef struct {
 			s->igrey->del(s->igrey);
 			if (sil_gam != scl_gam)
 				sil_gam->del(sil_gam);
-			scl_gam->del(scl_gam);
+			if (scl_gam != sh_gam)
+				scl_gam->del(scl_gam);
 			if (si_gam != sc_gam)
 				si_gam->del(si_gam);
 			free(s);
@@ -1493,7 +1510,8 @@ typedef struct {
 			s->igrey->del(s->igrey);
 			if (sil_gam != scl_gam)
 				sil_gam->del(sil_gam);
-			scl_gam->del(scl_gam);
+			if (scl_gam != sh_gam)
+				scl_gam->del(scl_gam);
 			if (si_gam != sc_gam)
 				si_gam->del(si_gam);
 			free(s);
@@ -1523,7 +1541,8 @@ typedef struct {
 			s->igrey->del(s->igrey);
 			if (sil_gam != scl_gam)
 				sil_gam->del(sil_gam);
-			scl_gam->del(scl_gam);
+			if (scl_gam != sh_gam)
+				scl_gam->del(scl_gam);
 			if (si_gam != sc_gam)
 				si_gam->del(si_gam);
 			free(s);
@@ -2275,7 +2294,8 @@ typedef struct {
 
 	if (sil_gam != scl_gam)
 		sil_gam->del(sil_gam);
-	scl_gam->del(scl_gam);
+	if (scl_gam != sh_gam)
+		scl_gam->del(scl_gam);
 	if (si_gam != sc_gam)
 		si_gam->del(si_gam);
 

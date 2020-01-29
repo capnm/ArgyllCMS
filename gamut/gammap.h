@@ -58,6 +58,8 @@ gammap *new_gammap(
 	gamut *s_gam,		/* Source image gamut (NULL if none) */
 	gamut *d_gam,		/* Destination colorspace gamut */
 	icxGMappingIntent *gmi, /* Gamut mapping specification */
+	gamut *sh_gam,		/* If not NULL, then use sc_gam for the luminence */
+						/* mapping, and sh_gam for the hull mapping (i.e. general compression) */
 	int src_kbp,		/* Use K only black point as src gamut black point */
 	int dst_kbp,		/* Use K only black point as dst gamut black point */
 	int dst_cmymap,		/* masks C = 1, M = 2, Y = 4 to force 100% cusp map */

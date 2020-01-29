@@ -114,6 +114,12 @@
 #endif
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifndef SALONEINSTLIB
+# include "copyright.h"
+# include "aconfig.h"
+#else
+# include "sa_config.h"
+#endif
 #include "numsup.h"
 #include "conv.h"
 #include "aglob.h"
@@ -169,20 +175,22 @@ static char *append(char *in, char *app) {
 	return rv;
 }
 
-/* Append a ':' or ';' then a string. Free in. Return NULL on error. */
+/* Append a ':' or ';' then a string. Free in. */
+/* Return NULL on error. */
 static char *cappend(char *in, char *app) {
-	int inlen;
+	int inlen, aplen;
 	char *rv;
 
 	inlen = strlen(in);
+	aplen = strlen(app);
 
-	if ((rv = malloc(inlen + 1 + strlen(app) + 1)) == NULL) {
+	if ((rv = malloc(inlen + 1 + aplen + 1)) == NULL) {
 		a1loge(g_log, 1, "xdg_bds: cappend malloc failed\n"); 
 		free(in);
 		return NULL;
 	}
 	strcpy(rv, in);
-	if (inlen > 1)
+	if (inlen > 0 && in[inlen-1] != SSEP && aplen > 0)
 		strcat(rv, SSEPS);
 	strcat(rv, app);
 	free(in);
@@ -190,20 +198,22 @@ static char *cappend(char *in, char *app) {
 	return rv;
 }
 
-/* Append a '/' then a string. Free in. Return NULL on error. */
+/* Append a '/' then a string. Free in. */
+/* Return NULL on error. */
 static char *dappend(char *in, char *app) {
-	int inlen;
+	int inlen, aplen;
 	char *rv;
 
 	inlen = strlen(in);
+	aplen = strlen(app);
 
-	if ((rv = malloc(inlen + 1 + strlen(app) + 1)) == NULL) {
+	if ((rv = malloc(inlen + 1 + aplen + 1)) == NULL) {
 		a1loge(g_log, 1, "xdg_bds: dappend malloc failed\n"); 
 		free(in);
 		return NULL;
 	}
 	strcpy(rv, in);
-	if (inlen > 1 && in[inlen-1] != '/')
+	if (inlen > 0 && in[inlen-1] != '/')
 		strcat(rv, "/");
 	strcat(rv, app);
 	free(in);
@@ -332,7 +342,7 @@ int xdg_bds(
 				if (getenv("HOME") != NULL)
 					path = dappend(path, ".local/share");
 #else
-#ifdef __APPLE__
+#ifdef UNIX_APPLE
 				path = dappend(path, "Library/Application Support");
 #else	/* Unix, Default */
 				path = dappend(path, ".local/share");
@@ -380,7 +390,7 @@ int xdg_bds(
 				if (getenv("HOME") != NULL)
 					path = dappend(path, ".config");
 #else
-#ifdef __APPLE__
+#ifdef UNIX_APPLE
 				path = dappend(path, "Library/Preferences");
 #else	/* Unix, Default */
 				path = dappend(path, ".config");
@@ -435,7 +445,7 @@ int xdg_bds(
 				else
 					path = dappend(path, "Cache");
 #else
-#ifdef __APPLE__
+#ifdef UNIX_APPLE
 				path = dappend(path, "Library/Caches");
 #else	/* Unix, Default */
 				path = dappend(path, ".cache");
@@ -477,7 +487,7 @@ int xdg_bds(
 				}
 				path = cappend(path, home);
 #else
-#ifdef __APPLE__
+#ifdef UNIX_APPLE
 				path = cappend(path, "/Library");
 #else
 				path = cappend(path, "/usr/local/share:/usr/share");
@@ -508,7 +518,7 @@ int xdg_bds(
 				}
 				path = cappend(path, home);
 #else
-#ifdef __APPLE__
+#ifdef UNIX_APPLE
 				path = cappend(path, "/Library/Preferences");
 #else
 				path = cappend(path, "/etc/xdg");

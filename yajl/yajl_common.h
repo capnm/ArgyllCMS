@@ -53,6 +53,7 @@ extern "C" {
 #endif
 
 // Create a cross platform 64 bit int type "longlong" - GWG
+#ifndef NUMLIB_H
 
 #if (__STDC_VERSION__ >= 199901L)	/* C99 */
 
@@ -93,26 +94,43 @@ typedef __int64 longlong;
 /* LLP64 and LP64 models, but won't work with ILP64 which needs int32 */
 
 #ifdef __GNUC__
-
-typedef long long longlong;
-
-# define PF64PREC "ll"			/* printf format precision specifier */
-# define CF64PREC "LL"			/* Constant precision specifier */
-
-# ifndef LLONG_MIN
-#  define LLONG_MIN	(-LLONG_MAX-1)
-# endif
-# ifndef LLONG_MAX
-#  define LLONG_MAX	__LONG_LONG_MAX__
-# endif
-# ifndef ULLONG_MAX
-# define ULLONG_MAX	(LLONG_MAX * 2ULL + 1)
-# endif
-
+# ifdef __LP64__	/* long long could be 128 bit ? */
+   typedef long longlong;
+#  define PF64PREC "l"			/* printf format precision specifier */
+#  define CF64PREC "L"			/* Constant precision specifier */
+#  ifndef LLONG_MAX
+#   define LLONG_MAX	__LONG_MAX__
+#  endif
+#  ifndef LLONG_MIN
+#   define LLONG_MIN	(-LLONG_MAX-1)
+#  endif
+#  ifndef ULLONG_MAX
+#   define ULLONG_MAX	(LLONG_MAX * 2UL + 1)
+#  endif
+# else				/* long could be 32 bits */
+   typedef long long longlong;
+#  define PF64PREC "ll"			/* printf format precision specifier */
+#  define CF64PREC "LL"			/* Constant precision specifier */
+#  ifndef LLONG_MAX
+#   define LLONG_MAX	__LONG_LONG_MAX__
+#  endif
+#  ifndef LLONG_MIN
+#   define LLONG_MIN	(-LLONG_MAX-1)
+#  endif
+#  ifndef ULLONG_MAX
+#   define ULLONG_MAX	(LLONG_MAX * 2ULL + 1)
+#  endif
+# endif /* !__LP64__ */
 #endif /* __GNUC__ */
 
 #endif	/* !_MSC_VER */
 #endif  /* !__STDC_VERSION__ */
+
+#else /* !NUMLIB_H */
+
+typedef INR64 longlong ;
+
+#endif /* !NUMLIB_H */
 
 /** pointer to a malloc function, supporting client overriding memory
  *  allocation routines */

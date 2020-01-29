@@ -1,7 +1,8 @@
 
+/* Spectrometer/Colorimeter target test chart reader */
+
 /* 
  * Argyll Color Correction System
- * Spectrometer/Colorimeter target test chart reader
  *
  * Author: Graeme W. Gill
  * Date:   4/10/96
@@ -58,6 +59,11 @@
 
 #define COMPORT 1		/* Default com port 1..4 */
 
+#undef TEST_EVENT_CALLBACK      /* Report async event callbacks, and implement beep prompt there. */
+
+#undef USESTRDELTA		/* [Und] Use patch delat's for correlation rather than match DE */
+						/* Doesn't seem to work as well. Why ? */
+
 #ifdef __MINGW32__
 # define WINVER 0x0500
 #endif
@@ -69,22 +75,36 @@
 #include <time.h>
 #include <ctype.h>
 #include <string.h>
+#ifndef SALONEINSTLIB
 #include "copyright.h"
 #include "aconfig.h"
-#include "cgats.h"
 #include "numlib.h"
-#include "icc.h"
 #include "xicc.h"
-#include "insttypes.h"
 #include "conv.h"
+#include "ui.h"
+#include "icc.h"
+#else /* SALONEINSTLIB */
+#include "sa_config.h"
+#include "numsup.h"
+#include "cgats.h"
+#include "rspl1.h"
+#include "xspect.h"
+#include "xcolorants.h"
+#include "xcal.h"
+#include "conv.h"
+#include "sa_conv.h"
+#endif /* SALONEINSTLIB */
+#include "cgats.h"
+#include "insttypes.h"
 #include "icoms.h"
 #include "inst.h"
 #include "ccmx.h"
 #include "ccss.h"
+#ifndef SALONEINSTLIB
 #include "dispwin.h"
-#include "ui.h"
 #include "ccast.h"
 #include "dispsup.h"
+#endif /* !SALONEINSTLIB */
 #include "alphix.h"
 #include "sort.h"
 #include "instappsup.h"
@@ -132,6 +152,24 @@ static double xyzLabDE(double ynorm, double *pat, double *ref) {
 	return icmLabDE(Lab1, Lab2);
 }
 
+#ifdef USESTRDELTA
+/* Return the -ve correlation of the delta E's between steps */
+static double xyzLabcorr(double *pat0, double *ref0,
+                         double *pat1, double *ref1) {
+	double p0[3], p1[3], pd[3];
+	double r0[3], r1[3], rd[3];
+
+	icmXYZ2Lab(&icmD50, p0, pat0);
+	icmXYZ2Lab(&icmD50, p1, pat1);
+	ICMSUB3(pd, p0, p1);
+	icmXYZ2Lab(&icmD50, r0, ref0);
+	icmXYZ2Lab(&icmD50, r1, ref1);
+	ICMSUB3(rd, r0, r1);
+
+	return -icmDot3(rd, pd);
+}
+#endif
+
 /* A chart read color structure */
 /* This can hold all representations simultaniously */
 typedef struct {
@@ -168,6 +206,15 @@ static int b62_int(char *p) {
 		rv = cv - 'a' + 36;
 	return rv;
 }
+
+#ifdef TEST_EVENT_CALLBACK
+void test_event_callback(void *cntx, inst_event_type event) {
+	a1logd(g_log,0,"Got event_callback with 0x%x\n",event);
+
+	if (event == inst_event_scan_ready)
+		normal_beep();
+}
+#endif
 
 /* Deal with an instrument error. */
 /* Return 0 to retry, 1 to abort */
@@ -211,6 +258,8 @@ int displ,			/* 1 = Use display emissive mode, 2 = display bright rel. */
 					/* 3 = display white rel. */
 int dtype,			/* Display type selection charater */
 inst_opt_filter fe,	/* Optional filter */
+xcalstd scalstd,	/* X-Rite calibration standard to set */
+xcalstd *ucalstd,	/* X-Rite calibration standard actually used */
 int nocal,			/* Disable initial calibration */
 int disbidi,		/* Disable automatic bi-directional strip recognition */
 int highres,		/* Use high res spectral mode */
@@ -224,6 +273,7 @@ int spectral,		/* Generate spectral info flag */
 int uvmode,			/* ~~~ i1pro2 test mode ~~~ */
 int accurate_expd,	/* Expected values can be assumed to be accurate */
 int emit_warnings,	/* Emit warnings for wrong strip, unexpected value */
+int doplot,			/* Plot each spectra in patch by patch mode */
 a1log *log			/* verb, debug & error log */
 ) {
 	inst *it = NULL;
@@ -251,6 +301,11 @@ a1log *log			/* verb, debug & error log */
 			printf("Unknown, inappropriate or no instrument detected\n");
 			return -1;
 		}
+
+#ifdef TEST_EVENT_CALLBACK
+		it->set_event_callback(it, test_event_callback, (void *)it);
+#endif
+
 		/* Establish communications */
 		if ((rv = it->init_coms(it, br, fc, 15.0)) != inst_ok) {
 			printf("Establishing communications with instrument failed with message '%s' (%s)\n",
@@ -276,6 +331,24 @@ a1log *log			/* verb, debug & error log */
 			return -1;
 		}
 
+		/* For reflective */
+		if (emis == 0 && trans == 0) {
+
+			/* set XRGA conversion */
+			if (scalstd != xcalstd_none) {
+				if ((rv = it->get_set_opt(it, inst_opt_set_xcalstd, scalstd)) != inst_ok) {
+					printf("Warning: Setting calibration standard not supported by instrument\n");
+				}
+			}
+	
+			/* Get actual XRGA conversion */
+			if (ucalstd != NULL) {
+				if ((rv = it->get_set_opt(it, inst_opt_get_xcalstd, ucalstd)) != inst_ok) {
+					*ucalstd = xcalstd_none;
+				}
+			}
+		}
+
 		*atype = it->get_itype(it);		/* Actual instrument type */
 		if (*atype != itype)
 			a1logv(log, 1, "Warning: chart is for %s, using instrument %s\n",inst_name(itype),inst_name(*atype));
@@ -297,8 +370,8 @@ a1log *log			/* verb, debug & error log */
 			} else if (emis || displ) {
 
 				if (emis) {
-					if (!IMODETST(cap, inst_mode_emis_spot)
-					 && !IMODETST(cap, inst_mode_emis_strip)) {
+					if (it->check_mode(it, inst_mode_emis_spot) != inst_ok
+					 && it->check_mode(it, inst_mode_emis_strip) != inst_ok) {
 						printf("Need emissive spot or strip reading capability\n");
 						printf("and instrument doesn't support it\n");
 						it->del(it);
@@ -306,7 +379,7 @@ a1log *log			/* verb, debug & error log */
 					}
 				} else {
 					/* Should we allow for non-adaptive mode ? */
-					if (!IMODETST(cap, inst_mode_emis_spot)) {
+					if (it->check_mode(it, inst_mode_emis_spot) != inst_ok) {
 						printf("Need emissive reading capability\n");
 						printf("and instrument doesn't support it\n");
 						it->del(it);
@@ -314,7 +387,7 @@ a1log *log			/* verb, debug & error log */
 					}
 				}
 
-			} else {
+			} else {	/* reflectance */
 				if (!IMODETST(cap, inst_mode_reflection)) {
 					printf("Need reflection spot, strip, xy or chart reading capability,\n");
 					printf("and instrument doesn't support it\n");
@@ -461,20 +534,17 @@ a1log *log			/* verb, debug & error log */
 
 			/* Should look at instrument type & user spec ??? */
 			if (trans) {
-				if (pbypatch && IMODETST(cap, inst_mode_trans_spot)
+				if (pbypatch
 				 && it->check_mode(it, inst_mode_trans_spot) == inst_ok) {
 					mode = inst_mode_trans_spot;
 					rmode = 0;
-				} else if (IMODETST(cap, inst_mode_trans_chart)
-				 && it->check_mode(it, inst_mode_trans_chart) == inst_ok) {
+				} else if (it->check_mode(it, inst_mode_trans_chart) == inst_ok) {
 					mode = inst_mode_trans_chart;
 					rmode = 3;
-				} else if (IMODETST(cap, inst_mode_trans_xy)
-				 && it->check_mode(it, inst_mode_trans_xy) == inst_ok) {
+				} else if (it->check_mode(it, inst_mode_trans_xy) == inst_ok) {
 					mode = inst_mode_trans_xy;
 					rmode = 2;
-				} else if (IMODETST(cap, inst_mode_trans_strip)
-				 && it->check_mode(it, inst_mode_trans_strip) == inst_ok) {
+				} else if (it->check_mode(it, inst_mode_trans_strip) == inst_ok) {
 					mode = inst_mode_trans_strip;
 					rmode = 1;
 				} else {
@@ -482,23 +552,24 @@ a1log *log			/* verb, debug & error log */
 					rmode = 0;
 				}
 			} else if (displ) {
+printf("~1 using displ mode\n");
 				/* We assume a display mode will always be spot by spot */
 				mode = inst_mode_emis_spot;
 				rmode = 0;
 			} else if (emis) {
-				if (pbypatch && IMODETST(cap, inst_mode_emis_spot)
+printf("~1 using emis mode\n");
+				if (pbypatch
 				 && it->check_mode(it, inst_mode_emis_spot) == inst_ok) {
 					mode = inst_mode_emis_spot;
 					rmode = 0;
-				} else if (IMODETST(cap, inst_mode_emis_strip)
-				 && it->check_mode(it, inst_mode_emis_strip) == inst_ok) {
+				} else if (it->check_mode(it, inst_mode_emis_strip) == inst_ok) {
 					mode = inst_mode_emis_strip;
 					rmode = 1;
 				} else {
 					mode = inst_mode_emis_spot;
 					rmode = 0;
 				}
-			} else {
+			} else {	/* Reflectance */
 				inst_stat_savdrd sv = inst_stat_savdrd_none;
 
 				/* See if instrument has a saved mode, and if it has data that */
@@ -602,58 +673,50 @@ a1log *log			/* verb, debug & error log */
 				}
 
 				if (pbypatch
-				        && IMODETST(cap, inst_mode_s_ref_spot)
 				        && it->check_mode(it, inst_mode_s_ref_spot) == inst_ok
 				        && (sv & inst_stat_savdrd_spot)) {
 					mode = inst_mode_s_ref_spot;
 					svdmode = 1;
 					rmode = 0;
 
-				} else if (IMODETST(cap, inst_mode_s_ref_chart)
-				        && it->check_mode(it, inst_mode_s_ref_chart) == inst_ok
+				} else if (it->check_mode(it, inst_mode_s_ref_chart) == inst_ok
 				        && (sv & inst_stat_savdrd_chart)) {
 					mode = inst_mode_s_ref_chart;
 					svdmode = 1;
 					rmode = 3;
 
-				} else if (IMODETST(cap, inst_mode_s_ref_xy)
-				        && it->check_mode(it, inst_mode_s_ref_xy) == inst_ok
+				} else if (it->check_mode(it, inst_mode_s_ref_xy) == inst_ok
 				        && (sv & inst_stat_savdrd_xy)) {
 					mode = inst_mode_s_ref_xy;
 					svdmode = 1;
 					rmode = 2;
 
-				} else if (IMODETST(cap, inst_mode_s_ref_strip)
-				        && it->check_mode(it, inst_mode_s_ref_strip) == inst_ok
+				} else if (it->check_mode(it, inst_mode_s_ref_strip) == inst_ok
 				        && (sv & inst_stat_savdrd_strip)) {
 					mode = inst_mode_s_ref_strip;
 					svdmode = 1;
 					rmode = 1;
 
-				} else if (IMODETST(cap, inst_mode_s_ref_spot)
-				        && it->check_mode(it, inst_mode_s_ref_spot) == inst_ok
+				} else if (it->check_mode(it, inst_mode_s_ref_spot) == inst_ok
 				        && (sv & inst_stat_savdrd_spot)) {
 					mode = inst_mode_s_ref_spot;
 					svdmode = 1;
 					rmode = 0;
 
-				} else if (pbypatch && IMODETST(cap, inst_mode_ref_spot)
+				} else if (pbypatch 
 				        && it->check_mode(it, inst_mode_ref_spot) == inst_ok) {
 					mode = inst_mode_ref_spot;
 					rmode = 0;
 
-				} else if (IMODETST(cap, inst_mode_ref_chart)
-				        && it->check_mode(it, inst_mode_ref_chart) == inst_ok) {
+				} else if (it->check_mode(it, inst_mode_ref_chart) == inst_ok) {
 					mode = inst_mode_ref_chart;
 					rmode = 3;
 
-				} else if (IMODETST(cap, inst_mode_ref_xy)
-				        && it->check_mode(it, inst_mode_ref_xy) == inst_ok) {
+				} else if (it->check_mode(it, inst_mode_ref_xy) == inst_ok) {
 					mode = inst_mode_ref_xy;
 					rmode = 2;
 
-				} else if (IMODETST(cap, inst_mode_ref_strip)
-				        && it->check_mode(it, inst_mode_ref_strip) == inst_ok) {
+				} else if (it->check_mode(it, inst_mode_ref_strip) == inst_ok) {
 					mode = inst_mode_ref_strip;
 					rmode = 1;
 
@@ -1076,6 +1139,12 @@ a1log *log			/* verb, debug & error log */
 		int pai;				/* Current pass in current strip */
 		int oroi;				/* Overall row index */
 
+		if (
+		    itype != instDTP20 &&
+	        !rand && disbidi == 0) {
+			warning("Can't do bi-directional strip recognition without randomized patch locations");
+		}
+
 		/* Do any needed calibration before the user places the instrument on a desired spot */
 		if (it->needs_calibration(it) & inst_calt_n_dfrble_mask) {
 			if ((rv = inst_handle_calibrate(it, inst_calt_needed, inst_calc_none, NULL, NULL, 0))
@@ -1168,6 +1237,7 @@ a1log *log			/* verb, debug & error log */
 						pai = 0;
 					}
 //printf("~1 stix = %d, pis[stix] = %d, oroi = %d, rr %d\n",stix, pis[stix],oroi,scols[oroi * stipa]->rr);
+					// Note we aren't protecting agains a bodgy pis[] value
 					if (incflag == 1 || scols[oroi * stipa]->rr == 0 || oroi == s_oroi)
 						break;
 				}
@@ -1261,8 +1331,8 @@ a1log *log			/* verb, debug & error log */
 
 								/* Not all rows have been read */
 								empty_con_chars();
-								printf("\nDone ? - At least one unread patch (%s), Are you sure [y/n]: ",
-								       scols[i]->loc);
+								printf("\nDone ? - At least one unread patch (%s, %s), Are you sure [y/n]: ",
+								       scols[i]->id, scols[i]->loc);
 								fflush(stdout);
 								ch = next_con_char();
 								printf("\n");
@@ -1333,7 +1403,8 @@ a1log *log			/* verb, debug & error log */
 							return -1;
 						}
 						printf("\n");
-						if (it->icom->port_type(it->icom) == icomt_serial) {
+						if ((it->icom->port_type(it->icom) & icomt_serial)
+						 && !(it->icom->port_attr(it->icom) & icomt_fastserial)) {
 							/* Allow retrying at a lower baud rate */
 							int tt = it->last_scomerr(it);
 							if (tt & (ICOM_BRK | ICOM_FER | ICOM_PER | ICOM_OER)) {
@@ -1386,9 +1457,9 @@ a1log *log			/* verb, debug & error log */
 					double werror = 0.0;	/* Worst case error in best correlation strip */
 
 					double xbcorr = 1e6;	/* Expected pass correlation value */
-					int xboff;				/* Expected pass offset */
+					int xboff;				/* Expected pass best offset */
 					int xbdir;				/* Expected pass overall pass direction */
-					double xwerror = 0.0;	/* Expected pass worst error in best strip */
+					double xwerror = 0.0;	/* Expected pass worst patcch error */
 
 					if (rand && disbidi == 0 && (cap2 & inst2_bidi_scan))
 						dirrg = 2;			/* Enable bi-directional strip recognition */
@@ -1426,17 +1497,29 @@ a1log *log			/* verb, debug & error log */
 								}
 
 								/* Compare just sample patches (not padding Max/Min) */
-								for (pwerr = corr = 0.0, n = 0, i = 0; i < stipa; i++, n++) {
+#ifdef USESTRDELTA
+								for (pwerr = corr = 0.0, n = 0, i = 0; i < (stipa-1); i++, n++)
+#else
+								for (pwerr = corr = 0.0, n = 0, i = 0; i < stipa; i++, n++)
+#endif
+								{
 									double vcorr;
-									int ix = i+skipp+toff;
-									if (dir != 0)
+									int ix = i+skipp+toff, ix1 = ix+1;
+									if (dir != 0) {
 										ix = stipa - 1 - ix;
+										ix1 = stipa - 1 - ix1;
+									}
 									if (vals[ix].XYZ_v == 0)
 										error("Instrument didn't return XYZ value");
+#ifdef USESTRDELTA
+									vcorr = xyzLabcorr(vals[ix].XYZ, scb[i]->eXYZ,
+									                   vals[ix1].XYZ, scb[i+1]->eXYZ);
+#else
 									vcorr = xyzLabDE(ynorm, vals[ix].XYZ, scb[i]->eXYZ);
+#endif
 //printf("DE %f from vals[%d] %f %f %f and scols[%d] %f %f %f\n", vcorr, ix, vals[ix].XYZ[0], vals[ix].XYZ[1], vals[ix].XYZ[2], i + choroi * stipa, scb[i]->eXYZ[0], scb[i]->eXYZ[1], scb[i]->eXYZ[2]);
 									corr += vcorr;
-									if (vcorr > pwerr)
+									if (vcorr > pwerr)	/* Worsed patch error */
 										pwerr = vcorr;
 								}
 								corr /= (double)n;
@@ -1444,16 +1527,16 @@ a1log *log			/* verb, debug & error log */
 								printf("  Strip %d dir %d offset %d correlation = %f\n",choroi,dir,toff,corr);
 
 #endif
-								/* Expected strip correlation and */
-								/* best fir to off by 1 and direction */
+								/* If this is the expected strip, */
+								/* note correlation and best fit to off by 1 and direction */
 								if (choroi == oroi && corr < xbcorr) { 
-									xbcorr = corr;
+									xbcorr = corr;		/* Expected strip correlation */
 									xboff = toff;
 									xbdir = dir;
 									xwerror = pwerr;	/* Expected passes worst error */
 								}
 
-								/* Best matched strip correlation */
+								/* Best overall matched strip correlation */
 								if (corr < bcorr) {
 									boroi = choroi;
 									bcorr = corr;
@@ -1624,6 +1707,7 @@ a1log *log			/* verb, debug & error log */
 			inst_set_uih('G', 'G', DUIH_CMND);
 			inst_set_uih('d', 'd', DUIH_CMND);
 			inst_set_uih('D', 'D', DUIH_CMND);
+			inst_set_uih('k', 'k',   DUIH_CMND);
 			inst_set_uih('q', 'q', DUIH_ABORT);
 			inst_set_uih('Q', 'Q', DUIH_ABORT);
 			inst_set_uih(0xd, 0xd, DUIH_TRIG);	/* Return */
@@ -1637,7 +1721,7 @@ a1log *log			/* verb, debug & error log */
 			incflag = 3;
 
 		/* Until we're  done */
-		for(;pix < npat;) {
+		for (;pix < npat;) {
 			char buf[200], *bp = NULL, *ep = NULL;
 			char ch = 0;
 
@@ -1716,7 +1800,7 @@ a1log *log			/* verb, debug & error log */
 			}
 
 			if (xtern != 0) {	/* User entered values */
-				printf("\nReady to read patch '%s'%s\n",scols[pix]->loc,
+				printf("\nReady to read patch '%s' at '%s'%s\n",scols[pix]->id, scols[pix]->loc,
 				       i >= npat ? "(All patches read!)" :
 				       strcmp(scols[pix]->id, "0") == 0 ? " (Padding Patch)" :
 				       scols[pix]->rr ? " (Already read)" : "");
@@ -1747,7 +1831,7 @@ a1log *log			/* verb, debug & error log */
 
 				empty_con_chars();
 
-				printf("\nReady to read patch '%s'%s\n",scols[pix]->loc,
+				printf("\nReady to read patch '%s' at '%s'%s\n",scols[pix]->id, scols[pix]->loc,
 				       i >= npat ? " (All patches read!)" :
 				       strcmp(scols[pix]->id, "0") == 0 ? " (Padding Patch)" :
 				       scols[pix]->rr ? " (Already read)" : "");
@@ -1755,7 +1839,7 @@ a1log *log			/* verb, debug & error log */
 				printf("hit 'f' to move forward, 'F' move forward 10,\n");
 				printf("    'b' to move back,    'B; to move back 10,\n");
 				printf("    'n' for next unread, 'g' to goto patch,\n");
-				printf("    'd' when done,       <esc> to abort,\n");
+				printf("    'd' when done,       'k' to calibrate, <esc> to abort,\n");
 
 				if (uswitch)
 					printf("    Instrument switch,   <return> or <space> to read:");
@@ -1772,7 +1856,7 @@ a1log *log			/* verb, debug & error log */
 						good_beep();
 					ch = '0';
 
-				/* Deal with user trigger */
+				/* Deal with user trigger via user interface callback function */
 				} else if ((rv & inst_mask) == inst_user_trig) {
 					if (cap2 & inst2_no_feedback)
 						good_beep();
@@ -1841,7 +1925,8 @@ a1log *log			/* verb, debug & error log */
 						return -1;
 					}
 					printf("\n");
-					if (it->icom->port_type(it->icom) == icomt_serial) {
+					if ((it->icom->port_type(it->icom) & icomt_serial)
+					 && !(it->icom->port_attr(it->icom) & icomt_fastserial)) {
 						/* Allow retrying at a lower baud rate */
 						int tt = it->last_scomerr(it);
 						if (tt & (ICOM_BRK | ICOM_FER | ICOM_PER | ICOM_OER)) {
@@ -1891,6 +1976,15 @@ a1log *log			/* verb, debug & error log */
 				}
 				printf("\n");
 				continue;
+			} else if (ch == 'k') {
+				inst_code ev;
+
+				ev = inst_handle_calibrate(it, inst_calt_available, inst_calc_none, NULL, NULL, 0);
+				if (ev != inst_ok) {	/* Abort or fatal error */
+					it->del(it);
+					return -1;
+				}
+				continue;
 			} else if (ch == 'f') {
 				incflag = 1;
 				continue;
@@ -1920,8 +2014,8 @@ a1log *log			/* verb, debug & error log */
 
 				/* Not all patches have been read */
 				empty_con_chars();
-				printf("\nDone ? - At least one unread patch (%s), Are you sure [y/n]: ",
-				       scols[i]->loc);
+				printf("\nDone ? - At least one unread patch (%s, %s), Are you sure [y/n]: ",
+				       scols[i]->id, scols[i]->loc);
 				fflush(stdout);
 				if ((ch = next_con_char()) == 0x1b) {
 					printf("\n");
@@ -1996,6 +2090,10 @@ a1log *log			/* verb, debug & error log */
 				}
 				scols[pix]->rr = 1;		/* Has been read */
 				printf(" Patch read OK\n");
+
+				if (doplot && val.sp.spec_n > 0)
+					xspect_plot_w(&val.sp, NULL, NULL, 0);
+
 				/* Advance to next patch. */
 				incflag = 1;
 			} else {	/* Unrecognised response */
@@ -2018,7 +2116,7 @@ usage() {
 	fprintf(stderr,"usage: chartread [-options] outfile\n");
 	fprintf(stderr," -v             Verbose mode\n");
 	fprintf(stderr," -c listno      Set communication port from the following list (default %d)\n",COMPORT);
-	if ((icmps = new_icompaths(NULL)) != NULL) {
+	if ((icmps = new_icompaths(g_log)) != NULL) {
 		icompath **paths;
 		if ((paths = icmps->paths) != NULL) {
 			int i;
@@ -2046,6 +2144,7 @@ usage() {
 	fprintf(stderr,"    p             Polarising filter\n");
 	fprintf(stderr,"    6             D65\n");
 	fprintf(stderr,"    u             U.V. Cut\n");
+	fprintf(stderr," -A N|A|X|G      XRGA conversion (default N)\n");
 	fprintf(stderr," -N              Disable initial calibration of instrument if possible\n");
 	fprintf(stderr," -B              Disable auto bi-directional strip recognition\n");
 	fprintf(stderr," -H              Use high resolution spectrum mode (if available)\n");
@@ -2055,12 +2154,19 @@ usage() {
 		int i;
 		fprintf(stderr," -X file.ccss    Use Colorimeter Calibration Spectral Samples for calibration\n");
 		fprintf(stderr," -Q observ       Choose CIE Observer for CCSS instrument:\n");
+#ifdef SALONEINSTLIB
+		fprintf(stderr,"                 1931_2 (def), 1964_10\n");
+#else /* !SALONEINSTLIB */
 		fprintf(stderr,"                 1931_2 (def), 1964_10, S&B 1955_2, shaw, J&V 1978_2\n");
+#endif /* !SALONEINSTLIB */
 	}
 	fprintf(stderr," -T ratio        Modify strip patch consistency tolerance by ratio\n");
 	fprintf(stderr," -S              Suppress wrong strip & unexpected value warnings\n");
 //	fprintf(stderr," -Y U                 Test i1pro2 UV measurement mode\n");
 	fprintf(stderr," -W n|h|x        Override serial port flow control: n = none, h = HW, x = Xon/Xoff\n");
+#ifndef SALONEINSTLIB
+	fprintf(stderr," -P              Plot spectral if patch by patch\n");
+#endif
 	fprintf(stderr," -D [level]      Print debug diagnostics to stderr\n");
 	fprintf(stderr," outfile         Base name for input[ti2]/output[ti3] file\n");
 	if (icmps != NULL)
@@ -2092,11 +2198,14 @@ int main(int argc, char *argv[]) {
 	int xtern = 0;					/* Take external values, 1 = Lab, 2 = XYZ */
 	int spectral = 1;				/* Save spectral information */
 	int uvmode = 0;					/* ~~~ i1pro2 test mode ~~~ */
+	xcalstd scalstd = xcalstd_none;	/* X-Rite calibration standard to set */
+	xcalstd ucalstd = xcalstd_none;	/* X-Rite calibration standard actually used */
 	int accurate_expd = 0;			/* Expected value assumed to be accurate */
 	int emit_warnings = 1;			/* Emit warnings for wrong strip, unexpected value */
 	int dolab = 0;					/* 1 = Save CIE as Lab, 2 = Save CIE as XYZ and Lab */
 	int doresume = 0;				/* Resume reading a chart */
 	int nocal = 0;					/* Disable initial calibration */
+	int doplot = 0;					/* Plot spectral of patch by patch */
 	char ccxxname[MAXNAMEL+1] = "\000";  /* Colorimeter Correction/Colorimeter Calibration name */
 	icxObserverType obType = icxOT_default;		/* ccss observer */
 	static char inname[MAXNAMEL+1] = { 0 };	/* Input cgats file base name */
@@ -2191,12 +2300,14 @@ int main(int argc, char *argv[]) {
 					obType = icxOT_CIE_1931_2;
 				} else if (strcmp(na, "1964_10") == 0) {	/* Classic 10 degree */
 					obType = icxOT_CIE_1964_10;
+#ifndef SALONEINSTLIB
 				} else if (strcmp(na, "1955_2") == 0) {		/* Stiles and Burch 1955 2 degree */
 					obType = icxOT_Stiles_Burch_2;
 				} else if (strcmp(na, "1978_2") == 0) {		/* Judd and Voss 1978 2 degree */
 					obType = icxOT_Judd_Voss_2;
 				} else if (strcmp(na, "shaw") == 0) {		/* Shaw and Fairchilds 1997 2 degree */
 					obType = icxOT_Shaw_Fairchild_2;
+#endif /* !SALONEINSTLIB */
 				} else
 					usage();
 			}
@@ -2217,7 +2328,7 @@ int main(int argc, char *argv[]) {
 				fa = nfa;
 				if (na == NULL) usage();
 				if (na[0] == 'n' || na[0] == 'N')
-					fc = fc_none;
+					fc = fc_None;
 				else if (na[0] == 'h' || na[0] == 'H')
 					fc = fc_Hardware;
 				else if (na[0] == 'x' || na[0] == 'X')
@@ -2320,6 +2431,27 @@ int main(int argc, char *argv[]) {
 				else
 					usage();
 
+			/* XRGA conversion */
+			} else if (argv[fa][1] == 'A') {
+				fa = nfa;
+				if (na == NULL) usage();
+				if (na[0] == 'N')
+					scalstd = xcalstd_none;
+				else if (na[0] == 'A')
+					scalstd = xcalstd_xrga;
+				else if (na[0] == 'X')
+					scalstd = xcalstd_xrdi;
+				else if (na[0] == 'G')
+					scalstd = xcalstd_gmdi;
+				else
+					usage();
+
+#ifndef SALONEINSTLIB
+			/* Plot spectral patch by patch */
+			} else if (argv[fa][1] == 'P') {
+				doplot = 1;
+#endif
+
 			/* Extra flags */
 			} else if (argv[fa][1] == 'Y') {
 				if (na == NULL)
@@ -2392,7 +2524,7 @@ int main(int argc, char *argv[]) {
 				if ((itype = inst_enum(icg->t[0].kdata[ti])) == instUnknown)
 					error ("Unrecognised chart target instrument '%s'", icg->t[0].kdata[ti]);
 		} else {
-			itype = instDTP41;		/* Default chart target instrument */
+			itype = instI1Pro;		/* Default chart target instrument */
 		}
 	}
 
@@ -2508,10 +2640,6 @@ int main(int argc, char *argv[]) {
 			tlen = atof(icg->t[0].kdata[ti]);
 	}
 
-	if (itype != instDTP20 && !rand && disbidi == 0) {
-		warning("Can't do bi-directional strip recognition without randomize patch locations");
-	}
-
 	if (verb) {
 		printf("Steps in each Pass = %d\n",stipa);
 		printf("Passes in each Strip = ");
@@ -2537,6 +2665,8 @@ int main(int argc, char *argv[]) {
 
 	totpa = (npat + stipa -1)/stipa;	/* Total passes for all strips */
 	runpat = stipa * totpa;				/* Rounded up totao number of patches */
+	if (runpat < npat)		/* (If pattern doesn't match patches) */
+		runpat = npat;
 	if ((cols = (chcol *)malloc(sizeof(chcol) * runpat)) == NULL)
 		error("Malloc failed!");
 	if ((scols = (chcol **)calloc(sizeof(chcol *), runpat)) == NULL)
@@ -2684,29 +2814,40 @@ int main(int argc, char *argv[]) {
 		cal = NULL;
 	}
 
-	/* Set up the location sorted array of pointers */
-	for (i = 0; i < npat; i++) {
-		scols[i] = &cols[i];
-		if ((cols[i].loci = patch_location_order(paix, saix, ixord, cols[i].loc)) < 0)
-			error ("Bad location field value '%s' on patch %d", cols[i].loc, i);
-	}
-	for (; i < runpat; i++) {	/* Extra on end */
-		scols[i] = &cols[i];
-		cols[i].loci = (totpa-1) * (256 - stipa) + i; 
+	/* Set up the location sorted array of pointers. */
+	/* If the order is not randomized, we don't care what form */
+	/* the location identifiers take - i.e. they can be arbitrary. */
+	{
+		int badloc = 0;
+
+		for (i = 0; i < npat; i++) {
+			scols[i] = &cols[i];
+			if ((cols[i].loci = patch_location_order(paix, saix, ixord, cols[i].loc)) < 0)
+				badloc = 1;
+		}
+		for (; i < runpat; i++) {	/* Extra on end */
+			scols[i] = &cols[i];
+			cols[i].loci = (totpa-1) * (256 - stipa) + i; 
 /* printf("~~extra = %d, %d\n",cols[i].loci >> 8, cols[i].loci & 255); */
-	}
+		}
 
-	/* Reset 'read' flag and all data */
-	for (i = 0; i < runpat; i++) {
-		cols[i].rr = 0;
-		cols[i].XYZ[0] = -1.0;
-		cols[i].XYZ[1] = -1.0;
-		cols[i].XYZ[2] = -1.0;
-		cols[i].sp.spec_n = 0;
-	}
+		/* Reset 'read' flag and all data */
+		for (i = 0; i < runpat; i++) {
+			cols[i].rr = 0;
+			cols[i].XYZ[0] = -1.0;
+			cols[i].XYZ[1] = -1.0;
+			cols[i].XYZ[2] = -1.0;
+			cols[i].sp.spec_n = 0;
+		}
 
+		if (rand && badloc)
+			error ("Bad location field value '%s' on patch %d", cols[i].loc, i);
+
+		if (!badloc) {
 #define HEAP_COMPARE(A,B) (A->loci < B->loci)
-	HEAPSORT(chcol *, scols, npat);
+			HEAPSORT(chcol *, scols, npat);
+		}
+	}
 
 	/* If we're resuming a chartread, fill in all the patches that */
 	/* have been read. */
@@ -2840,17 +2981,20 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	if ((icmps = new_icompaths(g_log)) == NULL)
-		error("Finding instrument paths failed");
-	if ((ipath = icmps->get_path(icmps, comport)) == NULL)
-		error("No instrument at port %d",comport);
+	if (!xtern) {
+		if ((icmps = new_icompaths(g_log)) == NULL)
+			error("Finding instrument paths failed");
+		if ((ipath = icmps->get_path(icmps, comport)) == NULL)
+			error("No instrument at port %d",comport);
+	}
 
 	/* Read all of the strips in */
 	if (read_strips(itype, scols, &atype, npat, totpa, stipa, pis, paix,
 	                saix, ixord, rstart, rand, hex, ipath, fc, plen, glen, tlen,
-	                trans, emis, displ, dtype, fe, nocal, disbidi, highres, ccxxname, obType,
+	                trans, emis, displ, dtype, fe, scalstd, &ucalstd, nocal, disbidi, highres,
+		            ccxxname, obType,
 	                scan_tol, pbypatch, xtern, spectral, uvmode, accurate_expd,
-	                emit_warnings, g_log) == 0) {
+	                emit_warnings, doplot, g_log) == 0) {
 		/* And save the result */
 
 		int nrpat;				/* Number of read patches */
@@ -2860,6 +3004,10 @@ int main(int argc, char *argv[]) {
 
 		/* Note what instrument the chart was read with */
 		ocg->add_kword(ocg, 0, "TARGET_INSTRUMENT", inst_name(atype) , NULL);
+
+		/* X-Rite calibration standard (If reflective mode) */
+		if (displ == 0 && trans == 0 && ucalstd != xcalstd_none) 
+			ocg->add_kword(ocg, 0, "DEVCALSTD",xcalstd2str(ucalstd), NULL);
 
 		/* Count patches actually read */
 		for (nrpat = i = 0; i < npat; i++) {

@@ -1,8 +1,10 @@
 
 /* 
- * Argyll Color Correction System
- *
  * Alphabetic index class.
+ */
+
+/*
+ * Argyll Color Correction System
  *
  * Author: Graeme W. Gill
  * Date:   22/8/2005
@@ -63,6 +65,10 @@ static int fromanat(alphix *p, char *ax) {
 	int cl;
 	int i, k, rv = 0;
 
+	cl = strlen(ax);
+	if (cl > p->nd)		/* String is too long to be our index */
+		return -1;
+
 	if (p->nd > 10) {
 		if ((tb = malloc((p->nd+1) * sizeof(char))) == NULL)
 			return -1;	/* Malloc error */
@@ -70,7 +76,6 @@ static int fromanat(alphix *p, char *ax) {
 		tb = _tb;
 
 	/* Pack the string out to the right number of digits with spaces. */
-	cl = strlen(ax);
 	for (v = tb; cl < p->nd; v++, cl++)
 		*v = ' ';
 	strcpy(v, ax);
@@ -110,7 +115,7 @@ static char *find_start(alphix *p, char *ax) {
 			if (*v == p->ds[i].seq[k])
 				break;				/* Found */
 		}
-		if (k >= p->ds[i].n)		/* Not found */
+		if (k >= p->ds[i].n)		/* Not found, so we are at the start */
 			break;
 	}
 	return v+1;
@@ -443,6 +448,9 @@ int patch_location_order(
 	/* the right hand and left hand indexes. */
 	/* We assume that the sequences are distinguishable ... */
 	v = find_start(rh, ax);
+
+	if (*v == '\000')	/* Nothing looks like a alphix */
+		return -1;
 
 	ri = rh->nix(rh, v);
 	*v = '\000';

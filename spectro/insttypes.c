@@ -1,5 +1,5 @@
 
- /* Instrument supported types utilities */
+/* Instrument supported types utilities */
 
 /* 
  * Argyll Color Correction System
@@ -36,6 +36,65 @@
 /* inst.c as well !!! */
 
 /* Utility functions */
+
+/* Given a device type, return the corrsponding */
+/* category */
+extern icom_type inst_category(instType itype) {
+	switch (itype) {
+
+	/* Color measurement instruments */
+	case instDTP22:
+	case instDTP41:
+	case instDTP51:
+	case instSpectrolino:
+	case instSpectroScan:
+	case instSpectroScanT:
+	case instSpectrocam:
+	case instSpecbos1201:
+	case instSpecbos:
+	case instSpectraval:
+	case instKleinK10:
+	case instSMCube:
+	case instDTP20:
+	case instDTP92:
+	case instDTP94:
+	case instI1Disp1:
+	case instI1Disp2:
+	case instI1Disp3:
+	case instI1Monitor:
+	case instI1Pro:
+	case instI1Pro2:
+	case instColorMunki:
+	case instHCFR:
+	case instSpyder1:
+	case instSpyder2:
+	case instSpyder3:
+	case instSpyder4:
+	case instSpyder5:
+	case instHuey:
+	case instSmile:
+	case instEX1:
+	case instColorHug:
+	case instColorHug2:
+
+
+		return icomt_instrument;
+
+	/* 3D cLUT box */
+
+	/* Video test patern generator box */
+
+	/* Printers */
+	case devEpsonR1800:
+		return icomt_printer;
+
+	case instFakeDisp:
+		return icomt_unknown;		// ???
+
+	}
+
+	return icomt_cat_any;
+}
 
 /* Return the short instrument identification name (static string) */
 char *inst_sname(instType itype) {
@@ -94,6 +153,8 @@ char *inst_sname(instType itype) {
 			return "specbos 1201";
 		case instSpecbos:
 			return "specbos";
+		case instSpectraval:
+			return "spectraval";
 		case instKleinK10:
 			return "K-10";
 		case instEX1:
@@ -104,6 +165,7 @@ char *inst_sname(instType itype) {
 			return "ColorHug";
 		case instColorHug2:
 			return "ColorHug2";
+
 		default:
 			break;
 	}
@@ -167,6 +229,8 @@ char *inst_name(instType itype) {
 			return "JETI specbos 1201";
 		case instSpecbos:
 			return "JETI specbos";
+		case instSpectraval:
+			return "JETI spectraval";
 		case instKleinK10:
 			return "Klein K-10";
 		case instEX1:
@@ -177,6 +241,7 @@ char *inst_name(instType itype) {
 			return "Hughski ColorHug";
 		case instColorHug2:
 			return "Hughski ColorHug2";
+
 		default:
 			break;
 	}
@@ -258,6 +323,8 @@ instType inst_enum(char *name) {
 		return instSpecbos1201;
 	else if (strcmp(name, "JETI specbos") == 0)
 		return instSpecbos;
+	else if (strcmp(name, "JETI spectraval") == 0)
+		return instSpectraval;
 	else if (strcmp(name, "Klein K-10") == 0)
 		return instKleinK10;
 	else if (strcmp(name, "Image Engineering EX1") == 0)
@@ -445,6 +512,7 @@ int inst_illuminant(xspect *sp, instType itype) {
 
 		case instSpecbos1201:
 		case instSpecbos:
+		case instSpectraval:
 			return 1;										/* Not applicable */
 
 		case instKleinK10:
@@ -455,6 +523,7 @@ int inst_illuminant(xspect *sp, instType itype) {
 
 		case instSMCube:
 			return 1;										/* Not applicable */
+
 
 		case instColorHug:
 		case instColorHug2:

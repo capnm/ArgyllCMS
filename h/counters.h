@@ -15,12 +15,16 @@
 
 #ifndef COUNTERS_H
 
+#ifdef __cplusplus
+	extern "C" {
+#endif
+
 /* ------------------------------------------------------- */
 /* Macros for a multi-dimensional counter. */
 /* Declare the counter name nn, maximum di mxdi, dimensions di, & count */
 
-#define DCOUNT(nn, mxdi, di, start, reset, endp1) 				\
-	int nn[mxdi];	/* counter value */						\
+#define DCOUNT(nn, mxdi, di, start, reset, endp1) 			\
+	int nn[mxdi];			/* counter value */				\
 	int nn##_di = (di);		/* Number of dimensions */		\
 	int nn##_stt = (start);	/* start count value */			\
 	int nn##_rst = (reset);	/* reset on carry value */		\
@@ -255,6 +259,10 @@
          CB_DONE(nn)
 	
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+#ifdef __cplusplus
+	}
+#endif
 
 #define COUNTERS_H
 #endif /* COUNTERS_H */

@@ -10,7 +10,7 @@
  * Copyright 1997 - 2013 Graeme W. Gill
  *
  * This material is licensed with an "MIT" free use license:-
- * see the License.txt file in this directory for licensing details.
+ * see the License4.txt file in this directory for licensing details.
  */
 
 /*
@@ -1034,7 +1034,7 @@ unsigned int str2tag(
 }
 
 /* helper - return 1 if the string doesn't have a */
-/* null terminator within len, return 0 has null at exactly len, */
+/* null terminator within len, return 0 if it has null at exactly len, */
 /* and 2 if it has null before len. */
 /* Note: will return 1 if len == 0 */
 static int check_null_string(char *cp, int len) {
@@ -8241,18 +8241,19 @@ static int icmTextDescription_core_read(
 	p->size = read_UInt32Number(bp);
 	bp += 4;
 	if (p->size > 0) {
+		int chrv;
 		if (bp > end || p->size > (end - bp)) {
 			*bpp = bp;
 			sprintf(icp->err,"icmTextDescription_read: Data too short to read Ascii string");
 			return icp->errc = 1;
 		}
-		if ((rv = check_null_string(bp,p->size)) == 1) {
+		if ((chrv = check_null_string(bp,p->size)) == 1) {
 			*bpp = bp;
 			sprintf(icp->err,"icmTextDescription_read: ascii string is not terminated");
 			return icp->errc = 1;
 		}
 #ifdef ICM_STRICT
-		if (rv == 2) {
+		if (chrv == 2) {
 			*bpp = bp;
 			sprintf(icp->err,"icmTextDescription_read: ascii string is shorter than count");
 			return icp->errc = 1;
@@ -8263,6 +8264,9 @@ static int icmTextDescription_core_read(
 		}
 		strcpy(p->desc, bp);
 		bp += p->size;
+
+		if (chrv == 2)
+			p->size = strlen(bp); /* Repair string */
 	}
 	
 	/* Read the Unicode string */
@@ -8276,20 +8280,21 @@ static int icmTextDescription_core_read(
 	p->ucSize = read_UInt32Number(bp);
 	bp += 4;
 	if (p->ucSize > 0) {
-		ORD16 *up;
+		int chrv;
+		ORD16 *up, len;
 		char *tbp;
 		if (bp > end || p->ucSize > (end - bp)/2) {
 			*bpp = bp;
 			sprintf(icp->err,"icmTextDescription_read: Data too short to read Unicode string");
 			return icp->errc = 1;
 		}
-		if ((rv = check_null_string16(bp,p->ucSize)) == 1) {
+		if ((chrv = check_null_string16(bp,p->ucSize)) == 1) {
 			*bpp = bp;
 			sprintf(icp->err,"icmTextDescription_read: Unicode string is not terminated");
 			return icp->errc = 1;
 		}
 #ifdef ICM_STRICT
-		if (rv == 2) {
+		if (chrv == 2) {
 			*bpp = bp;
 			sprintf(icp->err,"icmTextDescription_read: Unicode string is shorter than count");
 			return icp->errc = 1;
@@ -8298,10 +8303,12 @@ static int icmTextDescription_core_read(
 		if ((rv = p->allocate((icmBase *)p)) != 0) {
 			return rv;
 		}
-		for (up = p->ucDesc, tbp = bp; tbp[0] != 0 || tbp[1] != 0; up++, tbp += 2)
+		for (len = 0, up = p->ucDesc, tbp = bp; tbp[0] != 0 || tbp[1] != 0; up++, tbp += 2, len++)
 			*up = read_UInt16Number(tbp);
 		*up = 0;	/* Unicode null */
 		bp += p->ucSize * 2;
+		if (chrv == 2)
+			p->ucSize = len+1; /* Repair string */
 	}
 	
 	/* Read the ScriptCode string */
@@ -8387,7 +8394,7 @@ static int icmTextDescription_write(
 /* Core write the contents of the object. Return 0 on sucess, error code on failure */
 static int icmTextDescription_core_write(
 	icmTextDescription *p,
-	char **bpp				/* Pointer to buffer pointer, returns next after read */
+	char **bpp				/* Pointer to buffer pointer, returns next after write */
 ) {
 	icc *icp = p->icp;
 	char *bp = *bpp;
@@ -11728,18 +11735,20 @@ static int icc_read_x(
 				icmCpy3x3(p->iwpchtmx, icmWrongVonKries);
 			}
 		
-			p->useArts = 0;		/* Don't save it if it wasn't in profile */
+			p->useArts = 0;		/* Don't save it, as it wasn't in profile */
 		}
 
-		p->autoWpchtmx = 0;		/* It's been set on reading - don't set automatically */
+		p->wpchtmx_class = p->header->deviceClass;		/* It's set for this class now */
 	}
 
-	/* If this is a Display profile, check if there is a 'chad' tag, and read it */
-	/* in if it exists. We will use this latter. */
+	/* If this is a Display or Output profile, check if there is a 'chad' tag, and read it */
+	/* in if it exists. We will use this latter when we interpret absolute colorimetric, */
+	/* and this also prevents auto creation of a chad tag on write if wrD/OChad is set. */
 	{
 		icmS15Fixed16Array *chadTag;
 
-	 	if (p->header->deviceClass == icSigDisplayClass
+	 	if ((p->header->deviceClass == icSigDisplayClass
+	 	  || p->header->deviceClass == icSigOutputClass)
 		 && (chadTag = (icmS15Fixed16Array *)p->read_tag(p, icSigChromaticAdaptationTag)) != NULL
 		 && chadTag->ttype == icSigS15Fixed16ArrayType
 		 && chadTag->size == 9) {
@@ -11754,11 +11763,17 @@ static int icc_read_x(
 			p->chadmx[2][1] = chadTag->data[7];
 			p->chadmx[2][2] = chadTag->data[8];
 
-			p->chadValid = 1;
-	
-			p->useChad = 1;		/* Use it when writing */
+			p->naturalChad = 1;
+			p->chadmxValid = 1;
 		}
 	}
+
+	/* It would be nice to have an option to convert 'chad' based profile */
+	/* into non-chad profiles, but this is non trivial, since the wpchtmx would */
+	/* need to be determined from the chad matrix. While this is technically */
+	/* possible (see chex.c for an attempt at this), it is not easy, and */
+	/* it's possible for the chad matrix to be a non Von Kries type transformation, */
+	/* which cannot be exactly decomposed into a cone space matrix + Von Kries scaling. */ 
 
 	return er;
 }
@@ -11855,20 +11870,28 @@ static int icc_check_id(
 	return 2;			/* Didn't match */
 }
 
-void quantize3x3S15Fixed16(double targ[3], double mat[3][3], double in[3]);
+static void icc_setup_wpchtmx(icc *p);
+void icmQuantize3x3S15Fixed16(double targ[3], double mat[3][3], double in[3]);
 
 /* Add any automatically created tags. */
-/* (Hmm. Should we remove them if they shouldn't be there ?) */
-static int icc_add_auto_tags(icc *p) {
+/* Modify white point value if wr is nz. (i.e. in middle of ->write()) */
+/* The 'chad' tag is only added if there is no natural 'chad' tag, */
+/* and will be remove once the write is complete. */
+static int icc_add_auto_tags(icc *p, int wr) {
 
 	/* If we're using the ArgyllCMS 'arts' tag to record the chromatic */
 	/* adapation cone matrix used for the Media Relative WP Transformation, */ 
 	/* create it and set it from the wpchtmx[][] matrix. */
-	/* Don't write it if there is to 'wtpt' tag (i.e. it's a device link) */
+	/* Don't write it if there is no 'wtpt' tag (i.e. it's a device link) */
 	if (p->useArts
 	 && p->find_tag(p, icSigMediaWhitePointTag) == 0)  {
 		int rv;
 		icmS15Fixed16Array *artsTag;
+
+		/* Make sure wpchtmx[][] has been set correctly for device class */
+		if (p->wpchtmx_class != p->header->deviceClass) {
+			icc_setup_wpchtmx(p);
+		}
 
 		/* Make sure no 'arts' tag currently exists */
 		if (p->delete_tag(p, icmSigAbsToRelTransSpace) != 0
@@ -11889,20 +11912,22 @@ static int icc_add_auto_tags(icc *p) {
 			return p->errc = 1;
 		}
 
-		/* The cone matrix is assumed to be arranged conventionaly for matrix */
-		/* times vector multiplication. */
-		/* Consistent with ICC usage, the dimension corresponding to the matrix */
-		/* rows varies least rapidly while the one corresponding to the matrix */
-		/* columns varies most rapidly. */
-		artsTag->data[0] = p->wpchtmx[0][0];
-		artsTag->data[1] = p->wpchtmx[0][1];
-		artsTag->data[2] = p->wpchtmx[0][2];
-		artsTag->data[3] = p->wpchtmx[1][0];
-		artsTag->data[4] = p->wpchtmx[1][1];
-		artsTag->data[5] = p->wpchtmx[1][2];
-		artsTag->data[6] = p->wpchtmx[2][0];
-		artsTag->data[7] = p->wpchtmx[2][1];
-		artsTag->data[8] = p->wpchtmx[2][2];
+		if (wr) {
+			/* The cone matrix is assumed to be arranged conventionaly for matrix */
+			/* times vector multiplication. */
+			/* Consistent with ICC usage, the dimension corresponding to the matrix */
+			/* rows varies least rapidly while the one corresponding to the matrix */
+			/* columns varies most rapidly. */
+			artsTag->data[0] = p->wpchtmx[0][0];
+			artsTag->data[1] = p->wpchtmx[0][1];
+			artsTag->data[2] = p->wpchtmx[0][2];
+			artsTag->data[3] = p->wpchtmx[1][0];
+			artsTag->data[4] = p->wpchtmx[1][1];
+			artsTag->data[5] = p->wpchtmx[1][2];
+			artsTag->data[6] = p->wpchtmx[2][0];
+			artsTag->data[7] = p->wpchtmx[2][1];
+			artsTag->data[8] = p->wpchtmx[2][2];
+		}
 	}
 
 	/* If this is a Display profile, and we have been told to save it in */
@@ -11914,20 +11939,22 @@ static int icc_add_auto_tags(icc *p) {
 		icmS15Fixed16Array *chadTag;
 		
 	 	if (p->header->deviceClass == icSigDisplayClass
-		 && p->useChad
+		 && p->wrDChad && !p->naturalChad
 		 && (whitePointTag = (icmXYZArray *)p->read_tag(p, icSigMediaWhitePointTag)) != NULL
 		 && whitePointTag->ttype == icSigXYZType
 		 && whitePointTag->size >= 1) {
 	
 			/* If we've set this profile, not just read it, */
 			/* compute the fromAbs/chad matrix from media white point and cone matrix */
-			if (!p->chadValid) {
+			if (!p->chadmxValid) {
 				double wp[3];
-				p->chromAdaptMatrix(p, ICM_CAM_NONE, icmD50, whitePointTag->data[0], p->chadmx);  
+				p->chromAdaptMatrix(p, ICM_CAM_NONE, NULL, p->chadmx,
+				                       icmD50, whitePointTag->data[0]);  
 
 				/* Optimally quantize chad matrix to preserver white point */
 				icmXYZ2Ary(wp, whitePointTag->data[0]);
-				quantize3x3S15Fixed16(icmD50_ary3, p->chadmx, wp);
+				icmQuantize3x3S15Fixed16(icmD50_ary3, p->chadmx, wp);
+				p->chadmxValid = 1;
 			}
 	
 			/* Make sure no 'chad' tag currently exists */
@@ -11948,22 +11975,143 @@ static int icc_add_auto_tags(icc *p) {
 				sprintf(p->err,"icc_write: Allocating 'chad' tag failed");
 				return p->errc = 1;
 			}
-	
-			/* Save in ICC matrix order */
-			chadTag->data[0] = p->chadmx[0][0];
-			chadTag->data[1] = p->chadmx[0][1];
-			chadTag->data[2] = p->chadmx[0][2];
-			chadTag->data[3] = p->chadmx[1][0];
-			chadTag->data[4] = p->chadmx[1][1];
-			chadTag->data[5] = p->chadmx[1][2];
-			chadTag->data[6] = p->chadmx[2][0];
-			chadTag->data[7] = p->chadmx[2][1];
-			chadTag->data[8] = p->chadmx[2][2];
 
-			/* Set the media white point to D50 */
-			whitePointTag->data[0] = icmD50;
+			p->tempChad = 1;
+	
+			if (wr) {
+				/* Save in ICC matrix order */
+				chadTag->data[0] = p->chadmx[0][0];
+				chadTag->data[1] = p->chadmx[0][1];
+				chadTag->data[2] = p->chadmx[0][2];
+				chadTag->data[3] = p->chadmx[1][0];
+				chadTag->data[4] = p->chadmx[1][1];
+				chadTag->data[5] = p->chadmx[1][2];
+				chadTag->data[6] = p->chadmx[2][0];
+				chadTag->data[7] = p->chadmx[2][1];
+				chadTag->data[8] = p->chadmx[2][2];
+
+				/* Set 'chad' adhusted white point */
+				p->tempWP = whitePointTag->data[0];
+				whitePointTag->data[0] = icmD50;
+			}
 		}
 	}
+
+	/* If this is an Output profile with a non-standard illuminant set, */
+	/* and we have been told to save it using a 'chad' tag to represent */
+	/* the illuminant difference, then adjust the media white point tag */
+	/* for the illuminant, and change the 'chad' tag. */
+	{
+		int rv;
+		icmXYZArray *whitePointTag;
+		icmS15Fixed16Array *chadTag;
+		
+	 	if (p->header->deviceClass == icSigOutputClass
+		 && p->chadmxValid
+		 && p->wrOChad && !p->naturalChad
+		 && (whitePointTag = (icmXYZArray *)p->read_tag(p, icSigMediaWhitePointTag)) != NULL
+		 && whitePointTag->ttype == icSigXYZType
+		 && whitePointTag->size >= 1) {
+			double wp[3];
+	
+			/* Make sure no 'chad' tag currently exists */
+			if (p->delete_tag(p, icSigChromaticAdaptationTag) != 0
+			 && p->errc != 2) {
+				sprintf(p->err,"icc_write: Deleting existing 'chad' tag failed");
+				return p->errc = 1;
+			}
+	
+			/* Add one */
+			if ((chadTag = (icmS15Fixed16Array *)p->add_tag(p, icSigChromaticAdaptationTag,
+				                                     icSigS15Fixed16ArrayType)) == NULL) {
+				sprintf(p->err,"icc_write: Adding 'chad' tag failed");
+				return p->errc = 1;
+			}
+			chadTag->size = 9;
+			if ((rv = chadTag->allocate((icmBase *)chadTag)	) != 0) {
+				sprintf(p->err,"icc_write: Allocating 'chad' tag failed");
+				return p->errc = 1;
+			}
+	
+			p->tempChad = 1;
+
+			if (wr) {
+				/* Save in ICC matrix order */
+				chadTag->data[0] = p->chadmx[0][0];
+				chadTag->data[1] = p->chadmx[0][1];
+				chadTag->data[2] = p->chadmx[0][2];
+				chadTag->data[3] = p->chadmx[1][0];
+				chadTag->data[4] = p->chadmx[1][1];
+				chadTag->data[5] = p->chadmx[1][2];
+				chadTag->data[6] = p->chadmx[2][0];
+				chadTag->data[7] = p->chadmx[2][1];
+				chadTag->data[8] = p->chadmx[2][2];
+	
+				/* Transform white point to take 'chad' into account */
+				p->tempWP = whitePointTag->data[0];
+				icmXYZ2Ary(wp, whitePointTag->data[0]);
+				icmMulBy3x3(wp, p->chadmx, wp);
+				icmAry2XYZ(whitePointTag->data[0], wp);
+			}
+		}
+	}
+
+	return 0;
+}
+
+/* Restore profile after creating temporary 'chad' tag, and */
+/* modifying the white point. */
+static int icc_rem_temp_tags(icc *p) {
+
+	/* Restore profile if Display 'chad' has been temporarily added. */
+	{
+		int rv;
+		icmXYZArray *whitePointTag;
+		icmS15Fixed16Array *chadTag;
+		
+	 	if (p->header->deviceClass == icSigDisplayClass
+		 && p->tempChad && p->wrDChad && !p->naturalChad
+		 && (whitePointTag = (icmXYZArray *)p->read_tag(p, icSigMediaWhitePointTag)) != NULL
+		 && whitePointTag->ttype == icSigXYZType
+		 && whitePointTag->size >= 1) {
+	
+			/* Remove temporary 'chad' tag */
+			if (p->delete_tag(p, icSigChromaticAdaptationTag) != 0
+			 && p->errc != 2) {
+				sprintf(p->err,"icc_write: Deleting temporary 'chad' tag failed");
+				return p->errc = 1;
+			}
+	
+			/* Restore original white point */
+			whitePointTag->data[0] = p->tempWP;
+		}
+	}
+
+	/* Restore profile if Output 'chad' has been temporarily added. */
+	{
+		int rv;
+		icmXYZArray *whitePointTag;
+		icmS15Fixed16Array *chadTag;
+		
+	 	if (p->header->deviceClass == icSigOutputClass
+		 && p->tempChad && p->wrOChad && !p->naturalChad
+		 && (whitePointTag = (icmXYZArray *)p->read_tag(p, icSigMediaWhitePointTag)) != NULL
+		 && whitePointTag->ttype == icSigXYZType
+		 && whitePointTag->size >= 1) {
+			double wp[3];
+	
+			/* Remove temporary 'chad' tag */
+			if (p->delete_tag(p, icSigChromaticAdaptationTag) != 0
+			 && p->errc != 2) {
+				sprintf(p->err,"icc_write: Deleting temporary 'chad' tag failed");
+				return p->errc = 1;
+			}
+
+			/* Restore original white point */
+			whitePointTag->data[0] = p->tempWP;
+		}
+	}
+
 	return 0;
 }
 
@@ -11977,8 +12125,8 @@ static unsigned int icc_get_size(
 ) {
 	unsigned int i, size = 0;
 
-	/* Ignore any errors this time */
-	icc_add_auto_tags(p);
+	/* Add 'arts' tag and temporary 'chad' tag if so configured */
+	icc_add_auto_tags(p, 0);
 
 #ifdef ICM_STRICT
 	/* Check that the right tags etc. are present for a legal ICC profile */
@@ -12039,7 +12187,8 @@ static int icc_write_x(
 	unsigned int i, size = 0;
 	unsigned char pbuf[ALIGN_SIZE];
 
-	if ((rv = icc_add_auto_tags(p)) != 0)
+	/* Add 'arts' tag and temporary 'chad' tag and modify white point, if so configured */
+	if ((rv = icc_add_auto_tags(p, 1)) != 0)
 		return rv;
 
 	p->fp = fp;			/* Open file pointer */
@@ -12260,6 +12409,10 @@ static int icc_write_x(
 		p->data[i].objp->touched = 0;	/* Written it, so don't write it again. */
 	}
 
+	/* Remove any temporary 'chad' tag and restore white point */
+	if ((rv = icc_rem_temp_tags(p)) != 0)
+		return rv;
+
 	if (p->fp->flush(p->fp) != 0) {
 		sprintf(p->err,"icc_write flush() failed");
 		return p->errc = 1;
@@ -12372,6 +12525,10 @@ static icmBase *icc_add_tag(
     p->data[p->count].objp = nob;		/* Empty object */
 	p->count++;
 
+	/* Track whether we have a natural 'chad' tag */
+	if (sig == icSigChromaticAdaptationTag)
+		p->naturalChad = 1;
+
 	return nob;
 }
 
@@ -12452,6 +12609,10 @@ static icmBase *icc_link_tag(
     p->data[p->count].objp = p->data[exi].objp;		/* Shared object */
 	p->data[exi].objp->refcount++;					/* Bump reference count on tag type */
 	p->count++;
+
+	/* Track whether we have a natural 'chad' tag */
+	if (sig == icSigChromaticAdaptationTag)
+		p->naturalChad = 1;
 
 	return p->data[exi].objp;
 }
@@ -12657,6 +12818,12 @@ static int icc_rename_tag(
 	/* change its signature */
 	p->data[k].sig = sigNew;
 
+	/* Track whether we have a natural 'chad' tag */
+	if (sig == icSigChromaticAdaptationTag)
+		p->naturalChad = 0;
+	if (sigNew == icSigChromaticAdaptationTag)
+		p->naturalChad = 1;
+
 	return 0;
 }
 
@@ -12715,7 +12882,6 @@ static int icc_unread_tag(
 
 /* Delete the tag, and free the underlying tag type, */
 /* if this was the last reference to it. */
-/* Note this finds the first tag with a matching signature. */
 /* Returns non-zero on error: */
 /* tag not found - icc->errc will contain 2 */
 static int icc_delete_tag_ix(
@@ -12753,6 +12919,7 @@ static int icc_delete_tag(
     icTagSignature sig		/* Tag signature - may be unknown */
 ) {
 	unsigned int i;
+	int rv;
 
 	/* Search for signature */
 	for (i = 0; i < p->count; i++) {
@@ -12764,7 +12931,15 @@ static int icc_delete_tag(
 		return p->errc = 2;
 	}
 
-	return icc_delete_tag_ix(p, i);
+	rv = icc_delete_tag_ix(p, i);
+
+	/* Track whether we still have a natural 'chad' tag */
+	if (rv == 0) {
+		if (sig == icSigChromaticAdaptationTag)
+			p->naturalChad = 0;
+	}
+
+	return rv;
 }
 
 /* Read all the tags into memory, including unknown types. */
@@ -14971,12 +15146,15 @@ void icmChromAdaptMatrix(
 	/* We're done */
 }
 
-/* Setup the wpchtmx appropriately for creating profile */
+/* Setup the wpchtmx appropriately for creating profile. */
+/* This is called if the deviceClass has changed on a call */
+/* to ->chromAdaptMatrix(), ->get_size() or ->write(). */
 static void icc_setup_wpchtmx(icc *p) {
 	int useBradford = 1;		/* Default use Bradford */
 
-	if (!p->autoWpchtmx)
-		return;					/* Reading profile has set wpchtmx[][] */
+	/* If set by reading profile or already set appropriately */
+	if (p->wpchtmx_class == p->header->deviceClass)
+		return;
 
 	/* If we should use ICC standard Wrong Von Kries for white point chromatic adapation */
 	if (p->header->deviceClass == icSigOutputClass
@@ -14996,28 +15174,63 @@ static void icc_setup_wpchtmx(icc *p) {
 	p->wpchtmx_class = p->header->deviceClass;
 }
 
-/* icc Chromatic adaptation transform utility using */
-/* the current Absolute to Media Relative Transformation Space wpchtmx. */
-/* Return a 3x3 chromatic adaptation matrix */
+/* Clear any existing 'chad' matrix, and if Output type profile */
+/* and ARGYLL_CREATE_OUTPUT_PROFILE_WITH_CHAD set and */
+/* ill_wp != NULL, create a 'chad' matrix. */
+static void icc_set_illum(struct _icc *p, double ill_wp[3]) {
+
+	p->chadmxValid = 0;		/* Calling set_illum signals profile creation, */
+							/* so discard any previous (i.e. read) chad matrix */
+
+	if (ill_wp != NULL) {
+		icmCpy3(p->illwp, ill_wp);
+		p->illwpValid = 1;
+	}
+
+	/* Is illuminant chromatic adapation chad matrix needed ? */
+ 	if (p->header->deviceClass == icSigOutputClass
+	 && p->illwpValid
+	 && p->wrOChad) {
+		double wp[3];
+		icmXYZNumber iwp;
+
+		/* Create Output illuminant 'chad' matrix */
+		icmAry2XYZ(iwp, p->illwp);
+		icmChromAdaptMatrix(ICM_CAM_BRADFORD, icmD50, iwp, p->chadmx);  
+
+		/* Optimally quantize chad matrix to preserver white point */
+		icmQuantize3x3S15Fixed16(icmD50_ary3, p->chadmx, p->illwp);
+
+		p->chadmxValid = 1;
+	}
+}
+
+/* Return an overall Chromatic Adaptation Matrix for the given source and */
+/* destination white points. This will depend on the icc profiles current setup */
+/* for Abs->Rel conversion (wpchtmx[][] set to wrong Von Kries or not, whether */
+/* 'arts' tag has been read), and whether an Output profile 'chad' tag has bean read */
+/* or will be created. (i.e. on creation, assumes icc->set_illum() called). */
 /* Use icmMulBy3x3(dst, mat, src) */
-/* NOTE that to transform primaries they */
-/* must be mat[XYZ][RGB] format! */
-/* NOTE that this resets the chadValid flag (i.e. we assume that if */
-/* this method gets called, that we are discarding any 'chad' tag */
-/* and creating our own chromatic adapation) */
+/* NOTE that to transform primaries they must be mat[XYZ][RGB] format! */
 static void icc_chromAdaptMatrix(
 	icc *p,
-	int flags,				/* Transform given matrix flag */
-	icmXYZNumber d_wp,		/* Destination white point */
-	icmXYZNumber s_wp,		/* Source white point */
-	double mat[3][3]		/* Destination matrix */
+	int flags,				/* ICM_CAM_NONE or ICM_CAM_MULMATRIX to mult by mat */
+	double imat[3][3],		/* Optional inverse CAT matrix result */
+	double mat[3][3],		/* CAT optional input if ICM_CAM_MULMATRIX & result matrix */
+	icmXYZNumber d_wp,		/* Destination white point (Usually PCS D50) */
+	icmXYZNumber s_wp		/* Source media absolute white point */
 ) {
 	double dst[3], src[3];			/* Source & destination white points */
 	double vkmat[3][3];				/* Von Kries matrix */
+	double omat[3][3];				/* Output matrix */
 
 	if (p->header->deviceClass == icMaxEnumClass) {
 		fprintf(stderr,"icc_chromAdaptMatrix called with no deviceClass!\n");
 	}
+
+	/* Take a copy of src/dst */
+	icmXYZ2Ary(src, s_wp);
+	icmXYZ2Ary(dst, d_wp);
 
 	/* See if the profile type has changed, re-evaluate wpchtmx */
 	if (p->wpchtmx_class != p->header->deviceClass) {
@@ -15025,20 +15238,24 @@ static void icc_chromAdaptMatrix(
 	}
 
 	/* Set initial matrix to unity if creating from scratch */
-	if (!(flags & ICM_CAM_MULMATRIX)) {
-		icmSetUnity3x3(mat);
-	}
+	if (flags & ICM_CAM_MULMATRIX)
+		icmCpy3x3(omat, mat);
+	else
+		icmSetUnity3x3(omat);
 
-	/* Take a copy of src/dst */
-	icmXYZ2Ary(src, s_wp);
-	icmXYZ2Ary(dst, d_wp);
+	/* Incorporate Output chad matrix if we will be creating one */
+	if (p->header->deviceClass == icSigOutputClass
+	 && p->chadmxValid) {
+		icmMulBy3x3(src, p->chadmx, src);
+		icmMul3x3(omat, p->chadmx);
+	}
 
 	/* Transform src/dst to cone space */
 	icmMulBy3x3(src, p->wpchtmx, src);
 	icmMulBy3x3(dst, p->wpchtmx, dst);
 
-	/* Transform incoming matrix cone space */
-	icmMul3x3(mat, p->wpchtmx);
+	/* Transform incoming matrix to cone space */
+	icmMul3x3(omat, p->wpchtmx);
 
 	/* Setup the Von Kries white point adaptation matrix */
 	vkmat[0][0] = dst[0]/src[0];
@@ -15049,14 +15266,16 @@ static void icc_chromAdaptMatrix(
 	vkmat[2][0] = vkmat[2][1] = 0.0;
 
 	/* Apply chromatic adaptation */
-	icmMul3x3(mat, vkmat);
+	icmMul3x3(omat, vkmat);
 
 	/* Transform from con space */
-	icmMul3x3(mat, p->iwpchtmx);
+	icmMul3x3(omat, p->iwpchtmx);
 
-	p->chadValid = 0;		/* Don't use this now */
+	if (mat != NULL)
+		icmCpy3x3(mat, omat);
 
-	/* We're done */
+	if (imat != NULL)
+		icmInverse3x3(imat, omat);
 }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -15143,7 +15362,7 @@ int icmRGBYxyprim2matrix(
 /* the matrix and the input value is the same as */
 /* the quantized matrix product. This is used to improve accuracy */
 /* of 'chad' tag in computing absolute white point. */ 
-void quantize3x3S15Fixed16(
+void icmQuantize3x3S15Fixed16(
 	double targ[3],			/* Target of product */
 	double mat[3][3],		/* matrix[][] to be quantized */
 	double in[3]			/* Input of product - must not be 0.0! */
@@ -15491,7 +15710,7 @@ void icmRec709_50_YPbPr_2_RGBd(double out[3], double in[3]) {
 }
 
 
-/* Convert Rec2020 RGB' into Non-constant liminance YPbPr, or "full range YCbCr" */
+/* Convert Rec2020 RGB' into Non-constant luminance YPbPr, or "full range YCbCr" */
 /* where input 0..1, output 0..1, -0.5 .. 0.5, -0.5 .. 0.5 */
 /* [From the Rec2020 specification] */
 void icmRec2020_NCL_RGBd_2_YPbPr(double out[3], double in[3]) {
@@ -15512,7 +15731,7 @@ void icmRec2020_NCL_RGBd_2_YPbPr(double out[3], double in[3]) {
 	out[2] = tt[2];
 }
 
-/* Convert Rec2020 Non-constant liminance YPbPr into RGB' (== "full range YCbCr") */
+/* Convert Rec2020 Non-constant luminance YPbPr into RGB' (== "full range YCbCr") */
 /* where input 0..1, -0.5 .. 0.5, -0.5 .. 0.5, output 0.0 .. 1 */
 /* [Inverse of above] */
 void icmRec2020_NCL_YPbPr_2_RGBd(double out[3], double in[3]) {
@@ -15527,7 +15746,7 @@ void icmRec2020_NCL_YPbPr_2_RGBd(double out[3], double in[3]) {
 	out[2] = tt[2];
 }
 
-/* Convert Rec2020 RGB' into Constant liminance YPbPr, or "full range YCbCr" */
+/* Convert Rec2020 RGB' into Constant luminance YPbPr, or "full range YCbCr" */
 /* where input 0..1, output 0..1, -0.5 .. 0.5, -0.5 .. 0.5 */
 /* [From the Rec2020 specification] */
 void icmRec2020_CL_RGBd_2_YPbPr(double out[3], double in[3]) {
@@ -15568,7 +15787,7 @@ void icmRec2020_CL_RGBd_2_YPbPr(double out[3], double in[3]) {
 	out[2] = tt[2];
 }
 
-/* Convert Rec2020 Constant liminance YPbPr into RGB' (== "full range YCbCr") */
+/* Convert Rec2020 Constant luminance YPbPr into RGB' (== "full range YCbCr") */
 /* where input 0..1, -0.5 .. 0.5, -0.5 .. 0.5, output 0.0 .. 1 */
 /* [Inverse of above] */
 void icmRec2020_CL_YPbPr_2_RGBd(double out[3], double in[3]) {
@@ -16278,13 +16497,14 @@ struct _icmLuBase *lup
 		lup->blackisassumed = 0;					/* The black is from the tag */
 	}
 
-	/* If this is a Display profile, check if there is a 'chad' tag, and setup the */
-	/* white point and toAbs/fromAbs matricies from that, so as to implement an */
+	/* If this is a Display profile, check if there is a 'chad' tag, then */
+	/* setup the white point and toAbs/fromAbs matricies from that, so as to implement an */
 	/* effective Absolute Colorimetric intent for such profiles. */
  	if (p->header->deviceClass == icSigDisplayClass
-	 && p->chadValid) {
+	 && p->naturalChad && p->chadmxValid) {
 		double wp[3];
 
+		/* Conversion matrix is chad matrix. */
 		icmCpy3x3(lup->fromAbs, p->chadmx);
 		icmInverse3x3(lup->toAbs, lup->fromAbs);
 
@@ -16300,10 +16520,28 @@ struct _icmLuBase *lup
 		DBLLL(("computed wp %.8f %.8f %.8f\n", lup->whitePoint.X,
 		                               lup->whitePoint.Y, lup->whitePoint.Z));
 
+	/* If this is an Output profile, check if there is a 'chad' tag, and */
+	/* setup the toAbs/fromAbs matricies so that they include it, so as to implement an */
+	/* effective Absolute Colorimetric intent for such profiles. */
+ 	} else if (p->header->deviceClass == icSigOutputClass
+	 && p->naturalChad && p->chadmxValid) {
+		double wp[3];
+		double ichad[3][3];
+
+		/* Convert the white point tag value backwards through the 'chad' */
+		icmXYZ2Ary(wp, lup->whitePoint);
+		icmInverse3x3(ichad, p->chadmx);
+		icmMulBy3x3(wp, ichad, wp); 
+		icmAry2XYZ(lup->whitePoint, wp);
+
+		/* Create absolute <-> relative conversion matricies */
+		p->chromAdaptMatrix(p, ICM_CAM_NONE, lup->toAbs, lup->fromAbs, icmD50, lup->whitePoint);
+		DBLLL(("toAbs and fromAbs created from 'chad' tag & WP tag\n"));
+		DBLLL(("toAbs and fromAbs created from wp %f %f %f and D50 %f %f %f\n", lup->whitePoint.X,
+		                       lup->whitePoint.Y, lup->whitePoint.Z, icmD50.X, icmD50.Y, icmD50.Z));
 	} else {
 		/* Create absolute <-> relative conversion matricies */
-		p->chromAdaptMatrix(p, ICM_CAM_NONE, lup->whitePoint, icmD50, lup->toAbs);
-		p->chromAdaptMatrix(p, ICM_CAM_NONE, icmD50, lup->whitePoint,  lup->fromAbs);
+		p->chromAdaptMatrix(p, ICM_CAM_NONE, lup->toAbs, lup->fromAbs, icmD50, lup->whitePoint);
 		DBLLL(("toAbs and fromAbs created from wp %f %f %f and D50 %f %f %f\n", lup->whitePoint.X,
 		                       lup->whitePoint.Y, lup->whitePoint.Z, icmD50.X, icmD50.Y, icmD50.Z));
 	}
@@ -18935,6 +19173,7 @@ icmAlloc *al			/* Memory allocator */
 	p->get_tac       = icm_get_tac;
 	p->get_luobj     = icc_get_luobj;
 	p->new_clutluobj = icc_new_icmLuLut;
+	p->set_illum     = icc_set_illum;
 	p->chromAdaptMatrix = icc_chromAdaptMatrix;
 
 #if defined(__IBMC__) && defined(_M_IX86)
@@ -18984,30 +19223,39 @@ icmAlloc *al			/* Memory allocator */
 	for (i = 0; i < 16; i++)
 		p->header->id[i] = 0;
 
-	p->autoWpchtmx = 1;						/* Auto on create */
-
 	/* Should we use ICC standard Wrong Von Kries for */
 	/* white point chromatic adapation for output class ? */
 	if (getenv("ARGYLL_CREATE_WRONG_VON_KRIES_OUTPUT_CLASS_REL_WP") != NULL)
 		p->useLinWpchtmx = 1;				/* Use Wrong Von Kries */
 	else
 		p->useLinWpchtmx = 0;				/* Use Bradford by default */
-	p->wpchtmx_class = icMaxEnumClass;		/* Not set yet */
+	p->wpchtmx_class = icMaxEnumClass;		/* Not set yet - auto set on create. */
 
 	/* Default to saving ArgyllCMS private 'arts' tag (if appropriate type of */
 	/* profile) to make white point chromatic adapation explicit. */
 	p->useArts = 1;
 
 	/* Should we create a V4 style Display profile with D50 media white point */
-	/* tag and 'chad' tag ? */
+	/* tag and 'chad' tag ? - or - */
+	/* Should we create an Output profile using a 'chad' tag if it uses */
+	/* a non-standard illuminant ? */
 	if (getenv("ARGYLL_CREATE_DISPLAY_PROFILE_WITH_CHAD") != NULL)
-		p->useChad = 1;				/* Mark Media WP as D50 and put absolute to relative */
-									/* transform matrix in 'chad' tag. */
+		p->wrDChad = 1;		/* For Display profile mark media WP as D50 and put */
+							/* absolute to relative transform matrix in 'chad' tag. */
 	else
-		p->useChad = 0;				/* No by default - use Bradford and store real Media WP */
+		p->wrDChad = 0;		/* No by default - use Bradford and store real Media WP */
+
+	/* Should we create an Output profile using a 'chad' tag if it uses */
+	/* a non-standard illuminant ? */
+	if (getenv("ARGYLL_CREATE_OUTPUT_PROFILE_WITH_CHAD") != NULL)
+		p->wrOChad = 1;		/* For Output profile, put illuminant to D50 Bradford */
+							/* matrix in 'chad' tag, and transform real WP by it. */
+	else
+		p->wrOChad = 0;		/* No by default - Media WP inclues effect of illuminant. */
 
 	/* Set a default wpchtmx in case the profile being read or written */
 	/* doesn't use a white point (i.e., it's a device link) */
+	/* This will be reset if the wpchtmx_class gets changed. */
 	if (!p->useLinWpchtmx) {
 		icmCpy3x3(p->wpchtmx, icmBradford);
 		icmInverse3x3(p->iwpchtmx, p->wpchtmx);

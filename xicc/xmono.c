@@ -194,6 +194,7 @@ double *out, double *in) {
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 static gamut *icxLuMonoGamut(icxLuBase *plu, double detail);
+static icxCuspMap *icxLuMonoCuspMap(icxLuBase *plu, int res) { return NULL; };
 
 static icxLuBase *
 new_icxLuMono(
@@ -222,6 +223,7 @@ int                   dir			/* 0 = fwd, 1 = bwd */
 	p->get_ranges        = icxLu_get_ranges;
 	p->efv_wh_bk_points  = icxLuEfv_wh_bk_points;
 	p->get_gamut         = icxLuMonoGamut;
+	p->get_cuspmap       = icxLuMonoCuspMap;
 	p->fwd_relpcs_outpcs = icxLuMono_fwd_relpcs_outpcs;
 	p->bwd_outpcs_relpcs = icxLuMono_bwd_outpcs_relpcs;
 	p->nearclip = 0;				/* Set flag defaults */
@@ -262,7 +264,7 @@ int                   dir			/* 0 = fwd, 1 = bwd */
 		p->vc  = *vc;				/* Copy the structure */
 		p->cam = new_icxcam(cam_default);
 		p->cam->set_view(p->cam, vc->Ev, vc->Wxyz, vc->La, vc->Yb, vc->Lv, vc->Yf, vc->Yg, vc->Gxyz,
-		XICC_USE_HK);
+		XICC_USE_HK, vc->hkscale);
 	} else 
 		p->cam = NULL;
 

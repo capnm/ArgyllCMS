@@ -35,13 +35,14 @@
       href="Scenarios.html#LP3">Image dependent gamut mapping using
       device links</a> for an example workflow.<br>
     <br>
-    See <a href="3dformat.html">3D Viewing
-      Format</a> for switching to VRML or X3D output format.<br>
+    See <a href="3dformat.html">3D Viewing Format</a> for switching to
+    VRML or X3D output format.<br>
     <h3>Usage Summary</h3>
     <small><span style="font-family: monospace;">tiffgamut [-v level]
         [profile.icm | embedded.tif/jpg] infile1.tif/jpg
         [infile2.tif/jpg ...]</span><br style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp;-v&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -58,6 +59,7 @@ emit
 
 
 
+
         X3DOM .x3d.html file as well as CGATS .gam file</span><br
         style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp;-n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
@@ -67,10 +69,12 @@ Don't
 
 
 
+
         add X3DOM axes or white/black point</span><br
         style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp;-k&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Add
+
 
 
 
@@ -90,6 +94,7 @@ s
 
 
 
+
         = saturation, a = absolute (default), d = profile default</span></small><small><span
         style="font-family: monospace;"></span></small><br
       style="font-family: monospace;">
@@ -100,6 +105,7 @@ s
         monospace;">
       <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 r
+
 
 
 
@@ -124,6 +130,7 @@ either
 
 
 
+
         an enumerated choice, or a parameter:value change</span><span
         style="font-family: monospace;"></span><br style="font-family:
         monospace;">
@@ -138,9 +145,11 @@ either
 
 
 
+
         pe - Print evaluation environment (CIE 116-1995)<br>
       </span></small><small><span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;&nbsp;
+
 
 
 
@@ -154,6 +163,7 @@ either
         style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;
+
 
 
 
@@ -186,10 +196,12 @@ s:surround&nbsp;&nbsp;
 
 
 
+
         n = auto, a = average, m = dim, d = dark,</span><br
         style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;
+
 
 
 
@@ -204,10 +216,12 @@ w:X:Y:Z&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
+
         Adapted white point as XYZ (default media white)</span><br
         style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 w:x:y&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -222,10 +236,12 @@ a:adaptation
 
 
 
+
         Adaptation luminance in cd.m^2 (default 50.0)</span><br
         style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 b:background
+
 
 
 
@@ -238,6 +254,7 @@ b:background
     <small><span style="font-family: monospace;"><small><span
             style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 f:flare&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -257,8 +274,13 @@ f:flare&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
+
         g:x:y&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Glare color as
-        x, y<br>
+        x, y</span></small><br>
+    <small><span style="font-family: monospace;"><small><span
+            style="font-family: monospace;">&nbsp;-x
+            pcent&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Expand/compress gamut
+            cylindrically by percent</span></small><br>
         &nbsp;-O outputfile Override the default output filename &amp;
         extension.<br style="font-family: monospace;">
       </span></small><br>
@@ -339,6 +361,12 @@ f:flare&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
     choosing a set of viewing conditions, either by choosing a typical
     viewing environment, or controlling particular viewing condition
     parameters. This is only functional if an ICC profile is provided.<br>
+    <br>
+    The <b>-x</b> parameter allows expanding or compressing the
+    resulting gamut in a cylindrical direction by the given percentage
+    :- i.e "-x 120" will expand by 20%. This may be useful for creating
+    a general compression gamut mapping by using such an expanded device
+    gamut as input to <a href="collink.html#g">collink -g or -G</a>.<br>
     <br>
     The <span style="font-weight: bold;">-O</span> parameter allows the
     output file name &amp; extension to be specified independently of

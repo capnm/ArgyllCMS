@@ -54,7 +54,7 @@
 
 /*
 
-	~~~~~!!!!! This has all been fixed ?
+	!!!!! This has all been fixed ? !!!!!!
 
 	NOTE :- an alternative to the way display profile absolute is handled here
 	would be to always chromatically adapt the illuminant to D50, and encode
@@ -160,6 +160,9 @@
 #undef DISABLE_KCURVE_FILTER	/* [Undef] don't filter the Kcurve */
 #undef REPORT_LOCUS_SEGMENTS    /* [Undef[ Examine how many segments there are in aux inversion */
 
+#undef FASTREVSETUP_NON_CAM		/* [Undef] Use fast setup on innerm non-CAM lookup, if we're */
+								/* going to use CAM clip for nn lookup */
+
 #define XYZ_EXTRA_SMOOTH 20.0		/* Extra smoothing factor for XYZ profiles */
 									/* !!! Note this is mainly due to smoothing being */
 									/* scaled by data range in rspl code !!! */
@@ -171,7 +174,10 @@
 								/* Should this be smaller ? */
 #undef USECAMCLIPSPLINE			/* [Und] use spline blend between PCS and Jab */
 
-#define CCJSCALE	2.0			/* [2.0] Amount to emphasize J delta E in in computing clip */
+#define USELCHWEIGHT			/* [def] Use LCh weighting for nn clip if possible */
+#define JCCWEIGHT	2.0			/* [2.0] Amount to emphasize J delta E in in computing clip */
+#define CCCWEIGHT	1.0			/* [1.0] Amount to emphasize C delta E in in computing clip */
+#define HCCWEIGHT	2.2			/* [2.2] Amount to emphasize H delta E in in computing clip */
 
 /*
  * TTBD:
@@ -429,7 +435,6 @@ icColorSpaceSignature is,		/* Input space, XYZ or Lab */
 double *out, double *in) {
 	icxLuLut *p = (icxLuLut *)pp;
 
-
 	/* Convert to the ICC PCS */
 	if (is == icSigLabData && p->natpcs == icSigXYZData) {
 		DBS(("fwd_relpcs_outpcs: Lab in = %s\n", icmPdv(p->inputChan, in)));
@@ -444,7 +449,7 @@ double *out, double *in) {
 		icmCpy3(out, in);
 	}
 
-	/* Convert to absolute */
+	/* Convert to final PCS (i.e. absolute intent is set that way) */
 	((icmLuLut *)p->plu)->out_abs((icmLuLut *)p->plu, out, out);
 
 	DBS(("fwd_relpcs_outpcs: abs PCS = %s\n", icmPdv(p->inputChan, out)));
@@ -461,51 +466,98 @@ double *out, double *in) {
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - */
 /* Components of inverse lookup, in order */
 
+static double sigfunc(double in, double pp) {
+	if (in < 0.5)
+		return pow(2 * in, pp) * 0.5;
+	else
+		return 1.0 - (pow(2 * (1.0 - in), pp) * 0.5);
+}
+
 /* Utility function - compute the clip vector direction. */
 /* return NULL if vector clip isn't used. */
 double *icxClipVector(
 icxClip *p,			/* Clipping setup information */
 double *in,			/* Target point */
-double *cdirv		/* Space for returned clip vector */
+double *cdirv,		/* Returned clip vector */
+int safe			/* Flag - return safe vector */
 ) {
 	int f;
 	if (p->nearclip != 0)
 		return NULL;			/* Doing nearest clipping, not vector */
 
-	/* Default is simple vector clip */
-	for (f = 0; f < p->fdi; f++)
-		cdirv[f] = p->ocent[f] - in[f];	/* Clip towards output gamut center */
+	if (p->cm == NULL) {
+		/* Default is simple vector clip */
+		for (f = 0; f < p->fdi; f++)
+			cdirv[f] = p->ocent[f] - in[f];	/* Clip towards output gamut center */
 
-	if (p->ocentl != 0.0) {			/* Graduated vector clip */
-		double cvl, nll;
+	/* Else use CuspMap for more targeted vector */
+	} else {
+		double Cpow = 2.0;			/* [2.0]		4.0 for less L change */
+		double Lsig = 2.5;			/* [2.5]		1.6 for less L change */
+		double Lpow = 0.5;			/* [0.5]		0.8 for less L change */
+		double Cratio = 0.9;		/* [0.9]		see cusptest.c        */
+		double ratio;
+		double ss[3];
+		double inC;
+		double targ[3],  cuspLCh[3];
 
-		/* Compute (negative) clip vector length */
-		for (cvl = 0.0, f = 0; f < p->fdi; f++) {
-			cvl += cdirv[f] * cdirv[f];
+		inC = sqrt(in[1] * in[1] + in[2] * in[2]);
+
+		p->cm->getCusp(p->cm, cuspLCh, in);
+
+
+//icmLCh2Lab(targ, cuspLCh);
+//printf("\n~1 in %f %f %f -> cusp %f %f %f\n", in[0], in[1], in[2], targ[0], targ[1], targ[2]);
+//printf("~1 in %f %f %f -> cuspLCh %f %f %f\n", in[0], in[1], in[2], cuspLCh[0], cuspLCh[1], cuspLCh[2]);
+	
+		/* Constrain clip vector to always be inwards pointing */
+		if (cuspLCh[1] > 0.90 * inC) {
+			cuspLCh[1] = 0.90 * inC;
+//printf("~1 Constrain cusp C: cuspLCh %f %f %f\n", cuspLCh[0], cuspLCh[1], cuspLCh[2]);
 		}
-		cvl = sqrt(cvl);
-		if (cvl > 1e-8) {
-			/* Dot product of clip vector and clip center line */
-			for (nll = 0.0, f = 0; f < p->fdi; f++)
-				nll -= cdirv[f] * p->ocentv[f];	/* (Fix -ve clip vector) */
-			nll /= (p->ocentl * p->ocentl);	/* Normalised location along line */
 
-			/* Limit to line */
-			if (nll < 0.0)
-				nll = 0.0;
-			else if (nll > 1.0)
-				nll = 1.0;
+		ss[0] = in[0];
+		ss[1] = in[1];
+		ss[2] = in[2];
+	
+		if (ss[0] < p->cm->Lmin[0])	
+			ss[0] = p->cm->Lmin[0];
+		if (ss[0] > p->cm->Lmax[0])	
+			ss[0] = p->cm->Lmax[0];
+	
+		if (safe) {
+			targ[0] = cuspLCh[0];		/* L target is cusp L */
+			targ[1] = 0.0;				/* Right on the neutral axis */
 
-			if (p->LabLike) {
-				/* Aim more towards center for saturated targets */
-				double sat = sqrt(in[1] * in[1] + in[2] * in[2]);
-				nll += sat/150.0 * (0.5 - nll);
+		} else {
+			if (ss[0] >= cuspLCh[0]) {
+				ratio = (p->cm->Lmax[0] - ss[0])/(p->cm->Lmax[0] - cuspLCh[0]);
+				targ[0] = p->cm->Lmax[0] - sigfunc(pow(ratio, Lpow), Lsig)
+				        * (p->cm->Lmax[0] - cuspLCh[0]); 
+				targ[1] = pow(ratio, Cpow) * Cratio * cuspLCh[1];
+			} else {
+				ratio = (ss[0] - p->cm->Lmin[0])/(cuspLCh[0] - p->cm->Lmin[0]);
+				targ[0] = p->cm->Lmin[0] + sigfunc(pow(ratio, Lpow), Lsig)
+				        * (cuspLCh[0] - p->cm->Lmin[0]); 
+				targ[1] = pow(ratio, Cpow) * Cratio * cuspLCh[1];
 			}
-
-			/* Compute target clip direction */
-			for (f = 0; f < p->fdi; f++)
-				cdirv[f] = p->ocent[f] + nll * p->ocentv[f] - in[f];
 		}
+		targ[2] = cuspLCh[2];		/* h of in */
+
+//printf("~1 targLCH %f %f %f\n", targ[0], targ[1], targ[2]);
+		icmLCh2Lab(targ, targ);
+//printf("~1 targ %f %f %f\n", targ[0], targ[1], targ[2]);
+
+		/* line target point up with white and black point ? */
+		ratio = (ss[0] - p->cm->Lmin[0])/(p->cm->Lmax[0] - p->cm->Lmin[0]);
+		targ[1] += (1.0 - ratio) * p->cm->Lmin[1] + ratio * p->cm->Lmax[1];
+		targ[2] += (1.0 - ratio) * p->cm->Lmin[2] + ratio * p->cm->Lmax[2];
+
+//printf("~1 in %f %f %f -> targ %f %f %f\n", in[0], in[1], in[2], targ[0], targ[1], targ[2]);
+
+		/* Compute target clip direction */
+		for (f = 0; f < p->fdi; f++)
+			cdirv[f] = (targ[f] - in[f]);
 	}
 
 	return cdirv;
@@ -855,7 +907,7 @@ static double icxKcurveNF(double L, icxInkCurve *c) {
 #define DBK(xxx) 
 #endif
 
-/* Same as above, but implement transition filters accross inflection points. */
+/* Same as above, but implement transition filters across inflection points. */
 /* (The convolultion filter previously used could be */
 /* re-instituted if something was done about compressing */
 /* the filter at the boundaries so that the levels are met.) */
@@ -999,12 +1051,14 @@ double *clipd,	/* If not NULL, return DE to gamut on clipi, 0 for not clip */
 double *in		/* Function input values to invert (== clut output' values) */
 ) {
 	co pp[MAX_INVSOLN];		/* Room for all the solutions found */
+	co upp;					/* pp[0] value sent to rev_interp() for replay. */
 	int nsoln;			/* Number of solutions found */
-	double *cdir, cdirv[MXDO];	/* Clip vector direction and length */
+	double *cdir, cdirv[MXDO];	/* Clip vector direction and length/LCh weighting */
 	int e,f,i;
 	int fdi = p->clutTable->fdi;
 	int flags = 0;		/* reverse interp flags */
 	int xflags = 0;		/* extra clip/noclip flags */
+	int uflags = 0;		/* flags value sent to rev_interp() for replay */
 	double tin[MXDO];	/* PCS value to be inverted */
 	double cdist = 0.0;	/* clip DE */
 	int crv = 0;		/* Return value - set to 1 if clipped */
@@ -1026,10 +1080,10 @@ double *in		/* Function input values to invert (== clut output' values) */
 
 	/* Setup for reverse lookup */
 	for (f = 0; f < fdi; f++)
-		pp[0].v[f] = in[f];				/* Target value */
+		upp.v[f] = pp[0].v[f] = in[f];				/* Target value */
 
 	/* Compute clip vector, if any */
-	cdir = icxClipVector(&p->clip, in, cdirv);
+	cdir = icxClipVector(&p->clip, in, cdirv, 0);
 
 	if (p->clutTable->di > fdi) {	/* ie. CMYK->Lab, there will be ambiguity */
 		double min[MXDI], max[MXDI];	/* Auxiliary locus range */
@@ -1084,7 +1138,7 @@ double *in		/* Function input values to invert (== clut output' values) */
 			/* even though it won't have any effect. */
 			for (e = 0; e < p->clutTable->di; e++) {
 				if (p->auxm[e] != 0) {
-					pp[0].p[e] = 0.5;
+					upp.p[e] = pp[0].p[e] = 0.5;
 				}
 			}
 
@@ -1123,7 +1177,7 @@ double *in		/* Function input values to invert (== clut output' values) */
 							iv = min[e];
 						else if (iv > max[e])
 							iv = max[e];
-						pp[0].p[e] = iv;
+						upp.p[e] = pp[0].p[e] = iv;
 					}
 				}
 				DBR(("inv_clut_aux: aux %f from auxt[] %f\n",pp[0].p[3],auxt[0]))
@@ -1137,7 +1191,7 @@ double *in		/* Function input values to invert (== clut output' values) */
 							iv = min[e];
 						else if (iv > max[e])
 							iv = max[e];
-						pp[0].p[e] = iv;
+						upp.p[e] = pp[0].p[e] = iv;
 					}
 				}
 				DBR(("inv_clut_aux: aux %f from out[0] K target %f min %f max %f\n",pp[0].p[3],out[3],min[3],max[3]))
@@ -1152,7 +1206,7 @@ double *in		/* Function input values to invert (== clut output' values) */
 							iv = min[e];
 						else if (iv > max[e])
 							iv = max[e];
-						pp[0].p[e] = iv;
+						upp.p[e] = pp[0].p[e] = iv;
 					}
 				}
 				DBR(("inv_clut_aux: aux %f from out[0] locus %f min %f max %f\n",pp[0].p[3],out[3],min[3],max[3]))
@@ -1195,7 +1249,7 @@ double *in		/* Function input values to invert (== clut output' values) */
 
 					for (e = 0; e < p->clutTable->di; e++) {
 						if (p->auxm[e] != 0) {
-							pp[0].p[e] = min[e] + rv * (max[e] - min[e]);
+							upp.p[e] = pp[0].p[e] = min[e] + rv * (max[e] - min[e]);
 						}
 					}
 					DBR(("inv_clut_aux: aux %f from locus %f min %f max %f\n",pp[0].p[3],rv,min[3],max[3]))
@@ -1209,7 +1263,7 @@ double *in		/* Function input values to invert (== clut output' values) */
 								iv = min[e];
 							else if (iv > max[e])
 								iv = max[e];
-							pp[0].p[e] = iv;
+							upp.p[e] = pp[0].p[e] = iv;
 						}
 					}
 					DBR(("inv_clut_aux: aux %f from out[0] K target %f min %f max %f\n",pp[0].p[3],rv,min[3],max[3]))
@@ -1241,7 +1295,7 @@ double *in		/* Function input values to invert (== clut output' values) */
 									ii = 1.0;
 								ii = (1.0 - ii) * rv + ii * rv2;/* Blend between locus rule curves */
 								/* Out ink from output locus */
-								pp[0].p[e] = min[e] + ii * (max[e] - min[e]);
+								upp.p[e] = pp[0].p[e] = min[e] + ii * (max[e] - min[e]);
 							} else {
 								double iv;
 								iv = out[e];				/* Input K level */
@@ -1249,7 +1303,7 @@ double *in		/* Function input values to invert (== clut output' values) */
 									iv = rv;
 								else if (iv > rv2)
 									iv = rv2;
-								pp[0].p[e] = iv; 
+								upp.p[e] = pp[0].p[e] = iv; 
 							}
 						}
 					}
@@ -1270,7 +1324,7 @@ double *in		/* Function input values to invert (== clut output' values) */
 						tv = max[e];
 					tc.p[0] = tv;
 					p->inputTable[e]->interp(p->inputTable[e], &tc);
-					pp[0].p[e] = tc.v[0];
+					upp.p[e] = pp[0].p[e] = tc.v[0];
 				}
 			}
 
@@ -1291,16 +1345,18 @@ double *in		/* Function input values to invert (== clut output' values) */
 				tin[f] = pp[0].v[f];
 		}
 
+		uflags = RSPL_MAXAUX | flags | xflags;	/* Combine all the flags */
+
 		/* Find reverse solution with target auxiliaries */
 		/* We choose the closest aux at or above the target */
 		/* to try and avoid glitches near black due to */
 		/* possible forked black locuses. */
 		nsoln = p->clutTable->rev_interp(
 			p->clutTable, 	/* rspl object */
-			RSPL_MAXAUX | flags | xflags,	/* Combine all the flags */
+			uflags,
 			MAX_INVSOLN, 	/* Maxumum solutions to return */
 			p->auxm, 		/* Auxiliary input chanel mask */
-			cdir,			/* Clip vector direction and length */
+			cdir,			/* Clip vector direction/LCh weighting */
 			pp);			/* Input target and output solutions */
 							/* returned solutions in pp[0..retval-1].p[] */
 
@@ -1312,13 +1368,15 @@ double *in		/* Function input values to invert (== clut output' values) */
 				tin[f] = pp[0].v[f];
 		}
 
+		uflags = flags;		/* No extra flags */
+
 		/* Color spaces don't need auxiliaries to choose from solution locus */
 		nsoln = p->clutTable->rev_interp(
 			p->clutTable, 	/* rspl object */
-			flags,			/* No extra flags */
+			uflags,
 			MAX_INVSOLN, 	/* Maxumum solutions to return */
 			NULL, 			/* No auxiliary input targets */
-			cdir,			/* Clip vector direction and length */
+			cdir,			/* Clip vector direction/LCh weighting */
 			pp);			/* Input target and output solutions */
 							/* returned solutions in pp[0..retval-1].p[] */
 	}
@@ -1343,8 +1401,9 @@ double *in		/* Function input values to invert (== clut output' values) */
 	DBR(("inv_clut_aux got %d rev_interp solutions, clipflag = %d\n",nsoln,crv))
 
 	/* If we clipped and we should clip in CAM Jab space, compute reverse */
-	/* clip solution using our additional CAM space. */
-	/* (Note that we don't support vector clip in CAM space at the moment) */
+	/* clip solution using our additional CAM space rspl. */
+	/* Note that we don't support vector clip in CAM space at the moment */
+	/* - icxLuLut_init_clut_camclip() doesn't setup CAM rspl for vector clip. */ 
 	if (crv != 0 && p->camclip && p->nearclip) {
 		co cpp;				/* Alternate CAM space solution */
 		double bf;			/* Blend factor */
@@ -1375,7 +1434,6 @@ double *in		/* Function input values to invert (== clut output' values) */
 
 		for (f = 0; f < fdi; f++)	/* Transfer CAM targ */
 			cpp.v[f] = tin[f];
-		cpp.v[0] *= CCJSCALE;	
 
 		/* Make sure that the auxiliar value is initialized, */
 		/* even though it shouldn't have any effect, since should clipp. */
@@ -1391,7 +1449,7 @@ double *in		/* Function input values to invert (== clut output' values) */
 				flags | xflags | RSPL_WILLCLIP,	/* Combine all the flags + clip ?? */
 				1, 				/* Maximum solutions to return */
 				p->auxm, 		/* Auxiliary input chanel mask */
-				cdir,			/* Clip vector direction and length */
+				cdir,			/* Clip vector direction/ LCh weighting */
 				&cpp);			/* Input target and output solutions */
 
 		} else {
@@ -1400,7 +1458,7 @@ double *in		/* Function input values to invert (== clut output' values) */
 				flags | RSPL_WILLCLIP,	/* Because we know it will clip ?? */
 				1, 				/* Maximum solutions to return */
 				NULL, 			/* No auxiliary input targets */
-				cdir,			/* Clip vector direction and length */
+				cdir,			/* Clip vector direction/LCh weighting */
 				&cpp);			/* Input target and output solutions */
 		}
 
@@ -1411,7 +1469,6 @@ double *in		/* Function input values to invert (== clut output' values) */
 		}
 
 		/* Compute the CAM clip distances */
-		cpp.v[0] /= CCJSCALE;
 		for (cdist = 0.0, f = 0; f < fdi; f++) {
 			double tt;
 			tt = cpp.v[f] - tin[f];
@@ -1453,12 +1510,59 @@ double *in		/* Function input values to invert (== clut output' values) */
 	/* Not CAM clip case */
 	} else {
 
+		/* If vector clip, replay with simple vector */
+		if (nsoln == 0 && p->nearclip == 0) {
+//printf("~1 !!!!!!!!!!!!!! Vector clip failed - trying safe replay !!!!!!!!!!!!!!!1\n");
+
+			// Reset pp[0] target values and auiliaries
+			for (e = 0; e < p->clutTable->di; e++)
+				pp[0].p[e] = upp.p[e];
+			for (f = 0; f < fdi; f++)
+				pp[0].v[f] = upp.v[f];
+
+			/* Compute safe clip vector */
+			cdir = icxClipVector(&p->clip, in, cdirv, 1);
+
+			/* Replay the lookup using safer vector */
+			nsoln = p->clutTable->rev_interp(
+				p->clutTable, 	/* rspl object */
+				uflags,	
+				MAX_INVSOLN, 	/* Maxumum solutions to return */
+				NULL, 			/* No auxiliary input targets */
+				cdir,			/* Clip vector direction and length */ 
+				pp);			/* Input target and output solutions */
+								/* returned solutions in pp[0..retval-1].p[] */
+			nsoln &= RSPL_NOSOLNS;		/* Get number of solutions */
+
+			if (nsoln == 0) {	/* Hmm */
+//printf("~1 !!!!!!!!!!!!!! Vector clip failed again - using nn replay !!!!!!!!!!!!!!!1\n");
+				// Reset pp[0] target values and auiliaries
+				for (e = 0; e < p->clutTable->di; e++)
+					pp[0].p[e] = upp.p[e];
+				for (f = 0; f < fdi; f++)
+					pp[0].v[f] = upp.v[f];
+	
+				/* Replay the lookup as a nearclip, to guarantee a solution */
+				nsoln = p->clutTable->rev_interp(
+					p->clutTable, 	/* rspl object */
+					RSPL_NEARCLIP | RSPL_NONNSETUP, 
+					MAX_INVSOLN, 	/* Maxumum solutions to return */
+					NULL, 			/* No auxiliary input targets */
+					NULL,			/* No LCh weighting */
+					pp);			/* Input target and output solutions */
+									/* returned solutions in pp[0..retval-1].p[] */
+				nsoln &= RSPL_NOSOLNS;		/* Get number of solutions */
+			}
+		}
+
 		if (nsoln == 1) { /* Exactly one solution */
 			i = 0;
 		} else if (nsoln == 0) {	/* Zero solutions. This is unexpected. */
 			double in_v[MXDO];
 			p->output(p, in_v, pp[0].v);		/* Get ICC inverse input values */
 			p->out_abs(p, in_v, in_v);
+			if (p->nearclip == 0)
+				a1logd(g_log,0,"Clip dst %f %f %f\n",pp[0].v[0]+cdir[0], pp[0].v[1]+cdir[1], pp[0].v[2]+cdir[2]);
 			error("Unexpected failure to find reverse solution for input to output table for value %f %f %f (ICC input %f %f %f)",pp[0].v[0],pp[0].v[1],pp[0].v[2], in_v[0], in_v[1], in_v[2]);
 			return 2;
 		} else {		/* Multiple solutions */
@@ -1625,21 +1729,22 @@ int icxLuLut_inv_input(icxLuLut *p, double *out, double *in) {
 	int i,j;
 	int nsoln;				/* Number of solutions found */
 	co pp[MAX_INVSOLN];		/* Room for all the solutions found */
-	double cdir;
+//	double cdir;
 
 	DBR(("inv_input got DEV' %f %f %f %f\n",in[0],in[1],in[2],in[3]))
 
 	for (i = 0; i < p->inputChan; i++) {
 		pp[0].p[0] = p->inputClipc[i];
 		pp[0].v[0] = in[i];
-		cdir = p->inputClipc[i] - in[i];	/* Clip towards output range */
+//		cdir = p->inputClipc[i] - in[i];	/* Clip towards output range */
 
 		nsoln = p->inputTable[i]->rev_interp (
 			p->inputTable[i], 	/* this */
 			RSPL_NEARCLIP,		/* Clip to nearest (faster than vector) */
 			MAX_INVSOLN,		/* Maximum number of solutions allowed for */
 			NULL, 				/* No auxiliary input targets */
-			&cdir,				/* Clip vector direction and length */
+			NULL,				/* No LCH weight because this is 1D */
+//			&cdir,				/* Clip vector direction and length */
 			pp);				/* Input and output values */
 
 		if (nsoln & RSPL_DIDCLIP)
@@ -1837,6 +1942,7 @@ icxLuBase *pp
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 static gamut *icxLuLutGamut(icxLuBase *plu, double detail); 
+static icxCuspMap *icxLuLutCuspMap(icxLuBase *plu, int res);
 
 /* Do the basic icxLuLut creation and initialisation */
 static icxLuLut *
@@ -1860,6 +1966,7 @@ alloc_icxLuLut(
 	p->get_ranges        = icxLu_get_ranges;
 	p->efv_wh_bk_points  = icxLuEfv_wh_bk_points;
 	p->get_gamut         = icxLuLutGamut;
+	p->get_cuspmap       = icxLuLutCuspMap;
 	p->fwd_relpcs_outpcs = icxLuLut_fwd_relpcs_outpcs;
 	p->bwd_outpcs_relpcs = icxLuLut_bwd_outpcs_relpcs;
 	p->nearclip = 0;				/* Set flag defaults */
@@ -2077,14 +2184,8 @@ icxLuLut *p			/* Object being initialised */
 		p->clip.nearclip = 1;
 
 	} else {		/* Vector clip */
-		/* !!!! NOTE NOTE NOTE !!!! */
-		/* We should re-write this to avoid calling p->clutTable->rev_interp(), */
-		/* since this sets up all the rev acceleration tables for two calls, */
-		/* if this lut is being setup from scattered data, and never used */
-		/* for rev lookup */
 		icColorSpaceSignature clutos = p->natos;
 
-		fprintf(stderr, "!!!!! setup_clip_icxLuLut with vector clip - possibly unnecessary rev setup !!!!\n");
 		p->clip.nearclip = 0;
 		p->clip.LabLike = 0;
 		p->clip.fdi = p->clutTable->fdi;
@@ -2092,95 +2193,25 @@ icxLuLut *p			/* Object being initialised */
 		switch(clutos) {
 			case icxSigJabData:
 			case icSigLabData: {
-				co pp;				/* Room for all the solutions found */
-				int nsoln;			/* Number of solutions found */
-				double cdir[MXDO];	/* Clip vector direction and length */
 
 				p->clip.LabLike = 1;
 
-				/* Find high clip target */
-				for (i = 0; i < p->inputChan; i++)
-					pp.p[i] = 0.0;					/* Set aux values */
-				pp.v[0] = 105.0; pp.v[1] = pp.v[2] = 0.0; 	/* PCS Target value */
-				cdir[0] = cdir[1] = cdir[2] = 0.0;	/* Clip Target */
-
-				p->inv_output(p, pp.v, pp.v);				/* Compensate for output curve */
-				p->inv_output(p, cdir, cdir);
-			
-				cdir[0] -= pp.v[0];							/* Clip vector */
-				cdir[1] -= pp.v[1];
-				cdir[2] -= pp.v[2];
-
-				/* PCS -> Device with clipping */
-				nsoln = p->clutTable->rev_interp(
-					p->clutTable, 	/* rspl object */
-					0,				/* No hint flags - might be in gamut, might vector clip */
-					1,			 	/* Maxumum solutions to return */
-					p->auxm, 		/* Auxiliary input targets */
-					cdir,			/* Clip vector direction and length */
-					&pp);			/* Input target and output solutions */
-									/* returned solutions in pp[0..retval-1].p[] */
-				nsoln &= RSPL_NOSOLNS;	/* Get number of solutions */
-
-				if (nsoln != 1) {
-					p->pp->errc = 2;
-					sprintf(p->pp->err,"Failed to find high clip target for Lab space");
-					return p->pp->errc;
-				}
-
-				p->clip.ocent[0] = pp.v[0] - 0.001;					/* Got main target */
-				p->clip.ocent[1] = pp.v[1];
-				p->clip.ocent[2] = pp.v[2];
-
-				/* Find low clip target */
-				pp.v[0] = -5.0; pp.v[1] = pp.v[2] = 0.0; 	/* PCS Target value */
-				cdir[0] = 100.0; cdir[1] = cdir[2] = 0.0;	/* Clip Target */
-
-				p->inv_output(p, pp.v, pp.v);				/* Compensate for output curve */
-				p->inv_output(p, cdir, cdir);
-				cdir[0] -= pp.v[0];							/* Clip vector */
-				cdir[1] -= pp.v[1];
-				cdir[2] -= pp.v[2];
-
-				/* PCS -> Device with clipping */
-				nsoln = p->clutTable->rev_interp(
-					p->clutTable, 	/* rspl object */
-					RSPL_WILLCLIP,	/* Since there was no locus, we expect to have to clip */
-					1,			 	/* Maxumum solutions to return */
-					NULL, 			/* No auxiliary input targets */
-					cdir,			/* Clip vector direction and length */
-					&pp);			/* Input target and output solutions */
-									/* returned solutions in pp[0..retval-1].p[] */
-				nsoln &= RSPL_NOSOLNS;		/* Get number of solutions */
-				if (nsoln != 1) {
-					p->pp->errc = 2;
-					sprintf(p->pp->err,"Failed to find low clip target for Lab space");
-					return p->pp->errc;
-				}
-
-				p->clip.ocentv[0] = pp.v[0] + 0.001 - p->clip.ocent[0];	/* Raw line vector */
-				p->clip.ocentv[1] = pp.v[1] - p->clip.ocent[1];
-				p->clip.ocentv[2] = pp.v[2] - p->clip.ocent[2];
-
-				/* Compute vectors length */
-				for (p->clip.ocentl = 0.0, i = 0; i < 3; i++)
-					p->clip.ocentl += p->clip.ocentv[i] * p->clip.ocentv[i];
-				p->clip.ocentl = sqrt(p->clip.ocentl);
-				if (p->clip.ocentl <= 1e-8)
-					p->clip.ocentl = 0.0;
-
+				/* Create a CuspMap to point vectors towards */
+				/* (Don't make it too fine, or there will be dips) */
+				p->clip.cm = p->get_cuspmap((icxLuBase *)p, 30); 
 				break;
 				}
 			case icSigXYZData:
 				// ~~~~~~1 need to add this.
+				warning("xlut.c: setup_clip_icxLuLut() icSigXYZData case not implemented!"); 
+				/* Fall through */
 
 			default:
 				/* Do a crude approximation, that may not work. */
 				p->clutTable->get_out_range(p->clutTable, tmin, tmax);
-				for (i = 0; i < p->clutTable->fdi; i++) {
+				for (i = 0; i < p->clutTable->fdi; i++)
 					p->clip.ocent[i] = (tmin[i] + tmax[i])/2.0;
-				}
-				p->clip.ocentl = 0.0;
+
 				break;
 		}
 	}
@@ -2306,13 +2337,13 @@ fprintf(stderr,"~1 Internal optimised 4D separations not yet implemented!\n");
 
 	/* Init the CAM model if it will be used */
 	if (pcsor == icxSigJabData || p->camclip) {
-		if (vc != NULL)		/* One has been provided */
+		if (vc != NULL)			/* One has been provided */
 			p->vc  = *vc;		/* Copy the structure */
 		else
 			xicc_enum_viewcond(xicp, &p->vc, -1, NULL, 0, NULL);	/* Use a default */
 		p->cam = new_icxcam(cam_default);
 		p->cam->set_view(p->cam, p->vc.Ev, p->vc.Wxyz, p->vc.La, p->vc.Yb, p->vc.Lv,
-		                 p->vc.Yf, p->vc.Yg, p->vc.Gxyz, XICC_USE_HK);
+		                 p->vc.Yf, p->vc.Yg, p->vc.Gxyz, XICC_USE_HK, p->vc.hkscale);
 	} else {
 		p->cam = NULL;
 	}
@@ -2330,8 +2361,8 @@ fprintf(stderr,"~1 Internal optimised 4D separations not yet implemented!\n");
 		p->pcs = pcsor;		
 
 		if (xicp->pp->header->deviceClass == icSigAbstractClass) {
-				p->ins = pcsor;
-				p->outs = pcsor;
+			p->ins = pcsor;
+			p->outs = pcsor;
 
 		} else if (xicp->pp->header->deviceClass != icSigLinkClass) {
 			if (func == icmBwd || func == icmGamut || func == icmPreview)
@@ -2412,13 +2443,21 @@ fprintf(stderr,"~1 Internal optimised 4D separations not yet implemented!\n");
 	/* ------------------------------- */
 	{ 
 		int gres[MXDI];
+		int xflags = 0;
 
 		for (i = 0; i < p->inputChan; i++)
 			gres[i] = p->lut->clutPoints;
 
+#ifdef FASTREVSETUP_NON_CAM
+		/* Don't fill in nnrev array if we aren't going to use it */
+		if (p->camclip && p->nearclip)
+			xflags = RSPL_FASTREVSETUP;
+#endif
+
 		/* Create rspl based multi-dim table */
 		if ((p->clutTable = new_rspl((p->fastsetup ? RSPL_FASTREVSETUP : RSPL_NOFLAGS)
-		                             | (flags & ICX_VERBOSE ? RSPL_VERBOSE : RSPL_NOFLAGS),
+		                             | (flags & ICX_VERBOSE ? RSPL_VERBOSE : RSPL_NOFLAGS)
+			                         | xflags,
 		                             p->inputChan, p->outputChan)) == NULL) {
 			p->pp->errc = 2;
 			sprintf(p->pp->err,"Creation of clut table rspl failed");
@@ -2437,6 +2476,17 @@ fprintf(stderr,"~1 Internal optimised 4D separations not yet implemented!\n");
 		               p->ninmin, p->ninmax, gres, p->noutmin, p->noutmax);
 
 		}
+
+#ifdef USELCHWEIGHT
+		/* If we are not doing camclip, but our output is an Lab like space, */
+		/* then apply lchw weighting anyway. */
+		if (!p->camclip && (p->outs == icSigLabData || p->outs == icxSigJabData)) {
+			double lchw[MXRO] = { JCCWEIGHT, CCCWEIGHT, HCCWEIGHT };
+
+			/* Set the Nearest Neighbor clipping Weighting */
+			p->clutTable->rev_set_lchw(p->clutTable, lchw);
+		}
+#endif /* USELCHWEIGHT */
 
 		/* clut clipping is setup separately */
 	}
@@ -2500,22 +2550,24 @@ icxLuLut_clut_camclip_func(
 	luluto->output(luluto, out, out);
 	luluto->out_abs(luluto, out, out);
 	p->cam->XYZ_to_cam(p->cam, out, out);
-	out[0] *= CCJSCALE;
 }
 
 /* Initialise the additional CAM space clut rspl, used to compute */
 /* reverse lookup CAM clipping results when the camclip flag is set. */
-/* We scale J by CCJSCALE, to give a more L* preserving clip direction */
-/* return error code. */
+/* We weight the CAM nn clipping, to give a more L* and H* preserving clip direction. */
+/* Return error code. */
+/* (We are assuming nearest clipping - we aren't setting up properly for */
+/* vector clipping) */
 static int
 icxLuLut_init_clut_camclip(
 icxLuLut *p) {
 	int e, gres[MXDI];
+	double lchw[MXRO] = { JCCWEIGHT, CCCWEIGHT, HCCWEIGHT };
 
 	/* Setup so clut contains transform to CAM Jab */
 	/* (camclip is only used in fwd or invfwd direction lookup) */
 	double cmin[3], cmax[3];
-	cmin[0] = 0.0;		cmax[0] = CCJSCALE * 100.0;	/* Nominal Jab output ranges */
+	cmin[0] = 0.0;		cmax[0] = 100.0;	/* Nominal Jab output ranges */
 	cmin[1] = -128.0;	cmax[1] = 128.0;
 	cmin[2] = -128.0;	cmax[2] = 128.0;
 
@@ -2535,6 +2587,11 @@ icxLuLut *p) {
 		sprintf(p->pp->err,"Creation of clut table rspl failed");
 		return p->pp->errc;
 	}
+
+#ifdef USELCHWEIGHT
+	/* Set the Nearest Neighbor clipping Weighting */
+	p->cclutTable->rev_set_lchw(p->cclutTable, lchw);
+#endif /* USELCHWEIGHT */
 
 	for (e = 0; e < p->inputChan; e++)
 		gres[e] = p->lut->clutPoints;
@@ -3899,7 +3956,7 @@ int                quality			/* Quality metric, 0..3 */
 		xicc_enum_viewcond(xicp, &p->vc, -1, NULL, 0, NULL);	/* Use a default */
 	p->cam = new_icxcam(cam_default);
 	p->cam->set_view(p->cam, p->vc.Ev, p->vc.Wxyz, p->vc.La, p->vc.Yb, p->vc.Lv,
-	                 p->vc.Yf, p->vc.Yg, p->vc.Gxyz, XICC_USE_HK);
+	                 p->vc.Yf, p->vc.Yg, p->vc.Gxyz, XICC_USE_HK, p->vc.hkscale);
 	
 	if (flags & ICX_VERBOSE)
 		printf("Done A to B table creation\n");
@@ -3912,7 +3969,7 @@ int                quality			/* Quality metric, 0..3 */
 /* ========================================================== */
 
 
-/* Context for creating gamut boundary points fro, xicc */
+/* Context for creating gamut boundary points from, xicc */
 typedef struct {
 	gamut *g;				/* Gamut being created */
 	icxLuLut *x;			/* xLut we are working from */
@@ -4096,9 +4153,9 @@ double       detail		/* gamut detail level, 0.0 = def */
 				}
 
 				/* Scan only device surface */
-				for (m1 = 0; m1 < inn; m1++) {		/* Choose first coord to scan */
+				for (m1 = 0; m1 < (inn-1); m1++) {		/* Choose first coord to scan */
 					if (co[m1] != 0)
-						continue;					/* Not at lower corner */
+						continue;						/* Not at lower corner */
 					for (m2 = m1 + 1; m2 < inn; m2++) {	/* Choose second coord to scan */
 						int x, y;
 		
@@ -4216,7 +4273,7 @@ double       detail		/* gamut detail level, 0.0 = def */
 			default:
 				break;
 		}
-		if ((cx.flu = p->get_luobj(p, ICX_CLIP_NEAREST , icmFwd, intent, pcs, icmLuOrdNorm,
+		if ((cx.flu = p->get_luobj(p, ICX_CLIP_NEAREST, icmFwd, intent, pcs, icmLuOrdNorm,
 		                              &plu->vc, NULL)) == NULL) {
 			return NULL;	/* oops */
 		}
@@ -4312,6 +4369,304 @@ double       detail		/* gamut detail level, 0.0 = def */
 #endif
 
 	return gam;
+}
+
+/* ========================================================== */
+/* Cusp Map finding code.                                       */
+/* ========================================================== */
+
+/* Context for creating Cusp Map points from, xicc */
+typedef struct {
+	icxCuspMap *cm;			/* Cusp Map being created */
+	icxLuLut *x;			/* xLut we are working from */
+	icxLuBase *flu;			/* Forward xlookup */
+	double in[MAX_CHAN];	/* Device input values */
+} lutcuspmapctx;
+
+/* Function to pass to rspl to create cusp map from */
+/* forward xLut transform grid points. */
+static void
+lutfwdcuspmap_func(
+	void *pp,			/* lutcuspmapctx structure */
+	double *out,		/* output' value at clut grid point (ie. PCS' value) */
+	double *in			/* input' value at clut grid point (ie. device' value) */
+) {
+	lutcuspmapctx *p    = (lutcuspmapctx *)pp;
+	double pcso[3];	/* PCS output value */
+
+	/* Figure if we are over the ink limit. */
+	if (   (p->x->ink.tlimit >= 0.0 || p->x->ink.klimit >= 0.0)
+	    && icxLimitD(p->x, in) > 0.0) {
+		int i;
+		double sf;
+
+		/* We are, so use the bracket search to discover a scale */
+		/* for the clut input' value that will put us on the ink limit. */
+
+		for (i = 0; i < p->x->inputChan; i++)
+			p->in[i] = in[i];
+
+		if (zbrent(&sf, 0.0, 1.0, 1e-4, icxLimitFind, pp) != 0) {
+			return;		/* Give up */
+		}
+
+		/* Compute ink limit value */
+		for (i = 0; i < p->x->inputChan; i++)
+			p->in[i] = sf * in[i];
+		
+		/* Compute the clut output for this clut input */
+		p->x->clut(p->x, pcso, p->in);	
+		p->x->output(p->x, pcso, pcso);	
+		p->x->out_abs(p->x, pcso, pcso);	
+	} else {	/* No ink limiting */
+		/* Convert the clut PCS' values to PCS output values */
+		p->x->output(p->x, pcso, out);
+		p->x->out_abs(p->x, pcso, pcso);	
+	}
+
+	/* Expand the usp map surface with this point */
+	p->cm->expand(p->cm, pcso);
+
+	/* Leave out[] unchanged */
+}
+
+/* Expand cusp map with given point */
+/* (We use a segmentned maxima approach) */
+static void cuspmap_expand(icxCuspMap *p, double lab[3]) {
+	double h, C;
+	int ix;
+
+	/* Hue angle 0.0 .. 1.0 */
+	h = (0.5/3.14159265359) * atan2(lab[2], lab[1]);
+	h = (h < 0.0) ? h + 1.0 : h;
+
+	/* Slot index 0..res-1 */
+	ix = (int)floor(h * p->res + 0.5);
+	if (ix >= p->res)
+		ix -= p->res;
+
+	/* Chromanance */
+	C = sqrt(lab[1] * lab[1] + lab[2] * lab[2]);
+
+	/* New point at this angle with largest chromanance */
+	if (C > p->C[ix]) {
+		p->C[ix] = C;
+		p->L[ix] = lab[0];
+	}
+
+	/* Tracl min * max L */
+	if (lab[0] > p->Lmax[0])
+		icmCpy3(p->Lmax, lab);
+	if (lab[0] < p->Lmin[0])
+		icmCpy3(p->Lmin, lab);
+} 
+
+/* Interpolate over any gaps in map */
+static void cuspmap_complete(icxCuspMap *p) {
+	int i, j, k;
+
+//	printf("cuspmap list before fixups:\n");
+//	for (i = 0; i < p->res; i++) {
+//		printf(" %d: C = %f, L = %f\n",i, p->C[i], p->L[i]);
+//	}
+
+	/* First check if there are any entries at all */
+	for (i = 0; i < p->res; i++) {
+		if (p->C[i] >= 0.0)
+			break;
+	}
+
+	if (i >= p->res)		/* Nothing there - give up */
+		return;
+
+	/* See if there are any gaps */
+	j = -1;
+	for (i = 0; i < p->res; i++) {
+//printf("~1 checking %d\n",i);
+		if (p->C[i] >= 0.0) {
+			j = i;					/* Last valid slot */
+//printf("~1 last valid %d\n",j);
+
+		/* Got a gap */
+		} else {
+			int ii = i;
+//printf("~1 found gap at %d\n",i);
+			if (j < 0) {			/* No previous */
+//printf("~1 no previous\n");
+				for (j = p->res-1; j >= 0; j--) {
+					if (p->C[j] >= 0.0) 
+						break;
+				}
+			}
+//printf("~1 got previous %d\n",j);
+			/* Find next, even if it's behind us */
+			for (k = i+1; k != i; k = (k+1) % p->res) {
+				if (p->C[k] >= 0.0)
+					break;
+			}
+//printf("~1 got next %d\n",k);
+
+			/* Interpolate between them */
+			for (; i != k; i = (i+1) % p->res) {
+				double prop;
+				int bb, tt;
+				bb = k > i ? k - i : k + p->res - i;
+				tt = k > j ? k - j : k + p->res - j;
+				prop = (double)bb/(double)tt;
+				p->C[i] = prop * p->C[j] + (1.0 - prop) * p->C[k];
+				p->L[i] = prop * p->L[j] + (1.0 - prop) * p->L[k];
+//printf("~1 interpolating %d with weight %f from %d and %d\n",i,prop,j,k);
+			}
+			if (k > ii) {
+				i = k;		/* Continue from next valid */
+//printf("~1 continuing from %d\n",i);
+			} else {
+//printf("~1 we've looped back\n");
+				break;		/* We've looped back */
+			}
+		}
+	}
+
+//	printf("cuspmap list after fixups:\n");
+//	for (i = 0; i < p->res; i++) {
+//		printf(" %d: C = %f, L = %f\n",i, p->C[i], p->L[i]);
+//	}
+}
+
+/* Return the corresponding cusp location, given the source point */
+static void cuspmap_getCusp(icxCuspMap *p,double cuspLCh[3], double srcLab[3]) {
+	double h, C;
+	int ix, ix0, ix1;
+
+	/* Hue angle 0.0 .. 1.0 */
+	h = (0.5/3.14159265359) * atan2(srcLab[2], srcLab[1]);
+	h = (h < 0.0) ? h + 1.0 : h;
+
+//printf("~1 getCusp in %f %f %f, h = %f\n", srcLab[0], srcLab[1], srcLab[2],h);
+
+	/* Slot index 0..res-1 */
+	ix = (int)floor(h * p->res + 0.5);
+	if (ix >= p->res)
+		ix -= p->res;
+
+	/* Indexes each side */
+	ix0 = ix > 0 ? ix-1 : p->res-1;
+	ix1 = ix < (p->res-1) ? ix+1 : 0;
+
+	cuspLCh[0] = p->L[ix];
+	cuspLCh[1] = p->C[ix];
+	if (cuspLCh[1] > p->C[ix0])		/* Be conservative with C value */
+		cuspLCh[1] = p->C[ix0];
+	if (cuspLCh[1] > p->C[ix1])
+		cuspLCh[1] = p->C[ix1];
+	cuspLCh[2] = 360.0 * h;
+
+//printf("~1 index %d, L %f C %f h %f\n", ix, cuspLCh[0], cuspLCh[1], cuspLCh[2]);
+} 
+
+/* We're done with CuspMap */
+static void cuspmap_del(icxCuspMap *p) {
+	if (p != NULL) {
+		if (p->L != NULL)
+			free(p->L);
+		if (p->C != NULL)
+			free(p->C);
+		free(p);
+	}
+}
+
+/* Given an xicc lookup object, return an icxCuspMap object. */
+/* Note that the PCS must be Lab or Jab. */
+/* An icxLuLut type must be icmFwd, and the ink limit (if supplied) */
+/* will be applied. */
+/* Return NULL on error, check errc+err for reason */
+static icxCuspMap *icxLuLutCuspMap(
+icxLuBase   *plu,		/* this */
+int          res		/* Hue resolution */
+) {
+	xicc     *p = plu->pp;				/* parent xicc */
+	icxLuLut *luluto = (icxLuLut *)plu;	/* Lookup xLut type object */
+	icColorSpaceSignature ins, pcs, outs;
+	icmLookupFunc func;
+	icRenderingIntent intent;
+	int inn, outn;
+	lutcuspmapctx cx;
+	icxCuspMap *cm;
+	int i;
+
+	/* get some details */
+	plu->spaces(plu, &ins, &inn, &outs, &outn, NULL, &intent, &func, &pcs);
+
+	if (func != icmFwd) {
+		p->errc = 1;
+		sprintf(p->err,"Creating CuspMap for anything other than Device -> PCS is not supported.");
+		return NULL;
+	}
+
+	if (pcs != icSigLabData && pcs != icxSigJabData) {
+		p->errc = 1;
+		sprintf(p->err,"Creating CuspMap PCS of other than Lab or Jab is not supported.");
+		return NULL;
+	}
+
+	cx.cm = cm = (icxCuspMap *) calloc(1, sizeof(icxCuspMap));
+	cx.x = luluto;
+
+	if (cx.cm == NULL) {
+		p->errc = 2;
+		sprintf(p->err,"Malloc of icxCuspMap failed");
+		return NULL;
+	}
+
+	if ((cm->L = (double *)malloc(sizeof(double) * res)) == NULL) {
+		free(cm);
+		p->errc = 2;
+		sprintf(p->err,"Malloc of icxCuspMap failed");
+		return NULL;
+	}
+
+	if ((cm->C = (double *)malloc(sizeof(double) * res)) == NULL) {
+		free(cm->L);
+		free(cm);
+		p->errc = 2;
+		sprintf(p->err,"Malloc of icxCuspMap failed");
+		return NULL;
+	}
+
+	cm->res = res;
+	cm->expand = cuspmap_expand;
+	cm->getCusp = cuspmap_getCusp;
+	cm->del = cuspmap_del;
+
+	for (i = 0; i < res; i++) {
+		cm->L[i] = -1.0;
+		cm->C[i] = -1.0;
+	}
+	cm->Lmax[0] = -1.0;
+	cm->Lmin[0] = 101.0;
+	
+	/* Scan through grid, expanding the CuspMap. */
+	luluto->clutTable->scan_rspl(
+		luluto->clutTable,	/* this */
+		RSPL_NOFLAGS,		/* Combination of flags */
+		(void *)&cx,		/* Opaque function context */
+		lutfwdcuspmap_func	/* Function to set from */
+	);
+
+	cm->Lmax[0] -= 0.1;		/* Make sure tips intersect */
+	cm->Lmin[0] += 0.1;
+
+	for (i = 0; i < res; i++) {
+		if (cm->L[i] > cm->Lmax[0])
+			cm->L[i] = cm->Lmax[0];
+		if (cm->L[i] < cm->Lmin[0])
+			cm->L[i] = cm->Lmin[0];
+	}
+
+	/* Fill in any gaps */
+	cuspmap_complete(cm);
+
+	return cm;
 }
 
 /* ----------------------------------------------- */

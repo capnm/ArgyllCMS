@@ -3,7 +3,9 @@
  * Argyll Color Correction System
  *
  * Gretag i1Monitor & i1Pro related functions
- *
+ */
+
+/*
  * Author: Graeme W. Gill
  * Date:   24/11/2006
  *
@@ -85,7 +87,7 @@ i1pro_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 	i1pro *p = (i1pro *) pp;
 	int rsize, se;
 	icomuflags usbflags = icomuf_none;
-#ifdef __APPLE__
+#ifdef UNIX_APPLE
 	/* If the X-Rite software has been installed, then there may */
 	/* be a daemon process that has the device open. Kill that process off */
 	/* so that we can open it here, before it re-spawns. */
@@ -95,10 +97,10 @@ i1pro_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 			NULL
 	};
 	int retries = 20;
-#else /* !__APPLE__ */
+#else /* !UNIX_APPLE */
 	char **pnames = NULL;
 	int retries = 0;
-#endif /* !__APPLE__ */
+#endif /* !UNIX_APPLE */
 
 	a1logd(p->log, 2, "i1pro_init_coms: called\n");
 
@@ -238,7 +240,7 @@ ipatch *vals) {		/* Pointer to array of instrument patch values */
 	if (!p->inited)
 		return inst_no_init;
 
-	rv = i1pro_imp_measure(p, vals, npatch, 1);
+	rv = i1pro_imp_measure(p, vals, npatch, instClamp);
 
 	return i1pro_interp_code(p, rv);
 }
@@ -328,6 +330,7 @@ static inst_code i1pro_calibrate(
 inst *pp,
 inst_cal_type *calt,	/* Calibration type to do/remaining */
 inst_cal_cond *calc,	/* Current condition/desired condition */
+inst_calc_id_type *idtype,	/* Condition identifier type */
 char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 ) {
 	i1pro *p = (i1pro *)pp;
@@ -338,7 +341,7 @@ char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 	if (!p->inited)
 		return inst_no_init;
 
-	rv = i1pro_imp_calibrate(p, calt, calc, id);
+	rv = i1pro_imp_calibrate(p, calt, calc, idtype, id);
 	return i1pro_interp_code(p, rv);
 }
 
@@ -385,8 +388,10 @@ i1pro_interp_error(inst *pp, i1pro_code ec) {
 			return "EEProm key is the wrong type";
 		case I1PRO_DATA_KEY_CORRUPT:
 			return "EEProm key table seems to be corrupted";
-		case I1PRO_DATA_KEY_COUNT:
-			return "EEProm key table count is too big or small";
+		case I1PRO_DATA_KEY_COUNT_SMALL:
+			return "EEProm key table size is too small for expected number of keys";
+		case I1PRO_DATA_KEY_COUNT_LARGE:
+			return "EEProm key table size is too large for expected number of keys";
 		case I1PRO_DATA_KEY_UNKNOWN:
 			return "EEProm unknown key type";
 		case I1PRO_DATA_KEY_MEMRANGE:
@@ -448,7 +453,7 @@ i1pro_interp_error(inst *pp, i1pro_code ec) {
 		case I1PRO_RD_TOOMANYPATCHES:
 			return "Too many patches";
 		case I1PRO_RD_NOTENOUGHSAMPLES:
-			return "Not enough samples per patch";
+			return "Not enough samples per patch - Slow Down!";
 		case I1PRO_RD_NOFLASHES:
 			return "No flashes recognized";
 		case I1PRO_RD_NOAMBB4FLASHES:
@@ -557,11 +562,32 @@ i1pro_interp_code(i1pro *p, i1pro_code ec) {
 		case I1PRO_CAL_SETUP:
 			return inst_cal_setup | ec;
 
+		case I1PRO_DATA_COUNT:
+		case I1PRO_DATA_BUFSIZE:
+		case I1PRO_DATA_MAKE_KEY:
+		case I1PRO_DATA_MEMORY:
+		case I1PRO_DATA_KEYNOTFOUND:
+		case I1PRO_DATA_WRONGTYPE:
+		case I1PRO_DATA_KEY_CORRUPT:
+		case I1PRO_DATA_KEY_COUNT_SMALL:
+		case I1PRO_DATA_KEY_COUNT_LARGE:
+		case I1PRO_DATA_KEY_UNKNOWN:
+		case I1PRO_DATA_KEY_MEMRANGE:
+		case I1PRO_DATA_KEY_ENDMARK:
+
 		case I1PRO_HW_HIGHPOWERFAIL:
+		case I1PRO_HW_EE_SIZE:
 		case I1PRO_HW_EE_SHORTREAD:
+		case I1PRO_HW_EE_SHORTWRITE:
 		case I1PRO_HW_ME_SHORTREAD:
 		case I1PRO_HW_ME_ODDREAD:
+		case I1PRO_HW_SW_SHORTREAD:
+		case I1PRO_HW_LED_SHORTWRITE:
+		case I1PRO_HW_UNEX_SPECPARMS:
 		case I1PRO_HW_CALIBINFO:
+		case I1PRO_WL_TOOLOW:
+		case I1PRO_WL_SHAPE:
+		case I1PRO_WL_ERR2BIG:
 			return inst_hardware_fail | ec;
 
 		case I1PRO_RD_DARKREADINCONS:
@@ -718,8 +744,7 @@ static inst_code i1pro_set_mode(inst *pp, inst_mode m) {
  * error if it hasn't been initialised.
  */
 static inst_code
-i1pro_get_set_opt(inst *pp, inst_opt_type m, ...)
-{
+i1pro_get_set_opt(inst *pp, inst_opt_type m, ...) {
 	i1pro *p = (i1pro *)pp;
 
 	if (m == inst_opt_initcalib) {		/* default */
@@ -783,6 +808,81 @@ i1pro_get_set_opt(inst *pp, inst_opt_type m, ...)
 			*filt = inst_opt_filter_UVCut;
 
 		return inst_ok;
+	}
+
+	/* Set xcalstd */
+	if (m == inst_opt_set_xcalstd) {
+		i1proimp *imp = (i1proimp *)p->m;
+		xcalstd standard;
+		va_list args;
+
+		va_start(args, m);
+		standard = va_arg(args, xcalstd);
+		va_end(args);
+
+		imp->target_calstd = standard;
+
+		return inst_ok;
+	}
+
+	/* Get the current effective xcalstd */
+	if (m == inst_opt_get_xcalstd) {
+		i1proimp *imp = (i1proimp *)p->m;
+		xcalstd *standard;
+		va_list args;
+
+		va_start(args, m);
+		standard = va_arg(args, xcalstd *);
+		va_end(args);
+
+		if (imp->target_calstd == xcalstd_native)
+			*standard = imp->native_calstd;		/* If not overridden */
+		else
+			*standard = imp->target_calstd;		/* Overidden std. */
+
+		return inst_ok;
+	}
+
+	/* Return the white calibration tile spectrum */
+	/* (We always return the normal rez. reference values) */
+	if (m == inst_opt_get_cal_tile_sp) {
+		i1proimp *imp = (i1proimp *)p->m;
+		xspect *sp;
+		inst_code rv;
+		va_list args;
+		int i;
+
+		va_start(args, m);
+		sp = va_arg(args, xspect *);
+		va_end(args);
+
+		if (imp->white_ref[0] == NULL)
+			return inst_no_init;
+
+		sp->spec_n = imp->nwav[0];
+		sp->spec_wl_short = imp->wl_short[0];
+		sp->spec_wl_long = imp->wl_long[0];
+		sp->norm = 100.0;
+
+		for (i = 0; i < sp->spec_n; i++)
+			sp->spec[i] = imp->white_ref[0][i] * 100.0; 
+		
+		return inst_ok;
+	}
+
+	/* Lamp drift remediation */
+	if (m == inst_opt_lamp_remediate) {
+		i1pro_code ev;
+		va_list args;
+		double seconds;
+
+		va_start(args, m);
+		seconds = va_arg(args, double);
+		va_end(args);
+
+		ev = i1pro_imp_lamp_fix(p, seconds);
+
+		return i1pro_interp_code(p, ev);
 	}
 
 	/* Use default implementation of other inst_opt_type's */

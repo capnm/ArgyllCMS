@@ -56,15 +56,19 @@ void make_output_icc(
 	char *file_name,		/* output icc name */
 	cgats *icg,				/* input cgats structure */
 	int spec,				/* Use spectral data flag */
-	icxIllumeType tillum,	/* Target/simulated instrument illuminant */
-	xspect *cust_tillum,	/* Possible custom target/simulated instrument illumination */
-	icxIllumeType illum,	/* Spectral illuminant */
-	xspect *cust_illum,		/* Possible custom illumination */
-	icxObserverType observ,	/* Spectral observer */
+	icxIllumeType tillum,	/* Target/simulated instrument illuminant, if set. */ 
+	xspect *cust_tillum,	/* Custom target/simulated illumination spectrum */
+	                        /* if tillum == icxIT_custom */
+	icxIllumeType illum,	/* CIE calc. illuminant spectrum, and FWA inst. */
+							/* illuminant if tillum not set. */
+	xspect *cust_illum,		/* Custom CIE illumination spectrum if illum == icxIT_custom */
+	icxObserverType observ,	/* CIE calc. observer */
 	int fwacomp,			/* FWA compensation requested */
 	double smooth,			/* RSPL smoothing factor, -ve if raw */
 	double avgdev,			/* reading Average Deviation as a proportion of the input range */
 	double demph,			/* Emphasise dark region grid resolution in cLUT */
+	int gcompr,				/* Gamut compression % if > 0 rather than ipname */
+	int gexpr,				/* Gamut saturation expansion % if gcompr > 0 rather */
 	char *ipname,			/* input icc profile - enables gamut map, NULL if none */
 	char *sgname,			/* source image gamut - NULL if none */
 	char *absname[3],		/* abstract profile name for each table */

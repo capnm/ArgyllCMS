@@ -3,8 +3,11 @@
 #define XCAL_H
 
 /* 
- * Argyll Color Correction System
  * Calibration curve class.
+ */
+
+/*
+ * Argyll Color Correction System
  *
  * Author: Graeme W. Gill
  * Date:   30/10/2005
@@ -20,6 +23,18 @@
  * when computing ink limits.
  */
 
+#ifdef SALONEINSTLIB
+
+/* Sub-set of profile Creation Suplimental Information structure */
+struct _profxinf {
+	char *deviceMfgDesc;	/* Manufacturer text description, NULL for none */
+	char *modelDesc;		/* Model text description, NULL for none */
+	char *profDesc;			/* Text profile description, NULL for default */
+	char *copyright;		/* Copyrigh text, NULL for default */
+}; typedef struct _profxinf profxinf;
+
+#endif /* SALONEINSTLIB */
+
 struct _xcal {
 
   /* Public: */
@@ -29,9 +44,11 @@ struct _xcal {
 	/* Return nz if this fails (filename is for error messages) */
 	int (*read_cgats) (struct _xcal *p, cgats *cg, int table, char *filename);
 
+#ifndef SALONEINSTLIB
 	/* Read a calibration file from an ICC vcgt tag */
 	/* Return nz if this fails */
 	int (*read_icc) (struct _xcal *p, icc *c);
+#endif
 
 	/* Read a calibration file */
 	/* Return nz if this fails */
@@ -48,16 +65,20 @@ struct _xcal {
 	/* Translate values through the curves. */
 	void (*interp) (struct _xcal *p, double *out, double *in);
 
+#ifndef SALONEINSTLIB
 	/* Translate a value backwards through the curves. */
 	/* Return nz if the inversion fails */ 
 	int (*inv_interp) (struct _xcal *p, double *out, double *in);
+#endif
 
 	/* Translate a value through one of the curves */
 	double (*interp_ch) (struct _xcal *p, int ch, double in);
 
+#ifndef SALONEINSTLIB
 	/* Translate a value backwards through one of the curves */
 	/* Return -1.0 if the inversion fails */
 	double (*inv_interp_ch) (struct _xcal *p, int ch, double in);
+#endif
 
 	int noramdac;			/* Set to nz if there was no VideoLUT access */
 	int tvenc;				/* nz if this cal was created using (16-235)/255 Video encoding */

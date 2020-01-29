@@ -1,8 +1,8 @@
 
-Argyll CMS README file - Version 1.8.2
+Argyll CMS README file - Version 1.9.2
 --------------------------------------
 
-Date: 26th October 2015
+Date: 17th October 2016
 Author: Graeme Gill
 
 Introduction
@@ -10,7 +10,7 @@ Introduction
 ArgyllCMS is an ICC compatible color management system, available
 as Open Source. It supports accurate ICC profile creation for scanners,
 cameras and film recorders, and calibration and profiling of displays
-and RGB & CMYK printers. Device Link can be created with a wide variety
+and RGB, CMY & CMYK printers. Device Link can be created with a wide variety
 of advanced options, including specialized Video calibration standards
 and 3dLuts. Spectral sample data is supported, allowing a selection of
 illuminants observer types, and paper fluorescent whitener additive
@@ -26,7 +26,7 @@ provided for each major tool, and a general guide to using the tools for
 typical color management tasks is also available. A mailing list provides
 support for more advanced usage.
 
-This is Version 1.8.3, a bug fix update to V1.8.2.
+This is Version 1.9.2, a bug fix update to the last release V1.9.1.
 The first public release of icclib was in November 1998,
 and of Argyll was in October 2000. Code development commenced in 1995. See
 Changes Summary for an overview of changes since the last release. Changes

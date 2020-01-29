@@ -1,7 +1,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html>
   <head>
-    <title>fakeread</title>
+    <title>spec2cie</title>
     <meta http-equiv="content-type" content="text/html;
       charset=windows-1252">
     <meta name="author" content="Graeme Gill">
@@ -9,38 +9,60 @@
   <body>
     <h2><b>spectro/</b><span style="text-decoration: underline;"></span>spec2cie</h2>
     <h3>Summary</h3>
-    Convert reflective spectral <a href="File_Formats.html#.ti3">.ti3</a>
-    readings into CIE XYZ and D50 L*a*b* readings. Apply FWA, plot
-    spectrums.<br>
+    Convert spectral <a href="File_Formats.html#.ti3">.ti3</a> or <a
+      href="File_Formats.html#.sp">.sp</a> readings into CIE XYZ and D50
+    L*a*b* readings. Apply FWA, plot spectrums.<br>
+    This is assumed to be for a reflective media by default - i.e. that
+    the input .ti3 or .sp file values are spectral reflectances, unless
+    the input is marked as <span style="font-weight: bold;">DEVICE_CLASS</span>&nbsp;
+
+
+    <span style="font-weight: bold;">EMISINPUT</span> (See the <a
+      href="ti3_format.html">description of the .ti3 format</a>. This
+    would have to be done manually, as no ArgyllCMS tools generate such
+    data.)<br>
     <h3>Usage</h3>
-    <tt><small>spec2cie [options] <span style="font-style: italic;">input.ti3
+    <tt><small>spec2cie [options] <span style="font-style: italic;">input.[ti3|sp]
 
 
 
-          output.ti3<br>
+
+
+
+          output.[ti3|sp]<br>
           &nbsp;</span></small></tt><tt><small>-v
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
         Verbose mode</small></tt><br>
     <tt><small><small>&nbsp;<a href="spec2cie.html#I">-I <i>illum</i></a>&nbsp;&nbsp;
 
 
 
-          &nbsp;&nbsp; Override actual instrument illuminant in .ti3
-          file:<br>
+
+
+
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Override actual
+          instrument illuminant in .ti3 or .sp file:<br>
           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-          &nbsp; &nbsp;&nbsp; A, C, D50, D50M2, D65, F5, F8, F10 or
-          file.sp<br>
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+          &nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A, C, D50, D50M2,
+          D65, F5, F8, F10 or file.sp<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
 
 
 
           (only used in conjunction with <span style="font-weight:
             bold;">-f</span>)<br>
         </small></small></tt><tt><small><small>&nbsp;<a
-            href="colprof.html#f">-f [<i>illum</i>]</a> &nbsp;&nbsp; Use
-          Fluorescent Whitening Agent compensation [simulated inst.
-          illum.:<br>
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            href="colprof.html#f">-f [<i>illum</i>]</a>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Use Fluorescent Whitening
+          Agent compensation [simulated inst. illum.:<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
 
 
 
@@ -48,56 +70,61 @@
           file.sp]<br>
         </small></small></tt><tt><small><small><small>&nbsp;<a
               href="spec2cie.html#i">-i <i>illum</i></a>&nbsp;&nbsp;
-            &nbsp;&nbsp; Choose illuminant for computation of CIE XYZ
-            from spectral data &amp; FWA:<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Choose illuminant for
+            computation of CIE XYZ from spectral data &amp; FWA:<br>
             &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            &nbsp; &nbsp;&nbsp;&nbsp; A, C, D50 (def.), D50M2, D65, F5,
-            F8, F10 or file.sp<br>
+            &nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A, C, D50
+            (def.), D50M2, D65, F5, F8, F10 or file.sp<br>
             &nbsp;</small></small><a href="#o">-o <i>observ</i></a>&nbsp;
 
 
 
-        &nbsp;&nbsp; Choose CIE Observer for spectral data:<br>
+
+
+
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Choose CIE Observer for
+        spectral data:<br>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;
-&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
 
 
 
         1931_2 </small></tt><tt><small> (def.)</small></tt><tt><small>,
         1964_10, S&amp;B 1955_2, shaw, J&amp;V 1978_2 or file.cmf<br>
-        &nbsp;<a href="#p">-n</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        &nbsp;<a href="#p">-n</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Don't
 output
 
 
 
+
+
+
         spectral values<br>
       </small></tt><tt><small>&nbsp;<a href="#p">-p</a>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
         Plot each values spectrum</small></tt><tt><br>
-    </tt><tt> </tt><tt><small>&nbsp;<span style="font-style: italic;">input.ti3</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-Measurement
-
-
-
-        file<br>
-        &nbsp;<span style="font-style: italic;">output.ti3</span>&nbsp;&nbsp;&nbsp;&nbsp;
-
-
-
-        Converted measurement file</small></tt><br>
+    </tt><tt> </tt><tt><small>&nbsp;<span style="font-style: italic;">input.[ti3|sp]</span>
+        &nbsp;&nbsp; Measurement file<br>
+        &nbsp;<span style="font-style: italic;">output.[ti3</span>|sp]
+        &nbsp; Converted measurement file</small></tt><br>
     <h3>Comments</h3>
     This program takes the (usually reflective) spectral data in a .ti3
-    file, converts them to XYZ and D50 L*a*b* and fills the XYZ_[XYZ]
-    and LAB_[LAB] columns in the output .ti3 file. If the columns
-    XYZ_[XYZ] and/or LAB_[LAB] are missing in the input file, they are
-    added to the output file.<br>
+    or .sp file, converts them to XYZ and D50 L*a*b* and fills the
+    XYZ_[XYZ] and LAB_[LAB] columns in the output .ti3 or .sp file. If
+    the columns XYZ_[XYZ] and/or LAB_[LAB] are missing in the input
+    file, they are added to the output file.<br>
     <br>
     If FWA correction is applied, then the spectra saved will be FWA
     corrected, as well as the XYZ and D50 L*a*b* values.<br>
     <br>
-    All other columns are copied from the input to the output .ti3 file.<br>
+    All other columns are copied from the input to the output .ti3 or
+    .sp file.<br>
     <br>
     Setting an actual instrument/simulated instrument/CIE illuminant
     only has an effect for reflective/transmissive spectra. Emissive
@@ -139,15 +166,18 @@ Measurement
 
 
 
+
+
+
     <a href="colprof.html#f">colprof -f</a> for a fuller explanation. <br>
     <br>
     <a name="i"></a>The <b>-i</b> parameter allows specifying a
     standard or custom illumination spectrum, applied to spectral .ti3
-    data to compute PCS (Profile Connection Space) tristimulus values. <b>A</b>,
-    <b>D50</b>, <b>D65</b>, <b>F5</b>, <b>F8</b>, <b>F10</b> are a
-    selection of standard illuminant spectrums, with <b>D50</b> being
-    the default. If a filename is specified instead, it will be assumed
-    to be an Argyll specific <a href="File_Formats.html#.sp">.sp</a>
+    pr .sp data to compute PCS (Profile Connection Space) tristimulus
+    values. <b>A</b>, <b>D50</b>, <b>D65</b>, <b>F5</b>, <b>F8</b>,
+    <b>F10</b> are a selection of standard illuminant spectrums, with <b>D50</b>
+    being the default. If a filename is specified instead, it will be
+    assumed to be an Argyll specific <a href="File_Formats.html#.sp">.sp</a>
     custom spectrum file. This only works if spectral data is available.
     Illuminant details are:<br>
     <br>

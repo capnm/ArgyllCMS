@@ -36,7 +36,11 @@ TESTS_ENVIRONMENT = \
 EXTRA_DIST = \
 	$(TESTSCRIPTS) \
 	$(IMAGES_EXTRA_DIST) \
-	common.sh
+	CMakeLists.txt \
+	common.sh \
+	TiffSplitTest.cmake \
+	TiffTestCommon.cmake \
+	TiffTest.cmake
 
 # All of the tests to execute via 'make check'
 TESTS = $(check_PROGRAMS) $(TESTSCRIPTS)
@@ -47,8 +51,18 @@ XFAIL_TESTS =
 # Extra files which should be cleaned by 'make clean'
 CLEANFILES = test_packbits.tif o-*
 
+if HAVE_JPEG
+JPEG_DEPENDENT_CHECK_PROG=raw_decode
+JPEG_DEPENDENT_TESTSCRIPTS=tiff2rgba-quad-tile.jpg.sh
+else
+JPEG_DEPENDENT_CHECK_PROG=
+JPEG_DEPENDENT_TESTSCRIPTS=
+endif
+
 # Executable programs which need to be built in order to support tests
-check_PROGRAMS = ascii_tag long_tag short_tag strip_rw rewrite raw_decode custom_dir
+check_PROGRAMS = \
+	ascii_tag long_tag short_tag strip_rw rewrite custom_dir \
+	$(JPEG_DEPENDENT_CHECK_PROG)
 
 # Test scripts to execute
 TESTSCRIPTS = \
@@ -125,7 +139,7 @@ TESTSCRIPTS = \
 	tiff2rgba-palette-1c-8b.sh \
 	tiff2rgba-rgb-3c-16b.sh \
 	tiff2rgba-rgb-3c-8b.sh \
-	tiff2rgba-quad-tile.jpg.sh
+	$(JPEG_DEPENDENT_TESTSCRIPTS)
 
 # This list should contain all of the TIFF files in the 'images'
 # subdirectory which are intended to be used as input images for

@@ -37,6 +37,10 @@
 
 #include "inst.h"
 
+#ifdef __cplusplus
+	extern "C" {
+#endif
+
 /* Note: update huey_interp_error() and huey_interp_code() in huey.c */
 /* if anything of these #defines are added or subtracted */
 
@@ -79,7 +83,7 @@
 typedef enum {
 	i1d3_disppro    = 0,	/* i1 DisplayPro */
 	i1d3_munkdisp   = 1,	/* ColorMunki Display */
-	i1d3_oem        = 2,	/* OEM */
+	i1d3_oem        = 2,	/* Generic OEM */
 	i1d3_nec_ssp    = 3, 	/* NEC SpectraSensor Pro */
 	i1d3_quato_sh3  = 4, 	/* Quato Silver Haze 3 */
 	i1d3_hp_dreamc  = 5, 	/* HP DreameColor */
@@ -169,6 +173,9 @@ struct _i1d3 {
 /* Constructor */
 extern i1d3 *new_i1d3(icoms *icom, instType itype);
 
+#ifdef __cplusplus
+	}
+#endif
 
 #define I1D3_H
 #endif /* I1D3_H */

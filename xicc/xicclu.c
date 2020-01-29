@@ -40,7 +40,8 @@
 
 #undef SPTEST				/* Test rspl gamut surface code */
 
-#define USE_NEARCLIP		/* Our usual expectation */
+#define USE_NEARCLIP		/* [def] Our usual expectation */
+#define USE_FASTNNSETP		/* [def] Make it more responsive */
 #define XRES 128			/* Plotting resolution */
 
 void usage(char *diag) {
@@ -54,10 +55,11 @@ void usage(char *diag) {
 	fprintf(stderr," -g             Plot slice instead of looking colors up. (Default white to black)\n");
 	fprintf(stderr," -G s:L:a:b    	Override plot slice start with Lab or Jab co-ordinate \n");
 	fprintf(stderr," -G e:L:a:b    	Override plot slice end with Lab or Jab co-ordinate \n");
+	fprintf(stderr," -V             Use 'vcgt' calibration tag from profile\n");
 	fprintf(stderr," -f function    f = forward, b = backwards, g = gamut, p = preview\n");
 	fprintf(stderr,"                if = inverted forward, ib = inverted backwards\n");
 	fprintf(stderr," -i intent      a = absolute, r = relative colorimetric\n");
-	fprintf(stderr,"                p = perceptual, s = saturation\n");
+	fprintf(stderr,"                p = perceptual, s = saturation, A = disp. abs. measurements\n");
 //  fprintf(stderr,"                P = absolute perceptual, S = absolute saturation\n");
 	fprintf(stderr," -o order       n = normal (priority: lut > matrix > monochrome)\n");
 	fprintf(stderr,"                r = reverse (priority: monochrome > matrix > lut)\n");
@@ -151,6 +153,10 @@ void spioutf(void *cbntx, double *out, double *in) {
 
 #endif /* SPTEST */
 
+#ifndef USE_FASTNNSETP
+#pragma message("!!!!!!!!!!!! USE_FASTNNSETP turned off  !!!!!!!!!")
+#endif
+
 int
 main(int argc, char *argv[]) {
 	int fa, nfa, mfa;				/* argument we're looking at */
@@ -159,6 +165,7 @@ main(int argc, char *argv[]) {
 	icc *icco = NULL;
 	xicc *xicco = NULL;
 	xcal *cal = NULL;			/* If .cal rather than .icm/.icc, not NULL */
+	int dovcgt = 0;				/* Extract cal out of icc profile */				
 	int doplot = 0;				/* Do grey axis plot */
 	double pstart[3] = { -1000.0 };		/* Plot Lab/Jab PCS start point = white */ 
 	double pend[3]   = { -1000.0 };		/* Plot Lab/Jab PCS end point = black */ 
@@ -202,6 +209,8 @@ main(int argc, char *argv[]) {
 	/* Lookup parameters */
 	icmLookupFunc     func   = icmFwd;				/* Default */
 	icRenderingIntent intent = icmDefaultIntent;	/* Default */
+	int absmeas = 0;								/* Show display absolute measurement in XYZ */
+	double dispLuminance = -1.0;					/* Luminance value for absmeas */
 	icColorSpaceSignature pcsor = icmSigDefaultData;	/* Default */
 	icmLookupOrder    order  = icmLuOrdNorm;		/* Default */
 	int               inking = 3;					/* Default is ramp */
@@ -260,6 +269,11 @@ main(int argc, char *argv[]) {
 					else
 						usage("Illegal verbosity level");
 				}
+			}
+
+			/* Load ICC 'vcgt' tag as Cal */
+			else if (argv[fa][1] == 'V') {
+				dovcgt = 1;
 			}
 
 			/* Locus plot */
@@ -383,6 +397,7 @@ main(int argc, char *argv[]) {
 			else if (argv[fa][1] == 'i') {
 				if (na == NULL) usage("No parameter after flag -i");
 				fa = nfa;
+				absmeas = 0;
     			switch (na[0]) {
 					case 'p':
 						intent = icPerceptual;
@@ -395,6 +410,10 @@ main(int argc, char *argv[]) {
 						break;
 					case 'a':
 						intent = icAbsoluteColorimetric;
+						break;
+					case 'A':
+						intent = icAbsoluteColorimetric;
+						absmeas = 1;
 						break;
 					/* Argyll special intents to check spaces underlying */
 					/* icxPerceptualAppearance & icxSaturationAppearance */
@@ -415,6 +434,7 @@ main(int argc, char *argv[]) {
 				fa = nfa;
     			switch (na[0]) {
 					case 'x':
+						/* (See also absmeas after options) */
 						pcsor = icSigXYZData;
 						repYxy = 0;
 						repLCh = 0;
@@ -676,6 +696,15 @@ main(int argc, char *argv[]) {
 			error("chrom_locus_poligon failed");
 	}
 
+	/* Force to XYZ PCS */
+	if (absmeas) {
+		pcsor = icSigXYZData;
+		repYxy = 0;
+		repLCh = 0;
+		repJCh = 0;
+		repXYZ100 = 0;
+	}
+
 	/* Open up the profile for reading */
 	if ((fp = new_icmFileStd_name(prof_name,"r")) == NULL)
 		error ("Can't open file '%s'",prof_name);
@@ -683,7 +712,26 @@ main(int argc, char *argv[]) {
 	if ((icco = new_icc()) == NULL)
 		error ("Creation of ICC object failed");
 
-	if ((rv = icco->read(icco,fp,0)) == 0) {		/* ICC profile */
+	if (dovcgt) {
+		if ((rv = icco->read(icco,fp,0)) != 0)
+			error ("Can't load ICC file '%s'",prof_name);
+
+		if ((cal = new_xcal()) == NULL)
+			error("new_xcal failed");
+	
+		if ((cal->read_icc(cal, icco)) != 0) {
+			error ("ICC file '%s' doesn't contain a 'vcgt' tag",prof_name);
+		}
+	
+		icco->del(icco);
+		fp->del(fp);
+		fp = NULL;
+	
+		/* Get details of conversion (Arguments may be NULL if info not needed) */
+		outs = ins = cal->colspace;
+		outn = inn = cal->devchan;
+
+	} else if ((rv = icco->read(icco,fp,0)) == 0) {		/* ICC profile */
 
 		if (doplot) {
 	
@@ -838,7 +886,9 @@ main(int argc, char *argv[]) {
 		   | (intsep ? ICX_INT_SEPARATE : 0)
 		   | (merge ? ICX_MERGE_CLUT : 0)
 		   | (camclip ? ICX_CAM_CLIP : 0)
+#ifdef USE_FASTNNSETP
 		   | ICX_FAST_SETUP
+#endif
 		                                  , func, intent, pcsor, order, &vc, &ink)) == NULL)
 			error ("%d, %s",xicco->errc, xicco->err);
 
@@ -937,7 +987,23 @@ main(int argc, char *argv[]) {
 		}
 #endif
 
+		/* If we are doing display absolute measurement PCS */
+		if (absmeas) {
+			icmXYZArray *wo;
+			if ((wo = (icmXYZArray *)icco->read_tag(
+			           icco, icSigLuminanceTag)) != NULL
+				&& wo->ttype == icSigXYZArrayType) {
+				dispLuminance = wo->data[0].Y;
+			}
+			if (verb)
+				printf("Display Luminance = %f cd/m^2\n", dispLuminance);
+
+			if (dispLuminance <= 0.0)
+				error("Unable to read display luminance tag from '%s'\n",prof_name);
+		}
+
 	} else {	/* See if it's a .cal */
+		icco->del(icco);
 		fp->del(fp);
 		fp = NULL;
 
@@ -951,6 +1017,11 @@ main(int argc, char *argv[]) {
 		/* Get details of conversion (Arguments may be NULL if info not needed) */
 		outs = ins = cal->colspace;
 		outn = inn = cal->devchan;
+	}
+
+	/* Sanity check */
+	if (absmeas && ins != icSigXYZData && outs != icSigXYZData) {
+		error("Must be XYZ PCS space for display absolute measurement");
 	}
 
 	if (verb > 1 && icco != NULL) {
@@ -1147,6 +1218,13 @@ main(int argc, char *argv[]) {
 				in[2] = C * sin(3.14159265359/180.0 * h);
 			}
 
+			/* display absolute measurement */
+			if (absmeas && ins == icSigXYZData) {
+				in[0] /= dispLuminance;
+				in[1] /= dispLuminance;
+				in[2] /= dispLuminance;
+			}
+
 			/* Do conversion */
 			if (cal != NULL) {	/* .cal */
 				if (func == icmBwd || invert) {
@@ -1183,6 +1261,13 @@ main(int argc, char *argv[]) {
 			/* Copy conversion out value so that we can create user values */
 			for (i = 0; i < MAX_CHAN; i++)
 				uout[i] = out[i];
+
+			/* display absolute measurement */
+			if (absmeas && outs == icSigXYZData) {
+				uout[0] *= dispLuminance;
+				uout[1] *= dispLuminance;
+				uout[2] *= dispLuminance;
+			}
 
 			if (repXYZ100 && outs == icSigXYZData) {
 				uout[0] *= 100.0;

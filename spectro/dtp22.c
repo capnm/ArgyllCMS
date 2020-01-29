@@ -32,6 +32,11 @@
    and agreed to support.
  */
 
+/*
+   Would like to add a thread to return status of
+   switch, so that we can fully run this in progromatic trigger mode.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -51,6 +56,7 @@
 #include "conv.h"
 #include "icoms.h"
 #include "dtp22.h"
+#include "xrga.h"
 
 /* Default flow control (Instrument doesn't support HW flow control) */
 #define DEFFC fc_XonXOff
@@ -186,7 +192,7 @@ dtp22_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 	} else if (fc == fc_Hardware) {
 		fcc = "0104CF\r";
 	} else {
-		fc = fc_none;
+		fc = fc_None;
 		fcc = "0004CF\r";
 	}
 
@@ -209,40 +215,37 @@ dtp22_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 	/* The tick to give up on */
 	etime = msec_time() + (long)(1000.0 * tout + 0.5);
 
-	while (msec_time() < etime) {
 
-		a1logd(p->log, 4, "dtp22_init_coms: Trying different baud rates (%u msec to go)\n",
-		                                                              etime - msec_time());
+	/* Until we time out, find the correct baud rate */
+	for (i = ci; msec_time() < etime;) {
+	
+		a1logd(p->log, 4, "dtp22_init_coms: Trying %s baud, %d msec to go\n",
+			                      baud_rate_to_str(brt[i]), etime- msec_time());
 
-		/* Until we time out, find the correct baud rate */
-		for (i = ci; msec_time() < etime;) {
-
-			if ((se = p->icom->set_ser_port(p->icom, fc_none, brt[i], parity_none,
-			                                                 stop_1, length_8)) != ICOM_OK) { 
-				a1logd(p->log, 1, "dtp22_init_coms: set_ser_port failed ICOM err 0x%x\n",se);
-				return dtp22_interp_code((inst *)p, icoms2dtp22_err(se));
-			}
-			if (((ev = dtp22_command(p, "\r", buf, MAX_MES_SIZE, 0.5)) & inst_mask)
-				                                                 != inst_coms_fail)
-				break;		/* We've got coms */
-
-			/* Check for user abort */
-			if (p->uicallback != NULL) {
-				inst_code ev;
-				if ((ev = p->uicallback(p->uic_cntx, inst_negcoms)) == inst_user_abort) {
-					a1logd(p->log, 1, "dtp22_init_coms: user aborted\n");
-					return ev;
-				}
-			}
-			if (++i >= 5)
-				i = 0;
+		if ((se = p->icom->set_ser_port(p->icom, fc_None, brt[i], parity_none,
+		                                                 stop_1, length_8)) != ICOM_OK) { 
+			a1logd(p->log, 1, "dtp22_init_coms: set_ser_port failed ICOM err 0x%x\n",se);
+			return dtp22_interp_code((inst *)p, icoms2dtp22_err(se));
 		}
-		break;		/* Got coms */
-	}
+		if (((ev = dtp22_command(p, "\r", buf, MAX_MES_SIZE, 0.5)) & inst_mask)
+			                                                 != inst_coms_fail)
+			goto got_coms;		/* We've got coms or user abort */
 
-	if (msec_time() >= etime) {		/* We haven't established comms */
-		return inst_coms_fail;
+		/* Check for user abort */
+		if (p->uicallback != NULL) {
+			inst_code ev;
+			if ((ev = p->uicallback(p->uic_cntx, inst_negcoms)) == inst_user_abort) {
+				a1logd(p->log, 1, "dtp22_init_coms: user aborted\n");
+				return ev;
+			}
+		}
+		if (++i >= 5)
+			i = 0;
 	}
+	/* We haven't established comms */
+	return inst_coms_fail;
+
+  got_coms:;
 
 	/* Set the handshaking */
 	if ((ev = dtp22_command(p, fcc, buf, MAX_MES_SIZE, 0.2)) != inst_ok)
@@ -287,12 +290,26 @@ dtp22_init_inst(inst *pp) {
 	dtp22 *p = (dtp22 *)pp;
 	char buf[MAX_MES_SIZE], *bp;
 	inst_code ev = inst_ok;
+	char *envv;
 	int i;
 
 	a1logd(p->log, 2, "dtp22_init_inst: called\n");
 
 	if (p->gotcoms == 0)
 		return inst_internal_error;		/* Must establish coms before calling init */
+
+	p->native_calstd = xcalstd_xrdi;
+	p->target_calstd = xcalstd_native;		/* Default to native calibration standard*/
+
+	/* Honour Environment override */
+	if ((envv = getenv("ARGYLL_XCALSTD")) != NULL) {
+		if (strcmp(envv, "XRGA") == 0)
+			p->target_calstd = xcalstd_xrga;
+		else if (strcmp(envv, "XRDI") == 0)
+			p->target_calstd = xcalstd_xrdi;
+		else if (strcmp(envv, "GMDI") == 0)
+			p->target_calstd = xcalstd_gmdi;
+	}
 
 	/* Warm reset it */
 	if ((ev = dtp22_command(p, "0PR\r", buf, MAX_MES_SIZE, 2.0)) != inst_ok)
@@ -333,7 +350,7 @@ dtp22_init_inst(inst *pp) {
 
 	/* - - - - - - - - - - - - - - - - - - - - - - - - */
 	/* Get some information about the instrument */
-	if ((ev = dtp22_command(p, "GI\r", buf, MAX_MES_SIZE, 0.2)) != inst_ok) {
+	if ((ev = dtp22_command(p, "GI\r", buf, MAX_MES_SIZE, 0.5)) != inst_ok) {
 		a1logd(p->log, 1, "dtp22: GI command failed with ICOM err 0x%x\n",ev);
 		return ev;
 	}
@@ -577,7 +594,8 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 	val->sp.spec_n = 0;
 	val->duration = 0.0;
 
-	if (p->mode & inst_mode_spectral) {
+	if (p->mode & inst_mode_spectral
+	 || XCALSTD_NEEDED(p->target_calstd, p->native_calstd)) {
 		int j;
 		char *fmt;
 
@@ -604,6 +622,9 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 		val->sp.spec_wl_long = 700.0;
 		val->sp.norm = 100.0;
 	}
+
+	/* Apply any XRGA conversion */
+	ipatch_convert_xrga(val, 1, xcalstd_nonpol, p->target_calstd, p->native_calstd, clamp);
 
 	if (user_trig)
 		return inst_user_trig;
@@ -640,6 +661,7 @@ inst_code dtp22_calibrate(
 inst *pp,
 inst_cal_type *calt,	/* Calibration type to do/remaining */
 inst_cal_cond *calc,	/* Current condition/desired condition */
+inst_calc_id_type *idtype,	/* Condition identifier type */
 char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 ) {
 	dtp22 *p = (dtp22 *)pp;
@@ -654,6 +676,7 @@ char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 	if (!p->inited)
 		return inst_no_init;
 
+	*idtype = inst_calc_id_none;
 	id[0] = '\000';
 
 	if ((ev = dtp22_get_n_a_cals((inst *)p, &needed, &available)) != inst_ok)
@@ -683,7 +706,8 @@ char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 
 	if (*calt & inst_calt_ref_white) {		/* White calibration */
 
-		sprintf(id, "Serial no. %d",p->plaqueno);
+		*idtype = inst_calc_id_ref_sn;
+		sprintf(id, "%d",p->plaqueno);
 		if ((*calc & inst_calc_cond_mask) != inst_calc_man_ref_whitek) {
 			*calc = inst_calc_man_ref_whitek;
 			ev = inst_cal_setup;
@@ -1046,6 +1070,37 @@ dtp22_get_set_opt(inst *pp, inst_opt_type m, ...)
 {
 	dtp22 *p = (dtp22 *)pp;
 
+	/* Set xcalstd */
+	if (m == inst_opt_set_xcalstd) {
+		xcalstd standard;
+		va_list args;
+
+		va_start(args, m);
+		standard = va_arg(args, xcalstd);
+		va_end(args);
+
+		p->target_calstd = standard;
+
+		return inst_ok;
+	}
+
+	/* Get the current effective xcalstd */
+	if (m == inst_opt_get_xcalstd) {
+		xcalstd *standard;
+		va_list args;
+
+		va_start(args, m);
+		standard = va_arg(args, xcalstd *);
+		va_end(args);
+
+		if (p->target_calstd == xcalstd_native)
+			*standard = p->native_calstd;		/* If not overridden */
+		else
+			*standard = p->target_calstd;		/* Overidden std. */
+
+		return inst_ok;
+	}
+
 	/* Record the trigger mode */
 	if (m == inst_opt_trig_prog
 	 || m == inst_opt_trig_user
@@ -1054,7 +1109,17 @@ dtp22_get_set_opt(inst *pp, inst_opt_type m, ...)
 		return inst_ok;
 	}
 
-	return inst_unsupported;
+	/* Use default implementation of other inst_opt_type's */
+	{
+		inst_code rv;
+		va_list args;
+
+		va_start(args, m);
+		rv = inst_get_set_opt_def(pp, m, args);
+		va_end(args);
+
+		return rv;
+	}
 }
 
 /* Constructor */

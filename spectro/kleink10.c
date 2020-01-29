@@ -369,8 +369,7 @@ k10_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 
 	amutex_lock(p->lock);
 
-	if (p->icom->port_type(p->icom) != icomt_serial
-	 && p->icom->port_type(p->icom) != icomt_usbserial) {
+	if (!(p->icom->port_type(p->icom) & icomt_serial)) {
 		amutex_unlock(p->lock);
 		a1logd(p->log, 1, "k10_init_coms: wrong communications type for device!\n");
 		return inst_coms_fail;
@@ -386,7 +385,8 @@ k10_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 		if (brt[i] == baud_nc) {
 			i = 0;
 		}
-		a1logd(p->log, 5, "k10_init_coms: trying baud ix %d\n",brt[i]);
+		a1logd(p->log, 5, "k10_init_coms: Trying %s baud, %d msec to go\n",
+			                      baud_rate_to_str(brt[i]), etime- msec_time());
 		if ((se = p->icom->set_ser_port(p->icom, fc_HardwareDTR, brt[i], parity_none,
 			                         stop_1, length_8)) != ICOM_OK) { 
 			amutex_unlock(p->lock);
@@ -397,7 +397,7 @@ k10_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 		/* Check instrument is responding */
 		if (((ev = k10_command(p, "P0\r", buf, MAX_MES_SIZE, NULL, 21, ec_ec, 0.5)) & inst_mask)
 			                                                       != inst_coms_fail) {
-			break;		/* We've got coms or user abort */
+			goto got_coms;		/* We've got coms or user abort */
 		}
 
 		/* Check for user abort */
@@ -411,11 +411,12 @@ k10_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 		}
 	}
 
-	if (msec_time() >= etime) {		/* We haven't established comms */
-		amutex_unlock(p->lock);
-		a1logd(p->log, 2, "k10_init_coms: failed to establish coms\n");
-		return inst_coms_fail;
-	}
+	/* We haven't established comms */
+	amutex_unlock(p->lock);
+	a1logd(p->log, 2, "k10_init_coms: failed to establish coms\n");
+	return inst_coms_fail;
+
+  got_coms:;
 
 	/* Check the response */
 	if (ev != inst_ok) {
@@ -2255,6 +2256,7 @@ inst_code k10_calibrate(
 inst *pp,
 inst_cal_type *calt,	/* Calibration type to do/remaining */
 inst_cal_cond *calc,	/* Current condition/desired condition */
+inst_calc_id_type *idtype,	/* Condition identifier type */
 char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 ) {
 	kleink10 *p = (kleink10 *)pp;
@@ -2267,6 +2269,7 @@ char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 	if (!p->inited)
 		return inst_no_init;
 
+	*idtype = inst_calc_id_none;
 	id[0] = '\000';
 
 	if ((ev = k10_get_n_a_cals((inst *)p, &needed, &available)) != inst_ok)
@@ -2738,8 +2741,7 @@ double mtx[3][3]
  * error if it hasn't been initialised.
  */
 static inst_code
-k10_get_set_opt(inst *pp, inst_opt_type m, ...)
-{
+k10_get_set_opt(inst *pp, inst_opt_type m, ...) {
 	kleink10 *p = (kleink10 *)pp;
 	char buf[MAX_MES_SIZE];
 	int se;
@@ -2752,6 +2754,11 @@ k10_get_set_opt(inst *pp, inst_opt_type m, ...)
 		p->trig = m;
 		return inst_ok;
 	}
+
+	if (!p->gotcoms)
+		return inst_no_coms;
+	if (!p->inited)
+		return inst_no_init;
 
 	/* Get target light state */
 	if (m == inst_opt_get_target_state) {
@@ -2821,12 +2828,17 @@ k10_get_set_opt(inst *pp, inst_opt_type m, ...)
 		return inst_ok;
 	}
 
-	if (!p->gotcoms)
-		return inst_no_coms;
-	if (!p->inited)
-		return inst_no_init;
+	/* Use default implementation of other inst_opt_type's */
+	{
+		inst_code rv;
+		va_list args;
 
-	return inst_unsupported;
+		va_start(args, m);
+		rv = inst_get_set_opt_def(pp, m, args);
+		va_end(args);
+
+		return rv;
+	}
 }
 
 /* Constructor */

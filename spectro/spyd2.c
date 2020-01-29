@@ -819,10 +819,12 @@ spyd2_GetReading_ll(
 		msec_sleep(500);
 		a1logd(p->log, 1, "spyd2_GetReading_ll: reading retry with ICOM err 0x%x\n",se);
 
-#ifdef DO_RESETEP				/* Do the miscelanous resetep()'s */
-		a1logd(p->log, 1, "spyd2_GetReading_ll: resetting end point\n");
-		p->icom->usb_resetep(p->icom, 0x81);
-		msec_sleep(1);			/* Let device recover ? */
+#ifdef DO_RESETEP				/* Do the miscelanous resetep()'s every second time */
+		if ((retr & 1) == 0) {
+			a1logd(p->log, 1, "spyd2_GetReading_ll: resetting end point\n");
+			p->icom->usb_resetep(p->icom, 0x81);
+			msec_sleep(1);			/* Let device recover ? */
+		}
 #endif /*  DO_RESETEP */
 	}	/* End of whole command retries */
 
@@ -2888,7 +2890,7 @@ spyd2_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 #endif
 
 	/* On OS X the Spyder 2 can't close properly */
-#if defined(__APPLE__)			/* OS X*/
+#if defined(UNIX_APPLE)			/* OS X*/
 	if (p->itype == instSpyder1
 	 || p->itype == instSpyder2) {
 		usbflags |= icomuf_reset_before_close;		/* The spyder 2 USB is buggy ? */
@@ -3255,6 +3257,7 @@ static inst_code spyd2_calibrate(
 inst *pp,
 inst_cal_type *calt,	/* Calibration type to do/remaining */
 inst_cal_cond *calc,	/* Current condition/desired condition */
+inst_calc_id_type *idtype,	/* Condition identifier type */
 char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 ) {
 	spyd2 *p = (spyd2 *)pp;
@@ -3266,6 +3269,7 @@ char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 	if (!p->inited)
 		return inst_no_init;
 
+	*idtype = inst_calc_id_none;
 	id[0] = '\000';
 
 	if ((ev = spyd2_get_n_a_cals((inst *)p, &needed, &available)) != inst_ok)
@@ -4060,7 +4064,18 @@ spyd2_get_set_opt(inst *pp, inst_opt_type m, ...) {
 		if (trans_time_prop != NULL) *trans_time_prop = p->led_trans_time_prop;
 		return inst_ok;
 	}
-	return inst_unsupported;
+
+	/* Use default implementation of other inst_opt_type's */
+	{
+		inst_code rv;
+		va_list args;
+
+		va_start(args, m);
+		rv = inst_get_set_opt_def(pp, m, args);
+		va_end(args);
+
+		return rv;
+	}
 }
 
 /* Constructor */

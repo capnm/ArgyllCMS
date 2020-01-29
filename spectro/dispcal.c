@@ -62,8 +62,13 @@
 	Change white point gamut clipping to be a measurement
 	search rather than computing from primary XYZ ?
 
-	Add bell at end of calibration ?
+	Handling of white and black device clipping is not so good.
+	White clipping isn't characterized very well due to sparse sampling,
+	and moncurve tends to smooth over the clip inflection point,
+	making it innacurate. This particularly hurts the black point
+	accuracy, leading to raised or crushed blacks.
 
+	Add bell at end of calibration ?
 
 	Add option to plot graph of native and calibrated RGB ?
 
@@ -1012,7 +1017,7 @@ static void init_csamp(csamp *p, calx *x, int doupdate, int verify, int psrand, 
 	
 	p->_no = p->no = no;
 
-	if ((p->s = (csp *)malloc(p->_no * sizeof(csp))) == NULL)
+	if ((p->s = (csp *)calloc(p->_no, sizeof(csp))) == NULL)
 		error("csamp malloc failed");
 
 	/* Compute v and txyz */
@@ -1715,7 +1720,7 @@ int main(int argc, char *argv[]) {
 	set_exe_path(argv[0]);				/* Set global exe_path and error_program */
 	check_if_not_interactive();
 
-#if defined(__APPLE__)
+#if defined(UNIX_APPLE)
 	{
 		SInt32 MacMajVers, MacMinVers, MacBFVers;
 
@@ -1939,7 +1944,7 @@ int main(int argc, char *argv[]) {
 				fa = nfa;
 				if (na == NULL) usage(0,"Paramater expected following -W");
 				if (na[0] == 'n' || na[0] == 'N')
-					fc = fc_none;
+					fc = fc_None;
 				else if (na[0] == 'h' || na[0] == 'H')
 					fc = fc_Hardware;
 				else if (na[0] == 'x' || na[0] == 'X')
@@ -2572,7 +2577,7 @@ int main(int argc, char *argv[]) {
 #ifdef	MEAS_RES
 		if (doreport == 1) {
 			if (sigbits == 0) {
-				warning("Unable to determine Video LUT entry bit depth");
+				warning("Unable to determine effective Video LUT entry bit depth");
 			} else {
 				printf("Effective Video LUT entry depth seems to be %d bits\n",sigbits);
 			}
@@ -3701,8 +3706,9 @@ int main(int argc, char *argv[]) {
 				else
 					printf("  Current Brightness = %.2f\n", tcols[2].XYZ[1]);
 				
-				printf("  Target 50%% Level  = %.3f, Current = %.3f, error = % .1f%%\n",
+				printf("  Target 50%% Level  = %.3f, Current = %.3f (Aprox. Gamma %.2f), error = % .1f%%\n",
 				       tarh, tcols[1].XYZ[1], 
+				       mgamma,
 				       100.0 * (tcols[1].XYZ[1] - tarh)/tarw);
 				
 				printf("  Target Near Black = %.4f, Current = %.4f, error = % .1f%%\n",
@@ -4354,7 +4360,7 @@ int main(int argc, char *argv[]) {
 					0.2,					/* Background relative to reference white */
 					80.0,					/* Display is 80 cd/m^2 */
 			        0.0, 0.01, x.nwh,		/* 0% flare and 1% glare same white point */
-					0);
+					0, 1.0);
 				break;
 
 			case gt_Rec709:
@@ -4365,7 +4371,7 @@ int main(int argc, char *argv[]) {
 					0.2,					/* Background relative to reference white */
 					1000.0/3.1415,			/* Luminance of white in the Image field (cd/m^2) */
 			        0.0, 0.01, x.nwh,		/* 0% flare and 1% glare same white point */
-					0);
+					0, 1.0);
 				break;
 
 			default:
@@ -4378,7 +4384,7 @@ int main(int argc, char *argv[]) {
 			0.2,				/* Background relative to reference white */
 			x.twh[1],			/* Target white level (cd/m^2) */
 	        0.0, 0.01, x.nwh,	/* 0% flare and 1% glare same white point */
-			0);
+			0, 1.0);
 
 		/* Compute the normalisation values */
 		x.svc->XYZ_to_cam(x.svc, Jab, x.nwh);		/* Relative white point */
@@ -4532,7 +4538,10 @@ int main(int argc, char *argv[]) {
 	}
 #endif
 
-	dr->reset_targ_w(dr);			/* Reset white drift target at start of main cal. */
+	/* If native white and white drift compensation enabled, */
+	/* reset white drift target at start of main cal. */
+	if (x.nat && asgrey.s[0].v == 1.0 && wdrift)
+		dr->reset_targ_w(dr);
 
 	/* Now we go into the main verify & refine loop */
 	for (it = (verify == 2) ? mxits : 0;
@@ -5485,6 +5494,29 @@ int main(int argc, char *argv[]) {
 		if ((wr_icco = new_icc()) == NULL)
 			error("Write: Creation of ICC object failed");
 
+		/* Set the header: */
+		{
+			icmHeader *wh = wr_icco->header;
+
+			/* Values that must be set before writing */
+			wh->deviceClass     = icSigDisplayClass;
+			wh->colorSpace      = icSigRgbData;				/* Display is RGB */
+			wh->pcs         = icSigXYZData;					/* XYZ for matrix based profile */
+			wh->renderingIntent = icRelativeColorimetric;	/* For want of something */
+
+			wh->manufacturer = icmSigUnknownType;
+	    	wh->model        = icmSigUnknownType;
+#ifdef NT
+			wh->platform = icSigMicrosoft;
+#endif
+#ifdef UNIX_APPLE
+			wh->platform = icSigMacintosh;
+#endif
+#if defined(UNIX_X11)
+			wh->platform = icmSig_nix;
+#endif
+		}
+
 		/* Lookup white and black points */
 		{
 			int j;
@@ -5561,9 +5593,9 @@ int main(int argc, char *argv[]) {
 					printf("RGB 1 through matrix = XYZ %f %f %f, Lab %f %f %f\n", xyz[0], xyz[1], xyz[2], lab[0], lab[1], lab[2]);
 				}
 #endif
-				/* Adapt matrix */
+				/* Chromatic Adaptation matrix */
 				icmAry2XYZ(swp, wp);
-				wr_icco->chromAdaptMatrix(wr_icco, ICM_CAM_MULMATRIX, icmD50, swp, mat);
+				wr_icco->chromAdaptMatrix(wr_icco, ICM_CAM_MULMATRIX, NULL, mat, icmD50, swp);
 #ifdef NEVER
 				{
 					double rgb[3], xyz[3], lab[3];
@@ -5603,9 +5635,9 @@ int main(int argc, char *argv[]) {
 					printf("RGB cal through matrix = XYZ %f %f %f, Lab %f %f %f\n", xyz[0], xyz[1], xyz[2], lab[0], lab[1], lab[2]);
 				}
 #endif
-				/* Adapt matrix */
+				/* Chromatic Adaptation matrix */
 				icmAry2XYZ(swp, wp);
-				wr_icco->chromAdaptMatrix(wr_icco, ICM_CAM_MULMATRIX, icmD50, swp, mat);
+				wr_icco->chromAdaptMatrix(wr_icco, ICM_CAM_MULMATRIX, NULL, mat, icmD50, swp);
 #ifdef NEVER
 				{
 					double rgb[3], xyz[3], lab[3];
@@ -5619,30 +5651,7 @@ int main(int argc, char *argv[]) {
 			}
 		}
 		
-		/* Add all the tags required */
-
-		/* The header: */
-		{
-			icmHeader *wh = wr_icco->header;
-
-			/* Values that must be set before writing */
-			wh->deviceClass     = icSigDisplayClass;
-			wh->colorSpace      = icSigRgbData;				/* Display is RGB */
-			wh->pcs         = icSigXYZData;					/* XYZ for matrix based profile */
-			wh->renderingIntent = icRelativeColorimetric;	/* For want of something */
-
-			wh->manufacturer = icmSigUnknownType;
-	    	wh->model        = icmSigUnknownType;
-#ifdef NT
-			wh->platform = icSigMicrosoft;
-#endif
-#ifdef __APPLE__
-			wh->platform = icSigMacintosh;
-#endif
-#if defined(UNIX_X11)
-			wh->platform = icmSig_nix;
-#endif
-		}
+		/* Add all the other tags required */
 
 		/* Profile Description Tag: */
 		{
@@ -5715,6 +5724,7 @@ int main(int argc, char *argv[]) {
 			           wr_icco, icSigLuminanceTag, icSigXYZArrayType)) == NULL) 
 				error("add_tag failed: %d, %s",wr_icco->errc,wr_icco->err);
 
+			/* (Only Y is used according to the ICC spec.) */
 			wo->size = 1;
 			wo->allocate((icmBase *)wo);	/* Allocate space */
 			wo->data[0].X = 0.0;

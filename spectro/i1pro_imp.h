@@ -4,7 +4,9 @@
  * Argyll Color Correction System
  *
  * Gretag i1Pro implementation defines
- *
+ */
+
+/*
  * Author: Graeme W. Gill
  * Date:   20/12/2006
  *
@@ -14,6 +16,10 @@
  * This material is licenced under the GNU GENERAL PUBLIC LICENSE Version 2 or later :-
  * see the License2.txt file for licencing details.
  */
+
+#ifdef __cplusplus
+	extern "C" {
+#endif
 
 /* 
    If you make use of the instrument driver code here, please note
@@ -181,6 +187,9 @@ struct _i1proimp {
 	int spec_en;				/* NZ to enable reporting of spectral data */
 	int uv_en;					/* NZ to do UV reflective measurement */
 								/* ~~ change this to uv_mode of none, uv, strip1, 2pass */
+
+	xcalstd native_calstd;		/* Instrument native calibration standard */
+	xcalstd target_calstd;		/* Returned calibration standard */
 
 	double intclkp;				/* Integration clock period (typically 68 usec) */
 	int subclkdiv;				/* Sub clock divider ratio */
@@ -363,10 +372,11 @@ void del_i1proimp(i1pro *p);
 #define I1PRO_DATA_KEYNOTFOUND			0x05		/* a key value wasn't found */
 #define I1PRO_DATA_WRONGTYPE			0x06		/* a key is the wrong type */
 #define I1PRO_DATA_KEY_CORRUPT		    0x07		/* key table seems to be corrupted */
-#define I1PRO_DATA_KEY_COUNT		    0x08		/* key table count is too big or small */
-#define I1PRO_DATA_KEY_UNKNOWN		    0x09		/* unknown key type */
-#define I1PRO_DATA_KEY_MEMRANGE		    0x0a		/* key data is out of range of EEProm */
-#define I1PRO_DATA_KEY_ENDMARK		    0x0b		/* And end section marker was missing */
+#define I1PRO_DATA_KEY_COUNT_SMALL	    0x08		/* key table count is too small */
+#define I1PRO_DATA_KEY_COUNT_LARGE	    0x09		/* key table count is too big */
+#define I1PRO_DATA_KEY_UNKNOWN		    0x0a		/* unknown key type */
+#define I1PRO_DATA_KEY_MEMRANGE		    0x0b		/* key data is out of range of EEProm */
+#define I1PRO_DATA_KEY_ENDMARK		    0x0c		/* And end section marker was missing */
 
 /* HW errors */
 #define I1PRO_HW_HIGHPOWERFAIL			0x10		/* Switch to high power mode failed */
@@ -464,6 +474,7 @@ i1pro_code i1pro_imp_calibrate(
 	i1pro *p,
 	inst_cal_type *calt,	/* Calibration type to do/remaining */
 	inst_cal_cond *calc,	/* Current condition/desired condition */
+	inst_calc_id_type *idtype,	/* Condition identifier type */
 	char id[100]			/* Condition identifier (ie. white reference ID) */
 );
 
@@ -473,6 +484,12 @@ i1pro_code i1pro_imp_measure(
 	ipatch *val,		/* Pointer to array of instrument patch value */
 	int nvals,			/* Number of values */	
 	instClamping clamp	/* Clamp XYZ/Lab to be +ve */
+);
+
+/* Do a dummy reflective read, to fix Lamp Drift. */
+i1pro_code i1pro_imp_lamp_fix(
+	i1pro *p,
+	double seconds	/* Number of seconds to turn lamp on for */
 );
 
 /* Measure the emissive refresh rate */
@@ -1052,6 +1069,7 @@ i1pro2_getmeaschar(
 #define I1PRO2_MMF_LAMP 	   0x0100	/* Use the Incandescent Lamp as the illuminant */
 #define I1PRO2_MMF_UV_LED	   0x0200	/* Use the Ultra Violet LED as the illuminant */
 #define I1PRO2_MMF_WL_LED	   0x0300	/* Use the Wavelength Reference LED as the illuminant */
+
 //#define I1PRO2_MMF_HIGHGAIN    0x0000	/* Rev E mode has no high gain mode ? */
 #define I1PRO2_MMF_SCAN	       0x0001	/* Scan mode bit, else spot mode */ 
 #define I1PRO2_MMF_RULER_START 0x0004	/* Start ruler tracking in scan mode */
@@ -1403,6 +1421,10 @@ struct _i1data {
 
 /* Constructor. Construct from the EEprom contents */
 extern i1data *new_i1data(i1proimp *m);
+
+#ifdef __cplusplus
+	}
+#endif
 
 #define I1PRO_IMP
 #endif /* I1PRO_IMP */

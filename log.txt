@@ -2,7 +2,167 @@
 Argyll CMS change log
 =====================
 
-Version 1.8.3
+Version 1.9.2 14th October 2016
+-------------
+
+* Fix oeminst for OS X save location.
+
+* Fix oeminst for OS X Spyder 4 CD calibration file location.
+
+Version 1.9.1 28th September 2016
+-------------
+
+* Added some diagnostics to ChromeCast discovery, and increased mDNS
+  TTL count and wait time. 
+
+* Fixed regression on MSWindows systems with no serial ports.
+
+Version 1.9.0 26th September 2016
+-------------
+
+* Added smoothing filter to pre-conditioning profile lookup in
+  target/targen/ofps.c, to improve its robustness when faced with
+  more poorly behaved profiles.
+
+* Fixed oeminst so that it locates cdrom's in Linuxes latest
+  mount point of /run/media/$USER/.
+  (Who can guess where it will move to next ? What's a stable API again ??)
+
+* Fixed bug in i1pro2 driver, in which strip calibration would
+  fail if instrument had been first calibrated with ARGYLL_DISABLE_I1PRO2_DRIVER
+  set, and then calibrated with ARGYLL_DISABLE_I1PRO2_DRIVER unset.
+  This was due to an incompatible minimum integration time being saved and
+  then restored in the .cal file.
+
+* Fixed bug with i1pro2 (Rev E), where on OS X it would always operate
+  in Rev A-D (i1pro 1) mode.
+
+* Fixed problems with serial connected & USB serial
+  instrument discovery, particularly with the Spectroscan.
+
+* Enhanced spec2cie to process .sp files as well as .ti3.
+
+* Added measurement type to .sp file format, to more inteligently
+  interpret such files in specplot.
+
+* Added option to icclib to write Output profiles using
+  'chad' tag if the ARGYLL_CREATE_DISPLAY_PROFILE_WITH_CHAD
+  environment variable is set. This is not recommended
+  for normal use, but may assist compatibility with other
+  systems.
+
+* Added JETI spectraval (1511, 1501) support, including Bluetooth access.
+
+* Added support for the Klein K10 connecting via a serial port.
+
+* Fixed bug in Colormunki Smile driver that causes crash
+  on Ubuntu 16.04.1 LTS.
+
+* Fixed problem with targen -g, in that the corresponding XYZ
+  values had double the power applied, rather than none. This
+  was causing problems with printtarg spacer colors.
+
+* Modified instlib API slightly, to improve ease of internationalization.
+
+* Modified "lp" intent to greatly reduce Helmholtz-Kohlrausch appearance
+  modelling.
+
+* Added -V option to xicclu to allow looking up or plotting 'vcgt'
+  tag calibration curves.
+
+* Fixed webwin and oeminst web interface headers (Thanks to Florian Hoech).
+
+* Extensive re-write of colorimetric nearest clipping code in rspl/rev.c
+  to restore precision that was lost in the speedups made
+  in V1.0.0. The nnrev setup now takes a lot longer with
+  high resolution CMYK profiles though. This corrects a
+  "green becomming too yellow" problem for mapping from
+  ProPhoto space with some RGB devices. Added LCh nearest
+  clip mapping weighting values to allow fine tuning of
+  clipping behaviour to better match peoples expectations.
+
+* Change dispwin to properly set DirectColor and take account
+  of TrueColor Colormap.  This fixes problem with NVidia linux driver 364.12
+  exposing a VideoLUT depth that is different from the frame buffer depth.
+  Also changed the VideoLut test patch set code to load the same input
+  value either side of the expected one, to allow a margin for any imprecision
+  or difference in how the hardware actually processes frame buffer output.
+
+* Change icclib to automatically repair icmTextDescription strings that
+  have an allocation that is longer than their size.
+
+* Added -e option to average, to use per-component
+  Median rather than average.
+
+* Fixed chartread so that it doesn't fail if no
+  instruments are found when -x option is used.
+
+* Added i1Pro Lamp Drift test and fix functions to
+  spotread (-Y l|L options).
+ 
+* Fixed bug in gammap.c that sometimes causes crash when
+  using colprof -s -S general compression ratio. 
+
+* Add -x parameter to iccgamut and tiffgamut, to create a cylindrically
+  expanded gamut. This can be used to emulate the colprof -s/-S compression
+  percentage when using collink.
+
+* Change colprof so that -s -S will accept general compression percentage
+  as an alternative to a source colorspace/image gamut.
+
+* Added optional conversion from native Gretag-MacBeth & X-Rite
+  reflective calibration standards to/from XRGA.
+
+* Changed OS X GUI support code so as not to switch to
+  "interact with the Dock" mode until actual GUI element
+  is to be displayed. This prevents batch commands with optional
+  GUI elements from blocking normal GUI interactions.
+
+* Re-jigged OS X UI code to use the main thread to avoid
+  window creation timing issues and a warning backtrace on OS X 10.11.
+
+* Add UI synchronization code into OS X test patch display,
+  to ensure test window is displayed before measurements start.
+
+* Added CMP_Digital_Target-7.cht
+
+* Fix spec2cie to cope with .ti3 files that are missing
+  device values, so that it can process a wider range of
+  input CIE reference files.
+
+* Make ColorMunki spectro do "reset on close" on Linux
+  to avoid USB problem every second time it is opened.
+
+* Remove oeminst diagnostic code that writes "temp.cab" file.
+
+* Fix crash in ccxxmake.
+
+* Changed implementation of ARGYLL_NOT_INTERACTIVE on MSWin
+  to make it more reliable when operated progromatically.
+
+* Fix bug in how colverify was computing worst 10% average.
+
+* Fixed chartread so that if you are reading patch by patch,
+  the location strings can be arbitrary (i.e. they don't
+  have to conform to an alpha/num strip/patch pattern.)
+
+* Added Current Aprox. Gamma to displcal Display adjustment menu Check All
+  output.
+
+* Fix dispcal "icc_chromAdaptMatrix called with no deviceClass" warning
+  when creating a matrix display profile.
+
+* Fix colprof eronious "FWA compensation ignored for emissive" warning.
+
+* Fix debug system info being printed, even with no debug option.
+
+* Made DTP92/94 driver ignore Offset drift calibration checksum failed
+  error for Set to factory calibration command as well as reset.  
+
+* Added support for Sencore ColorPro V, IV & III colorimeters
+  (based on Sequel Chroma colorimeter.)
+
+Version 1.8.3 (26 October 2015)
 -------------
 
 * Added SpyderCheckr24 scaning .cht and .cie files.
@@ -55,7 +215,7 @@ Version 1.8.3
 * Reduced the level of Helmholtz-Kohlrausch effect in CIECAM02
   implementation in the light of visual experiments.
 
-Version 1.8.2
+Version 1.8.2 (7th September 2015)
 -------------
 
 * Fixed endless loop bug in alternate calibration selectors code.
@@ -2371,7 +2531,7 @@ Version 1.0.0 changes	(1st July 2008)
 	Changed aceleration grids to only hold fwd cells that
 	are within the ink limit. Changes sub-simplex handling
 	to make common face sub-simplexes shared between cells.
-	Fixed bug in ink limit bug that was causing many sub-simplexes
+	Fixed bug in ink limit that was causing many sub-simplexes
 	to be treated as if they straddled the ink boundary, slowing
 	down inversions with ink limits applied. Changed reverse
 	memory size accounting from cells to bytes, for more

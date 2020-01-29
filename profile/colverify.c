@@ -25,7 +25,7 @@
  *  they are just ignored.
  */
 
-#define DEBUG
+#undef DEBUG
 
 #define verbo stdout
 
@@ -61,6 +61,7 @@ usage(void) {
 	fprintf(stderr,"Author: Graeme W. Gill, licensed under the AGPL Version 3\n");
 	fprintf(stderr,"usage: colverify [-options] target.ti3 measured.ti3\n");
 	fprintf(stderr," -v [n]          Verbose mode, n >= 2 print each value\n");
+	fprintf(stderr," -l              Match patches by sample location rather than id\n");
 	fprintf(stderr," -n              Normalise each files reading to its white Y\n");
 	fprintf(stderr," -N              Normalise each files reading to its white XYZ\n");
 	fprintf(stderr," -m              Normalise each files reading to its white X+Y+Z\n");
@@ -83,6 +84,7 @@ usage(void) {
 	fprintf(stderr,"                 1931_2 (def), 1964_10, S&B 1955_2, shaw, J&V 1978_2\n");
 	fprintf(stderr," -L profile.%s  Skip any first file out of profile gamut patches\n",ICC_FILE_EXT_ND);
 	fprintf(stderr," -X file.ccmx    Apply Colorimeter Correction Matrix to second file\n");
+//	fprintf(stderr," -Z A|X          Just print Average|Max +tab\n");
 	fprintf(stderr," target.ti3      Target (reference) PCS or spectral values.\n");
 	fprintf(stderr," measured.ti3    Measured (actual) PCS or spectral values\n");
 	exit(1);
@@ -113,6 +115,7 @@ int main(int argc, char *argv[])
 {
 	int fa,nfa,mfa;			/* current argument we're looking at */
 	int verb = 0;       	/* Verbose level */
+	int useloc = 0;			/* Match patches by sample location */
 	int norm = 0;			/* 1 = norm to White Y, 2 = norm to White XYZ */
 							/* 3 = norm to White X+Y+Z, 4 = norm to average XYZ */
 	int usestdd50 = 0;		/* Use standard D50 instead of avg white as reference */
@@ -123,6 +126,7 @@ int main(int argc, char *argv[])
 	int dohisto = 0;			/* Plot histogram of delta E's */
 	char histoname[MAXNAMEL+1] = "\000";  /* Optional file to save histogram points to */
 	int dosort = 0;
+	int dozrep = 0;				/* 1 = print average, 2 = print max */
 	char ccmxname[MAXNAMEL+1] = "\000";  /* Colorimeter Correction Matrix name */
 	ccmx *cmx = NULL;					/* Colorimeter Correction Matrix */
 	char gprofname[MAXNAMEL+1] = "\000";  /* Gamut limit profile name */
@@ -194,6 +198,11 @@ int main(int argc, char *argv[])
 					fa = nfa;
 					verb = atoi(na);
 				}
+			}
+
+			/* Use location to match patches */
+			else if (argv[fa][1] == 'l') {
+				useloc = 1;
 			}
 
 			/* normalize */
@@ -296,10 +305,20 @@ int main(int argc, char *argv[])
 						spec = 1;
 						tillum = icxIT_F10;
 					} else {	/* Assume it's a filename */
+						inst_meas_type mt;
+
 						spec = 1;
 						tillum = icxIT_custom;
-						if (read_xspect(&cust_tillum, na) != 0)
+						if (read_xspect(&cust_tillum, &mt, na) != 0)
 							usage();
+
+						if (mt != inst_mrt_none
+						 && mt != inst_mrt_emission
+						 && mt != inst_mrt_ambient
+						 && mt != inst_mrt_emission_flash
+						 && mt != inst_mrt_ambient_flash) {
+							error("Target illuminant '%s' is wrong measurement type",na);
+						}
 					}
 				}
 			}
@@ -333,10 +352,20 @@ int main(int argc, char *argv[])
 					spec = 1;
 					illum = icxIT_F10;
 				} else {	/* Assume it's a filename */
+					inst_meas_type mt;
+
 					spec = 1;
 					illum = icxIT_custom;
-					if (read_xspect(&cust_illum, na) != 0)
+					if (read_xspect(&cust_illum, &mt, na) != 0)
 						usage();
+
+					if (mt != inst_mrt_none
+					 && mt != inst_mrt_emission
+					 && mt != inst_mrt_ambient
+					 && mt != inst_mrt_emission_flash
+					 && mt != inst_mrt_ambient_flash) {
+						error("CIE illuminant '%s' is wrong measurement type",na);
+					}
 				}
 			}
 
@@ -375,6 +404,17 @@ int main(int argc, char *argv[])
 				if (na == NULL) usage();
 				fa = nfa;
 				strncpy(ccmxname,na,MAXNAMEL-1); ccmxname[MAXNAMEL-1] = '\000';
+			}
+
+			else if (argv[fa][1] == 'Z') {
+				if (na == NULL) usage();
+				fa = nfa;
+				if (strcmp(na, "A") == 0) {
+					dozrep = 1;
+				} else if (strcmp(na, "X") == 0) {
+					dozrep = 2;
+				} else
+					usage();
 
 			} else 
 				usage();
@@ -555,9 +595,8 @@ int main(int argc, char *argv[])
 		if ((sidx = cgf->find_field(cgf, 0, "SAMPLE_ID")) < 0
 		 && (sidx = cgf->find_field(cgf, 0, "SampleName")) < 0
 		 && (sidx = cgf->find_field(cgf, 0, "Sample_Name")) < 0
-		 && (sidx = cgf->find_field(cgf, 0, "SAMPLE_NAME")) < 0
-		 && (sidx = cgf->find_field(cgf, 0, "SAMPLE_LOC")) < 0)
-			error("Input file '%s' doesn't contain field SAMPLE_ID, SampleName, Sample_Name, SAMPLE_NAME or SAMPLE_LOC",cg[n].name);
+		 && (sidx = cgf->find_field(cgf, 0, "SAMPLE_NAME")) < 0)
+			error("Input file '%s' doesn't contain field SAMPLE_ID, SampleName, Sample_Name, SAMPLE_NAME",cg[n].name);
 		if (cgf->t[0].ftype[sidx] != nqcs_t
 		 && cgf->t[0].ftype[sidx] != cs_t)
 			error("Sample ID/Name field isn't a quoted or non quoted character string");
@@ -608,8 +647,8 @@ int main(int argc, char *argv[])
 				cg[n].pat[i].xyz[1] = *((double *)cgf->t[0].fdata[i][yix]);
 				cg[n].pat[i].xyz[2] = *((double *)cgf->t[0].fdata[i][zix]);
 
-				if (isLab) {	/* Convert Lab to XYZ */
-					icmLab2XYZ(&icmD50, cg[n].pat[i].xyz, cg[n].pat[i].xyz);
+				if (isLab) {	/* Convert Lab to XYZ 0..100% */
+					icmLab2XYZ(&icmD50_100, cg[n].pat[i].xyz, cg[n].pat[i].xyz);
 				}
 //printf("~1 file %d patch %d = XYZ %f %f %f\n", n,i,cg[n].pat[i].xyz[0],cg[n].pat[i].xyz[1],cg[n].pat[i].xyz[2]);
 
@@ -896,15 +935,37 @@ int main(int argc, char *argv[])
 	/* Create a list to map the second list of patches to the first */
 	if ((match = (int *)malloc(sizeof(int) * cg[0].npat)) == NULL)
 		error("Malloc failed - match[]");
-	for (i = 0; i < cg[0].npat; i++) {
-		for (j = 0; j < cg[1].npat; j++) {
-			if (strcmp(cg[0].pat[i].sid, cg[1].pat[j].sid) == 0)
-				break;			/* Found it */
+
+	/* Use location to match */
+	if (useloc) {
+		for (i = 0; i < cg[0].npat; i++) {
+			if (cg[0].pat[0].loc == '\000'
+			 || cg[1].pat[0].loc == '\000')
+				error("Need both files to have SAMPLE_LOC field to match on location");
+
+			for (j = 0; j < cg[1].npat; j++) {
+				if (strcmp(cg[0].pat[i].loc, cg[1].pat[j].loc) == 0)
+					break;			/* Found it */
+			}
+			if (j < cg[1].npat) {
+				match[i] = j;
+			} else {
+				error("Failed to find matching patch to '%s'",cg[0].pat[i].loc);
+			}
 		}
-		if (j < cg[1].npat) {
-			match[i] = j;
-		} else {
-			error("Failed to find matching patch to '%s'",cg[0].pat[i].sid);
+
+	/* Use id */
+	} else {
+		for (i = 0; i < cg[0].npat; i++) {
+			for (j = 0; j < cg[1].npat; j++) {
+				if (strcmp(cg[0].pat[i].sid, cg[1].pat[j].sid) == 0)
+					break;			/* Found it */
+			}
+			if (j < cg[1].npat) {
+				match[i] = j;
+			} else {
+				error("Failed to find matching patch to '%s'",cg[0].pat[i].sid);
+			}
 		}
 	}
 
@@ -1329,7 +1390,7 @@ int main(int argc, char *argv[])
 			double de = cg[0].pat[sort[i]].de;
 			if (cg[0].pat[i].og)		/* Skip out of gamut */
 				continue;
-			if (j <= n10) {				/* If in worst 10% of in gamut patches */
+			if (j < n10) {				/* If in worst 10% of in gamut patches */
 				aerr10 += de;
 				if (de > merr10)
 					merr10 = de;
@@ -1343,24 +1404,36 @@ int main(int argc, char *argv[])
 			fprintf(verbo,"No of test patches in worst 10%% are = %d\n",n10);
 			fprintf(verbo,"No of test patches in best 90%% are = %d\n",n90);
 		}
-		printf("Verify results:\n");
-		if (norm == 4)
-			printf("  L*a*b* ref. = average XYZ %f %f %f\n",cg[0].w[0],cg[0].w[1],cg[0].w[2]);
-		else if (norm == 1) {
-			printf("  File 1 L* ref. Y %f\n", cg[0].w[1]);
-			printf("  File 2 L* ref. Y %f\n", cg[1].w[1]);
-		} else if (norm == 2) {
-			printf("  File 1 L*a*b* ref. XYZ %f %f %f\n", cg[0].w[0],cg[0].w[1],cg[0].w[2]);
-			printf("  File 2 L*a*b* ref. XYZ %f %f %f\n", cg[1].w[0],cg[1].w[1],cg[1].w[2]);
-		} else if (norm == 3) {
-			printf("  File 1 L* ref. X+Y+Z %f %f %f\n", cg[0].w[0],cg[0].w[1],cg[0].w[2]);
-			printf("  File 2 L* ref. X+Y+Z %f %f %f\n", cg[1].w[0],cg[1].w[1],cg[1].w[2]);
+
+		/* Single number report */
+		if (dozrep != 0) {
+			if (dozrep == 1) {
+				printf("  %f\t", aerr);
+			} else if (dozrep == 2) {
+				printf("  %f\t", merr);
+			}
+			fflush(stdout);
+
+		} else {
+			printf("Verify results:\n");
+			if (norm == 4)
+				printf("  L*a*b* ref. = average XYZ %f %f %f\n",cg[0].w[0],cg[0].w[1],cg[0].w[2]);
+			else if (norm == 1) {
+				printf("  File 1 L* ref. Y %f\n", cg[0].w[1]);
+				printf("  File 2 L* ref. Y %f\n", cg[1].w[1]);
+			} else if (norm == 2) {
+				printf("  File 1 L*a*b* ref. XYZ %f %f %f\n", cg[0].w[0],cg[0].w[1],cg[0].w[2]);
+				printf("  File 2 L*a*b* ref. XYZ %f %f %f\n", cg[1].w[0],cg[1].w[1],cg[1].w[2]);
+			} else if (norm == 3) {
+				printf("  File 1 L* ref. X+Y+Z %f %f %f\n", cg[0].w[0],cg[0].w[1],cg[0].w[2]);
+				printf("  File 2 L* ref. X+Y+Z %f %f %f\n", cg[1].w[0],cg[1].w[1],cg[1].w[2]);
+			}
+			printf("  Total errors%s:     peak = %f, avg = %f\n", cie2k ? " (CIEDE2000)" : cie94 ? " (CIE94)" : "", merr, aerr);
+			printf("  Worst 10%% errors%s: peak = %f, avg = %f\n", cie2k ? " (CIEDE2000)" : cie94 ? " (CIE94)" : "", merr10, aerr10);
+			printf("  Best  90%% errors%s: peak = %f, avg = %f\n", cie2k ? " (CIEDE2000)" : cie94 ? " (CIE94)" : "", merr90, aerr90);
+			printf("  avg err X  %f, Y  %f, Z  %f\n", aixerr[0], aixerr[1], aixerr[2]);
+			printf("  avg err L* %f, a* %f, b* %f\n", aierr[0], aierr[1], aierr[2]);
 		}
-		printf("  Total errors%s:     peak = %f, avg = %f\n", cie2k ? " (CIEDE2000)" : cie94 ? " (CIE94)" : "", merr, aerr);
-		printf("  Worst 10%% errors%s: peak = %f, avg = %f\n", cie2k ? " (CIEDE2000)" : cie94 ? " (CIE94)" : "", merr10, aerr10);
-		printf("  Best  90%% errors%s: peak = %f, avg = %f\n", cie2k ? " (CIEDE2000)" : cie94 ? " (CIE94)" : "", merr90, aerr90);
-		printf("  avg err X  %f, Y  %f, Z  %f\n", aixerr[0], aixerr[1], aixerr[2]);
-		printf("  avg err L* %f, a* %f, b* %f\n", aierr[0], aierr[1], aierr[2]);
 	
 		free(sort);
 		free(match);

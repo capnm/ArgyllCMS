@@ -1,4 +1,4 @@
-/* $Id: tiffcp.c,v 1.51 2014-12-21 16:28:37 erouault Exp $ */
+/* $Id$ */
 
 /*
  * Copyright (c) 1988-1997 Sam Leffler
@@ -168,8 +168,10 @@ main(int argc, char* argv[])
 	char mode[10];
 	char* mp = mode;
 	int c;
+#if !HAVE_DECL_OPTARG
 	extern int optind;
 	extern char* optarg;
+#endif
 
 	*mp++ = 'w';
 	*mp = '\0';
@@ -1070,7 +1072,7 @@ DECLAREcpFunc(cpContig2SeparateByRow)
 	inbuf = _TIFFmalloc(scanlinesizein);
 	outbuf = _TIFFmalloc(scanlinesizeout);
 	if (!inbuf || !outbuf)
-		return 0;
+		goto bad;
 	_TIFFmemset(inbuf, 0, scanlinesizein);
 	_TIFFmemset(outbuf, 0, scanlinesizeout);
 	/* unpack channels */
@@ -1123,7 +1125,7 @@ DECLAREcpFunc(cpSeparate2ContigByRow)
 	inbuf = _TIFFmalloc(scanlinesizein);
 	outbuf = _TIFFmalloc(scanlinesizeout);
 	if (!inbuf || !outbuf)
-		return 0;
+                goto bad;
 	_TIFFmemset(inbuf, 0, scanlinesizein);
 	_TIFFmemset(outbuf, 0, scanlinesizeout);
 	for (row = 0; row < imagelength; row++) {

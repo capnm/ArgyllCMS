@@ -454,7 +454,7 @@ icmFile *ccwin_get_profile(dispwin *p, char *name, int mxlen) {
 
 /* Change the window color. */
 /* Return 1 on error, 2 on window being closed */
-/* inst_license, inst_licensenc or inst_tamper on licening problem */
+/* inst_license, inst_licensenc, inst_tamper or inst_syscompat on licening problem */
 static int ccwin_set_color(
 dispwin *p,
 double r, double g, double b	/* Color values 0.0 - 1.0 */
@@ -487,9 +487,9 @@ double r, double g, double b	/* Color values 0.0 - 1.0 */
 
 			/* For video encoding the extra bits of precision are created by bit shifting */
 			/* rather than scaling, so we need to scale the fp value to account for this. */
-			if (p->pdepth > 8)
-				p->r_rgb[j] = (p->s_rgb[j] * 255 * (1 << (p->pdepth - 8)))
-				            /((1 << p->pdepth) - 1.0); 	
+			if (p->edepth > 8)
+				p->r_rgb[j] = (p->s_rgb[j] * 255 * (1 << (p->edepth - 8)))
+				            /((1 << p->edepth) - 1.0); 	
 		}
 	}
 
@@ -798,8 +798,11 @@ int ddebug						/* >0 to print debug statements to stderr */
 
 	p->ncix = 1;
 
-	p->pdepth = 8;		/* Assume this by API */
-	p->edepth = 8;
+	p->fdepth = 8;				/* Assume this by API */
+	p->rdepth = p->fdepth;		/* Assumed */
+	p->ndepth = p->rdepth;		/* Assumed */
+	p->nent = 0;				/* No ramdac */
+	p->edepth = 8;				/* Assumed */
 
 	/* Basic object is initialised, so create connection to ChromeCast */
 	if ((ws = new_chws(cc_id, width, height, hoff, voff, verb, ddebug)) == NULL) {

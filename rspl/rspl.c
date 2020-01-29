@@ -60,6 +60,7 @@ static void get_out_range(rspl *s, double *min, double *max);
 static void get_out_range_points(rspl *s, int *minp, int *maxp);
 static double get_out_scale(rspl *s);
 static unsigned int get_next_touch(rspl *s);
+static int *get_res(rspl *s);
 static int within_restrictedsize(rspl *s);
 static int interp_rspl_sx(rspl *s, co *pp);
 static int part_interp_rspl_sx(rspl *s, co *p1, co *p2);
@@ -180,6 +181,7 @@ printf("!!!! rspl.c using interp_rspl_nl !!!!");
 	s->get_out_range = get_out_range;
 	s->get_out_range_points = get_out_range_points;
 	s->get_out_scale = get_out_scale;
+	s->get_res = get_res;
 	s->get_next_touch = get_next_touch;
 	s->within_restrictedsize = within_restrictedsize;
 
@@ -413,6 +415,12 @@ rspl *s
 		tg = ++s->g.touch;		/* return 1 */
 	}
 	return tg;
+}
+
+/* ============================================ */
+/* Return a pointer to the resolution array */
+static int *get_res(rspl *s) {
+	return s->g.res;
 }
 
 /* ============================================ */

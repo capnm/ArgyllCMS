@@ -1,7 +1,7 @@
 
 #ifndef INSTTYPES_H
 
- /* Instrument suported types utilities. */
+/* Device and Instrument suported types definitions. */
 
 /* 
  * Argyll Color Correction System
@@ -23,9 +23,11 @@
 
 
 /* ----------------------------- */
-/* Possible types of instruments */
+/* Possible types of devices and instruments */
 typedef enum {
-    instUnknown      = 0,		/* Undefined Instrument */
+    devUnknown      = 0,		/* Undefined Device */
+
+	/* Color measurement instruments */
     instDTP22,					/* Xrite DTP22 (Digital Swatchbook)  */
     instDTP41,       			/* Xrite DTP41 */
     instDTP51, 					/* Xrite DTP51 */
@@ -35,6 +37,7 @@ typedef enum {
 	instSpectrocam,				/* Avantes Spectrocam */
 	instSpecbos1201,			/* JETI specbos 1201 */
 	instSpecbos,				/* JETI specbos XXXX */
+	instSpectraval,				/* JETI spectraval 1501, 1511 */
 	instKleinK10,				/* Klein K10-A */
 	instSMCube,					/* SwatchMate Cube */
     instDTP20,					/* Xrite DTP20 (Pulse)  */
@@ -62,11 +65,32 @@ typedef enum {
 
 	instFakeDisp = 9998,		/* Fake display & instrument device id */
 
-} instType;
+	/* 3D cLUT box */
+	// 20000
 
-struct _icoms;					/* Forward declaration */
+	/* Video test patern generator box */
+	// 30000
+
+	/* Printers */
+	devEpsonR1800 = 40000		/* Epson R1800 printer */
+
+} devType;
+
+/* Aliases for backwards compatibility */
+#define instUnknown devUnknown
+typedef devType instType;
+typedef devType cLUTType;
+typedef devType vtpgType;
+typedef devType printerType;
+
+struct _icoms;					/* Forward declarations */
+enum _icom_type;
 
 /* Utility functions in libinsttypes */
+
+/* Given a device type, return the corrsponding */
+/* category */
+//extern _icom_type inst_category(instType itype);
 
 /* Given its instrument type, return the matching */
 /* short instrument name (static string), */

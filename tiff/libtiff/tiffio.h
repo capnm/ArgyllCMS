@@ -1,4 +1,4 @@
-/* $Id: tiffio.h,v 1.91 2012-07-29 15:45:29 tgl Exp $ */
+/* $Id$ */
 
 /*
  * Copyright (c) 1988-1997 Sam Leffler
@@ -102,12 +102,9 @@ DECLARE_HANDLE(thandle_t);     /* Win32 file handle */
 # else
 typedef HFILE thandle_t;       /* client data handle */
 # endif /* __WIN32__ */
-typedef thandle_t tfd_t;       /* File descriptor type */
 #else
 typedef void* thandle_t;       /* client data handle */
-typedef int tfd_t;		       /* File descriptor type */
 #endif /* USE_WIN32_FILEIO */
-
 
 /*
  * Flags to pass to TIFFPrintDirectory to control
@@ -211,7 +208,7 @@ struct _TIFFRGBAImage {
 	uint16 orientation;                     /* image orientation */
 	uint16 req_orientation;                 /* requested orientation */
 	uint16 photometric;                     /* image photometric interp */
-	uint16* redcmap;                        /* colormap pallete */
+	uint16* redcmap;                        /* colormap palette */
 	uint16* greencmap;
 	uint16* bluecmap;
 	/* get image data routine */
@@ -228,7 +225,7 @@ struct _TIFFRGBAImage {
 	TIFFYCbCrToRGB* ycbcr;                  /* YCbCr conversion state */
 	TIFFCIELabToRGB* cielab;                /* CIE L*a*b conversion state */
 
-	uint8* UaToAa;                          /* Unassociated alpha to associated alpha convertion LUT */
+	uint8* UaToAa;                          /* Unassociated alpha to associated alpha conversion LUT */
 	uint8* Bitdepth16To8;                   /* LUT for conversion from 16bit to 8bit values */
 
 	int row_offset;
@@ -372,8 +369,8 @@ extern uint64 TIFFVTileSize64(TIFF* tif, uint32 nrows);
 extern tmsize_t TIFFVTileSize(TIFF* tif, uint32 nrows);
 extern uint32 TIFFDefaultStripSize(TIFF* tif, uint32 request);
 extern void TIFFDefaultTileSize(TIFF*, uint32*, uint32*);
-extern tfd_t TIFFFileno(TIFF*);
-extern tfd_t TIFFSetFileno(TIFF*, tfd_t);
+extern int TIFFFileno(TIFF*);
+extern int TIFFSetFileno(TIFF*, int);
 extern thandle_t TIFFClientdata(TIFF*);
 extern thandle_t TIFFSetClientdata(TIFF*, thandle_t);
 extern int TIFFGetMode(TIFF*);
@@ -441,7 +438,7 @@ extern TIFF* TIFFOpen(const char*, const char*);
 # ifdef __WIN32__
 extern TIFF* TIFFOpenW(const wchar_t*, const char*);
 # endif /* __WIN32__ */
-extern TIFF* TIFFFdOpen(tfd_t, const char*, const char*);
+extern TIFF* TIFFFdOpen(int, const char*, const char*);
 extern TIFF* TIFFClientOpen(const char*, const char*,
 	    thandle_t,
 	    TIFFReadWriteProc, TIFFReadWriteProc,

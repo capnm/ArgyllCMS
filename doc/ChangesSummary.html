@@ -16,6 +16,86 @@
     <h1> Summary of Argyll CMS Changes since last release</h1>
     <h3>For a <span style="text-decoration: underline;">complete</span>
       and more detailed list of changes, please see the log.txt file.</h3>
+    <h1>[V1.9.1 -&gt; V1.9.2] 17th October 2016</h1>
+    <ul>
+      <li>Added CMYKOGB and CMYKRGB 7 channel ink preset, and made
+        targen more flexible in matching pre-conditioning profiles to
+        targen ink selection.<br>
+      </li>
+      <li>Fix oeminst for OS X save location.</li>
+      <li>Fix oeminst for OS X Spyder 4 CD calibration file
+        location.Improved robustness of ChromeCast discovery, and added
+        some minimal diagnostics.<br>
+      </li>
+    </ul>
+    <h1>[V1.8.3 -&gt; V1.9.1] 28th September 2016</h1>
+    <ul>
+      <li>Improved robustness of ChromeCast discovery, and added some
+        minimal diagnostics.<br>
+      </li>
+      <li>Improved robustness of targen ofps patch generation when using
+        less well behaved pre-conditioning profiles.<br>
+      </li>
+      <li>Fixed oeminst so that it locates cdrom's in Linuxes latest
+        mount point of /run/media/$USER/.<br>
+      </li>
+      <li>Fixed bug in i1pro2 driver, in which strip calibration would
+        fail if instrument had been first calibrated with
+        ARGYLL_DISABLE_I1PRO2_DRIVER set, and then calibrated with
+        ARGYLL_DISABLE_I1PRO2_DRIVER unset.<br>
+      </li>
+      <li>Added option to icclib to write Output profiles using 'chad'
+        tag if the ARGYLL_CREATE_DISPLAY_PROFILE_WITH_CHAD&nbsp;
+        environment variable is set. This is not recommended for normal
+        use, but may assist compatibility with other systems.</li>
+      <li>Added JETI spectraval support, including Bluetooth access.</li>
+      <li>Added support for the Klein K10 connecting via a serial port.</li>
+      <li>Fixed bug in Colormunki Smile driver that causes crash on
+        Ubuntu 16.04.1 LTS.</li>
+      <li>Modified "lp" intent to greatly reduce eliminate
+        Helmholtz-Kohlrausch appearance modelling.<br>
+      </li>
+      <li>Fixed problem with targen -g, in that the corresponding XYZ
+        values had double the power applied, rather than none. This was
+        causing problems with printtarg spacer colors.<br>
+      </li>
+      <li>Extensive re-write of colorimetric nearest clipping code in
+        rspl/rev.c to restore precision that was lost in the speedups
+        made in V1.0.0. The nnrev setup now takes a lot longer with
+        &nbsp; high resolution CMYK profiles though. This corrects a
+        "green becoming too yellow" problem for mapping from ProPhoto
+        space with some RGB devices.</li>
+      <li>Change dispwin to properly set X11 DirectColor and take
+        account of TrueColor Colormap.&nbsp; This fixes problem with
+        NVidia linux driver 364.12 exposing a VideoLUT depth that is
+        different from the frame buffer depth.</li>
+      <li>Change icclib to automatically repair icmTextDescription
+        strings that have an allocation that is longer than their size.</li>
+      <li>Added i1Pro Lamp Drift test and fix functions to spotread (-Y
+        l|L options).</li>
+      <li>Change colprof so that -s -S will accept general compression
+        percentage as an alternative to a source colorspace/image gamut.</li>
+      <li>Added optional conversion from native Gretag-MacBeth &amp;
+        X-Rite reflective calibration standards to/from XRGA.</li>
+      <li>Changed OS X GUI support code so as not to switch to "interact
+        with the Dock" mode until actual GUI element is to be displayed.
+        This prevents batch commands with optional GUI elements from
+        blocking normal GUI interactions.</li>
+      <li>Re-jigged OS X UI code to use the main thread to avoid window
+        creation timing issues and a warning backtrace on OS X 10.11.</li>
+      <li>Added CMP_Digital_Target-7.cht</li>
+      <li>Fix spec2cie to cope with .ti3 files that are missing device
+        values, so that it can process a wider range of input CIE
+        reference files.</li>
+      <li>Changed implementation of ARGYLL_NOT_INTERACTIVE on MSWin to
+        make it more reliable when operated progromatically.</li>
+      <li>Fixed chartread so that if you are reading patch by patch, the
+        location strings can be arbitrary (i.e. they don't have to
+        conform to an alpha/num strip/patch pattern.)</li>
+      <li>Added support for Sencore ColorPro V, IV &amp; III
+        colorimeters (based on Sequel Chroma colorimeter.).<br>
+      </li>
+    </ul>
     <h1>[V1.8.2 -&gt; V1.8.3] 26th October 2015</h1>
     <ul>
       <li>Added SpyderCheckr24 scaning .cht and .cie files.</li>
@@ -1031,6 +1111,19 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
         </span>for systems with &gt; 3Gig Ram.</li>
       <li>Add support for the Eye-One Monitor spectrometer.</li>
       <li>Added -L option to <span style="font-weight: bold;">printtarg</span>
@@ -1045,6 +1138,19 @@
     Various bug fixes, the main ones being:<br>
     <ul>
       <li>Fixed some <span style="font-weight: bold;">colprof </span>performance
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

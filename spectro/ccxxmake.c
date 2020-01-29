@@ -500,7 +500,7 @@ int main(int argc, char *argv[]) {
 				fa = nfa;
 				if (na == NULL) usage(0,"Paramater expected following -W");
 				if (na[0] == 'n' || na[0] == 'N')
-					fc = fc_none;
+					fc = fc_None;
 				else if (na[0] == 'h' || na[0] == 'H')
 					fc = fc_Hardware;
 				else if (na[0] == 'x' || na[0] == 'X')
@@ -1441,11 +1441,12 @@ int main(int argc, char *argv[]) {
 						strcat(colname, ")");
 					}
 					if (description == NULL) {
-						if ((description = malloc(strlen(colname) + strlen(displayname) + 4)) == NULL)
+						char *disp = displayname != NULL ? displayname : dtinfo->desc;
+						if ((description = malloc(strlen(colname) + strlen(disp) + 4)) == NULL)
 							error("Malloc failed");
 						strcpy(description, colname);
 						strcat(description, " & ");
-						strcat(description, displayname);
+						strcat(description, disp);
 					}
 
 					if (refrmode < 0)

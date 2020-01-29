@@ -885,7 +885,8 @@ huey_check_unlock(
 	if ((ev = huey_command(p, i1d_status, buf, buf, 1.0,1.0)) != inst_ok)
 		return ev;
 
-	if (strncmp((char *)buf, "Locked", 6) == 0) {
+	/* Hmm. Some Lenovo Huey's say they are unlocked, even when they are not. */
+	if (p->lenovo || strncmp((char *)buf, "Locked", 6) == 0) {
 		memset(buf, 0, 7);
 		if (p->lenovo)
 			strcpy((char *)buf,"huyL");
@@ -902,6 +903,7 @@ huey_check_unlock(
 
 	if (strncmp((char *)buf, "huL002", 6) != 0		/* Lenovo Huey ? */
 	 && strncmp((char *)buf, "ECCM2 ", 6) != 0		/* Lenovo Thinkpad W530 Huey ? */
+	 && strncmp((char *)buf, "ECCM3 ", 6) != 0		/* Lenovo Thinkpad W530 Huey ? */
 	 && strncmp((char *)buf, "Cir001", 6) != 0) {	/* Huey */
 		a1logd(p->log,1,"huey_check_unlock: unknown model '%s'\n",buf);
 		return huey_interp_code((inst *)p, HUEY_UNKNOWN_MODEL);
@@ -920,7 +922,7 @@ huey_read_all_regs(
 	inst_code ev;
 	int i;
 
-	a1logd(p->log,2,"huey_check_unlock: about to read all the registers\n");
+	a1logd(p->log,2,"huey_read_all_regs: about to read all the registers\n");
 
 	/* Serial number */
 	if ((ev = huey_rdreg_word(p, &p->ser_no, 0) ) != inst_ok)
@@ -988,7 +990,7 @@ huey_read_all_regs(
 		return ev;
 	a1logd(p->log,3,"Integration time = %d\n",p->int_clocks);
 
-	a1logd(p->log,2,"huey_check_unlock: all registers read OK\n");
+	a1logd(p->log,2,"huey_read_all_regs: all registers read OK\n");
 
 	return inst_ok;
 }
@@ -1671,8 +1673,7 @@ int *cbid) {
  * error if it hasn't been initialised.
  */
 static inst_code
-huey_get_set_opt(inst *pp, inst_opt_type m, ...)
-{
+huey_get_set_opt(inst *pp, inst_opt_type m, ...) {
 	huey *p = (huey *)pp;
 	inst_code ev = inst_ok;
 
@@ -1717,7 +1718,17 @@ huey_get_set_opt(inst *pp, inst_opt_type m, ...)
 		return huey_set_LEDs(p, mask);
 	}
 
-	return inst_unsupported;
+	/* Use default implementation of other inst_opt_type's */
+	{
+		inst_code rv;
+		va_list args;
+
+		va_start(args, m);
+		rv = inst_get_set_opt_def(pp, m, args);
+		va_end(args);
+
+		return rv;
+	}
 }
 
 /* Constructor */

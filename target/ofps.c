@@ -66,7 +66,7 @@
 	dimension points are aware of the lower dimension
 	ones. In this way the distribution of points on
 	lower dimensional surfaces is well spread, while
-	the higher dimension points take thier positions into account.
+	the higher dimension points take their positions into account.
  */
 
 /*
@@ -107,7 +107,7 @@
 	In general there are many sub-dimensions views, not all of
 	which would probably be regarded as important.
 
-	To measure spread, independent voronoi tesselations of
+	To measure spread, independent voronoi tessellations of
 	these sub dimensions would be neededi, and they could be
 	used partly driver optimization (??).
 
@@ -715,6 +715,85 @@ default_ofps_to_percept(void *od, double *p, double *d) {
 		double tt = d[e];
 		p[e] = tt * 100.0;
 	}
+}
+
+/* Filtered perceptual lookup, used for setting up rspl cache values. */
+/* Input is device values, output L*a*b* like perceptual values. */
+static void
+filtered_ofps_to_percept(void *ss, double *p, double *d) {
+	ofps *s = (ofps *)ss;
+	double rad = 1.0/s->pcache_res;		/* Filter radius = grid res. */
+	int fres = 2;						/* +/- 2 around center */
+	int e, f;
+	double pw;				/* Accumulated Weight */
+	double off[MXPD];		/* Offset value */
+	double out[MXPD];		/* Offset output value */
+	double roff[MXPD];		/* Reflection offset value (for clip case) */
+	double rout[MXPD];		/* Reflected offset output value */
+	DCOUNT(co, MXPD, s->di, -fres, -fres, fres+1);
+
+	if (rad > 0.05)			/* Don't loose too much detail */
+		rad = 0.05;
+
+//printf("filtered called with %s\n",debPdv(s->di,d)); 
+
+	for (f = 0; f < s->di; f++) 
+		p[f] = 0.0;			/* Accumulated value */
+	pw = 0.0;
+
+	DC_INIT(co);
+
+	while (!DC_DONE(co)) {
+		double tw = 1.0;
+		int clip = 0;
+		
+//printf(" sub samp at %s\n", debPiv(s->di, co));
+		for (e = 0; e < s->di; e++) {
+			double w, ov;
+			ov = ((double)co[e])/(fres+1) * rad;
+			roff[e] = off[e] = d[e] + ov;
+			if (off[e] < 0.0) {
+				off[e] = 0.0;
+				roff[e] = 0.0 - ov;
+				clip = 1;
+			}
+			else if (off[e] > 1.0) {
+				off[e] = 1.0;
+				roff[e] = 1.0 - ov;
+				clip = 1;
+			}
+//printf(" w[%d] = %f\n",e,(fres+1 - fabs((double)co[e]))/(fres+1)); 
+			w = (fres+1 - fabs((double)co[e]))/(fres+1);
+			tw *= w;
+		}
+//printf(" off %s wt %f\n", debPdv(s->di,off),tw);
+		s->percept(s->od, out, off);
+
+		/* For clipped case, use reflected value from reflected location */
+		if (clip) {
+			s->percept(s->od, rout, roff);
+//printf(" roff %s\n", debPdv(s->di, roff));
+//printf(" out %s\n", debPdv(s->di, out));
+//printf(" rout %s\n", debPdv(s->di, rout));
+
+			for (f = 0; f < s->di; f++)
+				out[f] = 2 * out[f] - rout[f];
+
+//printf(" eout %s\n", debPdv(s->di, out));
+		}
+		for (f = 0; f < s->di; f++)
+			p[f] += tw * out[f];
+		pw += tw;
+
+		DC_INC(co);
+	}
+	for (f = 0; f < s->di; f++)
+		p[f] /= pw;
+
+//s->percept(s->od, out, d);
+//printf(" u out %s\n", debPdv(s->di, out));
+//printf(" f out %s\n", debPdv(s->di, p));
+//printf("\n");
 }
 
 /* Cached perceptual lookup */
@@ -4968,26 +5047,40 @@ ofps_init_pcache(ofps *s) {
 	if (gr > TNPAGRIDMAXRES)
 		gr = TNPAGRIDMAXRES;
 
+#ifndef DEBUG
 	if (s->verb)
-		printf("Perceptual cache resolution = %d\n",gr);
-
-#ifdef DEBUG
-	printf("Perceptual cache resolution = %d\n",gr);
 #endif
+	{
+		printf("Perceptual cache resolution = %d\n",gr);
+		printf("Seeding cache..."); fflush(stdout);
+	}
 
 	/* Create a rspl to cache the perceptual lookup */
-
 	if ((s->pcache = new_rspl(RSPL_NOFLAGS, s->di, s->di)) == NULL)
 		error("new_rspl failed");
 
 	for (e = 0; e < di; e++)
 		gres[e] = gr;
+	s->pcache_res = gr;
 
-	s->pcache->set_rspl(s->pcache, RSPL_SET_APXLS, s->od, s->percept, NULL, NULL, gres, NULL, NULL);
+//	s->pcache->set_rspl(s->pcache, RSPL_SET_APXLS, s->od, s->percept, NULL, NULL, gres, NULL, NULL);
+
+	/* Filtering seems to make this more robust for some profiles, less for others. */
+	if (s->percept != default_ofps_to_percept)
+		s->pcache->set_rspl(s->pcache, RSPL_NOFLAGS, s, filtered_ofps_to_percept,
+		                                            NULL, NULL, gres, NULL, NULL);
+	else
+		s->pcache->set_rspl(s->pcache, RSPL_NOFLAGS, s->od, s->percept,
+		                                  NULL, NULL, gres, NULL, NULL);
 
 	/* Hmm. Should we store the underlying ->percept & ->od somewhere before we overwrite it ? */
 	s->percept = ofps_cache_percept;
 	s->od = s->pcache;
+
+#ifndef DEBUG
+	if (s->verb)
+#endif
+		printf("done\n");
 
 }
 

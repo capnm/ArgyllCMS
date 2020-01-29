@@ -72,6 +72,7 @@
 #include "conv.h"
 #include "icoms.h"
 #include "dtp20.h"
+#include "xrga.h"
 
 static inst_code dtp20_interp_code(inst *pp, int ec);
 static inst_code activate_mode(dtp20 *p);
@@ -345,11 +346,26 @@ dtp20_init_inst(inst *pp) {
 	dtp20 *p = (dtp20 *)pp;
 	char buf[MAX_MES_SIZE];
 	inst_code rv = inst_ok;
+	char *envv;
 
 	a1logd(p->log, 2, "dtp20_init_inst: called\n");
 
 	if (p->gotcoms == 0)
 		return inst_no_coms;		/* Must establish coms before calling init */
+
+
+	p->native_calstd = xcalstd_xrdi;
+	p->target_calstd = xcalstd_native;		/* Default to native calibration standard*/
+
+	/* Honour Environment override */
+	if ((envv = getenv("ARGYLL_XCALSTD")) != NULL) {
+		if (strcmp(envv, "XRGA") == 0)
+			p->target_calstd = xcalstd_xrga;
+		else if (strcmp(envv, "XRDI") == 0)
+			p->target_calstd = xcalstd_xrdi;
+		else if (strcmp(envv, "GMDI") == 0)
+			p->target_calstd = xcalstd_gmdi;
+	}
 
 	/* Reset it (without disconnecting USB or clearing stored data) */
 	if ((rv = dtp20_command(p, "0PR\r", buf, MAX_MES_SIZE, 2.0)) != inst_ok)
@@ -534,7 +550,8 @@ ipatch *vals) {		/* Pointer to array of values */
 			tp += strlen(tp) + 1;
 		}
 
-		if (p->mode & inst_mode_spectral) {
+		if (p->mode & inst_mode_spectral
+		 || XCALSTD_NEEDED(p->target_calstd, p->native_calstd)) {
 
 			/* Gather the results in Spectral reflectance */
 			if ((ev = dtp20_command(p, "0318CF\r", buf, MAX_RD_SIZE, 0.5)) != inst_ok)
@@ -575,6 +592,11 @@ ipatch *vals) {		/* Pointer to array of values */
 	}
 
 	a1logv(p->log, 1, "All saved strips read\n");
+
+	/* Apply any XRGA conversion */
+	ipatch_convert_xrga(vals, npatch, xcalstd_nonpol, p->target_calstd, p->native_calstd,
+	                    instClamp);
+
 	return inst_ok;
 }
 
@@ -762,7 +784,8 @@ ipatch *vals) {		/* Pointer to array of instrument patch values */
 
 	}
 
-	if (p->mode & inst_mode_spectral) {
+	if (p->mode & inst_mode_spectral
+	 || XCALSTD_NEEDED(p->target_calstd, p->native_calstd)) {
 
 		/* Gather the results in Spectral reflectance */
 		if ((ev = dtp20_command(p, "0318CF\r", buf, MAX_RD_SIZE, 0.5)) != inst_ok)
@@ -812,6 +835,11 @@ ipatch *vals) {		/* Pointer to array of instrument patch values */
 			msec_sleep(200);
 		}
 	}
+
+
+	/* Apply any XRGA conversion */
+	ipatch_convert_xrga(vals, npatch, xcalstd_nonpol, p->target_calstd, p->native_calstd,
+	                    instClamp);
 
 	if (user_trig)
 		return inst_user_trig;
@@ -993,7 +1021,8 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 	val->duration = 0.0;
 
 
-	if (p->mode & inst_mode_spectral) {
+	if (p->mode & inst_mode_spectral
+	 || XCALSTD_NEEDED(p->target_calstd, p->native_calstd)) {
 		int j;
 
 		/* Set to read spectral reflectance */
@@ -1051,6 +1080,9 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 		}
 	}
 
+	/* Apply any XRGA conversion */
+	ipatch_convert_xrga(val, 1, xcalstd_nonpol, p->target_calstd, p->native_calstd, clamp);
+
 	if (user_trig)
 		return inst_user_trig;
 	return inst_ok;
@@ -1086,6 +1118,7 @@ static inst_code dtp20_calibrate(
 inst *pp,
 inst_cal_type *calt,	/* Calibration type to do/remaining */
 inst_cal_cond *calc,	/* Current condition/desired condition */
+inst_calc_id_type *idtype,	/* Condition identifier type */
 char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 ) {
 	dtp20 *p = (dtp20 *)pp;
@@ -1098,6 +1131,7 @@ char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 	if (!p->inited)
 		return inst_no_init;
 
+	*idtype = inst_calc_id_none;
 	id[0] = '\000';
 
 	if ((ev = dtp20_get_n_a_cals((inst *)p, &needed, &available)) != inst_ok)
@@ -1136,6 +1170,7 @@ char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 				;
 			*cp = '\000';
 			strcpy(id, buf);
+			*idtype = inst_calc_id_ref_sn;
 			*calc = inst_calc_man_ref_white;
 			return inst_cal_setup;
 		}
@@ -1686,7 +1721,7 @@ inst_opt_type m,	/* Requested status type */
 	}
 
 	/* !! It's not clear if there is a way of knowing */
-	/* whether the instrument has a UV filter. */
+	/* whether the instrument has a UV filter !! */
 
 	/* Use default implementation of other inst_opt_type's */
 	{

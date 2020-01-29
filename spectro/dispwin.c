@@ -31,6 +31,10 @@
  * Should add dithering support to overcome 8 bit limitations of
  * non-RAMDAC access or limited RAMDAC depth. (How do we easily
  * determine the latter ??)
+ *
+ * For X11/XRANDR, should we check for and save/restore CscMatrix property ??
+ * - or should we assumed that the use intends to use this to manually calibrate the display ??
+ * See <http://us.download.nvidia.com/XFree86/Linux-x86/364.12/README/xrandrextension.html#CscMatrix>
  */
 
 #include <stdio.h>
@@ -69,7 +73,7 @@
 # endif
 #endif
 
-#ifdef __APPLE__
+#ifdef UNIX_APPLE
 
 /*
 	Note that the new ColorSync API is defined in
@@ -113,14 +117,14 @@ typedef float CGFloat;
 #endif
 #endif	/* !NSINTEGER_DEFINED */
 
-#include <IOKit/Graphics/IOGraphicsLib.h>
+#include <IOKit/graphics/IOGraphicsLib.h>
 
 #if __MAC_OS_X_VERSION_MAX_ALLOWED <= 1060
 /* This wasn't declared in 10.6, although it is needed */
 CFUUIDRef CGDisplayCreateUUIDFromDisplayID (uint32_t displayID);
 #endif	/* < 10.6 */
 
-#endif /* __APPLE__ */
+#endif /* UNIX_APPLE */
 
 #define VERIFY_TOL (1.0/255.0)
 #undef DISABLE_RANDR				/* Disable XRandR code */
@@ -388,7 +392,7 @@ disppath **get_displays() {
 
 #endif /* NT */
 
-#ifdef __APPLE__
+#ifdef UNIX_APPLE
 	/* Note :- some recent releases of OS X have a feature which */
 	/* automatically adjusts the screen brigtness with ambient level. */
 	/* We may have to find a way of disabling this during calibration and profiling. */
@@ -548,7 +552,7 @@ disppath **get_displays() {
 	}
 
 	free(dids);
-#endif /* __APPLE__ */
+#endif /* UNIX_APPLE */
 
 #if defined(UNIX_X11)
 	int i, j, k;
@@ -636,8 +640,8 @@ disppath **get_displays() {
 
 			/* Look at all the screens outputs */
 			for (jj = j = 0; j < scrnres->noutput; j++) {
-				XRROutputInfo *outi;
-				XRRCrtcInfo *crtci;
+				XRROutputInfo *outi = NULL;
+				XRRCrtcInfo *crtci = NULL;
 	
 				if ((outi = XRRGetOutputInfo(mydisplay, scrnres, scrnres->outputs[j])) == NULL) {
 					debugrr("XRRGetOutputInfo failed\n");
@@ -649,12 +653,13 @@ disppath **get_displays() {
 	
 				if (outi->connection == RR_Disconnected ||
 					outi->crtc == None) {
+					XRRFreeOutputInfo(outi);
 					continue;
 				}
 
 				/* Check that the VideoLUT's are accessible */
 				{
-					XRRCrtcGamma *crtcgam;
+					XRRCrtcGamma *crtcgam = NULL;
 			
 					debugrr("Checking XRandR 1.2 VideoLUT access\n");
 					if ((crtcgam = XRRGetCrtcGamma(mydisplay, outi->crtc)) == NULL
@@ -666,8 +671,11 @@ disppath **get_displays() {
 						disps = NULL;
 						j = scrnres->noutput;
 						i = dcount;
+						XRRFreeOutputInfo(outi);
 						continue;				/* Abort XRandR 1.2 */
 					}
+					if (crtcgam != NULL)
+						XRRFreeGamma(crtcgam);
 				}
 #ifdef NEVER
 				{
@@ -692,6 +700,7 @@ disppath **get_displays() {
 						if ((disps = (disppath **)calloc(sizeof(disppath *), 1 + 1)) == NULL) {
 							debugrr("get_displays failed on malloc\n");
 							XRRFreeCrtcInfo(crtci);
+							XRRFreeOutputInfo(outi);
 							XRRFreeScreenResources(scrnres);
 							XCloseDisplay(mydisplay);
 							return NULL;
@@ -701,6 +710,7 @@ disppath **get_displays() {
 						                     sizeof(disppath *) * (ndisps + 2))) == NULL) {
 							debugrr("get_displays failed on malloc\n");
 							XRRFreeCrtcInfo(crtci);
+							XRRFreeOutputInfo(outi);
 							XRRFreeScreenResources(scrnres);
 							XCloseDisplay(mydisplay);
 							return NULL;
@@ -711,6 +721,7 @@ disppath **get_displays() {
 					if ((disps[ndisps] = calloc(sizeof(disppath),1)) == NULL) {
 						debugrr("get_displays failed on malloc\n");
 						XRRFreeCrtcInfo(crtci);
+						XRRFreeOutputInfo(outi);
 						XRRFreeScreenResources(scrnres);
 						XCloseDisplay(mydisplay);
 						free_disppaths(disps);
@@ -741,6 +752,7 @@ disppath **get_displays() {
 					if ((disps[ndisps]->description = strdup(desc2)) == NULL) {
 						debugrr("get_displays failed on malloc\n");
 						XRRFreeCrtcInfo(crtci);
+						XRRFreeOutputInfo(outi);
 						XRRFreeScreenResources(scrnres);
 						XCloseDisplay(mydisplay);
 						free_disppaths(disps);
@@ -756,6 +768,7 @@ disppath **get_displays() {
 					if ((disps[ndisps]->name = strdup(dnbuf)) == NULL) {
 						debugrr("get_displays failed on malloc\n");
 						XRRFreeCrtcInfo(crtci);
+						XRRFreeOutputInfo(outi);
 						XRRFreeScreenResources(scrnres);
 						XCloseDisplay(mydisplay);
 						free_disppaths(disps);
@@ -809,6 +822,7 @@ disppath **get_displays() {
 									if ((disps[ndisps]->edid = malloc(sizeof(unsigned char) * ret_len)) == NULL) {
 										debugrr("get_displays failed on malloc\n");
 										XRRFreeCrtcInfo(crtci);
+										XRRFreeOutputInfo(outi);
 										XRRFreeScreenResources(scrnres);
 										XCloseDisplay(mydisplay);
 										free_disppaths(disps);
@@ -833,7 +847,6 @@ disppath **get_displays() {
 				}
 				XRRFreeOutputInfo(outi);
 			}
-	
 			XRRFreeScreenResources(scrnres);
 		}
 		XSetErrorHandler(NULL);
@@ -1136,14 +1149,15 @@ void free_a_disppath(disppath *path) {
 
 /* ----------------------------------------------- */
 
-/* For VideoLUT/RAMDAC use, we assume that the number of entries in the RAMDAC */
-/* meshes perfectly with the display raster depth, so that we can */
-/* figure out how to apportion device values. We fail if they don't */
-/* seem to mesh. */
+/* For VideoLUT/RAMDAC use, we assume that the frame buffer */
+/* may map through some intermediate hardware or lookup */
+/* into a RAMDAC index. */
 
 /* !!! Would be nice to add an error message return to dispwin and */
 /* !!! pass errors back to it so that the detail can be reported */
 /* !!! to the user. */
+
+static void dispwin_dump_ramdac(FILE *fp, ramdac *r);
 
 /* Get RAMDAC values. ->del() when finished. */
 /* Return NULL if not possible */
@@ -1168,9 +1182,11 @@ static ramdac *dispwin_get_ramdac(dispwin *p) {
 		debugr("dispwin_get_ramdac failed on malloc()\n");
 		return NULL;
 	}
-	r->pdepth = p->pdepth;
-	r->nent = (1 << p->pdepth);
-	r->clone =  dispwin_clone_ramdac;
+	r->fdepth = p->fdepth;
+	r->rdepth = p->rdepth;
+	r->ndepth = p->ndepth;
+	r->nent   = p->nent;
+	r->clone  = dispwin_clone_ramdac;
 	r->setlin = dispwin_setlin_ramdac;
 	r->del =    dispwin_del_ramdac;
 
@@ -1186,9 +1202,9 @@ static ramdac *dispwin_get_ramdac(dispwin *p) {
 	}
 
 	/* GetDeviceGammaRamp() is hard coded for 3 x 256 entries (Quantize) */
-	if (r->nent != 256) {
+	if (256 != r->nent) {
 		free(r);
-		debugr2((errout,"GetDeviceGammaRamp() is hard coded for nent == 256, and we've got nent = %d!\n",r->nent));
+		debugr2((errout,"GetDeviceGammaRamp number of entries %d inconsistent with expected value %d\n",256,p->nent));
 		return NULL;
 	}
 
@@ -1204,7 +1220,7 @@ static ramdac *dispwin_get_ramdac(dispwin *p) {
 	}
 #endif	/* NT */
 
-#ifdef __APPLE__
+#ifdef UNIX_APPLE
 	unsigned int nent;
 	CGGammaValue vals[3][16385];
 
@@ -1220,8 +1236,8 @@ static ramdac *dispwin_get_ramdac(dispwin *p) {
 		return NULL;
 	}
 
-	if (nent != (1 << p->pdepth)) {
-		debugr2((errout,"CGGetDisplayTransferByTable number of entries %d mismatches screen depth %d\n",nent,p->pdepth));
+	if (nent != p->nent) {
+		debugr2((errout,"CGGetDisplayTransferByTable number of entries %u inconsistent with previous value %d\n",nent,p->nent));
 		return NULL;
 	}
 
@@ -1231,8 +1247,10 @@ static ramdac *dispwin_get_ramdac(dispwin *p) {
 		return NULL;
 	}
 
-	r->pdepth = p->pdepth;
-	r->nent = (1 << p->pdepth);
+	r->fdepth = p->fdepth;
+	r->rdepth = p->rdepth;
+	r->ndepth = p->ndepth;
+	r->nent   = p->nent;
 	r->clone =  dispwin_clone_ramdac;
 	r->setlin = dispwin_setlin_ramdac;
 	r->del =    dispwin_del_ramdac;
@@ -1252,7 +1270,7 @@ static ramdac *dispwin_get_ramdac(dispwin *p) {
 			r->v[j][i] = vals[j][i];
 		}
 	}
-#endif /* __APPLE__ */
+#endif /* UNIX_APPLE */
 
 #if defined(UNIX_X11)
 	unsigned short vals[3][16384];
@@ -1275,13 +1293,8 @@ static ramdac *dispwin_get_ramdac(dispwin *p) {
 
 		nent = crtcgam->size;
 
-		if (nent > 16384) {
-			debugr("XRRGetCrtcGammaSize  has more entries than we can handle\n");
-			return NULL;
-		}
-
-		if (nent != (1 << p->pdepth)) {
-			debugr2((errout,"XRRGetCrtcGammaSize number of entries %d mismatches screen depth %d bits\n",nent,(1 << p->pdepth)));
+		if (nent != p->nent) {
+			debugr2((errout,"XRRGetCrtcGammaSize number of entries %d inconsistent with previous value\n",nent,p->nent));
 			return NULL;
 		}
 
@@ -1331,18 +1344,13 @@ static ramdac *dispwin_get_ramdac(dispwin *p) {
 			return NULL;
 		}
 
-		if (nent > 16384) {
-			debugr("XF86VidModeGetGammaRampSize has more entries than we can handle\n");
+		if (nent != p->nent) {
+			debugr2((errout,"XF86VidModeGetGammaRampSize number of entries %d inconsistent with previous value\n",nent,p->nent));
 			return NULL;
 		}
 
 		if (XF86VidModeGetGammaRamp(p->mydisplay, p->myrscreen, nent,  vals[0], vals[1], vals[2]) == 0) {
 			debugr("XF86VidModeGetGammaRamp failed\n");
-			return NULL;
-		}
-
-		if (nent != (1 << p->pdepth)) {
-			debugr2((errout,"CGGetDisplayTransferByTable number of entries %d mismatches screen depth %d bits\n",nent,(1 << p->pdepth)));
 			return NULL;
 		}
 	}
@@ -1353,9 +1361,11 @@ static ramdac *dispwin_get_ramdac(dispwin *p) {
 		return NULL;
 	}
 
-	r->pdepth = p->pdepth;
-	r->nent = (1 << p->pdepth);
-	r->clone = dispwin_clone_ramdac;
+	r->fdepth = p->fdepth;
+	r->rdepth = p->rdepth;
+	r->ndepth = p->ndepth;
+	r->nent   = p->nent;
+	r->clone  = dispwin_clone_ramdac;
 	r->setlin = dispwin_setlin_ramdac;
 	r->del = dispwin_del_ramdac;
 	for (j = 0; j < 3; j++) {
@@ -1379,7 +1389,7 @@ static ramdac *dispwin_get_ramdac(dispwin *p) {
 	return r;
 }
 
-#ifdef __APPLE__
+#ifdef UNIX_APPLE
 	/* Various support functions */
 
 #if __MAC_OS_X_VERSION_MAX_ALLOWED < 1060
@@ -1643,7 +1653,7 @@ static void *cur_colorsync_ref(dispwin *p) {
 	return cspr;
 }
 
-#endif /* __APPLE__ */
+#endif /* UNIX_APPLE */
 
 /* Set the RAMDAC values. */
 /* Return nz if not possible */
@@ -1666,6 +1676,7 @@ static int dispwin_set_ramdac(dispwin *p, ramdac *r, int persist) {
 	for (j = 0; j < 3; j++) {
 		for (i = 0; i < r->nent; i++) {
 			double vv = r->v[j][i];
+
 			if (vv < 0.0)
 				vv = 0.0;
 			else if (vv > 1.0)
@@ -1676,12 +1687,15 @@ static int dispwin_set_ramdac(dispwin *p, ramdac *r, int persist) {
 
 	if (SetDeviceGammaRamp(p->hdc, vals) == 0) {
 		debugr2((errout,"dispwin_set_ramdac failed on SetDeviceGammaRamp() with error %d\n",GetLastError()));
+#ifdef NEVER
+		dispwin_dump_ramdac(stderr, r);
+#endif
 		return 1;
 	}
 	GdiFlush();
 #endif	/* NT */
 
-#ifdef __APPLE__
+#ifdef UNIX_APPLE
 	{		/* Transient first */
 		CGGammaValue vals[3][16384];
 	
@@ -2115,7 +2129,7 @@ static int dispwin_set_ramdac(dispwin *p, ramdac *r, int persist) {
 	}
 #endif	/* < 10.6 */
 
-#endif /* __APPLE__ */
+#endif /* UNIX_APPLE */
 
 #if defined(UNIX_X11)
 	unsigned short vals[3][16384];
@@ -2212,6 +2226,24 @@ ramdac *dispwin_clone_ramdac(ramdac *r) {
 
 	debug("clone is done\n");
 	return nr;
+}
+
+/* Debug dump ramdac */
+static void dispwin_dump_ramdac(FILE *fp, ramdac *r) {
+	int i, j;
+
+	fprintf(fp,"Ramdac fdepth %d, rdepth %d, ndepth %d, nent %d\n",
+	        r->fdepth, r->rdepth, r->ndepth, r->nent);
+
+	for (i = 0; i < r->nent; i++) {
+		int note = 0;
+		for (j = 0; j < 3; j++) {
+			if (r->v[j][i] < 0.0 || r->v[j][i] > 1.0
+			  || (i > 0 && r->v[j][i] < r->v[j][i-1]))
+			note = 1;
+		}
+		fprintf(fp," %d: %f %f %f%s\n",i, r->v[0][i], r->v[1][i], r->v[2][i], note ? " #" : "");
+	}
 }
 
 /* Set the ramdac values to linear */
@@ -2522,7 +2554,7 @@ int dispwin_install_profile(dispwin *p, char *fname, ramdac *r, p_scope scope) {
 	}
 #endif /* OS X || Linux */
 
-#ifdef __APPLE__
+#ifdef UNIX_APPLE
 
 #if __MAC_OS_X_VERSION_MAX_ALLOWED >= 1060
 	{
@@ -2685,7 +2717,7 @@ int dispwin_install_profile(dispwin *p, char *fname, ramdac *r, p_scope scope) {
 		return 0;
 	}
 #endif	/* 10.6 and prior */
-#endif /*  __APPLE__ */
+#endif /*  UNIX_APPLE */
 
 #if defined(UNIX_X11) && defined(USE_UCMM)
 	{
@@ -2862,7 +2894,7 @@ int dispwin_uninstall_profile(dispwin *p, char *fname, p_scope scope) {
 		}
 	}
 #endif /* OS X || Linux */
-#ifdef __APPLE__
+#ifdef UNIX_APPLE
 #if __MAC_OS_X_VERSION_MAX_ALLOWED >= 1070
 	{
 		char *dpath;		/* Un-install file path */
@@ -2980,7 +3012,7 @@ int dispwin_uninstall_profile(dispwin *p, char *fname, p_scope scope) {
 		return 0;
 	}
 #endif	/* 10.6 and prior */
-#endif /*  __APPLE__ */
+#endif /*  UNIX_APPLE */
 
 #if defined(UNIX_X11) && defined(USE_UCMM)
 	{
@@ -3043,7 +3075,7 @@ icmFile *dispwin_get_profile(dispwin *p, char *name, int mxlen) {
 	}
 #endif /* NT */
 
-#ifdef __APPLE__
+#ifdef UNIX_APPLE
 #if __MAC_OS_X_VERSION_MAX_ALLOWED >= 1060
 	{
 		char *dpath; 			/* Read file path */
@@ -3187,7 +3219,7 @@ icmFile *dispwin_get_profile(dispwin *p, char *name, int mxlen) {
 		return rd_fp;
 	}
 #endif	/* 10.5 and prior */
-#endif /*  __APPLE__ */
+#endif /*  UNIX_APPLE */
 
 #if defined(UNIX_X11) && defined(USE_UCMM)
 	/* Try and get the currently installed profile from ucmm */
@@ -3454,7 +3486,7 @@ static void dispwin_uninstall_signal_handlers(dispwin *p) {
 /* ----------------------------------------------- */
 /* Test patch window specific declarations */
 
-#ifdef __APPLE__
+#ifdef UNIX_APPLE
 
 @class DWWin;
 @class DWView;
@@ -3467,6 +3499,8 @@ typedef struct {
 #if __MAC_OS_X_VERSION_MAX_ALLOWED >= 1040
 	NSColorSpace *nscs;			/* Colorspace from profile */
 #endif
+	NSRect rect;				/* Size and position to create window */
+	int err;					/* Error code */
 } osx_cntx_t;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - 
@@ -3545,6 +3579,15 @@ unsigned char emptyCursor[43] = {
 
 @end
 
+/* Function called back by main thread to trigger a drawRect */
+
+static void doSetNeedsDisplay(void *cntx) {
+	osx_cntx_t *cx = (osx_cntx_t *)cntx;
+	
+	[cx->view setNeedsDisplay: YES ];
+
+	cx->err = 0;
+}
 // - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 @interface DWWin : NSWindow {
@@ -3582,7 +3625,9 @@ unsigned char emptyCursor[43] = {
 @end
 
 /* Create our window */
-static void create_my_win(NSRect rect, osx_cntx_t *cx) {
+/* We run this on the main thread using a custom message */
+static void create_my_win(void *cntx) {
+	osx_cntx_t *cx = (osx_cntx_t *)cntx;
 	dispwin *p = cx->p;
 	SInt32 MacMajVers, MacMinVers, MacBFVers;
 	void *cspr = NULL;			/* ColorSync profile ref. */
@@ -3607,7 +3652,7 @@ static void create_my_win(NSRect rect, osx_cntx_t *cx) {
 	}
 
 	/* Create Window */
-	cx->window = [[DWWin alloc] initWithContentRect: rect
+	cx->window = [[DWWin alloc] initWithContentRect: cx->rect
                                         styleMask: NSBorderlessWindowMask
                                           backing: NSBackingStoreBuffered
                                             defer: YES
@@ -3626,7 +3671,8 @@ static void create_my_win(NSRect rect, osx_cntx_t *cx) {
 
 	/* Moves the window to the front of the screen list within its level, */
 	/* and show the window (i.e. make it "key") */
-	/* Trigger crash on OS X 10.11 El Capitan ? */
+	/* Trigger warning on OS X 10.11 El Capitan ? */
+	/* (Doesn't happen using 1.6.3 which ran everything in the main thread.) */
 	[cx->window makeKeyAndOrderFront: nil];
 
 	/* Use a null color transform to ensure device values */
@@ -3686,9 +3732,10 @@ static void create_my_win(NSRect rect, osx_cntx_t *cx) {
 	}
 #endif
 
+	cx->err = 0;
 }
 
-#endif /* __APPLE__ */
+#endif /* UNIX_APPLE */
 
 /* ----------------------------------------------- */
 
@@ -3726,22 +3773,24 @@ double r, double g, double b	/* Color values 0.0 - 1.0 */
 
 			/* For video encoding the extra bits of precision are created by bit shifting */
 			/* rather than scaling, so we need to scale the fp value to account for this. */
-			if (p->pdepth > 8)
-				p->r_rgb[j] = (p->s_rgb[j] * 255 * (1 << (p->pdepth - 8)))
-				            /((1 << p->pdepth) - 1.0); 	
+			if (p->edepth > 8)
+				p->r_rgb[j] = (p->s_rgb[j] * 255 * (1 << (p->edepth - 8)))
+				            /((1 << p->edepth) - 1.0); 	
 		}
 	}
 
 //if (p->out_tvenc) {
 //printf(" %d: 8 bit tv = s_rgb %f %f %f\n",j, p->s_rgb[0], p->s_rgb[1], p->s_rgb[2]);
-//printf(" %d: %d bitraster r_rgb %f %f %f\n",j, p->pdepth,p->r_rgb[0], p->r_rgb[1], p->r_rgb[2]);
+//printf(" %d: %d bitraster r_rgb %f %f %f\n",j, p->edepth,p->r_rgb[0], p->r_rgb[1], p->r_rgb[2]);
 //}
 
 	/* Use ramdac for high precision native output. */
 	/* The ramdac is used to hold the lsb that the frame buffer */
 	/* doesn't hold. */
 	if ((p->native & 1) == 1) {
-		double prange = p->r->nent - 1.0;
+		double frange = (1 << p->fdepth) - 1.0;
+		double rrange = (1 << p->rdepth) - 1.0;
+		double nrange = p->nent - 1.0;
 
 		p->r->setlin(p->r);			/* In case something else altered this */
 
@@ -3756,9 +3805,66 @@ double r, double g, double b	/* Color values 0.0 - 1.0 */
 			if (p->out_tvenc && p->edepth > 8)
 				vv = (vv * 255 * (1 << (p->edepth - 8)))/((1 << p->edepth) - 1.0); 	
 				
-			tt = (int)(vv * prange + 0.5);
-			p->r_rgb[j] = (double)tt/prange;	/* RAMDAC output Quantized value */
+			/* Determine the ramdac index that the quantized frame buffer */
+			/* value will make use of */
+#ifdef NT
+			/* Assume all depths match, or linear mapping between them */
+			tt = (int)(vv * frange + 0.5);			/* Frame buffer value */
+			p->r_rgb[j] = (double)tt/frange;		/* Double frame buffer value */
+			tt = (int)(tt/frange * rrange + 0.5);	/* expected RAMDAC index */
+			tt = (int)(tt/rrange * nrange + 0.5);	/* actual RAMDAC index */
+#endif
+#ifdef UNIX_APPLE
+			/* We assume linear mapping with perfect rounding between rdepth and ndepth */
+			tt = (int)(vv * frange + 0.5);			/* Frame buffer value */
+			p->r_rgb[j] = (double)tt/frange;		/* Double frame buffer value */
+			tt = (int)(tt/frange * rrange + 0.5);	/* expected RAMDAC index */
+			tt = (int)(tt/rrange * nrange + 0.5);	/* actual RAMDAC index */
+#endif
+#if defined(UNIX_X11)
+			/* We assume linear mapping with perfect rounding between rdepth and ndepth */
+			tt = (int)(vv * frange + 0.5);			/* Frame buffer value */
+			p->r_rgb[j] = (double)tt/frange;		/* Double frame buffer value */
+			tt = p->rmap[j][tt];					/* expected RAMDAC index */
+			tt = (int)(tt/rrange * nrange + 0.5);	/* actual RAMDAC index */
+#endif
+
+#ifdef NEVER	// Just set entry we think will get hit
 			p->r->v[j][tt] = vv;
+#else
+
+			/* Set the three entries around target and create ramp either side,
+			   to allow for some video cards not having a precise
+			   definition of what value translates to what frame buffer value. */
+			{
+				int i;
+				double maxv = 1.0;
+
+				if (p->out_tvenc && p->edepth > 8)
+					maxv = (maxv * 255 * (1 << (p->edepth - 8)))/((1 << p->edepth) - 1.0); 	
+
+				if ((tt-1) == 0) {
+					p->r->v[j][tt-1] = vv;
+				} else {
+					for (i = 0; i <= (tt-1); i++)
+						p->r->v[j][i] = vv * i/(tt-1); 
+				}
+
+				p->r->v[j][tt] = vv;
+
+				if ((tt+1) == (p->r->nent-1)) {
+					p->r->v[j][tt+1] = vv;
+				} else {
+					for (i = tt+1; i < p->r->nent; i++)
+						p->r->v[j][i] = vv + (maxv - vv) * (i - (tt+1))/((p->r->nent-1) - (tt+1)); 
+				}
+
+#ifdef NEVER
+				for (i = 0; i < p->r->nent; i++)
+					printf("~1 %d, %d -> %f\n",j,i,p->r->v[j][i]);
+#endif
+			}
+#endif
 
 //printf(" cell[%d] = r_rgb %f, cell val %f\n",tt, p->r_rgb[j], vv);
 		}
@@ -3796,7 +3902,9 @@ double r, double g, double b	/* Color values 0.0 - 1.0 */
 #endif
 		
 		p->colupd++;
-//printf("~1 set color %f %f %f\n", p->r_rgb[0], p->r_rgb[1], p->r_rgb[2]);
+
+		debugr2((errout,"dispwin_set_color about to paint color %f %f %f\n",
+		         p->r_rgb[0], p->r_rgb[1], p->r_rgb[2]));
 
 		/* Trigger a WM_PAINT */
 		if (!InvalidateRect(p->hwnd, NULL, FALSE)) {
@@ -3810,13 +3918,14 @@ double r, double g, double b	/* Color values 0.0 - 1.0 */
 		while (p->colupd != p->colupde && p->cberror == 0) {
 			msec_sleep(10);
 		}
-//printf("~1 paint done\n");
+
+		debugr2((errout,"dispwin_set_color paint done\n"));
 	}
 #endif /* NT */
 
 	/* - - - - - - - - - - - - - - */
 
-#ifdef __APPLE__
+#ifdef UNIX_APPLE
 
 	if (p->winclose) {
 		return 2;
@@ -3840,11 +3949,7 @@ double r, double g, double b	/* Color values 0.0 - 1.0 */
 		if ((stat = GetCurrentProcess(&cpsn)) != noErr) {
 			debugr2((errout,"GetCurrentProcess returned error %d\n",stat));
 		} else {
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= 1030
-			if ((stat = TransformProcessType(&cpsn, kProcessTransformToForegroundApplication)) != noErr) {
-				debugr2((errout,"TransformProcessType returned error %d\n",stat));
-			}
-#endif /* OS X 10.3 */
+			// [window makeGetAndOrderFront:] 	??
 			if ((stat = SetFrontProcess(&cpsn)) != noErr) {
 				debugr2((errout,"SetFrontProcess returned error %d\n",stat));
 			}
@@ -3852,40 +3957,56 @@ double r, double g, double b	/* Color values 0.0 - 1.0 */
 		p->btf = 1;
 	}
 
-	/* Trigger an update that fills window with r_rgb[] */
-	[((osx_cntx_t *)(p->osx_cntx))->view setNeedsDisplay: YES ];
+	/* Prepare to wait for events */
+	ui_aboutToWait();
+
+	debugr2((errout,"dispwin_set_color about to paint color %f %f %f\n",
+	         p->r_rgb[0], p->r_rgb[1], p->r_rgb[2]));
+
+//	[((osx_cntx_t *)(p->osx_cntx))->view setNeedsDisplay: YES ];
+
+	/* Run the window creation in the main thread and wait for it */
+	ui_runInMainThreadAndWait((void *)p->osx_cntx, doSetNeedsDisplay);
+
+	/* Wait for any events generated by paint to complete */
+	ui_waitForEvents();
+
+	debugr2((errout,"dispwin_set_color paint done\n"));
 
 	if (tpool != nil)
 		[tpool release];
 
-#endif /* __APPLE__ */
+#endif /* UNIX_APPLE */
 
 	/* - - - - - - - - - - - - - - */
 
 #if defined(UNIX_X11)
 	{
-		Colormap mycmap;
-		XColor col;
-		int vali[3];
+		unsigned int vali[3];
+		unsigned long fbval;
 
 		/* Indicate that we've got activity to the X11 Screensaver */
 		XResetScreenSaver(p->mydisplay);
 
-		/* Quantize to 16 bit color */
+		/* Quantize to frame buffer component depth */
 		for (j = 0; j < 3; j++)
-			vali[j] = (int)(65535.0 * p->r_rgb[j] + 0.5);
+			vali[j] = (int)(((1 << p->fdepth)-1.0) * p->r_rgb[j] + 0.5);
 
-		mycmap = DefaultColormap(p->mydisplay, p->myscreen);
-		col.red = vali[0];
-		col.green = vali[1];
-		col.blue = vali[2];
-		XAllocColor(p->mydisplay, mycmap, &col);
-		XSetForeground(p->mydisplay, p->mygc, col.pixel);
+		/* Compose frame buffer pixel value */
+		fbval = (vali[0] << p->shift[0])
+		      | (vali[1] << p->shift[1])
+		      | (vali[2] << p->shift[2]);
+		XSetForeground(p->mydisplay, p->mygc, fbval);
+
+		debugr2((errout,"dispwin_set_color about to paint color %f %f %f\n",
+		         p->r_rgb[0], p->r_rgb[1], p->r_rgb[2]));
 
 		XFillRectangle(p->mydisplay, p->mywindow, p->mygc,
 		               p->tx, p->ty, p->tw, p->th);
 
 		XSync(p->mydisplay, False);		/* Make sure it happens */
+
+		debugr2((errout,"dispwin_set_color paint done\n"));
 	}
 #endif	/* UNXI X11 */
 
@@ -4029,6 +4150,7 @@ dispwin *p
 		if (p->mth != NULL) {			/* Message thread */
 			p->mth->del(p->mth);
 		}
+		p->hwnd = NULL;
 	}
 
 	if (p->hdc != NULL)
@@ -4038,7 +4160,7 @@ dispwin *p
 	/* -------------------------------------------------- */
 
 	/* -------------------------------------------------- */
-#ifdef __APPLE__
+#ifdef UNIX_APPLE
 	if (p->nowin == 0) {	/* We have a window up */
 		restore_display(p);
 		if (p->osx_cntx != NULL) {	/* And we've allocated a context */
@@ -4061,7 +4183,7 @@ dispwin *p
 // ~~
 //	CGDisplayShowCursor(p->ddid);
 
-#endif /* __APPLE__ */
+#endif /* UNIX_APPLE */
 	/* -------------------------------------------------- */
 
 	/* -------------------------------------------------- */
@@ -4071,22 +4193,43 @@ dispwin *p
 	if (p->mydisplay != NULL) {
 		if (p->nowin == 0) {	/* We have a window up */
 	
-			XFreeGC(p->mydisplay, p->mygc);
-			XDestroyWindow(p->mydisplay, p->mywindow);
+			if (p->mygc != 0)
+				XFreeGC(p->mydisplay, p->mygc);
+			if (p->mywindow != 0)
+				XDestroyWindow(p->mydisplay, p->mywindow);
 		}
 		XCloseDisplay(p->mydisplay);
+		p->mydisplay = NULL;
+	}
+	{
+		int j;
+		for (j = 0; j < 3; j++) {
+			if (p->rmap[j] != NULL) {
+				free(p->rmap[j]);
+				p->rmap[j] = NULL;
+			}
+		}
 	}
 	debugr("finished\n");
+
+	if (p->edid != NULL)
+		free(p->edid);
 
 #endif	/* UNXI X11 */
 	/* -------------------------------------------------- */
 
-	if (p->name != NULL)
+	if (p->name != NULL) {
 		free(p->name);
-	if (p->description != NULL)
+		p->name = NULL;
+	}
+	if (p->description != NULL) {
 		free(p->description);
-	if (p->callout != NULL)
+		p->description = NULL;
+	}
+	if (p->callout != NULL) {
 		free(p->callout);
+		p->callout = NULL;
+	}
 
 	free(p);
 }
@@ -4234,6 +4377,10 @@ static LRESULT CALLBACK MainWndProc(
 
 #endif /* NT */
 
+#ifdef UNIX_APPLE
+
+#endif /* UNIX_APPLE */
+
 #if defined(UNIX_X11)
 	/* None */
 #endif	/* UNXI X11 */
@@ -4241,7 +4388,8 @@ static LRESULT CALLBACK MainWndProc(
 /* ----------------------------------------------- */
 #ifdef NT
 
-/* Thread to handle message processing, so that there is no delay */
+/* Thread to create the window if it doesn'r exist, */
+/* and handle message processing, so that there is no delay */
 /* when the main thread is doing other things. */
 int win_message_thread(void *pp) {
 	dispwin *p = (dispwin *)pp;
@@ -4333,7 +4481,7 @@ int win_message_thread(void *pp) {
 	}
 
 	if (UnregisterClass(p->AppName, NULL) == 0) {
-		warning("UnregisterClass failed, lasterr = %d\n",GetLastError());
+		warning("UnregisterClass failed, lasterr = %d",GetLastError());
 	}
 
 	p->hwnd = NULL;		/* Signal it's been deleted */
@@ -4400,7 +4548,10 @@ int ddebug						/* >0 to print debug statements to stderr */
 ) {
 	dispwin *p = NULL;
 
-	debug("new_dispwin called\n");
+#ifndef DEBUG
+	if (ddebug) 
+#endif
+	fprintf(errout, "new_dispwin called\n");
 
 #if defined(UNIX_X11) && defined(USE_UCMM)
 	dispwin_checkfor_colord();		/* Make colord functions available */
@@ -4443,6 +4594,8 @@ int ddebug						/* >0 to print debug statements to stderr */
 	dispwin_set_default_delays(p);
 
 	/* Basic object is initialised, so create a window */
+
+	ui_UsingGUI();
 
 	/* -------------------------------------------------- */
 #ifdef NT
@@ -4511,7 +4664,7 @@ int ddebug						/* >0 to print debug statements to stderr */
 		p->wh = he;
 
 		/* It's a bit difficult to know how windows defines the display */
-		/* depth. Microsofts doco is fuzzy, and typical values */
+		/* depth. Microsoft's doco is fuzzy, and typical values */
 		/* for BITSPIXEL and PLANES are confusing (What does "32" and "1" */
 		/* mean ?) NUMCOLORS seems to be -1 on my box, and perhaps */
 		/* is only applicable to up to 256 paletized colors. The doco */
@@ -4530,11 +4683,16 @@ int ddebug						/* >0 to print debug statements to stderr */
 		}
 		bpp = GetDeviceCaps(p->hdc, COLORRES);
 		if (bpp <= 0)
-			p->pdepth = 8;		/* Assume this is so */
+			p->fdepth = 8;		/* Assume this is so */
 		else
-			p->pdepth = bpp/3;
+			p->fdepth = bpp/3;
 
+		p->rdepth = p->fdepth;		/* Assume this is so */
+		p->ndepth = 8;				/* Assume this is so */
+		p->nent = (1 << p->ndepth);
 		p->edepth = 16;
+
+		debugr2((errout,"new_dispwin: fdepth %d, rdepth %d, ndepth %d, edepth %d\n", p->fdepth,p->rdepth,p->ndepth,p->edepth));
 
 		if (nowin == 0) {
 
@@ -4549,6 +4707,9 @@ int ddebug						/* >0 to print debug statements to stderr */
 			p->wi = wi;
 			p->he = he;
 
+			debugr2((errout,"new_dispwin about to create window\n"));
+
+			/* Create the window and then process events */
 			if ((p->mth = new_athread(win_message_thread, (void *)p)) == NULL) {
 				debugr2((errout, "new_dispwin: new_athread failed\n"));
 				dispwin_del(p);
@@ -4556,6 +4717,9 @@ int ddebug						/* >0 to print debug statements to stderr */
 			}
 
 			/* Wait for thread to run */
+			/* (Hmm. This doesn't actually gurantee that our window has */
+			/* been created yet ? */
+			// ~~ should sync by sending a custom message and getting notified ? */
 			while (p->inited == 0) {
 				msec_sleep(20);
 			}
@@ -4565,6 +4729,8 @@ int ddebug						/* >0 to print debug statements to stderr */
 				dispwin_del(p);
 				return NULL;
 			}
+
+			debugr2((errout,"new_dispwin window created\n"));
 		}
 
 		/* Install the signal handler to ensure cleanup */
@@ -4575,7 +4741,7 @@ int ddebug						/* >0 to print debug statements to stderr */
 	/* -------------------------------------------------- */
 
 	/* -------------------------------------------------- */
-#ifdef __APPLE__
+#ifdef UNIX_APPLE
 
 	if ((p->name = strdup(disp->name)) == NULL) {
 		debugr2((errout,"new_dispwin: Malloc failed\n"));
@@ -4584,31 +4750,13 @@ int ddebug						/* >0 to print debug statements to stderr */
 	}
 	p->ddid = disp->ddid;		/* Display we're working on */
 
-	/* Hmm. Could we use CGDisplayGammaTableCapacity() instead ? */
 #if __MAC_OS_X_VERSION_MAX_ALLOWED >= 1060
 	{
 		CGDisplayModeRef dispmode;
 		CFStringRef pixenc;
-		int cap = CGDisplayGammaTableCapacity(p->ddid);
 		int fbdepth = 0;
 
-		debugr2((errout,"new_dispwin: CGDisplayGammaTableCapacity = %d\n",cap));
-
-		/* Compute GammaTable depth */ 
-		{
-			for (p->pdepth = 1; p->pdepth < 17; p->pdepth++) {
-				if ((1 << p->pdepth) == cap)
-					break;
-			}
-			if (p->pdepth >= 17) {
-				debugr2((errout,"new_dispwin: failed to extract depth from GammaTableCapacity %d\n",cap));
-				dispwin_del(p);
-				return NULL;
-			}
-			debugr2((errout,"new_dispwin: found pixel depth %d bits\n",p->pdepth));
-		}
-		/* Get frame buffer depth for sanity check, but don't actually make used of it */
-
+		/* Get frame buffer depth  */
 		dispmode = CGDisplayCopyDisplayMode(p->ddid);
 		pixenc = CGDisplayModeCopyPixelEncoding(dispmode);
 
@@ -4625,6 +4773,9 @@ int ddebug						/* >0 to print debug statements to stderr */
 		else if (CFStringCompare(pixenc, CFSTR(IO16BitDirectPixels), kCFCompareCaseInsensitive)
 			                                                             == kCFCompareEqualTo)
 			fbdepth = 5;
+		else
+			fbdepth = 8;		/* Assume */
+
 #ifndef DEBUG
 		if (p->ddebug)
 #endif
@@ -4637,26 +4788,56 @@ int ddebug						/* >0 to print debug statements to stderr */
 		CFRelease(pixenc);
 		CGDisplayModeRelease(dispmode);
 
-		if (p->pdepth != fbdepth) {
-			static int warned  = 0;
-			if (!warned) {
-				warning("new_dispwin: frame buffer depth %d != GammaTable depth %d\n",fbdepth, p->pdepth);
-				warned = 1;
+		p->fdepth = fbdepth;
+		p->rdepth = p->fdepth;		/* We don't know of any HW between frame buffer and VideoLUT */
+
+		/* Get CGDisplayGammaTable size */
+		p->nent = CGDisplayGammaTableCapacity(p->ddid);
+		
+		/* Compute GammaTable/VideoLUT/RAMDAC depth */ 
+		{
+			for (p->ndepth = 1; p->ndepth < 17; p->ndepth++) {
+				if ((1 << p->ndepth) >= p->nent)
+					break;
+			}
+			if (p->ndepth >= 17) {
+				debugr2((errout,"new_dispwin: failed to extract depth from GammaTableCapacity %d\n",p->nent));
+				dispwin_del(p);
+				return NULL;
+			}
+			debugr2((errout,"new_dispwin: found actual VideoLUT depth %d bits\n",p->ndepth));
+		}
+
+		if (p->rdepth > p->ndepth) {
+			debugr2((errout,"new_dispwin: Frame buffer depth %d > VideoLUT depth %d\n",p->rdepth, p->ndepth));
+			dispwin_del(p);
+			return NULL;
+		}
+
+		if (p->rdepth != p->ndepth) {
+			if (!p->warned) {
+				warning("new_dispwin: Frame buffer depth %d doesn't matcv VideoLUT %d",p->rdepth, p->ndepth);
+				p->warned = 1;
 			}
 		}
 	}
 #else
-	p->pdepth = CGDisplayBitsPerSample(p->ddid);
+	/* Life is simple */
+	p->fdepth = CGDisplayBitsPerSample(p->ddid);
+	p->rdepth = p->fdepth;
+	p->ndepth = p->rdepth;
+	p->nent = (1 << p->ndepth);
 #endif
 
 	p->edepth = 16;				/* By experiment it seems to be 16 bits too */
+
+	debugr2((errout,"new_dispwin: fdepth %d, rdepth %d, ndepth %d, edepth %d\n", p->fdepth,p->rdepth,p->ndepth,p->edepth));
 
 	if (nowin == 0) {			/* Create a window */
 		osx_cntx_t *cx;
 		CGSize sz;				/* Display size in mm */
 		int wi, he;				/* Width and height in pixels */
 		int xo, yo;				/* Window location */
-		NSRect wrect;
 
 		debugr2((errout, "new_dispwin: About to open display '%s'\n",disp->name));
 
@@ -4716,22 +4897,33 @@ int ddebug						/* >0 to print debug statements to stderr */
 		p->ww = wi;
 		p->wh = he;
 
-		wrect.origin.x = xo;
-		wrect.origin.y = yo;
-		wrect.size.width = wi;
-		wrect.size.height = he;
+		cx->rect.origin.x = xo;
+		cx->rect.origin.y = yo;
+		cx->rect.size.width = wi;
+		cx->rect.size.height = he;
 
-		create_my_win(wrect, cx);
+		debugr2((errout,"new_dispwin about to create window\n"));
+
+		/* Prepare to wait for events */
+		ui_aboutToWait();
+
+		/* Run the window creation in the main thread and wait for it */
+		ui_runInMainThreadAndWait((void *)cx, create_my_win);
+
+		/* Wait for events generated by window creation to complete */
+		ui_waitForEvents();
 
 		if (tpool != nil)
 			[tpool release];
 
 		p->winclose = 0;
+
+		debugr2((errout,"new_dispwin window created\n"));
 	}
 
 	/* Install the signal handler to ensure cleanup */
 	dispwin_install_signal_handlers(p);
-#endif /* __APPLE__ */
+#endif /* UNIX_APPLE */
 	/* -------------------------------------------------- */
 
 	/* -------------------------------------------------- */
@@ -4755,6 +4947,8 @@ int ddebug						/* >0 to print debug statements to stderr */
 		Window rootwindow;
 		char *appname = "TestWin";
 		Visual *myvisual;
+		XVisualInfo template, *vinfo;
+		int nitems = 0;
 		XSetWindowAttributes myattr;
 		XEvent      myevent;
 		XTextProperty myappname;
@@ -4817,15 +5011,184 @@ int ddebug						/* >0 to print debug statements to stderr */
 			memmove(p->edid, disp->edid, p->edid_len);
 		}
 
-		//p->pdepth = DefaultDepth(p->mydisplay, p->myscreen)/3;
+#ifdef NEVER
+#pragma message("######### dispwin.c DirectColor test is defined! ########")
 
-		// Hmm. Should we explicitly get the root window visual,
-		// since our test window inherits it from root ?
+		/* To test DirectColor Visual when it's not the default:*/
+		debugr2((errout,"new_dispwin: Testing DirectColor Visual\n"));
+		
+		// test DirectColor visual 	
+		template.class = DirectColor;
+		if ((vinfo = XGetVisualInfo(p->mydisplay, VisualClassMask, &template, &nitems)) == NULL) {
+			debugr2((errout,"new_dispwin: Unable to find a DirectColor Visual\n"));
+			dispwin_del(p);
+			return NULL;
+		}
+		myvisual = vinfo->visual;
+
+#else
 		myvisual = DefaultVisual(p->mydisplay, p->myscreen);
-		p->pdepth = myvisual->bits_per_rgb;
-		p->edepth = 16;
+#endif
+
+		/* Expect TrueColor (fixed/no map) or DirectColor (read/write map) Visual - */
+		/* anything else is not suitable for high quality color. */
+
+		/* Get the VisualInfo */
+		template.visualid = myvisual->visualid;
+		vinfo = XGetVisualInfo(p->mydisplay, VisualIDMask, &template, &nitems); 
+
+		if (nitems < 1) {
+			debugr2((errout,"new_dispwin: Failed to get XGetVisualInfo of defalt Visual\n"));
+			dispwin_del(p);
+			return NULL;
+		}
+
+		if (vinfo->class != TrueColor && vinfo->class != DirectColor) {
+			debugr2((errout,"new_dispwin: Default Visual is not TrueColor or DirectColor\n"));
+			XFree(vinfo);
+			dispwin_del(p);
+			return NULL;
+		}
+
+		/* Compute per component frame buffer depth */
+		{
+			for (p->fdepth = 1; p->fdepth < 17; p->fdepth++) {
+				if ((1 << p->fdepth) >= myvisual->map_entries)
+					break;
+			}
+			if (p->fdepth >= 17) {
+				debugr2((errout,"new_dispwin: failed to extract depth from Visual bits_per_rgb %d\n",myvisual->map_entries));
+				XFree(vinfo);
+				dispwin_del(p);
+				return NULL;
+			}
+		}
+		p->rdepth = myvisual->bits_per_rgb;		/* X11 colormap entry size */
+		p->edepth = 16;							/* Assumed */
+
+		/* Check that vinfo->red_mask, green_mask & blue_mask all have */
+		/* myvisual->map_entries number of bits set, and determine the shift. */
+		{
+			unsigned long bit;
+			int depth;
+
+			if (vinfo->red_mask == 0 || vinfo->green_mask == 0 || vinfo->blue_mask == 0) {
+				debugr2((errout,"new_dispwin: one of default Visual r/g/b masks is 0\n"));
+				XFree(vinfo);
+				dispwin_del(p);
+				return NULL;
+			}
+
+			for (p->shift[0] = 0, bit = 1; (bit & vinfo->red_mask) == 0; p->shift[0]++, bit <<= 1) 
+				;
+
+			for (depth = 0; (bit & vinfo->red_mask) != 0; depth++, bit <<= 1) 
+				;
+
+			if (depth != p->fdepth) {
+				debugr2((errout,"new_dispwin: Default Visual red mask 0x%x is not %d bits\n",vinfo->red_mask,p->fdepth));
+				XFree(vinfo);
+				dispwin_del(p);
+				return NULL;
+			}
+
+			for (p->shift[1] = 0, bit = 1; (bit & vinfo->green_mask) == 0; p->shift[1]++, bit <<= 1) 
+				;
+
+			for (depth = 0; (bit & vinfo->green_mask) != 0; depth++, bit <<= 1) 
+				;
+
+			if (depth != p->fdepth) {
+				debugr2((errout,"new_dispwin: Default Visual green mask 0x%x is not %d bits\n",vinfo->red_mask,p->fdepth));
+				XFree(vinfo);
+				dispwin_del(p);
+				return NULL;
+			}
+
+			for (p->shift[2] = 0, bit = 1; (bit & vinfo->blue_mask) == 0; p->shift[2]++, bit <<= 1) 
+				;
+
+			for (depth = 0; (bit & vinfo->blue_mask) != 0; depth++, bit <<= 1) 
+				;
+
+			if (depth != p->fdepth) {
+				debugr2((errout,"new_dispwin: Default Visual blue mask 0x%x is not %d bits\n",vinfo->red_mask,p->fdepth));
+				XFree(vinfo);
+				dispwin_del(p);
+				return NULL;
+			}
+		}
+
+		/* Check the VideoLUT depth */
+#if RANDR_MAJOR == 1 && RANDR_MINOR >= 2 && !defined(DISABLE_RANDR)
+		if (p->crtc != 0) {		/* Using Xrandr 1.2 */
+	
+			if ((p->nent = XRRGetCrtcGammaSize(p->mydisplay, p->crtc)) <= 0) {
+				p->nent = 0;
+			}
+		} else
+#endif /* randr >= V 1.2 */
+		{
+			p->nent = 0;
+
+			if (XF86VidModeQueryExtension(p->mydisplay, &evb, &erb) != 0) {
+				int nent = -1;
+			
+				/* Some propietary multi-screen drivers (ie. TwinView & MergedFB) */
+				/* don't implement the XVidMode extenstion properly. */
+				if (XSetErrorHandler(null_error_handler) == 0) {
+					debugr("new_dispwin failed on XSetErrorHandler\n");
+					XSetErrorHandler(NULL);		/* Restore handler */
+					XFree(vinfo);
+					dispwin_del(p);
+					return NULL;
+				}
+				if (XF86VidModeGetGammaRampSize(p->mydisplay, p->myrscreen, &nent) != 0
+				 && nent != -1) {
+					p->nent = nent;
+				}
+				XSetErrorHandler(NULL);		/* Restore handler */
+			}
+		}
+
+		if (p->nent == 0) {
+			p->ndepth = 0;
+
+			if (!p->warned) {
+				warning("new_dispwin: VideoLUT is not accessible");
+				p->warned = 1;
+			}
+
+		} else {
+			if (p->nent > 16384) {
+				debugr("VideoLUT has more entries than we can handle\n");
+				XFree(vinfo);
+				dispwin_del(p);
+				return NULL;
+			}
+	
+			/* Compute actual ramdac depth */
+			for (p->ndepth = 1; p->ndepth < 17; p->ndepth++) {
+				if ((1 << p->ndepth) >= p->nent)
+					break;
+			}
+	
+			if (p->nent != (1 << p->rdepth)) {
+				if (!p->warned) {
+					warning("new_dispwin: Expected VideoLUT depth %d doesn't match actual %d",p->rdepth, p->ndepth);
+					p->warned = 1;
+				}
+			}
+		}
+
+		debugr2((errout,"new_dispwin: %s fdepth %d, rdepth %d, ndepth %d, edepth %d, r/g/b shifts %d %d %d\n", vinfo->class != TrueColor ? "TreuColor" : "DirectColor", p->fdepth,p->rdepth,p->ndepth,p->edepth, p->shift[0], p->shift[1], p->shift[2]));
 
 		if (nowin == 0) {			/* Create a window */
+			unsigned long attrmask = 0;
+			XWindowAttributes mywa;
+			Colormap mycmap = None;
+			int ncolors, i;
+
 			rootwindow = RootWindow(p->mydisplay, p->myscreen);
 
 			myforeground = BlackPixel(p->mydisplay, p->myscreen);
@@ -4887,6 +5250,53 @@ int ddebug						/* >0 to print debug statements to stderr */
 			else
 				myattr.override_redirect = False;
 
+			attrmask |= CWBackPixel | CWBitGravity	/* Attributes Valumask */
+			          | CWWinGravity | CWBackingStore | CWOverrideRedirect;
+
+			/* For a DirectColor Visual, set the X11 color map */
+			if (vinfo->class == DirectColor) {
+				Colormap mycmap = None;
+				XColor *colors;
+				int ncolors = (1 << p->fdepth), i;
+				
+				debugr2((errout,"new_dispwin: setting DirectColor colormap\n"));
+
+				if ((mycmap = XCreateColormap(p->mydisplay, rootwindow, myvisual, AllocAll)) == None) {
+					debugr2((errout,"new_dispwin: XCreateColormap failed\n"));
+					XFree(vinfo);
+					dispwin_del(p);
+					return NULL;
+				}
+	
+				if ((colors = malloc(sizeof(XColor) * ncolors)) == NULL) {
+					debugr2((errout,"new_dispwin: Malloc failed for XColors\n"));
+					XFree(vinfo);
+					dispwin_del(p);
+					return NULL;
+				}
+
+				/* Set a linear mapping */
+				for (i = 0; i < ncolors; i++) {
+					colors[i].pixel = i << p->shift[0] | i << p->shift[1] | i << p->shift[2]; 
+					colors[i].red = 
+					colors[i].green = 
+					colors[i].blue = (unsigned short) (65535.0 * i/(ncolors-1.0) + 0.5);
+					colors[i].flags = DoRed | DoGreen | DoBlue; 
+				}
+
+				if (!XStoreColors(p->mydisplay, mycmap, colors, ncolors)) {
+					debugr2((errout,"new_dispwin: DirectColor XStoreColors failed\n"));
+					free(colors);
+					XFree(vinfo);
+					dispwin_del(p);
+					return NULL;
+				}
+				free(colors);
+
+				myattr.colormap = mycmap;
+				attrmask |= CWColormap;
+			}
+
 			debugr("Opening window\n");
 			p->mywindow = XCreateWindow(
 				p->mydisplay, rootwindow,
@@ -4894,9 +5304,9 @@ int ddebug						/* >0 to print debug statements to stderr */
 				0,							/* Border width */
 				CopyFromParent,				/* Depth */
 				InputOutput,				/* Class */
-				CopyFromParent,				/* Visual */
-				CWBackPixel | CWBitGravity	/* Attributes Valumask */
-				| CWWinGravity | CWBackingStore | CWOverrideRedirect,
+//				CopyFromParent,				/* Visual */
+				myvisual,					/* Visual */
+				attrmask,					/* Attributes Valumask */
 				&myattr						/* Attribute details */
 			);
 
@@ -4908,10 +5318,12 @@ int ddebug						/* >0 to print debug statements to stderr */
 				p->mydisplay, p->mywindow,
 				&mywattributes) == 0) {
 				debugr("new_dispwin: XGetWindowAttributes failed\n");
+				XFree(vinfo);
 				dispwin_del(p);
 				return NULL;
 			}
-			p->pdepth = mywattributes.depth/3;
+			p->fdepth = mywattributes.depth/3;
+			p->rdepth = p->fdepth;
 #endif
 
 			/* Setup TextProperty */
@@ -4926,6 +5338,9 @@ int ddebug						/* >0 to print debug statements to stderr */
 				&mywmhints,
 				NULL);					/* No class hints */
 		
+			// ~1 should free myappname, but there doesn't seem to be
+			// a XFreeXTextProperty(&myappname); ???
+
 			/* Set aditional properties */
 			{
 				Atom optat;
@@ -4975,8 +5390,8 @@ int ddebug						/* >0 to print debug statements to stderr */
 
 			XSelectInput(p->mydisplay,p->mywindow, ExposureMask);
 		
+			debugr2((errout,"new_dispwin about to raise window\n"));
 			XMapRaised(p->mydisplay,p->mywindow);
-			debug("Raised window\n");
 		
 			/* ------------------------------------------------------- */
 			/* Suspend any screensavers if we can */
@@ -5065,7 +5480,7 @@ int ddebug						/* >0 to print debug statements to stderr */
 			}
 		
 			/* Deal with any pending events */
-			debug("About to enter main loop\n");
+			debugr("About to enter main loop\n");
 			while(XPending(p->mydisplay) > 0) {
 				XNextEvent(p->mydisplay, &myevent);
 				switch(myevent.type) {
@@ -5079,10 +5494,94 @@ int ddebug						/* >0 to print debug statements to stderr */
 						break;
 				}
 			}
+
+			/* Deal with Colormaps */
+			debugr2((errout,"new_dispwin: window created - dealling with colormap\n"));
+
+			if (!XGetWindowAttributes(p->mydisplay, p->mywindow, &mywa)) {
+				debugr2((errout,"new_dispwin: XGetWindowAttributes failed\n"));
+				XFree(vinfo);
+				dispwin_del(p);
+				return NULL;
+			}
+
+			mycmap = mywa.colormap;
+			ncolors = (1 << p->fdepth);
+
+			for (i = 0; i < 3; i++) { 
+				if ((p->rmap[i] = malloc(sizeof(int) * ncolors)) == NULL) {
+					debugr2((errout,"new_dispwin: Malloc failed for rmap[%d]\n",i));
+					XFree(vinfo);
+					dispwin_del(p);
+					return NULL;
+				}
+			}
+
+			/* Get the X11 colormaps, so that we know how to translate */
+			/* between the frame buffer pixel value and the ramdac */
+			/* index number. */
+			if (mycmap != None) {
+				XColor *colors;
+
+				debugr2((errout,"new_dispwin: getting colormap\n"));
+
+				if ((colors = malloc(sizeof(XColor) * ncolors)) == NULL) {
+					debugr2((errout,"new_dispwin: Malloc failed for XColors\n"));
+					XFree(vinfo);
+					dispwin_del(p);
+					return NULL;
+				}
+
+				for (i = 0; i < ncolors; i++) {
+					colors[i].pixel = i << p->shift[0] | i << p->shift[1] | i << p->shift[2]; 
+					colors[i].flags = DoRed | DoGreen | DoBlue; 
+				}
+
+				if (!XQueryColors(p->mydisplay, mycmap, colors, ncolors)) { 
+					debugr2((errout,"new_dispwin: DirectColor XQueryColors failed\n"));
+					free(colors);
+					XFree(vinfo);
+					dispwin_del(p);
+					return NULL;
+				}
+
+				/* Map from frame buffer value to ramdac index */
+				for (i = 0; i < ncolors; i++) {
+					p->rmap[0][i] = (int)(colors[i].red/65535.0 * ((1 << p->rdepth)-1.0) + 0.5);
+					p->rmap[1][i] = (int)(colors[i].green/65535.0 * ((1 << p->rdepth)-1.0) + 0.5);
+					p->rmap[2][i] = (int)(colors[i].blue/65535.0 * ((1 << p->rdepth)-1.0) + 0.5);
+
+//printf("%d: %d %d %d\n",i,p->rmap[0][i],p->rmap[1][i],p->rmap[2][i]);
+				}
+
+				free(colors);
+
+			/* Assume a default linear mapping */
+			} else {
+				debugr2((errout,"new_dispwin: assuming a linear colormap\n"));
+				for (i = 0; i < ncolors; i++) {
+					p->rmap[0][i] = (int)(i/((1 << p->fdepth)-1.0) * ((1 << p->rdepth)-1.0) + 0.5);
+					p->rmap[1][i] = (int)(i/((1 << p->fdepth)-1.0) * ((1 << p->rdepth)-1.0) + 0.5);
+					p->rmap[2][i] = (int)(i/((1 << p->fdepth)-1.0) * ((1 << p->rdepth)-1.0) + 0.5);
+				}
+
+				if (p->fdepth != p->rdepth) {
+					static int warned  = 0;
+					if (!warned) {
+						warning("new_dispwin: frame buffer depth %d != VideoLUT depth %d",p->fdepth, p->rdepth);
+						warned = 1;
+					}
+				}
+			}
+
+			debugr2((errout,"new_dispwin: dealt with colormap\n"));
+
 		} else {
 			/* Install the signal handler to ensure cleanup */
 			dispwin_install_signal_handlers(p);
 		}
+
+		XFree(vinfo); vinfo = NULL;
 	}
 #endif	/* UNIX X11 */
 	/* -------------------------------------------------- */
@@ -5750,7 +6249,7 @@ main(int argc, char *argv[]) {
 	if (fa < argc) {
 		strncpy(calname,argv[fa++],MAXNAMEL); calname[MAXNAMEL] = '\000';
 		if (installprofile == 0 && loadprofile == 0 && verify == 0)
-			loadfile = 1;		/* Load the given profile into the videoLUT */
+			loadfile = 1;		/* Load the given profile into the VideoLUT */
 	}
 
 #if defined(UNIX_X11)
@@ -5949,7 +6448,7 @@ main(int argc, char *argv[]) {
 		/* Should we load calfile instead of installed profile if it's present ??? */
 		if (loadprofile) {
 			if (calname[0] != '\000')
-				warning("Profile '%s' provided as argument is being ignored!\n",calname);
+				warning("Profile '%s' provided as argument is being ignored!",calname);
 				
 			/* Get the current displays profile */
 			debug2((errout,"Loading calibration from display profile '%s'\n",dw->name));
@@ -5974,7 +6473,7 @@ main(int argc, char *argv[]) {
 			is_ok_icc = 1;			/* The profile is OK */
 
 			if ((wo = (icmVideoCardGamma *)icco->read_tag(icco, icSigVideoCardGammaTag)) == NULL) {
-				warning("No vcgt tag found in profile - assuming linear\n");
+				warning("No vcgt tag found in profile - assuming linear");
 				for (i = 0; i < dw->r->nent; i++) {
 					iv = i/(dw->r->nent-1.0);
 					dw->r->v[0][i] = iv;
@@ -6008,7 +6507,7 @@ main(int argc, char *argv[]) {
 		} else {	/* See if it's a .cal file */
 			int ncal;
 			int ii, fi, ri, gi, bi;
-			double cal[3][256];
+			double cal[3][MAX_CAL_ENT];
 			int out_tvenc = 0;			/* nz to use (16-235)/255 video encoding */
 			
 			icco->del(icco);			/* Don't need these now */
@@ -6032,8 +6531,8 @@ main(int argc, char *argv[]) {
 			if ((ncal = ccg->t[0].nsets) <= 0)
 				error("No data in set of file '%s'",calname);
 		
-			if (ncal != 256)
-				error("Expect 256 data sets in file '%s'",calname);
+			if (ncal < 2 || ncal > MAX_CAL_ENT)
+				error("Data set size %d is out of range for '%s'",ncal,calname);
 		
 			if ((fi = ccg->find_kword(ccg, 0, "DEVICE_CLASS")) < 0)
 				error("Calibration file '%s' doesn't contain keyword COLOR_REP",calname);

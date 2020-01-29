@@ -88,7 +88,7 @@ double *in				/* di output */
 		pp[0].v[0] = in[i];
 		cdir = p->clipc[i] - in[i];	/* Clip towards output range */
 
-		nsoln = p->curves[i]->rev_interp (
+		nsoln = p->curves[i]->rev_interp(
 			p->curves[i], 		/* this */
 			0,					/* No flags */
 			MAX_INVSOLN,		/* Maximum number of solutions allowed for */

@@ -4,7 +4,9 @@
 /* 
  * Argyll Color Correction System
  * Colorimeter Calibration Spectral Set support.
- *
+ */
+
+/*
  * Author: Graeme W. Gill
  * Date:   18/8/2011
  *
@@ -16,6 +18,10 @@
  *
  * Based on ccmx.h
  */
+
+#ifdef __cplusplus
+	extern "C" {
+#endif
 
 /*
  * This object provides storage and application of emisive spectral
@@ -42,7 +48,7 @@ struct _ccss {
 
 	/* write a CGATS .ccss file to a memory buffer. */
 	/* return nz on error, with message in err[] */
-	int (*buf_write_ccss)(struct _ccss *p, unsigned char **buf, int *len);
+	int (*buf_write_ccss)(struct _ccss *p, unsigned char **buf, size_t *len);
 
 	/* read from a CGATS .ccss file */
 	/* return nz on error, with message in err[] */
@@ -50,7 +56,7 @@ struct _ccss {
 
 	/* read from a CGATS .ccss file from a memory buffer. */
 	/* return nz on error, with message in err[] */
-	int (*buf_read_ccss)(struct _ccss *p, unsigned char *buf, int len);
+	int (*buf_read_ccss)(struct _ccss *p, unsigned char *buf, size_t len);
 
   /* Private: */
 	/* (All char * are owned by ccss) */
@@ -74,6 +80,10 @@ struct _ccss {
 
 /* Create a new, uninitialised ccss */
 ccss *new_ccss(void);
+
+#ifdef __cplusplus
+	}
+#endif
 
 #endif /* CCSS_H */
 

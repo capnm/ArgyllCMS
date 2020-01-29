@@ -9,4 +9,4 @@ Hierarchy:
 	ccpacket.c		socket write/read
 
 	ccmdns.c		MDNS sign on
-	axTLS			
+	axTLS			SSL/TLS library

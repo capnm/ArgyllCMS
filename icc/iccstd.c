@@ -9,7 +9,7 @@
  * Copyright 1997 - 2012 Graeme W. Gill
  *
  * This material is licensed with an "MIT" free use license:-
- * see the License.txt file in this directory for licensing details.
+ * see the License4.txt file in this directory for licensing details.
  *
  * These are kept in a separate file to allow them to be
  * selectively ommitted from the icc library.

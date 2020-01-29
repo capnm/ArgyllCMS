@@ -38,7 +38,6 @@
 #include "icc.h"
 #include "xicc.h"
 #include "vrml.h"
-#include "ui.h"
 
 /* Resolution of the sampling modes */
 #define TRES 11

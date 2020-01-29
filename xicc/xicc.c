@@ -902,6 +902,18 @@ xicc *p
 	free (p);
 }
 
+/* return nz if the intent implies Jab space */
+int xiccIsIntentJab(icRenderingIntent intent) {
+
+	if (intent == icxAppearance
+	 || intent == icxAbsAppearance
+	 || intent == icxPerceptualAppearance
+	 || intent == icxAbsPerceptualAppearance
+	 || intent == icxSaturationAppearance
+	 || intent == icxAbsSaturationAppearance)
+		return 1;
+	return 0;
+}
 
 /* Return an expanded lookup object, initialised */
 /* from the icc. */
@@ -934,12 +946,7 @@ icxInk *ink					/* inking details (NULL for default) */
 //printf("~1 xicc_get_luobj got intent '%s' and pcsor '%s'\n",icx2str(icmRenderingIntent,intent),icx2str(icmColorSpaceSignature,pcsor));
 
 	/* Ensure that appropriate PCS is slected for an appearance intent */
-	if (intent == icxAppearance
-	 || intent == icxAbsAppearance
-	 || intent == icxPerceptualAppearance
-	 || intent == icxAbsPerceptualAppearance
-	 || intent == icxSaturationAppearance
-	 || intent == icxAbsSaturationAppearance) {
+	if (xiccIsIntentJab(intent)) {		
 		pcsor = icxSigJabData;
 //printf("~1 pcsor = %s\n",tag2str(pcsor));
 
@@ -1365,6 +1372,7 @@ icxViewCond *vc		/* Viewing parameters to return */
 	printf("Technology = %s\n",tag2str(tsig));
 	printf("deviceClass = %s\n",tag2str(devc));
 	printf("Transparency = %d\n",trans);
+	// hk ? hkscale ?
 #endif
 	
 	/* See if the viewing conditions are completely defined as ICC can do it */
@@ -1625,7 +1633,7 @@ icxViewCond *vc,	/* Viewing parameters to return, May be NULL if desc is nz */
 int no,				/* Enumeration to return, -1 for default, -2 for none */
 char *as,			/* String alias to number, NULL if none */
 int desc,			/* NZ - Just return a description of this enumeration in vc */
-double *wp			/* Provide white point if xicc is NULL */
+double *wp			/* Provide XYZ white point if xicc is NULL */
 ) {
 
 	if (desc == 0) {	/* We're setting the viewing condition */
@@ -1665,6 +1673,9 @@ double *wp			/* Provide white point if xicc is NULL */
 		vc->Gxyz[0] = vc->Wxyz[0];
 		vc->Gxyz[1] = vc->Wxyz[1];
 		vc->Gxyz[2] = vc->Wxyz[2];
+
+		/* Default HK scaling factor = none */
+		vc->hkscale = 1.0;
 	}
 
 	/*
@@ -1919,6 +1930,7 @@ icxViewCond *vc
 	printf("  Flare to image ratio = %f\n",vc->Yf);
 	printf("  Glare to adapting/surround ratio = %f\n",vc->Yg);
 	printf("  Flare color = %f %f %f\n",vc->Gxyz[0], vc->Gxyz[1], vc->Gxyz[2]);
+	printf("  HK scaling = %f\n",vc->hkscale);
 }
 
 
@@ -1996,6 +2008,8 @@ char *as				/* Alias string selector, NULL for none */
 	int perccas = 0x0;	/* Use Lab for other intents */
 	fprintf(stderr,"!!!!!! Warning, USE_CAM is off in xicc.c !!!!!!\n");
 #endif
+
+	gmi->hkscale = -1.0;	/* Default is to not override viewing condition HK factor */
 
 	/* Assert default if no guidance given */
 	if (no == icxNoGMIntent && as == NULL)
@@ -2209,7 +2223,6 @@ char *as				/* Alias string selector, NULL for none */
 		gmi->desc = "lp - Luminance Preserving Perceptual";
 		gmi->icci = icPerceptual;
 		gmi->usecas  = perccas;		/* Appearance space */
-//		gmi->usecas  = 0;			/* Lab space */
 		gmi->usemap  = 1;			/* Use gamut mapping */
 		gmi->greymf  = 1.0;			/* Fully align grey axis */
 		gmi->glumwcpf = 1.0;		/* Fully compress grey axis at white end */
@@ -2226,6 +2239,7 @@ char *as				/* Alias string selector, NULL for none */
 		gmi->gamlpwf = 1.0;			/* Full Linear Preserving Perceptual wghtg. factor */
 		gmi->gamswf  = 0.0;			/* No Saturation weighting factor */
 		gmi->satenh  = 0.0;			/* No saturation enhancement */
+		gmi->hkscale = 0.2;			/* Mostly disable HK appearance modeling */
 	}
 	else if (no == 8
 	 || (as != NULL && stricmp(as,"ms") == 0)) {
@@ -2389,6 +2403,8 @@ icxGMappingIntent *gmi	/* Gamut Mapping parameters to return */
 		printf("  Gamut Saturation mapping weighting factor %f\n", gmi->gamswf);
 		printf("  Saturation enhancement factor %f\n", gmi->satenh);
 	}
+	if (gmi->hkscale >= 0.0)
+		printf("  HK scale override %f\n", gmi->hkscale);
 }
 
 /* ------------------------------------------------------ */

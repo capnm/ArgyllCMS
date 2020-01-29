@@ -266,7 +266,7 @@ yajl_gen_integer(yajl_gen g, longlong number)
 {
     char i[32];
     ENSURE_VALID_STATE; ENSURE_NOT_KEY; INSERT_SEP; INSERT_WHITESPACE;
-    sprintf(i, "%lld", number);
+    sprintf(i, "%" PF64PREC "d", number);
     g->print(g->ctx, i, (unsigned int)strlen(i));
     APPENDED_ATOM;
     FINAL_NEWLINE;

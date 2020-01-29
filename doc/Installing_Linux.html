@@ -31,6 +31,10 @@
     locations such as /usr/local/bin, /usr/local/argyll/bin etc.,
     depending on the conventions used on your system.<br>
     <br>
+    Some systems (Fedora ?) seem to be missing normal X11 libraries like
+    <b>libXss.so</b>, so you may have to install <b>libXScrnSaver</b>,
+    i.e. "sudo dnf install libXScrnSaver".<br>
+    <br>
     <big style="color: rgb(51, 102, 255);"><span style="font-weight:
         bold;"><a name="bell"></a>Note on the system bell:</span></big><br>
     <br>
@@ -51,8 +55,14 @@
 
 
 
+
+
+
     the <span style="font-weight: bold;">/etc/rc.local</span> startup
     script. You may also have to run <span style="font-weight: bold;">xset
+
+
+
 
 
 
@@ -181,17 +191,16 @@
     /etc/udev/rules.d/55-Argyll.rules file, but for older systems you
     probably need to disable libmtp (look in the udev configuration).<br>
     <br>
-    The <b>JETI</b> specbos <span style="font-weight: bold;">1211</span><span
-      style="font-weight: bold;"> </span>and <b>1201</b>, and the <b>Klien
-
-
-
-
-      K10A</b> makes use of the <a
+    The <b>JETI</b> specbos <b>1211</b><b>,&nbsp;</b><b>1201</b><b>,
+      1511, 1501</b> and the <b>Klien K10A</b> makes use of the <a
       href="http://www.ftdichip.com/Drivers/VCP.htm">FTDI Virtual COM
       Port Drivers</a> (VCP), that should come with any recent version
-    of Linux. You may have to add yourself to the <b>dialout</b> group
-    to be able to open the instrument.<br>
+    of Linux. Older versions of Linux may not support the FTDI FT231XS
+    chip that the <b>JETI</b> specbos <b>1511, 1501</b> use. You may
+    have to add yourself to the<span style="font-weight: bold;">
+      tty,&nbsp;</span><span style="font-weight: bold;">uucp</span>
+    or&nbsp;<b>dialout</b> group to have permission to open the
+    instrument.<br>
     <br>
     <span style="font-weight: bold;"></span>
     <hr style="width: 100%; height: 2px;">
@@ -255,6 +264,9 @@
 
 
 
+
+
+
     </span>(as appropriate) with&nbsp;owner root, group root,
     permissions 644.<br>
     <br>
@@ -268,6 +280,9 @@
     On recent systems the new rules file will be notices as soon as you
     plug the instrument in again.<br>
     On older systems you may need to run <b>/sbin/udevtrigger</b>,&nbsp;
+
+
+
 
 
 
@@ -347,6 +362,9 @@ instruments
 
 
 
+
+
+
         access using hotplug:<br>
       </span></h5>
     Under <span style="font-weight: bold;">much older versions of Linux</span>,
@@ -395,7 +413,8 @@ instruments
     &nbsp;If this doesn't work you will have to run "id yourusername" to
     list the current suplemental<br>
     &nbsp;groups, and add colord using just "usermod -G
-    group1,group2,... yourusername")<br>
+    group1,group2,... yourusername"<br>
+    &nbsp;Another option may be to use gpasswd -a $USER colord))<br>
     <br>
     You may find that the <span style="font-weight: bold;">colord</span>
     group doesn't exist on your system, and if so you will need to
@@ -403,10 +422,10 @@ instruments
     <br>
     &nbsp; sudo groupadd -r colord<br>
     <br>
-    and then add youself to the colord group.<br>
+    and then add yourself to the colord group.<br>
     <br>
     You may have to log out and then in again for the groups to become
-    effecive.<br>
+    effective.<br>
     <br>
     You can test whether your instrument is accessible by plugging it in
     and then running "spotread -?" and looking for it listed after the <span
@@ -425,35 +444,43 @@ instruments
 
 
 
+
+
+
         access:</span><br>
     </h5>
     If you have a serial instrument then you may find that by default
     you don't have permission to access the serial ports or a Serial to
     USB adapter. Most systems make the serial ports available to any
-    user in the <span style="font-weight: bold;">tty</span> and <span
-      style="font-weight: bold;">uucp </span>group, so the best way of
-    getting access to the serial ports is to add yourself to those
-    groups. You can do this either by using a "Users and Groups" system
-    administration tool, or on the command line using "usermod":<br>
+    user in the <span style="font-weight: bold;">tty</span>, <span
+      style="font-weight: bold;">uucp </span>or <b>dialout </b>group,
+    so the best way of getting access to the serial ports is to add
+    yourself to the correct group. (You can identify the correct group
+    by looking at the group name shown by <b>ls -l /dev/ttyS*</b> )<b><br>
+      <br>
+    </b>&nbsp;You can add yourself to a group either by using a "Users
+    and Groups" system administration tool, or on the command line using
+    "usermod":<br>
     <br>
     &nbsp;&nbsp;&nbsp; su root<br>
-    &nbsp;&nbsp;&nbsp; usermod -a -G tty,uucp $USER<br>
+    &nbsp;&nbsp;&nbsp; usermod -a -G dialout $USER<br>
     <br>
     or<br>
     <br>
-    &nbsp;&nbsp; sudo usermod -a -G tty,uucp $USER<br>
+    &nbsp;&nbsp; sudo usermod -a -G dialout $USER<br>
     <br>
     (If the usermod program isn't found as root, it might be in
     /usr/sbin, ie. use /usr/sbin/usermod .... etc.<br>
     &nbsp;If usermod doesn't recognize the -a flag try "usermod -A
-    colord $USER".<br>
+    dialout $USER".<br>
     &nbsp;If this doesn't work you will have to run "id yourusername" to
     list the current suplemental<br>
-    &nbsp;groups, and add a tty or uucp group using just "usermod -G
-    group1,group2,... yourusername")<br>
+    &nbsp;groups, and add a tty, uucp or dialout group using just
+    "usermod -G group1,group2,... yourusername"<br>
+    &nbsp;Another option may be to use gpasswd -a $USER dialout)<br>
     <br>
     You may have to log out and then in again for the group to become
-    effecive.<span style="font-weight: bold;"><br>
+    effective.<span style="font-weight: bold;"><br>
     </span>
     <p>&nbsp; <br>
       &nbsp; <br>

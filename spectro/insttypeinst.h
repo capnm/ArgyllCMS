@@ -9,6 +9,10 @@
  * see the License2.txt file for licencing details.
  */
 
+#ifdef __cplusplus
+	extern "C" {
+#endif
+
 
 #ifdef ENABLE_SERIAL
 # include "dtp22.h"

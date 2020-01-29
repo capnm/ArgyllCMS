@@ -1,4 +1,4 @@
-/* $Id: tiff2bw.c,v 1.17 2014-12-21 20:58:30 erouault Exp $ */
+/* $Id$ */
 
 /*
  * Copyright (c) 1988-1997 Sam Leffler
@@ -45,7 +45,7 @@
 #define	strneq(a,b,n)	(strncmp(a,b,n) == 0)
 
 /* x% weighting -> fraction of full color */
-#define	PCT(x)	(((x)*255+127)/100)
+#define	PCT(x)	(((x)*256+50)/100)
 int	RED = PCT(30);		/* 30% */
 int	GREEN = PCT(59);	/* 59% */
 int	BLUE = PCT(11);		/* 11% */
@@ -127,8 +127,10 @@ main(int argc, char* argv[])
 	unsigned char *inbuf, *outbuf;
 	char thing[1024];
 	int c;
+#if !HAVE_DECL_OPTARG
 	extern int optind;
 	extern char *optarg;
+#endif
 
 	while ((c = getopt(argc, argv, "c:r:R:G:B:")) != -1)
 		switch (c) {

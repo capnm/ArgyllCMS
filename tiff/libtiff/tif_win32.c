@@ -1,4 +1,4 @@
-/* $Id: tif_win32.c,v 1.40 2012-11-18 17:51:52 bfriesen Exp $ */
+/* $Id$ */
 
 /*
  * Copyright (c) 1988-1997 Sam Leffler
@@ -28,13 +28,37 @@
  * TIFF Library Win32-specific Routines.  Adapted from tif_unix.c 4/5/95 by
  * Scott Wagner (wagner@itek.com), Itek Graphix, Rochester, NY USA
  */
+
+/*
+  CreateFileA/CreateFileW return type 'HANDLE'.
+
+  thandle_t is declared like
+
+    DECLARE_HANDLE(thandle_t);
+
+  in tiffio.h.
+
+  Windows (from winnt.h) DECLARE_HANDLE logic looks like
+
+  #ifdef STRICT
+    typedef void *HANDLE;
+  #define DECLARE_HANDLE(name) struct name##__ { int unused; }; typedef struct name##__ *name
+  #else
+    typedef PVOID HANDLE;
+  #define DECLARE_HANDLE(name) typedef HANDLE name
+  #endif
+
+  See http://bugzilla.maptools.org/show_bug.cgi?id=1941 for problems in WIN64
+  builds resulting from this.  Unfortunately, the proposed patch was lost.
+
+*/
+  
 #include "tiffiop.h"
-#include "malloc.h"
 
 #include <windows.h>
 
 static tmsize_t
-_tiffReadProc(tfd_t fd, void* buf, tmsize_t size)
+_tiffReadProc(thandle_t fd, void* buf, tmsize_t size)
 {
 	/* tmsize_t is 64bit on 64bit systems, but the WinAPI ReadFile takes
 	 * 32bit sizes, so we loop through the data in suitable 32bit sized
@@ -64,7 +88,7 @@ _tiffReadProc(tfd_t fd, void* buf, tmsize_t size)
 }
 
 static tmsize_t
-_tiffWriteProc(tfd_t fd, void* buf, tmsize_t size)
+_tiffWriteProc(thandle_t fd, void* buf, tmsize_t size)
 {
 	/* tmsize_t is 64bit on 64bit systems, but the WinAPI WriteFile takes
 	 * 32bit sizes, so we loop through the data in suitable 32bit sized
@@ -94,7 +118,7 @@ _tiffWriteProc(tfd_t fd, void* buf, tmsize_t size)
 }
 
 static uint64
-_tiffSeekProc(tfd_t fd, uint64 off, int whence)
+_tiffSeekProc(thandle_t fd, uint64 off, int whence)
 {
 	LARGE_INTEGER offli;
 	DWORD dwMoveMethod;
@@ -121,13 +145,13 @@ _tiffSeekProc(tfd_t fd, uint64 off, int whence)
 }
 
 static int
-_tiffCloseProc(tfd_t fd)
+_tiffCloseProc(thandle_t fd)
 {
 	return (CloseHandle(fd) ? 0 : -1);
 }
 
 static uint64
-_tiffSizeProc(tfd_t fd)
+_tiffSizeProc(thandle_t fd)
 {
 	ULARGE_INTEGER m;
 	m.LowPart=GetFileSize(fd,&m.HighPart);
@@ -135,7 +159,7 @@ _tiffSizeProc(tfd_t fd)
 }
 
 static int
-_tiffDummyMapProc(tfd_t fd, void** pbase, toff_t* psize)
+_tiffDummyMapProc(thandle_t fd, void** pbase, toff_t* psize)
 {
 	(void) fd;
 	(void) pbase;
@@ -155,7 +179,7 @@ _tiffDummyMapProc(tfd_t fd, void** pbase, toff_t* psize)
  * with Visual C++ 5.0
  */
 static int
-_tiffMapProc(tfd_t fd, void** pbase, toff_t* psize)
+_tiffMapProc(thandle_t fd, void** pbase, toff_t* psize)
 {
 	uint64 size;
 	tmsize_t sizem;
@@ -180,7 +204,7 @@ _tiffMapProc(tfd_t fd, void** pbase, toff_t* psize)
 }
 
 static void
-_tiffDummyUnmapProc(tfd_t fd, void* base, toff_t size)
+_tiffDummyUnmapProc(thandle_t fd, void* base, toff_t size)
 {
 	(void) fd;
 	(void) base;
@@ -188,7 +212,7 @@ _tiffDummyUnmapProc(tfd_t fd, void* base, toff_t size)
 }
 
 static void
-_tiffUnmapProc(tfd_t fd, void* base, toff_t size)
+_tiffUnmapProc(thandle_t fd, void* base, toff_t size)
 {
 	(void) fd;
 	(void) size;
@@ -201,7 +225,7 @@ _tiffUnmapProc(tfd_t fd, void* base, toff_t size)
  * string, which forces the file to be opened unmapped.
  */
 TIFF*
-TIFFFdOpen(tfd_t ifd, const char* name, const char* mode)
+TIFFFdOpen(int ifd, const char* name, const char* mode)
 {
 	TIFF* tif;
 	int fSuppressMap;
@@ -215,7 +239,7 @@ TIFFFdOpen(tfd_t ifd, const char* name, const char* mode)
 			break;
 		}
 	}
-	tif = TIFFClientOpen(name, mode, ifd,
+	tif = TIFFClientOpen(name, mode, (thandle_t)ifd, /* FIXME: WIN64 cast to pointer warning */
 			_tiffReadProc, _tiffWriteProc,
 			_tiffSeekProc, _tiffCloseProc, _tiffSizeProc,
 			fSuppressMap ? _tiffDummyMapProc : _tiffMapProc,
@@ -234,7 +258,7 @@ TIFF*
 TIFFOpen(const char* name, const char* mode)
 {
 	static const char module[] = "TIFFOpen";
-	tfd_t fd;
+	thandle_t fd;
 	int m;
 	DWORD dwMode;
 	TIFF* tif;
@@ -250,7 +274,7 @@ TIFFOpen(const char* name, const char* mode)
 		default:			return ((TIFF*)0);
 	}
         
-	fd = CreateFileA(name,
+	fd = (thandle_t)CreateFileA(name,
 		(m == O_RDONLY)?GENERIC_READ:(GENERIC_READ | GENERIC_WRITE),
 		FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, dwMode,
 		(m == O_RDONLY)?FILE_ATTRIBUTE_READONLY:FILE_ATTRIBUTE_NORMAL,
@@ -260,7 +284,7 @@ TIFFOpen(const char* name, const char* mode)
 		return ((TIFF *)0);
 	}
 
-	tif = TIFFFdOpen(fd, name, mode);
+	tif = TIFFFdOpen((int)fd, name, mode);   /* FIXME: WIN64 cast from pointer to int warning */
 	if(!tif)
 		CloseHandle(fd);
 	return tif;
@@ -273,7 +297,7 @@ TIFF*
 TIFFOpenW(const wchar_t* name, const char* mode)
 {
 	static const char module[] = "TIFFOpenW";
-	tfd_t fd;
+	thandle_t fd;
 	int m;
 	DWORD dwMode;
 	int mbsize;
@@ -291,7 +315,7 @@ TIFFOpenW(const wchar_t* name, const char* mode)
 		default:			return ((TIFF*)0);
 	}
 
-	fd = CreateFileW(name,
+	fd = (thandle_t)CreateFileW(name,
 		(m == O_RDONLY)?GENERIC_READ:(GENERIC_READ|GENERIC_WRITE),
 		FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, dwMode,
 		(m == O_RDONLY)?FILE_ATTRIBUTE_READONLY:FILE_ATTRIBUTE_NORMAL,
@@ -315,7 +339,7 @@ TIFFOpenW(const wchar_t* name, const char* mode)
 				    NULL, NULL);
 	}
 
-	tif = TIFFFdOpen(fd,
+	tif = TIFFFdOpen((int)fd,    /* FIXME: WIN64 cast from pointer to int warning */
 			 (mbname != NULL) ? mbname : "<unknown>", mode);
 	if(!tif)
 		CloseHandle(fd);

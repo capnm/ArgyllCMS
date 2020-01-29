@@ -481,7 +481,7 @@ i1disp_rdexreg_bytes(
 ) {
 	unsigned char ibuf[16];
 	unsigned char obuf[16];
-	int rsize;
+	int ooff, rsize;
 	inst_code ev;
 
 	if (p->dtype != 2)		/* Only ColorMunki Smile ? */
@@ -493,7 +493,7 @@ i1disp_rdexreg_bytes(
 	if (len < 0 || (addr + len) > 0x0200)
 		return i1disp_interp_code((inst *)p, I1DISP_BAD_REG_ADDRESS);
 
-	for (; len > 0; ) {
+	for (ooff = 0; len > 0; ) {
 		int rlen = len;
 		if (rlen > 4)
 			rlen = 4;
@@ -512,7 +512,8 @@ i1disp_rdexreg_bytes(
 		if (obuf[0] != rlen)			/* Number of bytes returned */
 			return i1disp_interp_code((inst *)p, I1DISP_UNEXPECTED_RET_VAL);
 
-		memcpy(outp + addr, obuf + 1, rlen); 
+		memcpy(outp + ooff, obuf + 1, rlen); 
+		ooff += rlen;
 		addr += rlen;
 		len -= rlen;
 	}
@@ -643,6 +644,7 @@ i1d1_take_measurement(
 	int i;
 	int edgec[3];		/* Edge count 1..255 for each channel */
 	inst_code ev;
+	double edge_aim = p->clk_freq;	
 
 	if (p->inited == 0)
 		return i1disp_interp_code((inst *)p, I1DISP_NOT_INITED);
@@ -659,13 +661,18 @@ i1d1_take_measurement(
 	a1logd(p->log, 3, "Initial RGB = %f %f %f\n",rgb[0],rgb[1],rgb[2]);
 
 	/* Compute adjusted edge count, aiming */
-	/* for count values of clk_freq = 1 second (~1e6). */
+	/* for count values of clk_freq = 1 second (~1e6), */
+	/* or 2 seconds if an older instrument */
+	if (p->stype == i1d1_sencoreIV
+	 || p->stype == i1d1_sencoreIII)
+		edge_aim = 2.0 * p->clk_freq;;
+
 	for (i = 0; i < 3; i++) {
 		double ns;
-		if (p->clk_freq > ((255.0 - 0.5) * rgb[i]))
+		if (edge_aim > ((255.0 - 0.5) * rgb[i]))
 			ns = 255.0;
 		else {
-			ns = floor(p->clk_freq/rgb[i]) + 0.5;
+			ns = floor(edge_aim/rgb[i]) + 0.5;
 			if (ns < 1.0)
 				ns = 1.0;
 		}
@@ -1254,12 +1261,13 @@ i1disp_take_XYZ_measurement(
 		for (j = 0; j < 3; j++) {
 			XYZ[i] += mat[i * 3 + j] * rgb[j]; 
 		}
-		XYZ[i] *= CALFACTOR;		/* Times magic scale factor */
 
-#ifdef NEVER
-		if (p->chroma4)
-			XYZ[i] *= 4.0/3.0;			/* (Not sure about this factor!) */
-#endif
+
+		/* Magic factors for other devices ?? */
+		if (p->stype == i1d1_sencoreIV)
+			XYZ[i] *= CALFACTOR;			/* (Not sure about this factor!) */
+		else
+			XYZ[i] *= CALFACTOR;		/* Times magic scale factor */
 	}
 
 	if (!IMODETST(p->mode, inst_mode_emis_ambient)) {
@@ -1402,25 +1410,26 @@ i1disp_check_unlock(
 
 	struct {
 		unsigned char code[4];
-		int *flag;
+		i1d2_dtype stype;
 	} codes[] = {
-		{ { 'G','r','M','b' }, NULL },			/* "GrMb" i1 Display */
-		{ { 'L','i','t','e' }, &p->lite },		/* "Lite" i1 Display LT */
-		{ { 'M','u','n','k' }, &p->munki },		/* "Munk" ColorMunki Create */
-		{ { 'O','b','i','W' }, &p->hpdream },	/* "ObiW" HP DreamColor */
-		{ { 'O','b','i','w' }, &p->hpdream },	/* "Obiw" HP DreamColor */
-		{ { 'C','M','X','2' }, &p->calmanx2 },	/* "CMX2" Calman X2 */
-		{ { 0x24,0xb6,0xb5,0x13 }, NULL },		/* ColorMunki Smile */
-		{ { 'S','p','C','3' }, NULL },			/* SpectraCal C3 (Based on Smile) */
-		{ { 'R','G','B','c' }, NULL },			/* */
-		{ { 'C','E','C','5' }, NULL },			/* */
-		{ { 'C','M','C','5' }, NULL },			/* */
-		{ { 'C','M','G','5' }, NULL },			/* */
-		{ { 0x00,0x00,0x01,0x00 }, NULL },		/* */
-		{ { 0x09,0x0b,0x0c,0x0d }, NULL },		/* */
-		{ { 0x0e,0x0e,0x0e,0x0e }, NULL },		/* */
-		{ { 0x11,0x02,0xde,0xf0 }, NULL },		/* Barco Chroma 5 ? */
-		{ { ' ',' ',' ',' ' }, (int *)-1 }
+		{ { 'G','r','M','b' },     i1d2_norm },		/* "GrMb" i1 Display */
+		{ { 'L','i','t','e' },     i1d2_lite },		/* "Lite" i1 Display LT */
+		{ { 'M','u','n','k' },     i1d2_munki },	/* "Munk" ColorMunki Create */
+		{ { 'O','b','i','W' },     i1d2_hpdream },	/* "ObiW" HP DreamColor */
+		{ { 'O','b','i','w' },     i1d2_hpdream },	/* "Obiw" HP DreamColor */
+		{ { 'C','M','X','2' },     i1d1_calmanx2 },	/* "CMX2" Calman X2 */
+		{ { 0x24,0xb6,0xb5,0x13 }, i1d2_norm },		/* ColorMunki Smile */
+		{ { 'S','p','C','3' },     i1d2_norm },		/* SpectraCal C3 (Based on Smile) */
+		{ { 'R','G','B','c' },     i1d2_norm },		/* */
+		{ { 'C','E','C','5' },     i1d2_norm },		/* */
+		{ { 'C','M','C','5' },     i1d2_norm },		/* */
+		{ { 'C','M','G','5' },     i1d2_norm },		/* */
+		{ { 0x00,0x00,0x01,0x00 }, i1d2_norm },		/* */
+		{ { 0x09,0x0b,0x0c,0x0d }, i1d2_norm },		/* */
+		{ { 0x0e,0x0e,0x0e,0x0e }, i1d2_norm },		/* */
+		{ { 0x11,0x02,0xde,0xf0 }, i1d2_norm },		/* Barco Chroma 5 ? */
+//		{ { 0xff,0xff,0xff,0xff }, i1d2_norm },		/* Chroma 5 isn't locked ? */
+		{ { ' ',' ',' ',' ' }, -1 }
 	}; 
 
 	a1logd(p->log, 3, "i1disp: about to check response and unlock instrument if needed\n");
@@ -1433,17 +1442,9 @@ i1disp_check_unlock(
 	/* Try and unlock it if it is locked */
 	if ((ev & inst_imask) == I1DISP_LOCKED) {
 
-		/* Reset any flags */
-		for (i = 0; ;i++) {
-			if (codes[i].flag == (int *)-1)
-				break;
-			if (codes[i].flag != NULL)
-				*codes[i].flag = 0;
-		}
-
 		/* Try each code in turn */
 		for (i = 0; ;i++) {
-			if (codes[i].flag == (int *)-1) {
+			if (codes[i].stype == -1) {
 				a1logd(p->log, 3, "Failed to find correct unlock code\n");
 				return i1disp_interp_code((inst *)p, I1DISP_UNKNOWN_MODEL);
 			}
@@ -1461,8 +1462,9 @@ i1disp_check_unlock(
 				return ev;	/* An error other than being locked */
 
 			if (ev == inst_ok) {	/* Correct code */
-				if (codes[i].flag != NULL)
-					*codes[i].flag = 1;
+				p->stype = codes[i].stype;
+				a1logd(p->log, 3, "Unlocked with code '%c%c%c%c'\n",
+				codes[i].code[0], codes[i].code[1], codes[i].code[2], codes[i].code[3]);
 				break;
 			}
 		}
@@ -1485,15 +1487,30 @@ i1disp_check_unlock(
 
 	a1logd(p->log, 3, "Version character = 0x%02x = '%c'\n",vv,vv);
 
-	/* Sequel Chroma 4 with vv == 0xff ? */
-	/* Barco Chroma 5 with ver = 5.01 and vv = '5' */
-	if (ver >= 4.0 && ver < 5.1
-	 && (vv == 0xff || vv == 0x35)) {
+	/* Barco Chroma 5 with ver = 5.01 vv = '5' */
+	if (ver >= 4.0 && ver < 5.1 && vv == '5') {
 		p->dtype = 0;			/* Sequel Chroma 4 ?? */
-		p->chroma4 = 1;			/* Treat like an Eye-One Display 1 */
-								/* !!! Not fully tested !!! */
+		p->stype = i1d1_chroma4;	/* Treat like an Eye-One Display 1 */
+
+	/* Sequel Chroma 4 with vv == 0xff ???? */
+	/* Sencore ColorPro III with ver = 5.01 and vv = 0xff */
+	} else if (ver >= 4.0 && ver < 5.1 && vv == 0xff) {
+		p->dtype = 0;			/* Eye-One Display 1 */
+		p->stype = i1d1_sencoreIII; 
+
+	/* Sencore ColorPro IV with ver = 5.01 and vv = 'L' */
+	} else if (ver >= 4.0 && ver < 5.1 && vv == 'L') {
+		p->dtype = 0;			/* Eye-One Display 1 */
+		p->stype = i1d1_sencoreIV;	/* Treat like an Eye-One Display 1 */
+
+	/* Sencore ColorPro V with ver = 5.01 and vv = 'B' */
+	} else if (ver >= 4.0 && ver < 5.1 && vv == 'B') {
+		p->dtype = 0;			/* Eye-One Display 1 */
+		p->stype = i1d1_sencoreV;	/* Treat like an Eye-One Display 1 */
+
 	} else if (ver >= 5.1 && ver <= 5.3 && vv == 'L') {
 		p->dtype = 0;			/* Eye-One Display 1 */
+
 	} else if (ver >= 6.0 && ver <= 6.29 && vv == 'L') {
 		p->dtype = 1;			/* Eye-One Display 2 */
 
@@ -1506,7 +1523,7 @@ i1disp_check_unlock(
 		
 	} else {
 		/* Reject any version or model we don't know about */
-		a1logv(p->log, 1, "Version string = %3.1f\nID character = 0x%02x = '%c'\n",ver,vv,vv);
+		a1logd(p->log, 1, "Version string = %5.3f\nID character = 0x%02x = '%c'\n",ver,vv,vv);
 		return i1disp_interp_code((inst *)p, I1DISP_UNKNOWN_VERS_ID);
 	}
 
@@ -1998,6 +2015,7 @@ inst_code i1disp_calibrate(
 inst *pp,
 inst_cal_type *calt,	/* Calibration type to do/remaining */
 inst_cal_cond *calc,	/* Current condition/desired condition */
+inst_calc_id_type *idtype,	/* Condition identifier type */
 char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 ) {
 	i1disp *p = (i1disp *)pp;
@@ -2009,6 +2027,7 @@ char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 	if (!p->inited)
 		return inst_no_init;
 
+	*idtype = inst_calc_id_none;
 	id[0] = '\000';
 
 	if ((ev = i1disp_get_n_a_cals((inst *)p, &needed, &available)) != inst_ok)
@@ -2588,8 +2607,7 @@ int *cbid) {
  * was assume that all of these can be done before initialisation.
  */
 static inst_code
-i1disp_get_set_opt(inst *pp, inst_opt_type m, ...)
-{
+i1disp_get_set_opt(inst *pp, inst_opt_type m, ...) {
 	i1disp *p = (i1disp *)pp;
 	inst_code ev;
 
@@ -2600,7 +2618,17 @@ i1disp_get_set_opt(inst *pp, inst_opt_type m, ...)
 		return inst_ok;
 	}
 
-	return inst_unsupported;
+	/* Use default implementation of other inst_opt_type's */
+	{
+		inst_code rv;
+		va_list args;
+
+		va_start(args, m);
+		rv = inst_get_set_opt_def(pp, m, args);
+		va_end(args);
+
+		return rv;
+	}
 }
 
 /* Constructor */

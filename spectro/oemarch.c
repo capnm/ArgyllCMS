@@ -38,6 +38,8 @@
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <ctype.h>
+#include <sys/types.h>
+#include <pwd.h>
 #endif /* UNIX */
 #ifndef SALONEINSTLIB
 #include "copyright.h"
@@ -96,7 +98,7 @@ oem_target oemtargs = {
 		{ NULL }
 	}
 #endif /* NT */
-#ifdef __APPLE__
+#ifdef UNIX_APPLE
 	{	/* Installed files */
 		{ "/Applications/Spyder2express 2.2/Spyder2express.app/Contents/MacOSClassic/Spyder.lib", targ_spyd2_pld },
 		{ "/Applications/Spyder2pro 2.2/Spyder2pro.app/Contents/MacOSClassic/Spyder.lib", targ_spyd2_pld },
@@ -117,25 +119,35 @@ oem_target oemtargs = {
 		{ "/PhotoCAL/PhotoCAL Setup.exe",          targ_spyd2_pld },
 		{ "/OptiCAL/OptiCAL Setup.exe",            targ_spyd2_pld },
 		{ "/setup/setup.exe",                      targ_spyd2_pld },
-		{ "/Data/setup.exe",                       targ_spyd_cal },
+//		{ "/Data/setup.exe",                       targ_spyd_cal },
+		{ "/Data/Setup.exe",                       targ_spyd_cal },
 		{ "/Installer/Setup.exe",                  targ_i1d3_edr },
 		{ "/Installer/ColorMunkiDisplaySetup.exe", targ_i1d3_edr },
 		{ NULL }
 	}
-#endif /* __APPLE__ */
+#endif /* UNIX_APPLE */
 #ifdef UNIX_X11
 	{	/* Installed files */
 		{ NULL }
 	},
-	{	/* Volume names the CDROM may have */
+	{	/* Volume names the CDROM may have. */
+		/* (It's a pity the linux developers have no idea what a stable API looks like...) */
+		{ "/run/media/$USER/ColorVision", targ_spyd2_pld | targ_spyd_cal },
+		{ "/run/media/$USER/Datacolor",   targ_spyd2_pld | targ_spyd_cal },
+		{ "/run/media/$USER/i1Profiler",	                              targ_i1d3_edr },
+		{ "/run/media/$USER/ColorMunki Displ",	                          targ_i1d3_edr },
+
 		{ "/media/ColorVision", targ_spyd2_pld | targ_spyd_cal },
 		{ "/media/Datacolor",   targ_spyd2_pld | targ_spyd_cal },
 		{ "/media/i1Profiler",	                                targ_i1d3_edr },
 		{ "/media/ColorMunki Displ",	                        targ_i1d3_edr },
+
 		{ "/mnt/cdrom",         targ_spyd2_pld | targ_spyd_cal | targ_i1d3_edr },
 		{ "/mnt/cdrecorder",    targ_spyd2_pld | targ_spyd_cal | targ_i1d3_edr },
+
 		{ "/media/cdrom",       targ_spyd2_pld | targ_spyd_cal | targ_i1d3_edr },
 		{ "/media/cdrecorder",  targ_spyd2_pld | targ_spyd_cal | targ_i1d3_edr },
+
 		{ "/cdrom",             targ_spyd2_pld | targ_spyd_cal | targ_i1d3_edr },
 		{ "/cdrecorder",        targ_spyd2_pld | targ_spyd_cal | targ_i1d3_edr },
 		{ NULL }
@@ -152,14 +164,14 @@ oem_target oemtargs = {
 #endif /* UNIX_X11 */
 };
 
-#if defined(__APPLE__)
+#if defined(UNIX_APPLE)
 /* Global: */
 char *oemamount_path = NULL;
 #endif 
 
 /* Cleanup function for transfer on Apple OS X */
 void oem_umiso() {
-#if defined(__APPLE__)
+#if defined(UNIX_APPLE)
 	if (oemamount_path != NULL) {
 		char sbuf[MAXNAMEL+1 + 100];
 		sprintf(sbuf, "umount \"%s\"",oemamount_path);
@@ -167,7 +179,7 @@ void oem_umiso() {
 		sprintf(sbuf, "rmdir \"%s\"",oemamount_path);
 		system(sbuf);
 	}
-#endif /* __APPLE__ */
+#endif /* UNIX_APPLE */
 }
 
 static xfile *locate_volume(int verb);
@@ -561,7 +573,7 @@ static xfile *locate_volume(int verb) {
 	}
 #endif /* NT */
 
-#if defined(__APPLE__)
+#if defined(UNIX_APPLE)
 	{
 		int j;
 		char tname[MAXNAMEL+1] = { '\000' };
@@ -626,7 +638,7 @@ static xfile *locate_volume(int verb) {
 			}
 		}
 	}
-#endif /* __APPLE__ */
+#endif /* UNIX_APPLE */
 
 #if defined(UNIX_X11)
 		{
@@ -635,15 +647,49 @@ static xfile *locate_volume(int verb) {
 			/* See if we can see what we're looking for on one of the volumes */
 			/* It would be nice to be able to read the volume name ! */
 			for (j = 0;;j++) {
-				if (oemtargs.volnames[j].path == NULL)
+				char *vol, *cp;
+
+				vol = oemtargs.volnames[j].path;
+
+				if (vol == NULL)
 					break;
 				
-				if (access(oemtargs.volnames[j].path, 0) == 0) {
-					if (verb) printf("found '%s'\n",oemtargs.volnames[j].path);
-					new_add_xf(&xf, oemtargs.volnames[j].path, NULL, 0,
-					                         file_vol, oemtargs.volnames[j].ttype);
-					break;		
+				/* Some linux paths include the real user name */
+				if ((cp = strstr(vol, "$USER")) != NULL) {
+					char *ivol = vol;
+					char *usr;
+					int len;
+		
+					/* Media gets mounted as console user, */
+					/* so we need to know what that is. */
+					/* (Hmm. this solves access problem when
+					   running as root, but not saving resulting
+					   file to $HOME/.local/etc */
+					if ((usr = getenv("SUDO_USER")) == NULL) {
+						if ((usr = getenv("USER")) == NULL)
+							error("$USER is empty");
+					}
+
+					len = strlen(ivol) - 5 + strlen(usr) + 1;
+
+					if ((vol = malloc(len)) == NULL)
+						error("Malloc of volume path length %d failed",len);
+
+					strncpy(vol, ivol, cp-ivol);
+					vol[cp-ivol]= '\000';
+					strcat(vol, usr);
+					strcat(vol, cp + 5);
 				}
+
+				if (access(vol, 0) == 0) {
+					if (verb) printf("found '%s'\n",vol);
+					new_add_xf(&xf, vol, NULL, 0, file_vol, oemtargs.volnames[j].ttype);
+					if (vol != oemtargs.volnames[j].path)
+						free(vol);
+					break;
+				}
+				if (vol != oemtargs.volnames[j].path)
+					free(vol);
 			}
 		}
 #endif	/* UNIX */
@@ -1407,7 +1453,7 @@ static xfile *edr_convert(xfile **pxf, xfile *xi, int verb) {
 		char *ccssname;
 		char *edrname;
 		unsigned char *buf;
-		int len;
+		size_t len;
 		if (c->buf_write_ccss(c, &buf, &len)) {
 			error("Failed to create ccss for '%s' error '%s'",xi->name,c->err);
 		}
@@ -2622,7 +2668,8 @@ static xfile *ai_extract_cab(xfile **pxf, xfile *xi, char *tname, int verb) {
 
 	if (verb) printf("Extracted '%s' length %ld\n",xf->name,xf->len);
 
-save_xfile(xf, "temp.cab", NULL, verb);
+//	/* Save diagnostic file */
+//	save_xfile(xf, "temp.cab", NULL, verb);
 
 	return xf;
 }

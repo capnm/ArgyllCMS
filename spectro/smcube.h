@@ -37,6 +37,10 @@
 
 #include "inst.h"
 
+#ifdef __cplusplus
+	extern "C" {
+#endif
+
 /* Fake Error codes */
 #define SMCUBE_INTERNAL_ERROR			0xff01		/* Internal software error */
 #define SMCUBE_TIMEOUT				    0xff02		/* Communication timeout */
@@ -67,7 +71,7 @@
 struct _smcube {
 	INST_OBJ_BASE
 
-	int bt;						/* Bluetooth coms rather than USB/serial */
+	int bt;						/* Bluetooth coms rather than USB/serial flag */
 
 	amutex lock;				/* Command lock */
 
@@ -114,6 +118,9 @@ struct _smcube {
 /* Constructor */
 extern smcube *new_smcube(icoms *icom, instType itype);
 
+#ifdef __cplusplus
+	}
+#endif
 
 #define SMCUBE_H
 #endif /* SMCUBE_H */

@@ -9,12 +9,18 @@
   <body>
     <h2> profile/colprof</h2>
     <h3>Summary</h3>
-    Create an&nbsp;<a href="File_Formats.html#ICC">ICC</a> profile from
-    the&nbsp;<a href="File_Formats.html#.ti3">.ti3</a> test chart patch
-    values.<br>
+    Create an RGB, CMY or CMYK <a href="File_Formats.html#ICC">ICC</a>
+    profile from the&nbsp;<a href="File_Formats.html#.ti3">.ti3</a> test
+    chart patch values.<br>
+    [ Note that currently, Monochrome and N-Color profiles are not
+    supported. ]<br>
     <h3>Usage Summary</h3>
     &nbsp;<tt><small>colprof [-<i>options</i>] inoutfile<br>
         &nbsp;<a href="#v">-v</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
 
 
 
@@ -86,6 +92,10 @@
 
 
 
+
+
+
+
         &nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Default
         intent: Perceptual, Rel. Colorimetric, Saturation, Abs.
         Colorimetric</small></tt><tt><br>
@@ -129,12 +139,20 @@
 
 
 
+
+
+
+
         &nbsp; &nbsp; &nbsp; &nbsp; Don't create input (Device) shaper
         curves<br>
       </small></tt><tt><small>&nbsp;<a href="#np">-np</a>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
         Don't create input (Device) grid position curves</small></tt><tt><br>
     </tt><tt> </tt><tt><small>&nbsp;<a href="#no">-no</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
 
 
 
@@ -221,6 +239,10 @@ x
 
 
 
+
+
+
+
         max K, r = ramp K<br>
         &nbsp;<a href="#kp">-k p stle stpo enpo enle shape</a><br>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
@@ -234,6 +256,10 @@ level
 at
 White
 0.0
+
+
+
+
 
 
 
@@ -313,6 +339,10 @@ Wh
 
 
 
+
+
+
+
         0.0 - Bk 1.0<br>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;
@@ -359,6 +389,10 @@ Wh
 
 
 
+
+
+
+
         0.0 - Bk 1.0<br>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;
@@ -371,6 +405,10 @@ K
 level
 at
 Black
+
+
+
+
 
 
 
@@ -450,8 +488,16 @@ concave,
 
 
 
+
+
+
+
         1.0-2.0 convex<br>
         &nbsp;<a href="#K">-K parameters</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
 
 
 
@@ -529,6 +575,10 @@ cLUT
 
 
 
+
+
+
+
         x = XYZ cLUT, X = display XYZ cLUT + matrix<br>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;
@@ -541,6 +591,10 @@ g
 gamma+matrix,
 s
 =
+
+
+
+
 
 
 
@@ -620,12 +674,20 @@ S
 
 
 
+
+
+
+
         single shaper+matrix<br>
         &nbsp;<a href="#u">-u</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;
 &nbsp;
 &nbsp;
 &nbsp;
+
+
+
+
 
 
 
@@ -699,8 +761,16 @@ and
 
 
 
+
+
+
+
       primaries to be +ve</tt><tt><br>
       &nbsp;<a href="#B">-B X,Y,Z</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
 
 
 
@@ -725,12 +795,20 @@ and
 
 
 
+
+
+
+
       Degree of dark region cLUT grid emphasis 1.0-3.0 (default 1.00 =
       none)<br>
     </tt><tt>&nbsp;</tt><tt><small><small><a href="#f">-f [<i>illum</i>]</a>
           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Use Fluorescent
           Whitening Agent compensation [opt. simulated inst. illum.:<br>
           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
 
 
 
@@ -780,6 +858,10 @@ and
 
 
 
+
+
+
+
               &nbsp; &nbsp; &nbsp; &nbsp; Choose illuminant for
               computation of CIE XYZ from spectral data &amp; FWA:<br>
               &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
@@ -793,6 +875,10 @@ C,
 D50
 (def.),
 D50M2,
+
+
+
+
 
 
 
@@ -853,93 +939,26 @@ D50M2,
 
 
 
+
+
+
+
         &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 1931_2 </small></tt><tt><small>(def.)</small></tt><tt><small>,
         1964_10, S&amp;B 1955_2, shaw, J&amp;V 1978_2<br>
         &nbsp;<a href="#r">-r avgdev</a> &nbsp; &nbsp; &nbsp;
         &nbsp;&nbsp; Average deviation of device+instrument readings as
         a percentage (default 0.5%)<br>
-        &nbsp;<a href="#s">-s src.icc</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-Apply
-gamut
-mapping
-to
-output
-profile
-perceptual
-B2A
-table
-for
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        given source<br>
-        &nbsp;<a href="#S">-S src.icc</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        Apply gamut mapping to output profile perceptual and saturation
-        B2A table<br>
+        &nbsp;<a href="#s">-s src.icm|cperc</a> &nbsp; Apply gamut
+        mapping to output profile perceptual B2A table for given source,
+        or compression percentage<br>
+        &nbsp;<a href="#S">-S src.icm|experc</a>&nbsp; Apply gamut
+        mapping to output profile perceptual and saturation B2A table,
+        or expansion percentage<br>
         &nbsp;<a href="#nP">-nP</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
 
 
 
@@ -1009,6 +1028,10 @@ for
 
 
 
+
+
+
+
         Use colormetric source gamut to make output profile saturation
         table<br>
         &nbsp;<a href="#g">-g src.gam</a>
@@ -1020,6 +1043,10 @@ for
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Override gamut
         mapping intent for output profile perceptual table:<br>
         &nbsp;<a href="#T">-T intent</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
 
 
 
@@ -1105,11 +1132,23 @@ for
 
 
 
+
+
+
+
         pa - Perceptual Appearance</small></tt><br>
     <tt><tt><small>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
+
+
+
+
           lp - Luminance Preserving Perceptual</small></tt><br>
     </tt><tt> </tt><tt><small>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
 
 
 
@@ -1171,8 +1210,16 @@ for
 
 
 
+
+
+
+
         rl - White Point Matched Colorimetric (Lab)<br>
         &nbsp;<a href="#c">-c viewcond</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
 
 
 
@@ -1242,8 +1289,16 @@ for
 
 
 
+
+
+
+
         either an enumerated choice, or a parameter<br>
         &nbsp;<a href="#d">-d viewcond</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
 
 
 
@@ -1313,6 +1368,10 @@ for
 
 
 
+
+
+
+
         either an enumerated choice, or a parameter:value change<br>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
@@ -1348,8 +1407,16 @@ for
 
 
 
+
+
+
+
         Also sets out of gamut clipping CAM space.<br>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
 
 
 
@@ -1447,6 +1514,10 @@ for
 
 
 
+
+
+
+
         &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;&nbsp;&nbsp;
         &nbsp;&nbsp; c = transparency (default average)<br>
         &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
@@ -1475,6 +1546,10 @@ for
                 % of image luminance (default 0)<br>
               </span></small>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
             &nbsp;&nbsp; </span><span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
 
 
 
@@ -1544,9 +1619,17 @@ for
 
 
 
+
+
+
+
         Create gamut gammap_p.x3d.html and gammap_s.x3d.html diagostics<br>
       </small></tt><tt><small>&nbsp;<a href="#O">-O outputfile</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Override
+
+
+
+
 
 
 
@@ -1650,7 +1733,8 @@ Override
     Perceptual, <span style="font-weight: bold;">r</span> to set
     Relative Colorimetric, <span style="font-weight: bold;">s</span> to
     set Saturation, and <span style="font-weight: bold;">a</span> to
-    set Absolute colorimetric.<br>
+    set Absolute colorimetric. Some CMM's will use this to determine the
+    default intent that they will use.<br>
     <br>
     <a name="q"></a> The <b>-q</b> parameter sets the level of effort
     and/or detail in the resulting profile. For table based profiles
@@ -1736,10 +1820,18 @@ the
 
 
 
+
+
+
+
     device and CIE/spectral sample data and calibration curves used to
     create a profile is stored in the <span style="font-weight: bold;">'targ'</span>
     text tag in the resulting ICC profile. To suppress this and make the
     resulting profile smaller, use the <span style="font-weight: bold;">-nc
+
+
+
+
 
 
 
@@ -1843,9 +1935,17 @@ the
 
 
 
+
+
+
+
       |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; &nbsp;
       &nbsp;_______&nbsp; enle<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
 
 
 
@@ -1914,8 +2014,16 @@ the
 
 
 
+
+
+
+
       |&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; &nbsp; /<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
 
 
 
@@ -1984,6 +2092,10 @@ the
 
 
 
+
+
+
+
       |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; /<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
       stle&nbsp; | ------/<br>
@@ -1994,6 +2106,10 @@ the
       stpo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 1.0<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
 
 
 
@@ -2286,6 +2402,10 @@ White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
 
 
 
+
+
+
+
       Violet</span> spectral content, otherwise FWA compensation won't
     work properly. This means you ideally need to measure your
     illuminant spectrum using an instrument that can measure down to
@@ -2428,31 +2548,54 @@ White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
     <br>
     <a name="S"></a><a name="s"></a><span style="font-weight: bold;">-s
       -S&nbsp; </span>In order to generate perceptual and saturation
-    intent B2A tables for output profiles, it is necessary to specify at
-    least one profile to define what source gamut should be used in the
-    source to destination gamut mapping. [For more information on <span
+    intent B2A tables for output profiles, it is necessary to have
+    something that defines what source gamut should be used to create
+    the source to destination gamut mapping. [For more information on <span
       style="text-decoration: underline;">why</span> a source gamut is
     needed, see <a href="iccgamutmapping.html">About ICC profiles and
-      Gamut Mapping</a>] The <b>-S</b> parameter is used to do this,
-    and doing so causes perceptual and saturation tables to be
+      Gamut Mapping</a>].&nbsp; The <b>-S</b> parameter is used to do
+    this, and doing so causes perceptual and saturation tables to be
     generated. If only a perceptual intent is needed, then the <b>-s</b>
     flag can be used, and the saturation intent will use the same table
-    as the perceptual intent. Note that a input, output, display or
-    device colororspace profile should be specified, not a non-device
-    colorspace, device link, abstract or named color profile.<br>
-    If no source gamut is specified for a cLUT Display profile, then an
-    ICC Version 2.2.0 profile will be created with only an A2B0 and B2A0
-    tag. If a source gamut is specified, then an ICC Version 2.4.0
-    profile will be created with a full complement of B2A tags to
-    support all intents. The source gamut is created from the
-    corresponding intent table of the provided profile to the output
-    table being created. A TIFF or JPEG file containing an embedded ICC
-    profile may be supplied as the argument.<br>
+    as the perceptual intent.<br>
+    <br>
+    There are two ways of specifying a source gamut 1) Specify a
+    specific source ICC profile or 2) Specify a general compression of
+    the output gamut as a percentage. With the second choice, incoming
+    colors that are up to the percentage outside the devices gamut will
+    be compressed to fit into it. The same percentage is used for
+    expansion if a saturation table is generated, or a separate
+    percentage can be specified by including both a <b>-s</b> and <b>-S</b>
+    percentage. You can optionally specify <u>both</u> and input ICC
+    profile and a general compression percentage by using the -S option
+    twice, in which case the input profile determines just the luminance
+    range mapping, with the percentage determining the gamut volume
+    compression. If a percentage compression is specified without an ICC
+    profile, then the incoming luminance range will be assumed to be
+    full range (perfect white to perfect black), which is compatible
+    with idealized colorspaces such as sRGB, AdobeRGB and other working
+    RGB spaces. The input viewing conditions are applicable to the
+    assumed full range input.<br>
+    <br>
+    If no source ICC or compression percentage is specified for a cLUT
+    Display profile, then an ICC Version 2.2.0 profile will be created
+    with only an A2B0 and B2A0 tag. If a source gamut is specified, then
+    an ICC Version 2.4.0 profile will be created with a full complement
+    of B2A tags to support all intents.<br>
+    <br>
+    The source gamut is created from the corresponding intent table of
+    the provided profile to the output table being created. A TIFF or
+    JPEG file containing an embedded ICC profile may be supplied as the
+    argument, instead of an ICC profile.<br>
+    <br>
     <span style="font-weight: bold;">Note</span> that input profiles and
     matrix profiles will only contain a colorimetric intent table or
     matrix, and hence the <span style="font-weight: bold;">-s</span>
     and <span style="font-weight: bold;">-S</span> option is not
     relevant.<br>
+    <b>Note</b> that an input, output, display or device colororspace
+    profile should be specified, not a non-device colorspace, device
+    link, abstract or named color profile.<br>
     <br>
     <a name="nP"></a><span style="font-weight: bold;">-nP</span>:
     Normally when a source profile is provided to define the source
@@ -2499,7 +2642,9 @@ White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
     space should be Jab appearance space, with the viewing conditions
     generally being those of the input profile viewing conditions. The
     input profile will normally be the one used to create a source image
-    gamut using <span style="font-weight: bold;">tiffgamut</span>.<br>
+    gamut using <span style="font-weight: bold;">tiffgamut</span>. Note
+    that a source gamut is not used if a general compression ratio gamut
+    mapping is used.<br>
     <br>
     <b><a name="p"></a></b>The <b>-p</b> option allows specifying one
     or more abstract profiles that will be applied to the output tables,

@@ -215,8 +215,11 @@ static ramdac *madvrwin_get_ramdac(dispwin *p) {
 		debugr("madvrwin_get_ramdac failed on malloc()\n");
 		return NULL;
 	}
-	r->pdepth = p->pdepth;
-	r->nent = (1 << p->pdepth);
+	r->fdepth = p->fdepth;
+	r->rdepth = p->rdepth;
+	r->ndepth = p->ndepth;
+	r->nent   = p->nent;
+
 	r->clone =  dispwin_clone_ramdac;
 	r->setlin = dispwin_setlin_ramdac;
 	r->del =    dispwin_del_ramdac;
@@ -506,8 +509,15 @@ int ddebug						/* >0 to print debug statements to stderr */
 
 	dispwin_set_default_delays(p);
 
-	p->pdepth = 8;		/* Assume this */
-	p->edepth = 16;
+	p->fdepth = 8;				/* Assume this */
+	p->rdepth = p->fdepth;		/* Assumed */
+	p->ndepth = p->rdepth;		/* Assumed */
+#ifdef ENABLE_RAMDAC
+	p->nent = (1 << p->ndepth);	
+#else
+	p->nent = 0;				/* No ramdac */
+#endif
+	p->edepth = 16;				/* Assumed */
 
 	if (initMadVR(p)) {
 		debugr2((errout,"Failed to locate MadVR .dll or functions\n"));
@@ -515,7 +525,7 @@ int ddebug						/* >0 to print debug statements to stderr */
 		return NULL;
 	}
 
-	if (!madVR_BlindConnect(0, 1000)) {
+	if (!madVR_BlindConnect(1, 1000)) {
 		debugr2((errout,"Failed to connect to MadVR\n"));
 		free(p);
 		return NULL;

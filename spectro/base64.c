@@ -4,6 +4,9 @@
  *
  * Very simple & concise base64 encoder/decoder
  *
+ */
+
+/*
  * Author: Graeme W. Gill
  *
  * Copyright 2014, Graeme W. Gill

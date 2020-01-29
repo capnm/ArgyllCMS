@@ -38,6 +38,7 @@ static int do_spec(
 	char name[MAXGRAPHS][200],
 	xspect *sp,
 	int nsp,			/* Number of sp */
+	inst_meas_type mt,	/* Measurement type */
 	int dozero,			/* Include zero in the range */
 	int douv,			/* Do variation of added UV test */
 	double uvmin,
@@ -103,68 +104,94 @@ static int do_spec(
 				xsp_setUV(&tsp, &sp[k], uv);
 			}
 				
-			/* Compute XYZ of illuminant */
-			if (icx_ill_sp2XYZ(xyz, icxOT_CIE_1931_2, NULL, icxIT_custom, 0, &tsp) != 0) 
-				warning("icx_sp_temp2XYZ returned error");
-
-			icmXYZ2Yxy(Yxy, xyz);
-			icmXYZ2Lab(&icmD50, Lab, xyz);
-
 			printf("Type = %s [%s]\n",name[k], color[k]);
-			printf("XYZ = %f %f %f, x,y = %f %f\n", xyz[0], xyz[1], xyz[2], Yxy[1], Yxy[2]);
-			printf("D50 L*a*b* = %f %f %f\n", Lab[0], Lab[1], Lab[2]);
-			
+
+			if (mt == inst_mrt_none
+			 || mt == inst_mrt_emission
+			 || mt == inst_mrt_ambient
+			 || mt == inst_mrt_emission_flash
+			 || mt == inst_mrt_ambient_flash) {
+	
+				/* Compute XYZ of illuminant */
+				if (icx_ill_sp2XYZ(xyz, icxOT_CIE_1931_2, NULL, icxIT_custom, 0, &tsp) != 0) 
+					warning("icx_ill_sp2XYZ returned error");
+	
+				icmXYZ2Yxy(Yxy, xyz);
+				icmXYZ2Lab(&icmD50, Lab, xyz);
+
+				printf("XYZ = %f %f %f, x,y = %f %f\n", xyz[0], xyz[1], xyz[2], Yxy[1], Yxy[2]);
+				printf("D50 L*a*b* = %f %f %f\n", Lab[0], Lab[1], Lab[2]);
+				
+				/* Compute CCT */
+				if ((cct = icx_XYZ2ill_ct(cct_xyz, icxIT_Ptemp, icxOT_CIE_1931_2, NULL, xyz, NULL, 0)) < 0)
+					warning("Got bad cct\n");
+	
+				/* Compute VCT */
+				if ((vct = icx_XYZ2ill_ct(vct_xyz, icxIT_Ptemp, icxOT_CIE_1931_2, NULL, xyz, NULL, 1)) < 0)
+					warning("Got bad vct\n");
+	
+				printf("CCT = %f, VCT = %f\n",cct, vct);
+	
+				/* Compute CDT */
+				if ((cct = icx_XYZ2ill_ct(cct_xyz, icxIT_Dtemp, icxOT_CIE_1931_2, NULL, xyz, NULL, 0)) < 0)
+					warning("Got bad cct\n");
+	
+				/* Compute VDT */
+				if ((vct = icx_XYZ2ill_ct(vct_xyz, icxIT_Dtemp, icxOT_CIE_1931_2, NULL, xyz, NULL, 1)) < 0)
+					warning("Got bad vct\n");
+	
+				printf("CDT = %f, VDT = %f\n",cct, vct);
+	
+				{
+					int invalid = 0;
+					double RR[14];
+					double cri;
+					cri = icx_CIE1995_CRI(&invalid, RR, &tsp);
+					printf("CRI = %.1f [ R9 = %.1f ]%s\n",cri,RR[9-1],invalid ? " (Invalid)" : "");
+				}
+				{
+					int invalid = 0;
+					double tlci;
+					tlci = icx_EBU2012_TLCI(&invalid, &tsp);
+					printf("TLCI = %.1f%s\n",tlci,invalid ? " (Invalid)" : "");
+				}
+	
+				/* Use modern color difference - gives a better visual match */
+				icmAry2XYZ(wp, vct_xyz);
+				icmXYZ2Lab(&wp, cct_lab, cct_xyz);
+				icmXYZ2Lab(&wp, vct_lab, vct_xyz);
+				de = icmCIE2K(cct_lab, vct_lab);
+				printf("CIEDE2000 Delta E = %f\n",de);
+
+			} else if (mt == inst_mrt_none
+			 || mt == inst_mrt_reflective
+			 || mt == inst_mrt_transmissive) {
+	
+				printf("CIE values under D50 illuminant:\n");
+
+				if (icx_sp2XYZ(xyz, icxOT_CIE_1931_2, NULL, icxIT_D50, 0, NULL, &tsp) != 0) 
+					warning("icx_sp2XYZ returned error");
+	
+				icmXYZ2Yxy(Yxy, xyz);
+				icmXYZ2Lab(&icmD50, Lab, xyz);
+
+				printf("XYZ = %f %f %f, x,y = %f %f\n", xyz[0], xyz[1], xyz[2], Yxy[1], Yxy[2]);
+				printf("D50 L*a*b* = %f %f %f\n", Lab[0], Lab[1], Lab[2]);
+				
 #ifndef NEVER
-			/* Test density */
-			{
-				double dens[4];
-
-				xsp_Tdensity(dens, &tsp);
-
-				printf("CMYV density = %f %f %f %f\n", dens[0], dens[1], dens[2], dens[3]);
-			}
+				/* Test density */
+				{
+					double dens[4];
+	
+					xsp_Tdensity(dens, &tsp);
+	
+					printf("CMYV density = %f %f %f %f\n", dens[0], dens[1], dens[2], dens[3]);
+				}
 #endif
-
-			/* Compute CCT */
-			if ((cct = icx_XYZ2ill_ct(cct_xyz, icxIT_Ptemp, icxOT_CIE_1931_2, NULL, xyz, NULL, 0)) < 0)
-				warning("Got bad cct\n");
-
-			/* Compute VCT */
-			if ((vct = icx_XYZ2ill_ct(vct_xyz, icxIT_Ptemp, icxOT_CIE_1931_2, NULL, xyz, NULL, 1)) < 0)
-				warning("Got bad vct\n");
-
-			printf("CCT = %f, VCT = %f\n",cct, vct);
-
-			/* Compute CDT */
-			if ((cct = icx_XYZ2ill_ct(cct_xyz, icxIT_Dtemp, icxOT_CIE_1931_2, NULL, xyz, NULL, 0)) < 0)
-				warning("Got bad cct\n");
-
-			/* Compute VDT */
-			if ((vct = icx_XYZ2ill_ct(vct_xyz, icxIT_Dtemp, icxOT_CIE_1931_2, NULL, xyz, NULL, 1)) < 0)
-				warning("Got bad vct\n");
-
-			printf("CDT = %f, VDT = %f\n",cct, vct);
-
-			{
-				int invalid = 0;
-				double RR[14];
-				double cri;
-				cri = icx_CIE1995_CRI(&invalid, RR, &tsp);
-				printf("CRI = %.1f [ R9 = %.1f ]%s\n",cri,RR[9-1],invalid ? " (Invalid)" : "");
+	
+			} else {
+				printf("Unhandled measurement type '%s'\n",meas_type2str(mt));
 			}
-			{
-				int invalid = 0;
-				double tlci;
-				tlci = icx_EBU2012_TLCI(&invalid, &tsp);
-				printf("TLCI = %.1f%s\n",tlci,invalid ? " (Invalid)" : "");
-			}
-
-			/* Use modern color difference - gives a better visual match */
-			icmAry2XYZ(wp, vct_xyz);
-			icmXYZ2Lab(&wp, cct_lab, cct_xyz);
-			icmXYZ2Lab(&wp, vct_lab, vct_xyz);
-			de = icmCIE2K(cct_lab, vct_lab);
-			printf("CIEDE2000 Delta E = %f\n",de);
 
 			/* Plot spectrum out */
 			for (i = 0; i < XRES; i++) {
@@ -285,13 +312,14 @@ main(
 		/* Until we run out */
 		for (;;) {
 			int i, nret, nreq;
+			inst_meas_type mt;
 
 			/* If we've got to the limit of each plot, */
-			/* or at least one and there are no more files, */
-			/* or at least one and we're not combining files and at start of a new file */
+			/* or at least one and we're not combining files and at start of a new file, */
+			/* or at least one and there are no more files */
 			if (nsp >= MAXGRAPHS || (nsp > 0 && ((!comb && soff == 0) || fa >= argc))) {
 				/* Plot what we've got */
-				do_spec(buf, sp, nsp, zero, douv, uvmin, uvmax);
+				do_spec(buf, sp, nsp, mt, zero, douv, uvmin, uvmax);
 				nsp = 0;
 			}
 
@@ -300,9 +328,11 @@ main(
 
 			/* Read as many spectra from the file as possible */
 			nreq = MAXGRAPHS - nsp;
-			if (read_nxspect(&sp[nsp], argv[fa], &nret, soff, nreq, 0) != 0) {
+
+			if (read_nxspect(&sp[nsp], &mt, argv[fa], &nret, soff, nreq, 0) != 0) {
 				error ("Unable to read custom spectrum, CMF or CCSS '%s'",argv[fa]);
 			}
+
 			for (i = 0; i < nret; i++) {
 				xspect_denorm(&sp[nsp + i]);
 				sprintf(buf[nsp + i],"File '%s' spect %d",argv[fa], soff + i);
@@ -353,7 +383,7 @@ main(
 				error ("standardIlluminant returned error for %d (%s)",ilType,inm);
 		
 			strcpy(buf[0],inm);
-			do_spec(buf, sp, 1, zero, douv, uvmin, uvmax);
+			do_spec(buf, sp, 1, inst_mrt_ambient, zero, douv, uvmin, uvmax);
 		}
 
 		/* For each material and illuminant */
@@ -375,7 +405,7 @@ main(
 		
 				sprintf(buf[0], "%s at %f", k == 0 ? "Daylight" : "Black body", temp);
 	
-				do_spec(buf, sp, 1, zero, douv, uvmin, uvmax);
+				do_spec(buf, sp, 1, inst_mrt_ambient, zero, douv, uvmin, uvmax);
 			}
 		}
 

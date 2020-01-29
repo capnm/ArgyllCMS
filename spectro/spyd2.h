@@ -37,6 +37,10 @@
 
 #include "inst.h"
 
+#ifdef __cplusplus
+	extern "C" {
+#endif
+
 /* Note: update spyd2_interp_error() and spyd2_interp_code() in spyd2.c */
 /* if anything of these #defines are added or subtracted */
 
@@ -177,6 +181,10 @@ extern spyd2 *new_spyd2(icoms *icom, instType itype);
 /* Return 0 if Spyder firmware is not available */
 /* Return 1 if Spyder firmware is available */
 extern int setup_spyd2(int id);
+
+#ifdef __cplusplus
+	}
+#endif
 
 #define SPYD2_H
 #endif /* SPYD2_H */

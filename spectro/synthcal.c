@@ -41,6 +41,7 @@ usage(int level) {
 	fprintf(stderr,"Create a synthetic calibration file, Version %s\n",ARGYLL_VERSION_STR);
 	fprintf(stderr,"Author: Graeme W. Gill, licensed under the AGPL Version 3\n");
 	fprintf(stderr,"usage: synthcal [-options] outfile\n");
+	fprintf(stderr," -r res          Set the calibration resolution (default 256)\n");
 	fprintf(stderr," -t N            i = input, o = output, d = display (default)\n");
 	fprintf(stderr," -d col_comb     choose colorant combination from the following (default 3):\n");
 	for (i = 0; ; i++) {
@@ -78,6 +79,7 @@ int main(int argc, char *argv[])
 	char *profDesc = NULL;		/* Description */ 
 	int devtype = 2;			/* debice type, 0 = in, 1 = out, 2 = display */
 	inkmask devmask = 0;		/* ICX ink mask of device space */
+	int calres = 256;			/* Resolution of resulting file */
 	int devchan;				/* Number of chanels in device space */
 	char *ident;				/* Ink combination identifier (includes possible leading 'i') */
 	char *bident;				/* Base ink combination identifier */
@@ -120,8 +122,17 @@ int main(int argc, char *argv[])
 			else if (argv[fa][1] == 'v')
 				verb = 1;
 
+			/* Calibration file resolution */
+			else if (argv[fa][1] == 'r') {
+				fa = nfa;
+				if (na == NULL) usage(0);
+				calres = atoi(na);
+				if (calres < 2 || calres > MAX_CAL_ENT)
+					usage(0);
+			}
+
 			/* Select the device type */
-			else if (argv[fa][1] == 't' || argv[fa][1] == 'T') {
+			else if (argv[fa][1] == 't') {
 				fa = nfa;
 				if (na == NULL) usage(0);
 				if (na[0] == 'i' || na[0] == 'I')
@@ -280,7 +291,7 @@ int main(int argc, char *argv[])
 
 	/* Write out the resulting calibration file */
 	{
-		int i, j, calres = 256;	/* 256 steps in calibration */
+		int i, j;
 		cgats *ocg;			/* output cgats structure */
 		time_t clk = time(0);
 		struct tm *tsp = localtime(&clk);

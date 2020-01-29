@@ -223,6 +223,7 @@ double *out, double *in) {
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 static gamut *icxLuMatrixGamut(icxLuBase *plu, double detail); 
+static icxCuspMap *icxLuMatrixCuspMap(icxLuBase *plu, int res) { return NULL; };
 
 /* Do the basic icxLuMatrix creation and initialisation */
 static icxLuMatrix *
@@ -246,6 +247,7 @@ alloc_icxLuMatrix(
 	p->get_ranges        = icxLu_get_ranges;
 	p->efv_wh_bk_points  = icxLuEfv_wh_bk_points;
 	p->get_gamut         = icxLuMatrixGamut;
+	p->get_cuspmap       = icxLuMatrixCuspMap;
 	p->fwd_relpcs_outpcs = icxLuMatrix_fwd_relpcs_outpcs;
 	p->bwd_outpcs_relpcs = icxLuMatrix_bwd_outpcs_relpcs;
 
@@ -315,7 +317,7 @@ int                   dir			/* 0 = fwd, 1 = bwd */
 			xicc_enum_viewcond(xicp, &p->vc, -1, NULL, 0, NULL);	/* Use a default */
 		p->cam = new_icxcam(cam_default);
 		p->cam->set_view(p->cam, p->vc.Ev, p->vc.Wxyz, p->vc.La, p->vc.Yb, p->vc.Lv,
-		                 p->vc.Yf, p->vc.Yg, p->vc.Gxyz, XICC_USE_HK);
+		                 p->vc.Yf, p->vc.Yg, p->vc.Gxyz, XICC_USE_HK, p->vc.hkscale);
 	} else {
 		p->cam = NULL;
 	}
@@ -1136,7 +1138,7 @@ static void icxMM_force_exact(icxMatrixModel *p, double *targ, double *rgb) {
 	icmAry2XYZ(_ap, axyz);
 	icmAry2XYZ(_tp, txyz);
 	if (p->picc != NULL)
-		p->picc->chromAdaptMatrix(p->picc, ICM_CAM_NONE, _tp, _ap, cmat);
+		p->picc->chromAdaptMatrix(p->picc, ICM_CAM_NONE, NULL, cmat, _tp, _ap);
 	else
 		icmChromAdaptMatrix(ICM_CAM_BRADFORD, _tp, _ap, cmat);
 
@@ -1508,11 +1510,9 @@ double             smooth			/* Curve smoothing, nominally 1.0 */
 			icmXYZNumber _wp;
 			icmAry2XYZ(_wp, wp);
 	
-			/* Absolute->Aprox. Relative Adaptation matrix */
-			icco->chromAdaptMatrix(icco, ICM_CAM_NONE, icmD50, _wp, fromAbs);
-		
+			/* Absolute->Aprox. Relative Adaptation matrix, and */
 			/* Aproximate relative to absolute conversion matrix */
-			icco->chromAdaptMatrix(icco, ICM_CAM_NONE, _wp, icmD50, toAbs);
+			icco->chromAdaptMatrix(icco, ICM_CAM_NONE, toAbs, fromAbs, icmD50, _wp);
 		}
 
 	} else {
@@ -1618,7 +1618,7 @@ printf(" set black %d w = %f\n", nodp,rpoints[nodp].w);
 	
 		/* Matrix needed to correct aprox white to target D50 */
 		icmAry2XYZ(_wp, aw);		/* Aprox relative target white point */
-		icco->chromAdaptMatrix(icco, ICM_CAM_NONE, icmD50, _wp, cmat);	/* Correction */
+		icco->chromAdaptMatrix(icco, ICM_CAM_NONE, NULL, cmat, icmD50, _wp);	/* Correction */
 	
 		/* Compute the current absolute white point */
 		icmMulBy3x3(wp, toAbs, aw);
@@ -1628,8 +1628,7 @@ printf(" set black %d w = %f\n", nodp,rpoints[nodp].w);
 	
 		/* Fix relative conversions to leave absolute response unchanged. */
 		icmAry2XYZ(_wp, wp);		/* Actual white point */
-		icco->chromAdaptMatrix(icco, ICM_CAM_NONE, icmD50, _wp, fromAbs);
-		icco->chromAdaptMatrix(icco, ICM_CAM_NONE, _wp, icmD50, toAbs);
+		icco->chromAdaptMatrix(icco, ICM_CAM_NONE, toAbs, fromAbs, icmD50, _wp);
 
 		if (flags & ICX_VERBOSE) {
 			double tw[3];
@@ -1723,8 +1722,7 @@ printf(" set black %d w = %f\n", nodp,rpoints[nodp].w);
 
 		/* Fix absolute conversions to leave absolute response unchanged. */
 		icmAry2XYZ(_wp, wp);		/* Actual white point */
-		icco->chromAdaptMatrix(icco, ICM_CAM_NONE, icmD50, _wp, fromAbs);
-		icco->chromAdaptMatrix(icco, ICM_CAM_NONE, _wp, icmD50, toAbs);
+		icco->chromAdaptMatrix(icco, ICM_CAM_NONE, toAbs, fromAbs, icmD50, _wp);
 	}
 
 	/* Look up the actual black point */

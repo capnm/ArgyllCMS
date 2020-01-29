@@ -3,7 +3,9 @@
  * Argyll Color Correction System
  *
  * Gretag i1Pro implementation functions
- *
+ */
+
+/*
  * Author: Graeme W. Gill
  * Date:   24/11/2006
  *
@@ -34,6 +36,10 @@
 
 /* TTBD:
 
+	Would be nice to have option to save raw scan data to .ti3 file,
+	and then have a utility/option to replay it through scan
+	recognition, to be able to help remote diagnose scan problems.
+
 	Some things probably aren't quite correct:
 	The way the sensor saturation and optimal target is
 	computed probably doesn't account for the dark level
@@ -46,9 +52,6 @@
 	(see i1d3.c). Whether this will noticably improve repeatibility
 	remains to be seen.
 
-	Would be nice to have option to save raw scan data to .ti3 file,
-	and then have a utility/option to replay it through scan
-	recognition, to be able to help remote diagnose scan problems.
 */
 
 /*
@@ -112,7 +115,7 @@
 #define DCALTOUT2 ( 1 * 60 * 60) /* [1 Hr] i1pro2 Dark Calibration timeout in seconds */
 #define WCALTOUT  ( 1 * 60 * 60) /* [1 Hr] White Calibration timeout in seconds */
 
-#define MAXSCANTIME 20.0	/* [20] Maximum scan time in seconds */
+#define MAXSCANTIME 30.0	/* [30] Maximum scan time in seconds */
 #define SW_THREAD_TIMEOUT	(10 * 60.0) 	/* [10 Min] Switch read thread timeout */
 
 #define SINGLE_READ		/* [Def] Use a single USB read for scan to eliminate latency issues. */
@@ -131,6 +134,7 @@
 #undef TEST_DARK_INTERP    /* Test out the dark interpolation (need DEBUG for plot) */
 #undef PATREC_DEBUG			/* Print & Plot patch/flash recognition information */
 #undef PATREC_ALLBANDS		/* Plot all bands of scan */
+#undef PATREC_SAVETRIMMED	/* Saved trimmed raw to file "i1pro_raw_trimed_N.csv */
 #undef IGNORE_WHITE_INCONS	/* Ignore define reference reading inconsistency */
 #undef HIGH_RES_DEBUG
 #undef HIGH_RES_PLOT
@@ -138,8 +142,8 @@
 #undef PLOT_BLACK_SUBTRACT	/* Plot temperature corrected black subtraction */
 #undef FAKE_AMBIENT		/* Fake the ambient mode for a Rev A */
 
-#define MATCH_SPOT_OMD			/* [Def] Match Original Manufacturers Driver. Reduce */
-								/* integration time and lamp turn on time */
+#undef USE_SPOT_OMD				/* [Und] Use Original Manufacturers Driver timing. Reduce */
+								/* integration time and lamp turn on time. */
 
 #define DISP_INTT 2.0			/* Seconds per reading in display spot mode */
 								/* More improves repeatability in dark colors, but limits */
@@ -171,6 +175,7 @@
 
 #include "i1pro.h"
 #include "i1pro_imp.h"
+#include "xrga.h"
 
 /* - - - - - - - - - - - - - - - - - - */
 #define LAMP_OFF_TIME 1500		/* msec to make sure lamp is dark for dark measurement */
@@ -448,8 +453,25 @@ i1pro_code i1pro_imp_init(i1pro *p) {
 	i1pro_code ev = I1PRO_OK;
 	unsigned char *eeprom;	/* EEProm contents, i1pro = half, i1pro2 = full */
 	int len = 8192;
+	char *envv;
 
 	a1logd(p->log,5,"i1pro_init:\n");
+
+	m->native_calstd = xcalstd_gmdi;		/* Rev A-D */
+	if (p->itype == instI1Pro2) {
+		m->native_calstd = xcalstd_xrga;	/* Rev E */
+	}
+	m->target_calstd = xcalstd_native;		/* Default to native calibration */
+
+	/* Honor Environment override */
+	if ((envv = getenv("ARGYLL_XCALSTD")) != NULL) {
+		if (strcmp(envv, "XRGA") == 0)
+			m->target_calstd = xcalstd_xrga;
+		else if (strcmp(envv, "XRDI") == 0)
+			m->target_calstd = xcalstd_xrdi;
+		else if (strcmp(envv, "GMDI") == 0)
+			m->target_calstd = xcalstd_gmdi;
+	}
 
 	/* Revert to i1pro if i1pro2 driver is not enabled */
 	if (p->itype == instI1Pro2
@@ -1006,22 +1028,27 @@ i1pro_code i1pro_imp_init(i1pro *p) {
 
 					s->dadaptime = 0.10;
 					s->wadaptime = 0.10;
-#ifdef MATCH_SPOT_OMD
-					s->lamptime = 0.18;			/* Lamp turn on time, close to OMD */
-												/* (Not ideal, but partly compensated by calib.) */
-												/* (The actual value the OMD uses is 0.20332) */
-					s->dcaltime = 0.05;			/* Longer than the original driver for lower */
-												/* noise, and lamptime has been reduces to */
-												/* compensate. (OMD uses 0.014552) */
-					s->wcaltime = 0.05;
-					s->dreadtime = 0.05;
-					s->wreadtime = 0.05;
+#ifdef USE_SPOT_OMD
+					s->lamptime  = 0.20332;		/* (Lamp doesn't stabilize with this) */
+					s->dcaltime  = 0.02366;
+					s->wcaltime  = 0.02366;
+					s->dreadtime = 0.02366;
+					s->wreadtime = 0.02366;
 #else
-					s->lamptime = 0.5;			/* This should give better accuracy, and better */
-					s->dcaltime = 0.5;			/* match the scan readings. Difference is about */
-					s->wcaltime = 0.5;			/* 0.1 DE though, but would be lost in the */
-					s->dreadtime = 0.5;			/* repeatability noise... */
-					s->wreadtime = 0.5;
+#ifndef NEVER
+					s->lamptime = 0.25;			/* This should give better accuracy */
+					s->dcaltime = 0.05;			/* without increasing lamp usage much. */
+					s->wcaltime = 0.05;			/* Make it too large (ie. 1.0 sec total) */
+					s->dreadtime = 0.05;		/* and it will dirty the i1pro2 lamp quickly */
+					s->wreadtime = 0.05;		/* though. */
+#else
+#  pragma message("######### i1pro_imp.c Dirty Lamp timing !!!!! ########")
+					s->lamptime = 0.5;			/* Dirty up the lamp. */
+					s->dcaltime = 2.0;
+					s->wcaltime = 2.0;
+					s->dreadtime = 2.0;
+					s->wreadtime = 2.0;
+#endif
 #endif
 					s->maxscantime = 0.0;
 					s->min_wl = HIGHRES_REF_MIN;/* Too much stray light below this */
@@ -1037,13 +1064,12 @@ i1pro_code i1pro_imp_init(i1pro *p) {
 						s->targoscale = 0.25;
 					else
 						s->targoscale = 0.5;
-
-					s->lamptime = 0.5;		/* Lamp turn on time - lots to match scan */
+					s->lamptime = 0.5;				/* Lamp turn on time - lots to match scan */
 					s->dadaptime = 0.10;
 					s->wadaptime = 0.10;
 					s->dcaltime = 0.5;
-					s->wcaltime = 0.5;
-					s->dreadtime = 0.10;
+					s->wcaltime = 2.5;				/* Lots to get lamp up to temp */
+					s->dreadtime = 0.10;			/* and to match OMD scan cal. on time */
 					s->wreadtime = 0.10;
 					s->maxscantime = MAXSCANTIME;
 					s->min_wl = HIGHRES_REF_MIN;	/* Too much stray light below this */
@@ -1058,7 +1084,7 @@ i1pro_code i1pro_imp_init(i1pro *p) {
 					s->adaptive = 0;
 
 					s->inttime = DISP_INTT;		/* Default disp integration time (ie. 2.0 sec) */
-					s->lamptime = 0.20;			/* ???? */
+					s->lamptime = 0.0;
 					s->dark_int_time = s->inttime;
 					s->dark_int_time2 = DISP_INTT2;	/* Alternate disp integration time (ie. 0.8) */
 					s->dark_int_time3 = DISP_INTT3;	/* Alternate disp integration time (ie. 0.3) */
@@ -1083,7 +1109,7 @@ i1pro_code i1pro_imp_init(i1pro *p) {
 					s->emiss = 1;
 					s->adaptive = 1;
 
-					s->lamptime = 0.20;			/* ???? */
+					s->lamptime = 0.0;
 					s->dadaptime = 0.0;
 					s->wadaptime = 0.10;
 					s->dcaltime = 1.0;
@@ -1100,7 +1126,7 @@ i1pro_code i1pro_imp_init(i1pro *p) {
 					s->scan = 1;
 					s->adaptive = 1;			/* ???? */
 					s->inttime = m->min_int_time;	/* Maximize scan rate */
-					s->lamptime = 0.20;			/* ???? */
+					s->lamptime = 0.0;
 					s->dark_int_time = s->inttime;
 					if (m->fwrev >= 301)
 						s->targoscale = 0.25;		/* (We're not using scan targoscale though) */
@@ -1132,7 +1158,7 @@ i1pro_code i1pro_imp_init(i1pro *p) {
 					s->ambient = 1;
 					s->adaptive = 1;
 
-					s->lamptime = 0.20;			/* ???? */
+					s->lamptime = 0.0;
 					s->dadaptime = 0.0;
 					s->wadaptime = 0.10;
 					s->dcaltime = 1.0;
@@ -1161,7 +1187,7 @@ i1pro_code i1pro_imp_init(i1pro *p) {
 					s->flash = 1;
 
 					s->inttime = m->min_int_time;	/* Maximize scan rate */
-					s->lamptime = 0.20;			/* ???? */
+					s->lamptime = 0.0;
 					s->dark_int_time = s->inttime;
 					if (m->fwrev >= 301)
 						s->targoscale = 0.25;		/* (We're not using scan targoscale though) */
@@ -1181,7 +1207,7 @@ i1pro_code i1pro_imp_init(i1pro *p) {
 					s->trans = 1;
 					s->adaptive = 1;
 
-					s->lamptime = 0.20;			/* ???? */
+					s->lamptime = 0.0;
 					s->dadaptime = 0.10;
 					s->wadaptime = 0.10;
 					s->dcaltime = 1.0;
@@ -1202,7 +1228,7 @@ i1pro_code i1pro_imp_init(i1pro *p) {
 					else
 						s->targoscale = 0.5;
 
-					s->lamptime = 0.20;			/* ???? */
+					s->lamptime = 0.0;
 					s->dadaptime = 0.10;
 					s->wadaptime = 0.10;
 					s->dcaltime = 1.0;
@@ -1483,6 +1509,7 @@ i1pro_code i1pro_imp_calibrate(
 	i1pro *p,
 	inst_cal_type *calt,	/* Calibration type to do/remaining */
 	inst_cal_cond *calc,	/* Current condition/desired condition */
+	inst_calc_id_type *idtype,	/* Condition identifier type */
 	char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 ) {
 	i1pro_code ev = I1PRO_OK;
@@ -2250,6 +2277,16 @@ i1pro_code i1pro_imp_calibrate(
 				                s->cal_factor[0], m->white_ref[0], s->cal_factor[0],
 				                s->cal_factor[1], m->white_ref[1], s->cal_factor[1],
 								!s->scan);		/* Use this for emis hires fine tune if not scan */
+
+				/* Print white lamp magnitude to track lamp darkening */
+				if (p->log != NULL && p->log->debug >= 1) {
+					double sum = 0.0;
+					for (i = 0; i < m->nwav[0]; i++)
+						sum += 1.0/s->cal_factor[0][i]; 
+
+					a1logd(p->log,1,"Refl. lamp magnitude = %e\n",sum);
+				}
+
 				if (ev == I1PRO_RD_TRANSWHITEWARN)		/* Shouldn't happen ? */
 					ev = I1PRO_OK;
 				if (ev != I1PRO_OK) {
@@ -2365,7 +2402,8 @@ i1pro_code i1pro_imp_calibrate(
 	/* Do ref_white first in case we are doing a high res fine tune. */
 
 	if (*calt & (inst_calt_ref_dark | inst_calt_ref_white)) {
-		sprintf(id, "Serial no. %d",m->serno);
+		*idtype = inst_calc_id_ref_sn;
+		sprintf(id, "%d",m->serno);
 		if ((*calc & inst_calc_cond_mask) != inst_calc_man_ref_white) {
 			/* Calibrate using white tile */
 			*calc = inst_calc_man_ref_white;
@@ -2373,6 +2411,7 @@ i1pro_code i1pro_imp_calibrate(
 		}
 	} else if (*calt & inst_calt_wavelength) {		/* Wavelength calibration */
 		if (cs->emiss && cs->ambient) {
+			*idtype = inst_calc_id_none;
 			id[0] = '\000';
 			if ((*calc & inst_calc_cond_mask) != inst_calc_man_am_dark) {
 				/* Calibrate using ambient adapter */
@@ -2380,7 +2419,8 @@ i1pro_code i1pro_imp_calibrate(
 				return I1PRO_CAL_SETUP;
 			}
 		} else {
-			sprintf(id, "Serial no. %d",m->serno);
+			*idtype = inst_calc_id_ref_sn;
+			sprintf(id, "%d",m->serno);
 			if ((*calc & inst_calc_cond_mask) != inst_calc_man_ref_white) {
 				/* Calibrate using white tile */
 				*calc = inst_calc_man_ref_white;
@@ -2388,6 +2428,7 @@ i1pro_code i1pro_imp_calibrate(
 			}
 		}
 	} else if (*calt & inst_calt_em_dark) {		/* Emissive Dark calib */
+		*idtype = inst_calc_id_none;
 		id[0] = '\000';
 		if ((*calc & inst_calc_cond_mask) != inst_calc_man_em_dark) {
 			/* Any sort of dark reference */
@@ -2395,18 +2436,21 @@ i1pro_code i1pro_imp_calibrate(
 			return I1PRO_CAL_SETUP;
 		}
 	} else if (*calt & inst_calt_trans_dark) {	/* Transmissvice dark */
+		*idtype = inst_calc_id_none;
 		id[0] = '\000';
 		if ((*calc & inst_calc_cond_mask) != inst_calc_man_trans_dark) {
 			*calc = inst_calc_man_trans_dark;
 			return I1PRO_CAL_SETUP;
 		}
 	} else if (*calt & inst_calt_trans_vwhite) {/* Transmissvice white for emulated transmission */
+		*idtype = inst_calc_id_none;
 		id[0] = '\000';
 		if ((*calc & inst_calc_cond_mask) != inst_calc_man_trans_white) {
 			*calc = inst_calc_man_trans_white;
 			return I1PRO_CAL_SETUP;
 		}
 	} else if (*calt & inst_calt_emis_int_time) {
+		*idtype = inst_calc_id_none;
 		id[0] = '\000';
 		if ((*calc & inst_calc_cond_mask) != inst_calc_emis_white) {
 			*calc = inst_calc_emis_white;
@@ -2438,10 +2482,13 @@ i1pro_code i1pro_imp_calibrate(
 
 	if (m->transwarn) {
 		*calc = inst_calc_message;
-		if (m->transwarn & 2)
+		if (m->transwarn & 2) {
+			*idtype = inst_calc_id_trans_low;
 			strcpy(id, "Warning: Transmission light source is too low for accuracy!");
-		else
+		} else {
+			*idtype = inst_calc_id_trans_wl;
 			strcpy(id, "Warning: Transmission light source is low at some wavelengths!");
+		}
 		m->transwarn = 0;
 	}
 
@@ -2454,6 +2501,51 @@ i1pro_code i1pro_imp_calibrate(
 int icoms2i1pro_err(int se) {
 	if (se != ICOM_OK)
 		return I1PRO_COMS_FAIL;
+	return I1PRO_OK;
+}
+
+/* - - - - - - - - - - - - - - - - */
+/* Do a dummy reflective read, to fix Lamp Drift. */
+
+i1pro_code i1pro_imp_lamp_fix(
+i1pro *p,
+double seconds) {	/* Number of seconds to turn lamp on for */
+	i1pro_code ev = I1PRO_OK;
+	i1proimp *m = (i1proimp *)p->m;
+	int nummeas;
+	double inttime;
+	unsigned char *buf;		/* Raw USB reading buffer */
+	unsigned int bsize;
+	i1p_mode cmode = m->mmode;		/* Remember current mode */
+
+	if (seconds > (5 * 60.0)) {
+		a1loge(p->log, inst_internal_error, "i1pro_imp_lamp_fix %f sec is too long\n",seconds);
+		return I1PRO_INT_ASSERT;
+	}
+
+	m->mmode = i1p_refl_spot;		/* Override current mode */
+	inttime = 0.2;					/* Constrain buffer size */
+	nummeas = (int)(seconds/inttime + 0.5);
+	bsize = m->nsen * 2 * nummeas;	/* 16 bit raw values */
+
+	if ((buf = (unsigned char *)malloc(sizeof(unsigned char) * bsize)) == NULL) {
+		m->mmode = cmode;
+		a1logd(p->log,1,"i1pro_read_patches malloc %d bytes failed (11)\n",bsize);
+		return I1PRO_INT_MALLOC;
+	}
+
+	/* Trigger measure and gather raw readings */
+	a1logd(p->log, 1, "i1pro_imp_lamp_fix %f seconds\n",seconds);
+	if ((ev = i1pro_read_patches_1(p, nummeas, nummeas, &inttime, 0,
+	                                       NULL, buf, bsize)) != I1PRO_OK) { 
+		m->mmode = cmode;
+		free(buf);
+		return ev;
+	}
+
+	m->mmode = cmode;
+	free(buf);
+
 	return I1PRO_OK;
 }
 
@@ -2519,7 +2611,7 @@ int *pinstmsec) {	/* Return instrument latency in msec */
 	}
 
 	if (m->whitestamp < 0.0) {
-		a1logd(p->log, 1, "i1d3_meas_delay: White transition wasn't timestamped\n");
+		a1logd(p->log, 1, "i1pro_meas_delay: White transition wasn't timestamped\n");
 		return inst_internal_error; 
 	}
 
@@ -2940,8 +3032,13 @@ i1pro_code i1pro_imp_measure(
 	/* Indicate to the user that they can now scan the instrument, */
 	/* after a little delay that allows for the instrument reaction time. */
 	if (s->scan) {
-		/* 500msec delay, 1KHz for 200 msec */
-		msec_beep(200 + (int)(s->lamptime * 1000.0 + 0.5), 1000, 200);
+		int delay = 200 + (int)(s->lamptime * 1000.0 + 0.5);
+		if (p->eventcallback != NULL) {
+			issue_scan_ready((inst *)p, delay);
+		} else {
+			/* delay then 1KHz for 200 msec */
+			msec_beep(delay, 1000, 200);
+		}
 	}
 
 	/* Retry loop for certaing cases */
@@ -4121,6 +4218,7 @@ i1pro_code i1pro_save_calibration(i1pro *p) {
 	i1pnonv x;
 	int ss;
 	int argyllversion = ARGYLL_VERSION;
+	int isRevE = p->itype == instI1Pro2 ? 1 : 0; 
 
 	strcpy(nmode, "w");
 #if !defined(O_CREAT) && !defined(_O_CREAT)
@@ -4157,6 +4255,7 @@ i1pro_code i1pro_save_calibration(i1pro *p) {
 	write_ints(&x, fp, &argyllversion, 1);
 	write_ints(&x, fp, &ss, 1);
 	write_ints(&x, fp, &m->serno, 1);
+	write_ints(&x, fp, &isRevE, 1);
 	write_ints(&x, fp, (int *)&m->nraw, 1);
 	write_ints(&x, fp, (int *)&m->nwav[0], 1);
 	write_ints(&x, fp, (int *)&m->nwav[1], 1);
@@ -4242,6 +4341,7 @@ i1pro_code i1pro_restore_calibration(i1pro *p) {
 	FILE *fp;
 	i1pnonv x;
 	int argyllversion;
+	int isRevE;
 	int ss, serno, nraw, nwav0, nwav1, nbytes, chsum1, chsum2;
 
 	strcpy(nmode, "r");
@@ -4286,6 +4386,7 @@ i1pro_code i1pro_restore_calibration(i1pro *p) {
 	read_ints(&x, fp, &argyllversion, 1);
 	read_ints(&x, fp, &ss, 1);
 	read_ints(&x, fp, &serno, 1);
+	read_ints(&x, fp, &isRevE, 1);
 	read_ints(&x, fp, &nraw, 1);
 	read_ints(&x, fp, &nwav0, 1);
 	read_ints(&x, fp, &nwav1, 1);
@@ -4293,6 +4394,7 @@ i1pro_code i1pro_restore_calibration(i1pro *p) {
 	 || argyllversion != ARGYLL_VERSION
 	 || ss != (sizeof(i1pro_state) + sizeof(i1proimp))
 	 || serno != m->serno
+	 || isRevE != (p->itype == instI1Pro2 ? 1 : 0)
 	 || nraw != m->nraw
 	 || nwav0 != m->nwav[0]
 	 || nwav1 != m->nwav[1]) {
@@ -4398,6 +4500,7 @@ i1pro_code i1pro_restore_calibration(i1pro *p) {
 	read_ints(&x, fp, &argyllversion, 1);
 	read_ints(&x, fp, &ss, 1);
 	read_ints(&x, fp, &m->serno, 1);
+	read_ints(&x, fp, &isRevE, 1);
 	read_ints(&x, fp, (int *)&m->nraw, 1);
 	read_ints(&x, fp, (int *)&m->nwav[0], 1);
 	read_ints(&x, fp, (int *)&m->nwav[1], 1);
@@ -5323,6 +5426,7 @@ i1pro_code i1pro_read_patches_2(
 		} else {
 			a1logd(p->log,3,"Number of patches measured = %d\n",nmeasuered);
 
+{
 			/* Recognise the required number of ref/trans patch locations, */
 			/* and average the measurements within each patch. */
 			if ((ev = i1pro_extract_patches_multimeas(p, &rv, absraw, numpatches, multimes,
@@ -5332,6 +5436,7 @@ i1pro_code i1pro_read_patches_2(
 				a1logd(p->log,2,"i1pro_read_patches_2 spot read failed at i1pro_extract_patches_multimeas\n");
 				return ev;
 			}
+}
 		}
 	}
 	free_dmatrix(multimes, 0, nmeasuered-1, -1, m->nraw-1);
@@ -5532,7 +5637,7 @@ i1pro_code i1pro_read_patches_all(
 	unsigned int bsize;
 	int rv = 0;
 
-	bsize = m->nsen * 2 * numpatches;
+	bsize = m->nsen * 2 * numpatches;	/* 16 bit raw values */
 	if ((buf = (unsigned char *)malloc(sizeof(unsigned char) * bsize)) == NULL) {
 		a1logd(p->log,1,"i1pro_read_patches malloc %d bytes failed (11)\n",bsize);
 		return I1PRO_INT_MALLOC;
@@ -5710,6 +5815,11 @@ i1pro_trigger_one_measure(
 	int lampclocks;		/* Number of lamp turn on sub-clocks */
 	int measmodeflags;	/* Measurement mode command flags */
 	int measmodeflags2;	/* Rev E Measurement mode command flags */
+
+	/* Sanity check in case bad value was restored, due to switch */
+	/* from Rev A-D to Rev E mode. */
+	if (*inttime < m->min_int_time)
+		*inttime = m->min_int_time; 
 
 	/* The Rev E measure mode has it's own settings */
 	if (p->itype == instI1Pro2) {
@@ -6378,7 +6488,7 @@ i1pro_code i1pro_extract_patches_multimeas(
 
 #ifdef PATREC_DEBUG
 	/* Plot out 6 lots of 8 values each */ 
-	plot = dmatrixz(0, 8, 0, nummeas-1);  
+	plot = dmatrixz(0, 11, 0, nummeas-1);  
 //	for (j = 45; j <= (m->nraw-8); j += 100) 		/* Do just one band */
 #ifdef PATREC_ALLBANDS
 	for (j = 0; j <= (m->nraw-8); j += 8) 			/* Plot all the bands */
@@ -6500,7 +6610,6 @@ i1pro_code i1pro_extract_patches_multimeas(
 				/* to skew slightly towards the center */
 				for (k = 0; k < FW; k++) { 
 					double wt;
-
 					wt = fabs(2.0 * k - (FW -1.0))/(FW-1.0);
 					dev[k] += wt * bdev;
 				}
@@ -6689,6 +6798,7 @@ i1pro_code i1pro_extract_patches_multimeas(
 				break;
 			pat[npat].no++;
 		}
+
 		avglegth += (double) pat[npat].no;
 		npat++;
 	}
@@ -6812,20 +6922,80 @@ i1pro_code i1pro_extract_patches_multimeas(
 		a1logd(p->log,7,"Patch %d, start %d, length %d:\n",i, pat[i].ss, pat[i].no, pat[i].use);
 	}
 
-	/* Now trim the patches simply by shrinking their windows */
+#ifdef NEVER /* [Und] - doesn't seem as good for normal patch sizes. */
+	/* Now trim the patches by expanding the spacers/transitions */
+	for (k = 1; k < (npat-1); k++) {
+		int sw, xsw, trim;
+
+		if (pat[k].use == 0)
+			continue;
+		
+printf("Patch %d @ %d len %d ->",k,pat[k].ss,pat[k].no);
+		/* Figure the previous spacer width */
+		sw = pat[k].ss - (pat[k-1].ss + pat[k-1].no);
+		xsw = (sw * 170 + 85)/100;			/* Expand spacer by 170% */
+		trim = (xsw - sw + 1)/2;			/* Move start of patch half that expansion */
+		pat[k].ss += trim;
+		pat[k].no -= trim;
+		
+		/* Figure the next spacer width */
+		sw = pat[k+1].ss - (pat[k].ss + pat[k].no);
+		xsw = (sw * 170 + 85)/100;			/* Expand spacer by 170% */
+		trim = (xsw - sw + 1)/2;			/* Move end of patch half that expansion */
+		pat[k].no -= trim;
+		
+		if (pat[k].no < 0)
+			pat[k].no = 0; 
+printf(" @ %d len %d\n",pat[k].ss,pat[k].no);
+	}
+#else
+	/* Now trim the patches by shrinking their windows */
 	for (k = 1; k < (npat-1); k++) {
 		int nno, trim;
 
 		if (pat[k].use == 0)
 			continue;
-
 		
-		nno = (pat[k].no * 3)/4;
-		trim = (pat[k].no - nno)/2;
+//		nno = (pat[k].no * 3 + 0)/4;		/* Trim to 75% & round down */
+		nno = (pat[k].no * 2 + 0)/3;		/* Trim to 66% & round down [def] */
+//		nno = (pat[k].no * 2 + 0)/4;		/* Trim to 50% & round down */
+		trim = (pat[k].no - nno + 1)/2;
 
 		pat[k].ss += trim;
 		pat[k].no = nno;
 	}
+#endif
+
+#ifdef PATREC_SAVETRIMMED			/* Save debugging file */
+	{
+		static int filen = 0;		/* Debug file index */
+		char fname[100];
+		FILE *fp;
+
+		sprintf(fname, "i1pro_raw_trimed_%d.csv",filen++);
+
+		if ((fp = fopen(fname, "w")) == NULL)
+			error("Unable to open debug output file '%'",fname);
+
+		/* Create fake "slope" value that marks patches */
+		for (i = 0; i < nummeas; i++) 
+			slope[i] = 1.0;
+		for (k = 1; k < (npat-1); k++) {
+			if (pat[k].use == 0)
+				continue;
+			for (i = pat[k].ss; i < (pat[k].ss + pat[k].no); i++)
+				slope[i] = 0.0;
+		}
+
+		for (i = 0; i < nummeas; i++) { 
+			fprintf(fp, "%f\t",slope[i]);
+			for (j = 0; j < m->nraw; j++)
+				fprintf(fp, "%f\t", multimeas[i][j]/maxval[j]);
+			fprintf(fp, "\n");
+		}
+		fclose(fp);
+	}
+#endif
 
 #ifdef PATREC_DEBUG
 	a1logd(p->log,7,"After trimming got:\n");
@@ -6846,6 +7016,17 @@ i1pro_code i1pro_extract_patches_multimeas(
 	}
 
 	printf("Trimmed output:\n");
+#ifdef PATREC_ALLBANDS
+	for (j = 0; j <= (m->nraw-9); j += 9) { 			/* Plot all the bands, 9 at a time */
+		for (i = 0; i < nummeas; i++) { 
+			for (k = 0; k < 9; k++)
+				plot[k][i] = multimeas[i][j+k]/maxval[j+k];
+			plot[10][i] = (double)i;
+		}
+		printf("Bands %d - %d\n",j,j+9);
+		do_plot10(plot[10], slope, plot[0], plot[1], plot[2], plot[3], plot[4], plot[5], plot[6], plot[7], plot[8], nummeas, 0);
+	}
+#else
 	for (i = 0; i < nummeas; i++) { 
 		int jj;
 		for (jj = 0, j = b_lo; jj < 6 && j < b_hi; jj++, j += ((b_hi-b_lo)/6)) {
@@ -6856,8 +7037,9 @@ i1pro_code i1pro_extract_patches_multimeas(
 		}
 	}
 	for (i = 0; i < nummeas; i++)
-		plot[6][i] = (double)i;
-	do_plot6(plot[6], slope, plot[0], plot[1], plot[2], plot[3], plot[4], nummeas);
+		plot[10][i] = (double)i;
+	do_plot6(plot[10], slope, plot[0], plot[1], plot[2], plot[3], plot[4], nummeas);
+#endif
 #endif	/* PATREC_DEBUG */
 
 #ifdef PATREC_DEBUG
@@ -7884,6 +8066,8 @@ i1pro_code i1pro2_match_wl_meas(i1pro *p, double *pled_off, double *wlraw) {
 /* given the current wl_led_off, and set them as current, */
 /* using triangular filters of the lagrange interpolation of the */
 /* CCD values (i.e. the same type of filter used by the OEM driver) */
+/* [ Interestingly, the resulting filter shape is a bit like lanczos2, */
+/*   but not identical. ] */
 i1pro_code i1pro_compute_wav_filters(i1pro *p, int hr, int refl) {
 	i1proimp *m = (i1proimp *)p->m;
 	i1pro_state *s = &m->ms[m->mmode];
@@ -7979,6 +8163,12 @@ i1pro_code i1pro_compute_wav_filters(i1pro *p, int hr, int refl) {
 			wlcop[i] = 0.0;
 		
 		/* for each Lagrange interpolation position (adjacent CCD locations) */
+		/* create the Lagrange and then accuumulate the integral of the convolution */
+		/* of the overlap of the central region, with the triangle of our */
+		/* underlying re-sampling filter. */
+		/* (If we were to run out of enough source points for the Lagrange to */
+		/* encompas the region, then in theory we could use the Lagrange to */
+		/* extrapolate beyond the end from points within.) */
 		for (lip = six; (lip + 3) < eix; lip++) {
 			double rwav[4];		/* Relative wavelength of these Lagrange points */
 			double den[4];		/* Denominator values for points */
@@ -8032,6 +8222,7 @@ i1pro_code i1pro_compute_wav_filters(i1pro *p, int hr, int refl) {
 				ihigh = rwav[1]; 
 				ilow = rwav[2]; 
 
+				/* Over just the central portion, if it overlaps the triangle. */
 				if ((k == 0 && ilow <= twidth && ihigh >= 0.0)		/* Portion is +ve side */
 				 || (k == 1 && ilow <= 0.0 && ihigh >= -twidth)) {	/* Portion is -ve side */
 
@@ -8186,6 +8377,8 @@ i1pro_code i1pro_compute_wav_filters(i1pro *p, int hr, int refl) {
 #define DO_CCDNORMAVG		/* [und ???] Normalise averages rather than per CCD bin */
 							/* (We relly on fine cal & white cal to fix it) */
 
+#define BOX_INTEGRATE    	/* [und] Integrate raw samples as if they were +/-0.5 boxes */
+							/*       (This improves coeficient consistency a bit ?) */
 #undef COMPUTE_DISPERSION	/* Compute slit & optics dispersion from red laser data */
 
 #ifdef NEVER
@@ -8219,7 +8412,7 @@ static void i1pro_debug_plot_mtx_coef(i1pro *p) {
 
 	do_plot6(xx, yy[0], yy[1], yy[2], yy[3], yy[4], yy[5], m->nraw);
 	free_dvector(xx, -1, m->nraw-1);
-	free_dmatrix(yy, 0, 2, -1, m->nraw-1);
+	free_dmatrix(yy, 0, 5, -1, m->nraw-1);
 }
 #endif	/* NEVER */
 
@@ -9540,7 +9733,7 @@ i1pro_code i1pro_create_hr(i1pro *p) {
 				w1 = i1pro_raw2wav(p, refl, (double)i - 0.5);
 				w2 = i1pro_raw2wav(p, refl, (double)i + 0.5);
 
-//			printf("~1 CCD %d, w1 %f, wl %f, w2 %f\n",i,w1,wl,w2);
+//				printf("~1 CCD %d, w1 %f, wl %f, w2 %f\n",i,w1,wl,w2);
 
 				/* For each filter */
 				for (j = 0; j < m->nwav[1]; j++) {
@@ -9554,6 +9747,7 @@ i1pro_code i1pro_create_hr(i1pro *p) {
 					if (fabs(w1 - cwl) > fshmax && fabs(w2 - cwl) > fshmax)
 						continue;		/* Doesn't fall into this filter */
 
+#ifdef BOX_INTEGRATE 
 					/* Integrate in 0.05 nm increments from filter shape */
 					/* using triangular integration. */
 					{
@@ -9582,6 +9776,9 @@ i1pro_code i1pro_create_hr(i1pro *p) {
 							lw = cw;
 						}
 					}
+#else
+					we = fabs(w2 - w1) * lanczos2(twidth, rwl);
+#endif
 
 					if (m->mtx_c[1][refl].nocoef[j] >= MXNOFC) {
 						a1logw(p->log, "i1pro: run out of high res filter space\n");
@@ -9943,7 +10140,7 @@ i1pro_code i1pro_set_scan_toll(i1pro *p, double toll_ratio) {
 }
 
 
-/* Optics adjustment weights */
+/* Optical adjustment weights */
 static double opt_adj_weights[21] = {
 	1.4944496665144658e-282, 2.0036175483913455e-070, 1.2554893022685038e+232,
 	2.3898157055642966e+190, 1.5697625128432372e-076, 6.6912978722191457e+281,
@@ -9954,7 +10151,8 @@ static double opt_adj_weights[21] = {
 	9.2709981544886391e+122, 3.7958270103353899e-153, 7.1366083837501666e-154
 };
 
-/* Convert from spectral to XYZ, and transfer to the ipatch array */
+/* Convert from spectral to XYZ, and transfer to the ipatch array. */
+/* Apply XRGA conversion if needed */
 i1pro_code i1pro_conv2XYZ(
 	i1pro *p,
 	ipatch *vals,		/* Values to return */
@@ -10062,6 +10260,10 @@ i1pro_code i1pro_conv2XYZ(
 	}
 
 	conv->del(conv);
+
+	/* Apply any XRGA conversion */
+	ipatch_convert_xrga(vals, nvals, xcalstd_nonpol, m->target_calstd, m->native_calstd, clamp);
+
 	return I1PRO_OK;
 }
 
@@ -11383,6 +11585,7 @@ i1pro_setmcmode(
 	}
 
 	/* Hmm. Give the instrument a little time to reconfigure itself. */
+	/* (Probably needs about 1msec, but err on the safe side) */
 	msec_sleep(10);
 
 	a1logd(p->log,2,"i1pro_setmcmode: done, ICOM err 0x%x (%d msec)\n",
@@ -11727,7 +11930,7 @@ i1pro2_triggermeasure(i1pro *p, int delay) {
 	i1proimp *m = (i1proimp *)p->m;
 	int rv = I1PRO_OK;
 
-	a1logd(p->log,2,"i1pro2_triggermeasure: triggering Rev Emeasurement after %dmsec "
+	a1logd(p->log,2,"i1pro2_triggermeasure: triggering Rev E measurement after %dmsec "
 	                               "delay @ %d msec\n", delay, msec_time() - m->msec);
 
 	/* NOTE := would be better here to create thread once, and then trigger it */
@@ -12512,6 +12715,8 @@ static i1pro_code i1data_parse_eeprom(i1data *d, unsigned char *buf, unsigned in
 	i1pro *p = d->p;
 	int rv = I1PRO_OK;
 	int dir = 0x1000;		/* Location of key directory */
+	int minkeys = 300;		/* Expected minumum number of bytes for keys */
+	int maxkeys = 512;		/* Expected maxumum number of bytes for keys */
 	int block_id;			/* Block id */
 	int nokeys;
 	i1key key, off, nkey = 0, noff = 0;
@@ -12519,14 +12724,16 @@ static i1pro_code i1data_parse_eeprom(i1data *d, unsigned char *buf, unsigned in
 	unsigned char *bp;
 	int i;
 
-	if (extra) 
+	if (extra) { 
 		dir = 0x2000;	/* Directory is at half way in i1pro2 2nd table */
+		minkeys = 200;	/* Hmm. Had a report that the i1Pro2 failed to parse */
+	}
 
-	a1logd(p->log,3,"i1pro_parse_eeprom called with %d bytes\n",len);
+	a1logd(p->log,3,"i1pro_parse_eeprom called with %d bytes, table %d\n",len,extra);
 
 	/* Room for minimum number of keys ? */
-	if ((dir + 300) > len)
-		return I1PRO_DATA_KEY_COUNT;
+	if ((dir + minkeys) > len)
+		return I1PRO_DATA_KEY_COUNT_SMALL;
 
 	block_id = buf2ushort(buf + dir);
 	if ((extra == 0 && block_id != 1)	/* Must be 1 for base data */
@@ -12534,12 +12741,15 @@ static i1pro_code i1data_parse_eeprom(i1data *d, unsigned char *buf, unsigned in
 		return I1PRO_DATA_KEY_CORRUPT;
 	
 	nokeys = buf2ushort(buf + dir + 2);	/* Bytes in key table */
-	if (nokeys < 300 || nokeys > 512)
-		return I1PRO_DATA_KEY_COUNT;
+	a1logd(p->log,3,"%d bytes for keys in EEProm table %d\n",nokeys, extra);
+	if (nokeys < minkeys)
+		return I1PRO_DATA_KEY_COUNT_SMALL;
+	if (nokeys > maxkeys)
+		return I1PRO_DATA_KEY_COUNT_LARGE;
 
 	nokeys = (nokeys - 4)/6;				/* Number of 6 byte entries */
 
-	a1logd(p->log,3,"%d key/values in EEProm table %d\n",nokeys, extra);
+	a1logd(p->log,3,"%d keys & values in EEProm table %d\n",nokeys, extra);
 
 	/* We need current and next value to figure data size out */
 	bp = buf + dir + 4;

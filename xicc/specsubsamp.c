@@ -91,9 +91,18 @@ main(
 				} else if (strcmp(na, "F10") == 0) {
 					illum = icxIT_F10;
 				} else {	/* Assume it's a filename */
+					inst_meas_type mt;
+
 					illum = icxIT_custom;
-					if (read_xspect(&cust_illum, na) != 0)
+					if (read_xspect(&cust_illum, &mt, na) != 0)
 						usage();
+
+					if (mt != inst_mrt_none
+					 && mt != inst_mrt_emission
+					 && mt != inst_mrt_ambient
+					 && mt != inst_mrt_emission_flash
+					 && mt != inst_mrt_ambient_flash)
+						error("Custom illuminant '%s' is wrong measurement type",na);
 				}
 			}
 

@@ -276,10 +276,12 @@ struct _ofps {
 	unsigned int lwmask;	/* Last word mask */
 
 	/* Perceptual function handed in. All device values must have been */
-	/* clipped before calling this, otherwise use It is assumed that */
+	/* clipped before calling this. (On running, is replaced with rspl */
+	/* cached version) */
 	void (*percept)(void *od, double *out, double *in);
 	void *od;			/* Opaque data for perceptual point */
 
+	int pcache_res;		/* Grid resolution of pcache */ 
 	rspl *pcache;		/* cache of perceptual lookup */
 	
 	/* Other info */

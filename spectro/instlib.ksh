@@ -42,6 +42,7 @@ RSPL_FILES="
 
 SPECTRO_FILES="
 	License2.txt
+	spotread.c
 	Makefile.OSX
 	Makefile.UNIX
 	Makefile.WNT
@@ -49,6 +50,8 @@ SPECTRO_FILES="
 	pollem.c
 	conv.h
 	conv.c
+	sa_conv.h
+	sa_conv.c
 	aglob.c
 	aglob.h
 	hidio.h
@@ -56,13 +59,13 @@ SPECTRO_FILES="
 	icoms.h
 	inst.h
 	inst.c
-	disptechs.h
-	disptechs.c
 	insttypes.c
 	insttypes.h
 	insttypeinst.h
 	instappsup.c
 	instappsup.h
+	disptechs.h
+	disptechs.c
 	dtp20.c
 	dtp20.h
 	dtp22.c
@@ -101,6 +104,11 @@ SPECTRO_FILES="
 	specbos.c
 	kleink10.h
 	kleink10.c
+	ex1.c
+    ex1.h
+    smcube.h
+	smcube.c
+    cubecal.h
 	oemarch.c
 	oemarch.h
 	oeminst.c
@@ -118,10 +126,14 @@ SPECTRO_FILES="
 	usbio_nt.c
 	usbio_ox.c
 	usbio_lx.c
-	usbio_bsd.c
+	rspec.h
+	rspec.c
 	xdg_bds.c
 	xdg_bds.h
-	spotread.c
+	base64.h
+	base64.c
+	xrga.h
+	xrga.c
 	"
 
 FILES=" $H_FILES $CGATS_FILES $NUMLIB_FILES $RSPL_FILES $XICC_FILES $SPECTRO_FILES "
@@ -138,7 +150,7 @@ for j in $FILES
 do
 	if [ ! -e ${j} ] ; then
 		echo "!!!!!!!!!!!!!!!!!!!!!!!!!!! Can't find file ${j} !!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-		NOTFOUND="$NOTFOUND ${tt}"
+		NOTFOUND="$NOTFOUND ${j}"
 	else 
 		cp ${j} _zipdir/instlib/${j##*/}
 		echo instlib/${j##*/} >> _ziplist

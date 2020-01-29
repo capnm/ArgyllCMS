@@ -37,9 +37,9 @@
 # include "openssl/ssl.h"		/* OpenSSL header */
 #endif
 
-#undef DEBUG
-#undef DUMPSDATA		/* Send data */
-#undef DUMPRDATA		/* Receive data */
+#undef DEBUG			/* [und] */
+#undef DUMPSDATA		/* [und] Send data */
+#undef DUMPRDATA		/* [und] Receive data */
 
 #if defined(NT) // Windows specific
 # if _WIN32_WINNT < 0x0400

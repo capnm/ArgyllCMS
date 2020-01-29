@@ -10,7 +10,7 @@
  * Copyright 2000 - 2012 Graeme W. Gill
  *
  * This material is licensed with an "MIT" free use license:-
- * see the License.txt file in this directory for licensing details.
+ * see the License4.txt file in this directory for licensing details.
  */
 
 /* TTBD:

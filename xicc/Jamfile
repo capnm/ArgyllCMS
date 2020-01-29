@@ -124,15 +124,26 @@ Main monctest : monctest.c ;
 #Main cam02vecplot : cam02vecplot.c : : : : : ../plot/libvrml ;
 
 #Home = ' d:\usr\graeme ' and PWD = ' /src/argyll/xicc '
-if $(HOME) = "d:\\usr\\graeme" && $(PWD) = "/src/argyll/xicc" {
+if $(HOME) = "D:\\usr\\graeme" && $(PWD) = "/src/argyll/xicc" {
+	Echo "Creating test utilities" ;
 	#Create test TIFF file for cam02 conversion
 	Main cam02plot : cam02plot.c : : : $(TIFFINC) $(JPEGINC) : : ;
 	Main cam02logplot : cam02logplot.c : : : $(TIFFINC) $(JPEGINC) : : ;
 	Main cam02delplot : cam02delplot.c : : : $(TIFFINC) $(JPEGINC) : : ;
 	Main cam02vecplot : cam02vecplot.c : : : : : ../plot/libvrml ;
+	Main cusptest : cusptest.c : : : : : ../plot/libvrml ;
 }
 
 #Main t : t.c ;
+
+# diagnostic utility
+if [ GLOB [ NormPaths . ] : tennm.c ]  {
+	Main tennm : tennm.c ;
+}
+
+if [ GLOB [ NormPaths . ] : cam16.c ]  {
+	Main cam16vecplot : cam16vecplot.c cam16.c ;
+}
 
 if $(BUILD_JUNK) {
 

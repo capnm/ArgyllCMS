@@ -176,7 +176,6 @@
 #include "gamut.h"
 #include "gammap.h"
 #include "vrml.h"
-#include "ui.h"
 
 void usage(char *diag, ...) {
 	int i;
@@ -1281,10 +1280,10 @@ void devip_devop(void *cntx, double *out, double *in) {
 	/* Abstract profile transform, PCS -> PCS */
 	/* pcsor -> abstract -> pcsor conversion */
 	/* We're applying any abstract profile after gamut mapping, */
-	/* on the assumption is is primarily being used to "correct" the */
+	/* on the assumption is primarily being used to "correct" the */
 	/* output device. Ideally the gamut mapping should take the change */
 	/* the abstract profile has on the output device into account, but */
-	/* currently we're not doing this.. */
+	/* currently we're not doing this... */
 	if (wptrig == 0 && p->abs_luo != NULL) {
 		/* Abstract profile is either absolute or relative.  */
 		/* We need to convert the current PCS into something compatible. */
@@ -3620,7 +3619,7 @@ main(int argc, char *argv[]) {
 			printf(" Creating Gamut match\n");
 
 		li.map = new_gammap(li.verb, csgam, igam, ogam, &li.gmi,
-		                    li.src_kbp, li.dst_kbp, li.cmyhack, li.rel_oride,
+		                    NULL, li.src_kbp, li.dst_kbp, li.cmyhack, li.rel_oride,
 		                    mapres, NULL, NULL, li.gamdiag ? "gammap" : NULL
 		);
 		if (li.map == NULL)
@@ -3631,7 +3630,7 @@ main(int argc, char *argv[]) {
 				printf(" Creating K only black to K only black Gamut match\n");
 
 			li.Kmap = new_gammap(li.verb, csgam, igam, ogam, &li.gmi,
-			                    1, 1, li.cmyhack, li.rel_oride,
+			                    NULL, 1, 1, li.cmyhack, li.rel_oride,
 			                    mapres, NULL, NULL, li.gamdiag ? "gammap" : NULL
 			);
 			if (li.Kmap == NULL)

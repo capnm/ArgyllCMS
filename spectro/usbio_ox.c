@@ -15,6 +15,8 @@
  * see the License2.txt file for licencing details.
  */
 
+/* OS X I/O error codes are in IOKit/IOReturn.h */
+
 #include <sys/time.h>
 
 #include <CoreFoundation/CoreFoundation.h>
@@ -62,7 +64,7 @@ icompaths *p
 		CFNumberRef nconfref;					/* No configurations */
 		CFNumberRef nepref, lidpref;			/* No ep's, Location ID properties */
 		unsigned int vid = 0, pid = 0, nep, tnep, nconfig = 0, lid = 0;
-		instType itype;
+		devType itype;
 
 	    if ((ioob = IOIteratorNext(mit)) == 0)
 			break;
@@ -127,7 +129,7 @@ icompaths *p
 				unsigned int config = 0;
 				
 				/* Get the configuration number */
-				if ((nconfref = IORegistryEntryCreateCFProperty(ch1, CFSTR(kUSBNumEndpoints),
+				if ((nconfref = IORegistryEntryCreateCFProperty(ch1, CFSTR(kUSBConfigurationValue),
 				                                         kCFAllocatorDefault,kNilOptions)) != 0) {
 					CFNumberGetValue(nconfref, kCFNumberIntType, &config);
 				    CFRelease(nconfref);
@@ -157,16 +159,16 @@ icompaths *p
 
 			/* If this device is HID, it will have already added to the paths list, */
 			/* so check for this and skip this device if it is already there. */
-			for (i = 0; i < p->npaths; i++) {
-				if (p->paths[i]->vid == vid
-				 && p->paths[i]->pid == pid
-				 && p->paths[i]->hidd != NULL
-				 && p->paths[i]->hidd->lid == lid) {
+			for (i = 0; i < p->ndpaths[dtix_combined]; i++) {
+				if (p->dpaths[i][dtix_combined]->vid == vid
+				 && p->dpaths[i][dtix_combined]->pid == pid
+				 && p->dpaths[i][dtix_combined]->hidd != NULL
+				 && p->dpaths[i][dtix_combined]->hidd->lid == lid) {
 					a1logd(p->log, 1, "usb_get_paths: Ignoring device because it is already in list as HID\n");
 					break;
 				}
 			}
-			if (i < p->npaths) {
+			if (i < p->ndpaths[dtix_combined]) {
 			    IOObjectRelease(ioob);		/* Release found object */
 				free(usbd);
 
@@ -195,7 +197,7 @@ icompaths *p
 	}
     IOObjectRelease(mit);			/* Release the itterator */
 
-	a1logd(p->log, 8, "usb_get_paths: returning %d paths and ICOM_OK\n",p->npaths);
+	a1logd(p->log, 8, "usb_get_paths: returning %d paths and ICOM_OK\n",p->ndpaths[dtix_combined]);
 	return ICOM_OK;
 }
 
@@ -271,6 +273,8 @@ void usb_close_port(icoms *p) {
 		/* Workaround for some bugs - reset device on close */
 		if (p->uflags & icomuf_reset_before_close) {
 			IOReturn rv;
+			// ~~~~ may have to switch to ->USBDeviceReEnumerate(p->usbd->device, 0) ???
+			// because new OS X 10.11 ignore ResetDevice ?
 			if ((rv = (*(p->usbd->device))->ResetDevice(p->usbd->device)) != kIOReturnSuccess) {
 				a1logd(p->log, 1, "usb_close_port: ResetDevice failed with 0x%x\n",rv);
 			}

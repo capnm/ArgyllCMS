@@ -58,7 +58,7 @@
 #include "dtp92.h"
 
 /* Default flow control */
-#define DEFFC fc_none
+#define DEFFC fc_None
 
 #define DEF_TIMEOUT 0.5
 #define MED_TIMEOUT 2.5
@@ -147,7 +147,8 @@ dtp92_fcommand(
 	                                          icoms_fix(in), icoms_fix(out),rv);
 
 #ifdef IGNORE_NEEDS_OFFSET_DRIFT_CAL_ERR
-	if (strcmp(in, "0PR\r") == 0 && rv == DTP92_NEEDS_OFFSET_DRIFT_CAL) {
+	if ((strcmp(in, "0PR\r") == 0 
+	  || strcmp(in, "EFC\r") == 0) && rv == DTP92_NEEDS_OFFSET_DRIFT_CAL) {
 		static int warned = 0;
 		if (!warned) {
 			a1logw(p->log,"dtp92: Got error NEEDS_OFFSET_DRIFT_CAL on instrument reset - being ignored.");
@@ -239,7 +240,7 @@ dtp92_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 		} else if (fc == fc_Hardware) {
 			fcc = "0104CF\r";
 		} else {
-			fc = fc_none;
+			fc = fc_None;
 			fcc = "0004CF\r";
 		}
 
@@ -262,41 +263,42 @@ dtp92_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 		/* The tick to give up on */
 		etime = msec_time() + (long)(1000.0 * tout + 0.5);
 
-		while (msec_time() < etime) {
-
-			a1logd(p->log, 4, "dtp92_init_coms: Trying different baud rates (%u msec to go)\n",
-                                                              etime - msec_time());
-
-			/* Until we time out, find the correct baud rate */
-			for (i = ci; msec_time() < etime;) {
-				if ((se = p->icom->set_ser_port(p->icom, fc_none, brt[i], parity_none,
-					                                    stop_1, length_8)) != ICOM_OK) { 
-					a1logd(p->log, 1, "dtp92_init_coms: set_ser_port failed ICOM err 0x%x\n",se);
-					return dtp92_interp_code((inst *)p, icoms2dtp92_err(se));
-				}
-
-				if (((ev = dtp92_command(p, "\r", buf, MAX_MES_SIZE, DEF_TIMEOUT)) & inst_mask)
-					                                                 != inst_coms_fail)
-					break;		/* We've got coms or user abort */
-
-				/* Check for user abort */
-				if (p->uicallback != NULL) {
-					inst_code ev;
-					if ((ev = p->uicallback(p->uic_cntx, inst_negcoms)) == inst_user_abort) {
-						a1logd(p->log, 1, "dtp92_init_coms: user aborted\n");
-						return inst_user_abort;
-					}
-				}
-	
-				if (++i >= 5)
-					i = 0;
+		/* Until we time out, find the correct baud rate */
+		for (i = ci; msec_time() < etime;) {
+			a1logd(p->log, 4, "dtp92_init_coms: Trying %s baud, %d msec to go\n",
+			                      baud_rate_to_str(brt[i]), etime- msec_time());
+			if ((se = p->icom->set_ser_port(p->icom, fc_None, brt[i], parity_none,
+				                                    stop_1, length_8)) != ICOM_OK) { 
+				a1logd(p->log, 1, "dtp92_init_coms: set_ser_port failed ICOM err 0x%x\n",se);
+				return dtp92_interp_code((inst *)p, icoms2dtp92_err(se));
 			}
-			break;		/* Got coms */
-		}
 
-		if (msec_time() >= etime) {		/* We haven't established comms */
-			return inst_coms_fail;
+			/* Throw one response away, to work around some USB<->Serial quirks */
+			p->icom->write_read(p->icom, "\r", 0, buf, MAX_MES_SIZE, NULL, ">", 1, 0.1);
+
+			if (((ev = dtp92_command(p, "\r", buf, MAX_MES_SIZE, DEF_TIMEOUT)) & inst_mask)
+				                                                 != inst_coms_fail)
+				goto got_coms;		/* We've got coms or user abort */
+
+			/* Check for user abort */
+			if (p->uicallback != NULL) {
+				inst_code ev;
+				if ((ev = p->uicallback(p->uic_cntx, inst_negcoms)) == inst_user_abort) {
+					a1logd(p->log, 1, "dtp92_init_coms: user aborted\n");
+					return inst_user_abort;
+				}
+			}
+
+			if (++i >= 5)
+				i = 0;
 		}
+		/* We haven't established comms */
+		return inst_coms_fail;
+
+  got_coms:;
+
+		/* Throw one response away, to work around some USB<->Serial quirks */
+		p->icom->write_read(p->icom, "\r", 0, buf, MAX_MES_SIZE, NULL, ">", 1, 0.1);
 
 		/* Set the handshaking */
 		if ((ev = dtp92_command(p, fcc, buf, MAX_MES_SIZE, DEF_TIMEOUT)) != inst_ok)
@@ -317,6 +319,7 @@ dtp92_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 
 		/* Loose a character (not sure why) */
 		p->icom->write_read(p->icom, "\r", 0, buf, MAX_MES_SIZE, NULL, ">", 1, 0.1);
+
 #else	/* !ENABLE_SERIAL */
 		a1logd(p->log, 1, "dtp92: Failed to find serial connection to instrument\n");
 		return inst_coms_fail;
@@ -621,6 +624,14 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 		if (sscanf(buf, " X%*c %lf\t Y%*c %lf\t Z%*c %lf ",
 	           &val->XYZ[0], &val->XYZ[1], &val->XYZ[2]) == 3) {
 
+			/* Hmm. The DTP92 seems to return strange X & Z values if the light */
+			/* level is zero, and it's black level is out of calibration */
+			/* (i.e. internally it has -ve Y ?) */
+			if (val->XYZ[1] == 0.0 && val->XYZ[0] == 999.99)
+				val->XYZ[0] = 0.0;
+			if (val->XYZ[1] == 0.0 && val->XYZ[2] == 999.99)
+				val->XYZ[2] = 0.0;
+
 			/* Apply the colorimeter correction matrix */
 			icmMulBy3x3(val->XYZ, p->ccmat, val->XYZ);
 
@@ -778,6 +789,7 @@ static inst_code dtp92_calibrate(
 inst *pp,
 inst_cal_type *calt,	/* Calibration type to do/remaining */
 inst_cal_cond *calc,	/* Current condition/desired condition */
+inst_calc_id_type *idtype,	/* Condition identifier type */
 char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 ) {
 	dtp92 *p = (dtp92 *)pp;
@@ -790,6 +802,7 @@ char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 	if (!p->inited)
 		return inst_no_init;
 
+	*idtype = inst_calc_id_none;
 	id[0] = '\000';
 
 	if ((ev = dtp92_get_n_a_cals((inst *)p, &needed, &available)) != inst_ok)
@@ -1356,8 +1369,7 @@ int *cbid) {
  * error if it hasn't been initialised.
  */
 static inst_code
-dtp92_get_set_opt(inst *pp, inst_opt_type m, ...)
-{
+dtp92_get_set_opt(inst *pp, inst_opt_type m, ...) {
 	dtp92 *p = (dtp92 *)pp;
 	char buf[MAX_MES_SIZE];
 	inst_code ev = inst_ok;
@@ -1369,12 +1381,17 @@ dtp92_get_set_opt(inst *pp, inst_opt_type m, ...)
 		return inst_ok;
 	}
 
-	if (!p->gotcoms)
-		return inst_no_coms;
-	if (!p->inited)
-		return inst_no_init;
+	/* Use default implementation of other inst_opt_type's */
+	{
+		inst_code rv;
+		va_list args;
 
-	return inst_unsupported;
+		va_start(args, m);
+		rv = inst_get_set_opt_def(pp, m, args);
+		va_end(args);
+
+		return rv;
+	}
 }
 
 /* Constructor */

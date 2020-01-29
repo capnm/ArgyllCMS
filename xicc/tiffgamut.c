@@ -46,7 +46,6 @@
 #include "xicc.h"
 #include "sort.h"
 #include "vrml.h"
-#include "ui.h"
 
 #undef NOCAMGAM_CLIP		/* No clip to CAM gamut before CAM lookup */
 #undef DEBUG				/* Dump filter cell contents */
@@ -99,6 +98,7 @@ void usage(void) {
 	fprintf(stderr,"         g:glare       Flare light %% of ambient (default %d)\n",XICC_DEFAULT_GLARE);
 	fprintf(stderr,"         g:X:Y:Z       Flare color as XYZ (default media white, Abs: D50)\n");
 	fprintf(stderr,"         g:x:y         Flare color as x, y\n");
+    fprintf(stderr," -x pcent      Expand/compress gamut cylindrically by percent\n");
 	fprintf(stderr," -O outputfile Override the default output filename.\n");
 	exit(1);
 }
@@ -355,6 +355,7 @@ main(int argc, char *argv[]) {
 	double vc_g = -1.0;			/* Glare % overide */
 	double vc_gXYZ[3] = {-1.0, -1.0, -1.0};	/* Glare color override in XYZ */
 	double vc_gxy[2] = {-1.0, -1.0};		/* Glare color override in x,y */
+	double expand = 1.0;		/* Expand gamut cylindrically by ratio */
 	icxLuBase *luo = NULL;					/* Generic lookup object */
 	icColorSpaceSignature ins = icSigLabData, outs;	/* Type of input and output spaces */
 	int inn, outn;						/* Number of components */
@@ -581,6 +582,18 @@ main(int argc, char *argv[]) {
 				filter = 1;
 			}
 
+			/* Expand gamut cylindrically */
+			else if (argv[fa][1] == 'x') {
+				double rr;
+				fa = nfa;
+				if (na == NULL) usage();
+				rr = atof(na)/100.0;
+
+				if (rr < 0.01 || rr > 100.0)
+					usage();
+				expand = rr;
+			}
+
 			/* Output file name */
 			else if (argv[fa][1] == 'O') {
 				fa = nfa;
@@ -760,7 +773,7 @@ main(int argc, char *argv[]) {
 			error("new_icxcam failed");
 
 		cam->set_view(cam, vc.Ev, vc.Wxyz, vc.La, vc.Yb, vc.Lv, vc.Yf, vc.Yg, vc.Gxyz,
-		              XICC_USE_HK);
+		              XICC_USE_HK, vc.hkscale);
 	}
 
 	/* Establish the PCS range if we are filtering */
@@ -1133,6 +1146,19 @@ main(int argc, char *argv[]) {
 
 	if (verb)
 		printf("Output Gamut file '%s'\n",out_name);
+
+	/* Expand gamut cylindrically */
+	if (expand != 1.0) {
+		gamut *xgam;
+
+		if ((xgam = new_gamut(1.0, 0, 0)) == NULL
+		 || xgam->exp_cyl(xgam, gam, expand)) {
+		error ("Creating expanded gamut failed");
+		}
+
+		gam->del(gam);
+		gam = xgam;
+	}
 
 	/* Create the VRML/X3D file */
 	if (gam->write_gam(gam,out_name))

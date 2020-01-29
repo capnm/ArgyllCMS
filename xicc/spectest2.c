@@ -31,8 +31,8 @@
 #include "numlib.h"
 #ifdef DOPLOT
 #include "plot.h"
-#endif
 #include "ui.h"
+#endif
 
 
 /* Normal 'A' spectra, then UV filtered version */

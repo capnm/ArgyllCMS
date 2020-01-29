@@ -7,7 +7,7 @@
  * by Nathan Moroney, Mark D. Fairchild, Robert W.G. Hunt, Changjun Li,
  * M. Ronnier Luo and Todd Newman, IS&T/SID Tenth Color Imaging
  * Conference, with the addition of a Viewing Flare+Glare
- * model, and the Helmholtz-Kohlraush effect, using the equation
+ * model, and the Helmholtz-Kohlrausch effect, using the equation
  * the Bradford-Hunt 96C model as detailed in Mark Fairchilds
  * book "Color Appearance Models". 
  *
@@ -142,7 +142,8 @@ struct _cam02 {
 		double Yg,		/* Glare as a fraction of the adapting/surround (range 0.0 .. 1.0) */
 		double Gxyz[3],	/* The Glare white coordinates (ie. the Ambient color) */
 						/* If <= 0 will Wxyz will be used. */
-		int hk			/* Flag, NZ to use Helmholtz-Kohlraush effect */
+		int hk,			/* Flag, NZ to use Helmholtz-Kohlrausch effect */
+		double hkscale	/* HK effect scaling factor */
 	);
 
 	/* Conversions. Return nz on error */
@@ -194,7 +195,8 @@ struct _cam02 {
 	double lA;			/* JLIMIT Limited A */
 
 	/* Option flags, code not always enabled */
-	int hk;				/* Use Helmholtz-Kohlraush effect */
+	int hk;				/* Use Helmholtz-Kohlrausch effect */
+	int hkscale;		/* [1.0] Scale HK effect up/down from default */
 	int trace;			/* Trace values through computation */
 	int retss;			/* Return ss rather than Jab */
 	int range;			/* (for cam02ref.h) return on range error */ 

@@ -26,6 +26,7 @@ mongoose.c
 insttypes.h
 insttypes.c
 insttypeinst.h
+dev.h
 inst.c
 inst.h
 disptechs.h
@@ -87,8 +88,12 @@ spec2cie.c
 average.c
 rspec.h
 rspec.c
+xrga.h
+xrga.c
 conv.h
 conv.c
+sa_conv.h
+sa_conv.c
 aglob.h
 aglob.c
 xdg_bds.h

@@ -271,7 +271,7 @@ int main(int argc, char *argv[]) {
 										/* 0X = use current color management cLut (MadVR) */
 										/* 1X = disable color management cLUT (MadVR) */
 	double cal[3][MAX_CAL_ENT];			/* Display calibration */
-	int ncal = 256;						/* number of cal entries used */
+	int ncal = 256;						/* Default number of cal entries used */
 	cgats *icg;							/* input cgats structure */
 	cgats *ocg;							/* output cgats structure */
 	time_t clk = time(0);
@@ -572,7 +572,7 @@ int main(int argc, char *argv[]) {
 				fa = nfa;
 				if (na == NULL) usage(0,"Parameter expected after -W");
 				if (na[0] == 'n' || na[0] == 'N')
-					fc = fc_none;
+					fc = fc_None;
 				else if (na[0] == 'h' || na[0] == 'H')
 					fc = fc_Hardware;
 				else if (na[0] == 'x' || na[0] == 'X')
@@ -855,8 +855,9 @@ int main(int argc, char *argv[]) {
 		if ((ncal = ccg->t[0].nsets) <= 0)
 			error ("No data in set of file '%s'",calname);
 	
-		if (ncal != 256)
-			error ("Expect 256 data sets in file '%s'",calname);
+		if (ncal < 2 || ncal > MAX_CAL_ENT)
+			error("Data set size %d is out of range for '%s'",ncal,calname);
+
 		if (ncal > MAX_CAL_ENT)
 			error ("Cant handle %d data sets in file '%s', max is %d",ncal,calname,MAX_CAL_ENT);
 	

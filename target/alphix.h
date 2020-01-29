@@ -2,9 +2,11 @@
 #ifndef ALPHIX_H
 
 /* 
- * Argyll Color Correction System
- *
  * Alphabetic indexing class
+ */
+
+/*
+ * Argyll Color Correction System
  *
  * Author: Graeme W. Gill
  * Date:   22/8/2005

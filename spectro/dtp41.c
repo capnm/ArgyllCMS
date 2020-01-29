@@ -53,6 +53,7 @@
 #include "conv.h"
 #include "icoms.h"
 #include "dtp41.h"
+#include "xrga.h"
 
 /* Default flow control */
 #define DEFFC fc_XonXOff
@@ -169,7 +170,7 @@ dtp41_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 	} else if (fc == fc_Hardware) {
 		fcc = "0104CF\r";
 	} else {
-		fc = fc_none;
+		fc = fc_None;
 		fcc = "0004CF\r";
 	}
 
@@ -192,36 +193,35 @@ dtp41_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 	/* The tick to give up on */
 	etime = msec_time() + (long)(1000.0 * tout + 0.5);
 
-	while (msec_time() < etime) {
-
-		/* Until we time out, find the correct baud rate */
-		for (i = ci; msec_time() < etime;) {
-			if ((se = p->icom->set_ser_port(p->icom, fc_none, brt[i], parity_none,
-				                                    stop_1, length_8)) != ICOM_OK) { 
-				a1logd(p->log, 1, "dtp41_init_coms: set_ser_port failed ICOM err 0x%x\n",se);
-				return dtp41_interp_code((inst *)p, icoms2dtp41_err(se));
-			}
-			if (((ev = dtp41_command(p, "\r", buf, MAX_MES_SIZE, 0.5)) & inst_mask)
-				                                                 != inst_coms_fail)
-				break;		/* We've got coms */
-
-			/* Check for user abort */
-			if (p->uicallback != NULL) {
-				inst_code ev;
-				if ((ev = p->uicallback(p->uic_cntx, inst_negcoms)) == inst_user_abort) {
-					a1logd(p->log, 1, "dtp41_init_coms: user aborted\n");
-					return inst_user_abort;
-				}
-			}
-			if (++i >= 9)
-				i = 0;
+	/* Until we time out, find the correct baud rate */
+	for (i = ci; msec_time() < etime;) {
+		a1logd(p->log, 4, "dtp41_init_coms: Trying %s baud, %d msec to go\n",
+			                      baud_rate_to_str(brt[i]), etime- msec_time());
+		if ((se = p->icom->set_ser_port(p->icom, fc_None, brt[i], parity_none,
+			                                    stop_1, length_8)) != ICOM_OK) { 
+			a1logd(p->log, 1, "dtp41_init_coms: set_ser_port failed ICOM err 0x%x\n",se);
+			return dtp41_interp_code((inst *)p, icoms2dtp41_err(se));
 		}
-		break;		/* Got coms */
-	}
+		if (((ev = dtp41_command(p, "\r", buf, MAX_MES_SIZE, 0.5)) & inst_mask)
+			                                                 != inst_coms_fail)
+			goto got_coms;		/* We've got coms or user abort */
 
-	if (msec_time() >= etime) {		/* We haven't established comms */
-		return inst_coms_fail;
+
+		/* Check for user abort */
+		if (p->uicallback != NULL) {
+			inst_code ev;
+			if ((ev = p->uicallback(p->uic_cntx, inst_negcoms)) == inst_user_abort) {
+				a1logd(p->log, 1, "dtp41_init_coms: user aborted\n");
+				return inst_user_abort;
+			}
+		}
+		if (++i >= 9)
+			i = 0;
 	}
+	/* We haven't established comms */
+	return inst_coms_fail;
+
+  got_coms:;
 
 	/* set the protocol to RCI */
 	if ((ev = dtp41_command(p, "0012CF\r", buf, MAX_MES_SIZE, 1.5)) != inst_ok)
@@ -319,12 +319,26 @@ static inst_code
 dtp41_init_inst(inst *pp) {
 	dtp41 *p = (dtp41 *)pp;
 	static char tbuf[100], buf[MAX_MES_SIZE];
+	char *envv;
 	inst_code ev = inst_ok;
 
 	a1logd(p->log, 2, "dtp41_init_inst: called\n");
 
 	if (p->gotcoms == 0)
 		return inst_internal_error;		/* Must establish coms before calling init */
+
+	p->native_calstd = xcalstd_xrdi;
+	p->target_calstd = xcalstd_native;		/* Default to native calibration standard*/
+
+	/* Honour Environment override */
+	if ((envv = getenv("ARGYLL_XCALSTD")) != NULL) {
+		if (strcmp(envv, "XRGA") == 0)
+			p->target_calstd = xcalstd_xrga;
+		else if (strcmp(envv, "XRDI") == 0)
+			p->target_calstd = xcalstd_xrdi;
+		else if (strcmp(envv, "GMDI") == 0)
+			p->target_calstd = xcalstd_gmdi;
+	}
 
 	/* Resetting instrument resets the baud rate, so do manual reset. */
 
@@ -603,7 +617,9 @@ ipatch *vals) {		/* Pointer to array of instrument patch values */
 		tp += strlen(tp) + 1;
 	}
 
-	if (p->mode & inst_mode_spectral) {
+	if (p->mode & inst_mode_spectral
+	 || (XCALSTD_NEEDED(p->target_calstd, p->native_calstd)
+		&& ((p->mode & inst_mode_illum_mask) != inst_mode_transmission))) {
 
 		/* Gather the results in Spectral reflectance */
 		if ((ev = dtp41_command(p, "0403TS\r", buf, MAX_RD_SIZE, 0.5 + npatch * 0.1)) != inst_ok)
@@ -639,6 +655,11 @@ ipatch *vals) {		/* Pointer to array of instrument patch values */
 			tp += strlen(tp) + 1;
 		}
 	}
+
+	/* Apply any XRGA conversion */
+	ipatch_convert_xrga(vals, npatch, xcalstd_nonpol, p->target_calstd, p->native_calstd,
+	                    instClamp);
+
 	if (user_trig)
 		return inst_user_trig;
 	return inst_ok;
@@ -790,7 +811,9 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 	val->sp.spec_n = 0;
 	val->duration = 0.0;
 
-	if (p->mode & inst_mode_spectral) {
+	if (p->mode & inst_mode_spectral
+	 || (XCALSTD_NEEDED(p->target_calstd, p->native_calstd)
+		&& ((p->mode & inst_mode_illum_mask) != inst_mode_transmission))) {
 		int j;
 
 		/* Gather the results in Spectral reflectance */
@@ -840,6 +863,9 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 	if ((ev = dtp41_command(p, "0113CF\r", buf, MAX_MES_SIZE, 1.5)) != inst_ok)
 		return ev;
 
+	/* Apply any XRGA conversion */
+	ipatch_convert_xrga(val, 1, xcalstd_nonpol, p->target_calstd, p->native_calstd, clamp);
+
 	if (user_trig)
 		return inst_user_trig;
 	return inst_ok;
@@ -881,6 +907,7 @@ inst_code dtp41_calibrate(
 inst *pp,
 inst_cal_type *calt,	/* Calibration type to do/remaining */
 inst_cal_cond *calc,	/* Current condition/desired condition */
+inst_calc_id_type *idtype,	/* Condition identifier type */
 char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 ) {
 	dtp41 *p = (dtp41 *)pp;
@@ -892,6 +919,7 @@ char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 	if (!p->inited)
 		return inst_no_init;
 
+	*idtype = inst_calc_id_none;
 	id[0] = '\000';
 
 	if ((ev = dtp41_get_n_a_cals((inst *)p, &needed, &available)) != inst_ok)
@@ -918,7 +946,6 @@ char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 	if (*calt & ~available & inst_calt_all_mask) { 
 		return inst_unsupported;
 	}
-
 
 	if ((p->mode & inst_mode_illum_mask) == inst_mode_transmission) {
 		if (*calt & inst_calt_trans_white) {
@@ -1236,6 +1263,37 @@ dtp41_get_set_opt(inst *pp, inst_opt_type m, ...)
 	inst_code rv = inst_ok;
 	static char buf[MAX_MES_SIZE];
 
+	/* Set xcalstd */
+	if (m == inst_opt_set_xcalstd) {
+		xcalstd standard;
+		va_list args;
+
+		va_start(args, m);
+		standard = va_arg(args, xcalstd);
+		va_end(args);
+
+		p->target_calstd = standard;
+
+		return inst_ok;
+	}
+
+	/* Get the current effective xcalstd */
+	if (m == inst_opt_get_xcalstd) {
+		xcalstd *standard;
+		va_list args;
+
+		va_start(args, m);
+		standard = va_arg(args, xcalstd *);
+		va_end(args);
+
+		if (p->target_calstd == xcalstd_native)
+			*standard = p->native_calstd;		/* If not overridden */
+		else
+			*standard = p->target_calstd;		/* Overidden std. */
+
+		return inst_ok;
+	}
+
 	if (!p->gotcoms)
 		return inst_no_coms;
 	if (!p->inited)
@@ -1259,7 +1317,17 @@ dtp41_get_set_opt(inst *pp, inst_opt_type m, ...)
 		return inst_ok;
 	}
 
-	return inst_unsupported;
+	/* Use default implementation of other inst_opt_type's */
+	{
+		inst_code rv;
+		va_list args;
+
+		va_start(args, m);
+		rv = inst_get_set_opt_def(pp, m, args);
+		va_end(args);
+
+		return rv;
+	}
 }
 
 /* Constructor */

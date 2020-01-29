@@ -27,12 +27,30 @@
 #ifndef SALONEINSTLIB
 #include "icc.h"		/* icclib ICC definitions */ 
 #else /* SALONEINSTLIB */
-#include "conv.h"		/* fake icclib ICC definitions */ 
+#include "sa_conv.h"		/* fake icclib ICC definitions */ 
 #endif /* SALONEINSTLIB */
 
 #ifdef __cplusplus
 	extern "C" {
 #endif
+
+/* ------------------------------------------------------------------------------ */
+
+/* Type of measurement result */
+typedef enum {						/* XYZ units,      Spectral units */
+	inst_mrt_none           = 0,	/* Not set */
+	inst_mrt_emission       = 1,	/* cd/m^2,         mW/(m^2.sr.nm) */
+	inst_mrt_ambient        = 2,	/* Lux             mW/(m^2.nm) */
+	inst_mrt_emission_flash = 3,	/* cd.s/m^2,       mW.s/(m^2.sr.nm) */
+	inst_mrt_ambient_flash  = 4,	/* Lux.s           mW.s/(m^2.nm) */
+	inst_mrt_reflective     = 5,	/* %,              %/nm */
+	inst_mrt_transmissive   = 6,	/* %,              %/nm */
+	inst_mrt_sensitivity    = 7,	/* %,              %/nm */
+	inst_mrt_frequency      = 8		/* Hz */
+} inst_meas_type;
+
+/* Return a string describing the inst_meas_type */
+char *meas_type2str(inst_meas_type mt);
 
 /* ------------------------------------------------------------------------------ */
 
@@ -87,8 +105,8 @@ typedef struct {
 #ifndef SALONEINSTLIB
 
 /* Single spectrum utility functions. Return NZ if error */
-int write_xspect(char *fname, xspect *s);
-int read_xspect(xspect *sp, char *fname);
+int write_xspect(char *fname, inst_meas_type mt, xspect *s);
+int read_xspect(xspect *sp, inst_meas_type *mt, char *fname);
 
 /* CMF utility functions. Return NZ if error */
 int write_cmf(char *fname, xspect cmf[3]);
@@ -96,11 +114,12 @@ int read_cmf(xspect cmf[3], char *fname);
 
 /* Save a set of nspec spectrum to a CGATS file. Return NZ if error */
 /* type 0 = SPECT, 1 = CMF */
-int write_nxspect(char *fname, xspect *sp, int nspec, int type);
+int write_nxspect(char *fname, inst_meas_type mt, xspect *sp, int nspec, int type);
 
 /* Restore a set of up to nspec spectrum from a CGATS file. Return NZ if error */
 /* type  = any, 1 = SPECT, 2 = CMF, 3 = both */
-int read_nxspect(xspect *sp, char *fname, int *nret, int off, int nspec, int type);
+int read_nxspect(xspect *sp, inst_meas_type *mt,
+	             char *fname, int *nret, int off, int nspec, int type);
 
 #endif /* !SALONEINSTLIB*/
 
@@ -115,6 +134,9 @@ void xspect_denorm(xspect *sp);
 void xspect2xspect(xspect *dst, xspect *targ, xspect *src);
 
 /* Plot up to 3 spectra */
+void xspect_plot_w(xspect *sp1, xspect *sp2, xspect *sp3, int wait);
+
+/* Plot up to 3 spectra & wait for key */
 void xspect_plot(xspect *sp1, xspect *sp2, xspect *sp3);
 
 /* Plot up to 10 spectra */
@@ -145,9 +167,9 @@ typedef enum {
     icxIT_F8		 = 12,	/* Fluorescent, Broad Band 5000K, CRI 95 */
     icxIT_F10		 = 13,	/* Fluorescent Narrow Band 5000K, CRI 81 */
 	icxIT_Spectrocam = 14,	/* Spectrocam Xenon Lamp */
+#endif /* !SALONEINSTLIB*/
     icxIT_ODtemp	 = 15,	/* Daylight at specified temperature */
     icxIT_Dtemp		 = 16,	/* 15:2004 Daylight at specified temperature */
-#endif /* !SALONEINSTLIB*/
     icxIT_OPtemp     = 17,	/* Planckian at specified temperature */
     icxIT_Ptemp		 = 18	/* 15:2004 Planckian at specified temperature */
 } icxIllumeType;
@@ -317,10 +339,10 @@ struct _xsp2cie {
 
 xsp2cie *new_xsp2cie(
 	icxIllumeType ilType,			/* Observer Illuminant to use */
-	xspect        *custIllum,
+	xspect        *custIllum,		/* Custom illuminant if ilType == icxIT_custom */
 
 	icxObserverType obType,			/* Observer */
-	xspect        custObserver[3],
+	xspect        custObserver[3],	/* Custom observer if obType == icxOT_custom */
 	icColorSpaceSignature  rcs,		/* Return color space, icSigXYZData or D50 icSigLabData */
 									/* ** Must be icSigXYZData if SALONEINSTLIB ** */
 	icxClamping clamp				/* NZ to clamp XYZ/Lab to be +ve */
@@ -334,6 +356,7 @@ xsp2cie *new_xsp2cie(
 /* An observer type can be chosen for interpretting the spectrum of the input and */
 /* the illuminant. */
 /* Return -1.0 on erorr */
+/* (Faster, slightly less accurate version of icx_XYZ2ill_ct()) */
 double icx_XYZ2ill_ct2(
 double txyz[3],			/* If not NULL, return the XYZ of the locus temperature */
 icxIllumeType ilType,	/* Type of illuminant, icxIT_[O]Dtemp or icxIT_[O]Ptemp */
@@ -347,6 +370,7 @@ int viscct				/* nz to use visual CIEDE2000, 0 to use CCT CIE 1960 UCS. */
 /* An observer type can be chosen for interpretting the spectrum of the input and */
 /* the illuminant. */
 /* Return xyz[0] = -1.0 on erorr */
+/* (Faster, slightly less accrurate alternative to standardIlluminant()) */
 void icx_ill_ct2XYZ(
 double xyz[3],			/* Return the XYZ value */
 icxIllumeType ilType,	/* Type of illuminant, icxIT_[O]Dtemp or icx[O]IT_Ptemp */
@@ -390,6 +414,86 @@ xslpoly *chrom_locus_poligon(icxLocusType locus_type, icxObserverType obType, in
 /* Return 0 if within locus */
 /* Return 1 if outside locus */
 int icx_outside_spec_locus(xslpoly *p, double xyz[3]);
+
+/* ------------------------------------------------- */
+
+/* Given a reflectance/transmittance spectrum, */
+/* an illuminant definition and an observer model, return */
+/* the XYZ value for that spectrum. */
+/* Return 0 on sucess, 1 on error */
+/* (One shot version of xsp2cie etc.) */
+int icx_sp2XYZ(
+double xyz[3],			/* Return XYZ value */
+icxObserverType obType,	/* Observer */
+xspect custObserver[3],	/* Optional custom observer */
+icxIllumeType ilType,	/* Type of illuminant, icxIT_[O]Dtemp or icxIT_[O]Ptemp */
+double ct,				/* Input temperature in degrees K */
+xspect *custIllum,		/* Optional custom illuminant */
+xspect *sp				/* Spectrum to be converted */
+);
+
+/* ------------------------------------------------- */
+/* Color temperature and CRI */
+
+/* Given an illuminant definition and an observer model, return */
+/* the normalised XYZ value for that spectrum. */
+/* Return 0 on sucess, 1 on error */
+/* (One shot version of xsp2cie etc.) */
+int icx_ill_sp2XYZ(
+double xyz[3],			/* Return XYZ value with Y == 1 */
+icxObserverType obType,	/* Observer */
+xspect custObserver[3],	/* Optional custom observer */
+icxIllumeType ilType,	/* Type of illuminant */
+double temp,			/* Input temperature in degrees K */
+xspect *custIllum);		/* Optional custom illuminant */
+
+/* Given a choice of temperature dependent illuminant (icxIT_[O]Dtemp or icxIT_[O]Ptemp), */
+/* return the closest correlated color temperature to the given spectrum or XYZ. */
+/* An observer type can be chosen for interpretting the spectrum of the input and */
+/* the illuminant. */
+/* Return -1 on erorr */
+double icx_XYZ2ill_ct(
+double txyz[3],			/* If not NULL, return the XYZ of the black body temperature */
+icxIllumeType ilType,	/* Type of illuminant, icxIT_[O]Dtemp or icxIT_[O]Ptemp */
+icxObserverType obType,	/* Observer */
+xspect custObserver[3],	/* Optional custom observer */
+double xyz[3],			/* Input XYZ value, NULL if spectrum intead */
+xspect *insp0,			/* Input spectrum value, NULL if xyz[] instead */
+int viscct);			/* nz to use visual CIEDE2000, 0 to use CCT CIE 1960 UCS. */
+
+/* Compute the CIE1995 CRI: Ra */
+/* Return < 0.0 on error */
+/* If invalid is not NULL, set it to nz if CRI */
+/* is invalid because the sample is not white enough. */
+double icx_CIE1995_CRI(
+int *invalid,			/* if not NULL, set to nz if invalid */
+double cris[14],		/* If not NULL, return the TCS01-14 CRI's */
+xspect *sample			/* Illuminant sample to compute CRI of */
+);
+
+/* Compute the EBU TLCI-2012 Qa */
+/* Return < 0.0 on error */
+/* If invalid is not NULL, set it to nz if TLCI */
+/* is invalid because the sample is not white enough. */
+double icx_EBU2012_TLCI(
+int *invalid,			/* if not NULL, set to nz if invalid */
+xspect *sample			/* Illuminant sample to compute TLCI of */
+);
+
+/* Return the maximum 24 hour exposure in seconds. */
+/* Limit is 8 hours */
+/* Returns -1 if the source sample doesn't go down to at least 350 nm */
+double icx_ARPANSA_UV_exp(
+xspect *sample			/* Illuminant sample to compute UV_exp of */
+);
+
+/* Return a polinomial aproximation of CCT */
+double aprox_CCT(double xyz[3]);
+
+/* Aproximate x,y from CCT using Kim et al's cubic spline. */
+/* Invalid < 1667 and > 25000 */
+/* (Doesn't set Yxy[0]) */
+void aprox_plankian(double Yxy[3], double ct);
 
 /* --------------------------- */
 /* Density and other functions */
@@ -446,58 +550,6 @@ double wl,				/* Input wavelength in nm */
 double desat			/* 0.0 = full saturation, 1.0 = white */
 );
 
-
-/* Given an illuminant definition and an observer model, return */
-/* the normalised XYZ value for that spectrum. */
-/* Return 0 on sucess, 1 on error */
-int icx_ill_sp2XYZ(
-double xyz[3],			/* Return XYZ value with Y == 1 */
-icxObserverType obType,	/* Observer */
-xspect custObserver[3],	/* Optional custom observer */
-icxIllumeType ilType,	/* Type of illuminant */
-double temp,			/* Input temperature in degrees K */
-xspect *custIllum);		/* Optional custom illuminant */
-
-
-/* Given a choice of temperature dependent illuminant (icxIT_[O]Dtemp or icxIT_[O]Ptemp), */
-/* return the closest correlated color temperature to the given spectrum or XYZ. */
-/* An observer type can be chosen for interpretting the spectrum of the input and */
-/* the illuminant. */
-/* Return -1 on erorr */
-double icx_XYZ2ill_ct(
-double txyz[3],			/* If not NULL, return the XYZ of the black body temperature */
-icxIllumeType ilType,	/* Type of illuminant, icxIT_[O]Dtemp or icxIT_[O]Ptemp */
-icxObserverType obType,	/* Observer */
-xspect custObserver[3],	/* Optional custom observer */
-double xyz[3],			/* Input XYZ value, NULL if spectrum intead */
-xspect *insp0,			/* Input spectrum value, NULL if xyz[] instead */
-int viscct);			/* nz to use visual CIEDE2000, 0 to use CCT CIE 1960 UCS. */
-
-/* Compute the CIE1995 CRI: Ra */
-/* Return < 0.0 on error */
-/* If invalid is not NULL, set it to nz if CRI */
-/* is invalid because the sample is not white enough. */
-double icx_CIE1995_CRI(
-int *invalid,			/* if not NULL, set to nz if invalid */
-double cris[14],		/* If not NULL, return the TCS01-14 CRI's */
-xspect *sample			/* Illuminant sample to compute CRI of */
-);
-
-/* Compute the EBU TLCI-2012 Qa */
-/* Return < 0.0 on error */
-/* If invalid is not NULL, set it to nz if TLCI */
-/* is invalid because the sample is not white enough. */
-double icx_EBU2012_TLCI(
-int *invalid,			/* if not NULL, set to nz if invalid */
-xspect *sample			/* Illuminant sample to compute TLCI of */
-);
-
-/* Return the maximum 24 hour exposure in seconds. */
-/* Limit is 8 hours */
-/* Returns -1 if the source sample doesn't go down to at least 350 nm */
-double icx_ARPANSA_UV_exp(
-xspect *sample			/* Illuminant sample to compute UV_exp of */
-);
 
 #endif /* !SALONEINSTLIB*/
 

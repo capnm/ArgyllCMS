@@ -4,7 +4,9 @@
  * Argyll Color Correction System
  *
  * Gretag i1Pro related defines
- *
+ */
+
+/*
  * Author: Graeme W. Gill
  * Date:   24/11/2006
  *
@@ -14,6 +16,10 @@
  * This material is licenced under the GNU GENERAL PUBLIC LICENSE Version 2 or later :-
  * see the License2.txt file for licencing details.
  */
+
+#ifdef __cplusplus
+	extern "C" {
+#endif
 
 /* 
    If you make use of the instrument driver code here, please note
@@ -51,6 +57,10 @@ struct _i1pro {
 
 /* Constructor */
 extern i1pro *new_i1pro(icoms *icom, instType itype);
+
+#ifdef __cplusplus
+	}
+#endif
 
 #define I1PRO_H
 #endif /* I1PRO_H */

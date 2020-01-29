@@ -53,10 +53,10 @@
     </ol>
     The ICC standard "Wrong Von Kries" chromatic transform for media
     white to/from PCS D50 has disadvantages in regard to color behavior
-    for Output (i.e. print) profiles as well as Display profiles though.
-    With most normal, white media this is not of great significance,
-    since the white point shift is small, but it grows in significance
-    as the color of the paper differs from white (i.e. tinted papers).<br>
+    for Output (i.e. print) profiles as well as Display profiles. With
+    most normal, white media this is not of great significance, since
+    the white point shift is small, but it grows in significance as the
+    color of the paper differs from white (i.e. tinted papers).<br>
     <br>
     For all these reasons, and in the pursuit of the best possible color
     quality, ArgyllCMS uses the more color accurate Bradford chromatic
@@ -70,17 +70,17 @@
     noticeable with tinted stock, while having minimum incompatibility
     with Output profiles created for normal, white printed media by
     other profiling programs because the white point shift is typically
-    small. But to enable perfect compatibility of ArgyllCMS Output (i.e.
+    small (But to enable perfect compatibility of ArgyllCMS Output (i.e.
     print)&nbsp; profiles with other CMM's, the default behavior can be
     changed by using the <a
 href="Environment.html#ARGYLL_CREATE_WRONG_VON_KRIES_OUTPUT_CLASS_REL_WP">ARGYLL_CREATE_WRONG_VON_KRIES_OUTPUT_CLASS_REL_WP</a>
-    environment variable.<br>
+    environment variable).<br>
     <br>
     So the problem is that it is impossible to know for sure whether an
-    ArgyllCMS create profile, ICC V2 Display profile, or other ICC
-    profiles has used a Bradford or "Wrong Von Kries" chromatic
-    transform in computing Absolute to/from Relative white point
-    transform.<br>
+    ArgyllCMS create profile, ICC V2 Display profile, or other widely
+    used ICC profiles such as sRGB or AdobeRGB has used a Bradford or
+    "Wrong Von Kries" chromatic transform in computing Absolute to/from
+    Relative white point transform.<br>
     <h2>The solution</h2>
     The ArgyllCMS SigAbsToRelTransSpace 'arts' tag holds a 3x3 matrix in
     the first 9 elements<sup>*</sup> of a SigS15Fixed16ArrayType in the
@@ -105,7 +105,7 @@ href="Environment.html#ARGYLL_CREATE_WRONG_VON_KRIES_OUTPUT_CLASS_REL_WP">ARGYLL
       &nbsp;&nbsp;&nbsp; 7:&nbsp; -0.06849670<br>
       &nbsp;&nbsp;&nbsp; 8:&nbsp; 1.02960205<br>
     </blockquote>
-    In contrast, ICC standard behavior is the equivalent of a unit
+    In contrast, ICC standard behavior is the equivalent of a unity
     matrix.<br>
     <br>
     [ Note that ArgyllCMS will write an 'arts' tag containing a Bradford
@@ -142,7 +142,9 @@ href="Environment.html#ARGYLL_CREATE_WRONG_VON_KRIES_OUTPUT_CLASS_REL_WP">ARGYLL
     the elimination of all ambiguity when the 'arts' tag is present,
     allowing CMM and profile creators to use the preferred Bradford (or
     other Sharpened Cone) space for Von Kries chromatic adaptation of
-    the media white point to/from PCS D50.<br>
+    the media white point to/from PCS D50, and provide perfect
+    compatibility for the widely used sRGB and AdobeRGB profiles and
+    similiar.<br>
     <h2>Conclusion</h2>
     The 'arts' tag allows unambiguous use of the recommended Bradford
     cone space transform in computing the Absolute Colorimetric (Media

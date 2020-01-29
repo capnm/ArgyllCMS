@@ -22,7 +22,7 @@
 #include "rspl.h"
 #include "numlib.h"
 #include "tiffio.h"
-#include "plot.h"
+//#include "plot.h"
 
 #ifdef NEVER
 FILE *verbose_out = stdout;
@@ -217,7 +217,7 @@ int main(int argc, char *argv[]) {
 	cvec[3] = 0.0 - tp[0].v[3];
 
 	/* Do reverse interpolation ~~~1 */
-	if ((r = rss->rev_interp(rss, 0, NIP, auxm, NULL /*cvec*/, tp)) > 0) {
+	if ((r = rss->rev_interp(rss, 0, NIP, auxm, NULL /*cvec/LChW*/, tp)) > 0) {
 		printf("Total of %d Results\n",r);
 		for (i = 0; i < r; i++)
 			printf("Result %d = %f, %f, %f, %f\n",i, tp[i].p[0],tp[i].p[1],tp[i].p[2],tp[i].p[3]);

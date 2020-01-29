@@ -3,7 +3,9 @@
 /* 
  * International Color Consortium color transform expanded support
  * Known colorant definitions.
- *
+ */
+
+/*
  * Author:  Graeme W. Gill
  * Date:    24/2/2002
  * Version: 1.00
@@ -45,7 +47,9 @@
    Another change would be to make xcolorants an object,
    with dynamic colorant and colorant combination values.
    These would be initialised to defaults, but could then
-   be added to at run time.
+   be added to at run time, to support import/export to
+   other color data formats, and coping with arbitrary raster
+   files etc.
 
    Handling the "colorant" of non-device type color channels
    is also a challenge (ie., Lab, Hsv etc.)
@@ -179,9 +183,17 @@ typedef unsigned int inkmask;
 	(  ICX_CYAN | ICX_MAGENTA | ICX_YELLOW | ICX_BLACK \
 	 | ICX_ORANGE | ICX_GREEN)
 
+#define ICX_CMYKOGB					/* A "hexachrome" _ Blue style extended gamut printer */ \
+	(  ICX_CYAN | ICX_MAGENTA | ICX_YELLOW | ICX_BLACK \
+	 | ICX_ORANGE | ICX_GREEN | ICX_BLUE)
+
 #define ICX_CMYKRB					/* A 6 color printer with red and blue. */ \
 	(  ICX_CYAN | ICX_MAGENTA | ICX_YELLOW | ICX_BLACK \
 	 | ICX_RED | ICX_BLUE)
+
+#define ICX_CMYKRGB					/* A 7 color printer with RGB */ \
+	(  ICX_CYAN | ICX_MAGENTA | ICX_YELLOW | ICX_BLACK \
+	 | ICX_RED | ICX_GREEN | ICX_BLUE)
 
 #define ICX_CMYKOGcm				/* An 8 color extended gamut printer */ \
 	(  ICX_CYAN | ICX_MAGENTA | ICX_YELLOW | ICX_BLACK \
@@ -250,6 +262,8 @@ inkmask icx_enum_colorant_comb(int no, char **desc);
 /* return NZ if it does. */
 int icx_colorant_comb_match_icc(inkmask mask, icColorSpaceSignature sig);
 
+#ifndef SALONEINSTLIB
+
 /* Given an ICC colorspace signature, return the appropriate */
 /* colorant combination mask. Return 0 if ambiguous signature. */
 inkmask icx_icc_to_colorant_comb(icColorSpaceSignature sig, icProfileClassSignature deviceClass);
@@ -264,6 +278,8 @@ inkmask icx_icc_cv_to_colorant_comb(icColorSpaceSignature sig, icProfileClassSig
 /* return the primary matching ICC colorspace signature. */ 
 /* return 0 if there is no match */
 icColorSpaceSignature icx_colorant_comb_to_icc(inkmask mask);
+
+#endif /* !SALONEINSTLIB */
 
 /* --------------------------------------------------------- */
 /* An aproximate device colorant model object lookup object: */

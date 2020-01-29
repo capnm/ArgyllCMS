@@ -37,21 +37,22 @@
  * with a cartesian coordinate, but the parameter order corresponds with
  * the baricentric order.
  *
- * For example, given cartesian coordinates D0, D1, D2
- * these should be sorted from smallest to largest, thereby
- * choosing a particular simplex within a cube, and allowing
- * a correspondence to the parameter coordinates, ie:
+ * For example, given cartesian sub-coordinates D0, D1, D2
+ * into a (3D) forward interpolation cube, these should be sorted
+ * from smallest to largest, thereby choosing a particular
+ * simplex within a cube, and allowing a correspondence to
+ * the parameter coordinates, ie:
  *
- * D1 D0 D2		Smallest -> Largest cartesian sort
- * P2 P1 P0 	Corresponding Parameter coordinates (note reverse order!)
+ * D2 D0 D1		Smallest -> Largest cartesian sort
+ * P0 P1 P2 	Corresponding Parameter coordinates
  * 
- * B0 = P0		Conversion to Baricentric coordinates
+ * B0 = P0		Conversion to Baricentric weighting/coordinates
  * B1 = P1 - P0
  * B2 = P2 - P1
  * B3 = 1  - P2
  *
- * The vertex values directly correspond to Baricentric coordinates,
- * giving the usual interpolation equation of:
+ * The 4 (tetrahedron) vertex values directly correspond to Baricentric
+ * weighting/coordinates, giving the usual interpolation equation of:
  *
  *   VV0 * B0
  * + VV1 * B1
@@ -66,21 +67,42 @@
  * + VV2 - VV3 * P2
  * + VV3
  *
+ * Note that withing the simplex, 0 <= P0 && P0 <= P1 && P1 <= P2 && P2 <= 1
+ *
  * It is this which is used in rev.c for solving the reverse
  * interpolation problem.
  */
 
-/* A structure to hold per simplex coordinate and vertex mapping */
+/* - - - - - - - - - - - - - - - - - - - - - */
+/* Group size information for nn LCh weighted quick accept/reject testing */
+typedef struct {
+	double bcent[MXRO];	/* Group center location in output space */ 
+	double brad;		/* Output value bounding shere radius */
+	double bradsq;		/* Output value bounding shere radius squared */
+
+	double maxDlc;		/* Maximum members weighted delta LC (+extra dims) squared */
+	double maxDh;		/* Maximum members delta h squared */
+	double maxDh_;		/* Maximum members delta h (not squared) */
+	double sratio;		/* Minimum members C ratio to Gc squared */
+	double bratio;		/* Maximum members C ratio to Gc squared */
+	double Wsratio;		/* Minimum members C ratio to Gc squared - pre-weighted */
+	double Wbratio;		/* Maximum members C ratio to Gc squared - pre-weighted */
+	double Gc;			/* Group center Chrominance squared */
+	double Gc_;			/* Group center Chrominance (not squared) */
+} nn_grp;
+
+/* - - - - - - - - - - - - - - - - - - - - - */
+/* A structure to hold per simplex coordinate and vertex mapping for ssxinfo. */
 /* This is relative to the construction cube. A face sub-simplex */
 /* that is common between cubes, will have a different psxinfo */
 /* depending on which cube created it. */
 typedef struct {
 	int face;			/* Flag, nz if simplex lies on cube surface */
-	int icomb[MXDI];	/* Index by Absolute[di] -> Simplex Parameter[sdi], */
+	int icomb[MXDI];    /* icomb[] specifies the equation to convert simplex space */
+						/* coordinates back into cartesian space. */
+	                    /* Index by Absolute[di] -> Simplex Parameter[sdi], */
 						/*                          -1 == value 0, -2 == value 1 */
 						/* Note that many Abs can map to one Param to form a sum. */
-						/* icomb[] specifies the equation to convert simplex space */
-						/* coordinates back into cartesian space. */
 	int offs[MXDI+1];	/* Offsets to simplex verticies within cube == bit per dim */
 	int goffs[MXDI+1];	/* Offsets to simplex verticies within grid */
 	int foffs[MXDI+1];	/* Fwd grid floating offsets to simplex verticies from cube base */
@@ -97,9 +119,9 @@ typedef struct {
 
 /* - - - - - - - - - - - - - - - - - - - - - */
 /* NOTE :- This should really be re-arranged to be per-sub-simplex caching, */
-/* rather than cell caching. Rather than stash the simplex info in the cells, */
+/* rather than fxcell caching. Rather than stash the simplex info in the fxcells, */
 /* create a separate cache or some other way of sharing the common simplexes. */
-/* The code that ignores common face simplexes in cells could then be removed. */
+/* The code that ignores common face simplexes in fxcells could then be removed (?). */
 
 /* Simplex definition. Each top level fwd interpolation cell, */
 /* is decomposed into sub-simplexes. Sub-simplexes are of equal or */
@@ -111,12 +133,12 @@ struct _simplex {
 	int si;						/* Diagnostic - simplex number within level */
 	int sdi;					/* Sub-simplex dimensionality */
 	int efdi;					/* Effective fdi. This will be = fdi for a non clip */
-								/* plane simplex, and fdi+1 for a clip plane simplex */
-								/* The DOF (Degress of freedom) withing this simplex = sdi - efdi */
+								/* plane simplex, and fdi+1 for a clip plane simplex. */
+								/* The DOF (Degress of freedom) within this simplex = sdi - efdi */
 
 	psxinfo *psxi;				/* Generic per simplex info (construction cube relative) */
 	int vix[MXRI+1];			/* fwd cell vertex indexes of this simplex [sdi+1] */
-								/* This is a universal identification of this simplex */
+								/* This is a universal identification of this simplex. */
 	struct _simplex *hlink;		/* Link to other cells with this hash */
 	unsigned int touch;			/* Last touch count. */
 	short flags;				/* Various flags */
@@ -129,7 +151,6 @@ struct _simplex {
 #define SPLX_FLAG_4  0x20		/* locus found */
 #define SPLX_FLAG_5  0x40		/* auxiliary lu/svd initialised */
 #define SPLX_FLAG_5F 0x80		/* auxiliary lu/svd init. failed */
-
 
 #define SPLX_FLAGS  (SPLX_FLAG_1 | SPLX_FLAG_2 | SPLX_FLAG_2F \
                    | SPLX_FLAG_4 | SPLX_FLAG_5 | SPLX_FLAG_5F)
@@ -151,7 +172,7 @@ struct _simplex {
 	double min[MXRO+1], max[MXRO+1]; /* Simplex vertex output space [fdi+1] and */
 								/* ink limit bounding values at minmax[fdi] */
 
-	/* If sdi == efdi, this holds the LU decomposition */
+	/* If sdi == efdi, this holds the LU decomposition, */
 	/* else this holds the SVD and solution locus info */
 
 	char *aloc2;		/* Memory allocation for #2 & #4 */
@@ -187,27 +208,31 @@ struct _simplex {
 
 }; typedef struct _simplex simplex;
 
-/* A candidate search cell (cell cache entry structure) */
-struct _cell {
+/* A candidate search (fwd) fxcell (cell cache entry structure) */
+struct _fxcell {
 	struct _rspl *s;		/* Pointer to parent rspl */
 
 	/* Cache information */
-	int ix;					/* Fwd cell index */
-	struct _cell *hlink;	/* Link to other cells with this hash */
-	struct _cell *mrudown;	/* Links to next most recently used cell */
-	struct _cell *mruup;
+	int ix;					/* Corresponding fwd cell index */
+	struct _fxcell *hlink;	/* Link to other cells with this hash */
+	struct _fxcell *mrudown;/* Links to next most recently used fxcell */
+	struct _fxcell *mruup;
 	int refcount;			/* Reference count */
-	int flags;				/* Non-zero if the cell has been initialised */
-#define CELL_FLAG_1  0x01	/* Basic initialisation */
+	int flags;				/* Non-zero if the fxcell has been initialised */
+#define CELL_FLAG_1  0x01	/* Basic initialisation, including nn_grp */
 #define CELL_FLAG_2  0x02	/* Simplex information initialised */
 
 	/* Use information */
 	double sort;			/* Sort key */
+	double limmin, limmax;	/* limit() min/max for this fxcell */
 
-	double limmin, limmax;	/* limit() min/max for this cell */
-    double bcent[MXRO];		/* Output value bounding shere center */
-    double brad;			/* Output value bounding shere radius */
-    double bradsq;			/* Output value bounding shere radius squared */
+	/* Quick nn distance information */
+	nn_grp g;	
+
+//	double bcent[MXRO];		/* Output value bounding shere center */
+//	double brad;			/* Output value bounding shere radius */
+//	double bradsq;			/* Output value bounding shere radius squared */
+//	double wbrad;			/* Output value weighted bounding shere radius */
 
 	double p[POW2MXRI][MXRI]; /* Vertex input positions for this cube. */
 							/* Copied to x->pmin/pmax[] & ink limit */
@@ -215,18 +240,61 @@ struct _cell {
 	double v[POW2MXRI][MXRO+1]; /* Vertex data for this cube. Copied to x->v[] */
 							/* v[][fdi] is the ink limit values, if relevant */
 
-	simplex **sx[MXRI+1];	/* Lists of simplexes that make up this cell. */
+	simplex **sx[MXRI+1];	/* Lists of simplexes that make up this fxcell. */
 							/* Each list indexed by the non-limited simplex */
 							/* dimensionality (similar to sspxi[]) */
 							/* Each list will be NULL if it hasn't been created yet */
 	int sxno[MXRI+1];		/* Corresponding count of each list */
 
-}; typedef struct _cell cell;
+}; typedef struct _fxcell fxcell;
+
+/* surface bxcell sl status */
+typedef enum {
+	bx_uninit  = 0,		/* sl is not initialised */
+	bx_filled  = 1,		/* sl has been filled with initial fwd cell vertexes */
+	bx_rethinnd = 2,	/* sl vertexes need to be re-thinned */
+	bx_thinned = 3,		/* sl vertexes have been thinned */
+	bx_conv    = 4		/* sl vertexes have been converted to fwd cell indexes */
+} bxstat;
+
+/* Structure to hold bwd cell information for surface list, and also */
+/* for seed fill bwd cell propogation. (Cells on surface will have two */
+/* of these) */
+struct _bxcell{
+	int ix;						/* nnrev[] index of this bwd cell */
+	int gc[MXRO];				/* coordinate of this bwd cell */
+	nn_grp g;					/* Group nn calculation info */
+	struct _bxcell *ss;			/* bwd surface cell to start search from */
+	double sdist;				/* Est. wtd distance from this cell to ss */
+	int tix;					/* target rev[] index being filled (visited check) */
+
+	bxstat status;				/* State of sl list */					
+	int *sl;					/* fwd vertex seed list for surface bxcells */
+	int *dl;					/* deleted fwd vertex list for this bxcell */
+
+	int *scell;					/* If non-NULL, this is a (non-surface) */
+								/* seeding super bxcell, and scell contains */
+								/* the list of bxcells covered */ 
+
+	struct _bxcell *slist;		/* Linked list of all surface bxcells */
+	struct _bxcell *hlink;		/* Linked list of surface bxcells with same ix hash */
+	struct _bxcell *xlist;		/* Linked list of surface exploration search region */
+	double emin;				/* estimated minimum wtd distance of this cell in current search */
+	struct _bxcell *tlist;		/* Linked list of solution surface cells for current search. */
+
+	struct _bxcell *flist;		/* Linked list for nnrev[] fill seeds */
+
+	double cc;					/* Distance of group from gamut center */
+	double dw;					/* Delta width from ocent of furthest point */
+	struct _bxcell *wlist;		/* Linked list for shadow bxcells during thinning */
+
+	int    debug;				/* debug flag - for VRML tagging */
+}; typedef struct _bxcell bxcell;
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 
-/* Enough space is needed to cache all the cells/simplexes */
+/* Enough space is needed to cache all the fxcells/simplexes */
 /* for a full aux. locus, or the query will be processed in */
 /* several "chunks" and will be slower. */
 /* This sets the basic memory usage of the rev code. */
@@ -239,20 +307,20 @@ struct _cell {
 									/* rev as a fraction of the System RAM. */
 #define HASH_FILL_RATIO 3			/* 3 Ratio of entries to hash size */
 
-/* The structure where cells are allocated and cached. */
+/* The structure where fxcells and simplexes are allocated and cached. */
 
-/* Holds the cell and simplex match cache specific information */
+/* Holds the fxcell and simplex match cache specific information */
 typedef struct {
 	struct _rspl *s;			/* Pointer to parent rspl */
 	int nacells;				/* Number of allocated cells */
 	int nunlocked;				/* Number of unlocked cells that could be freed */
 	int cell_hash_size;			/* Current size of cell hash list */
-	cell **hashtop;				/* Top of hash list [cell_hash_size] */
-	cell *mrutop, *mrubot;		/* Top and bottom pointers of mru list */
-								/* that tracks allocated cells */
+	fxcell **hashtop;			/* Top of hash list [cell_hash_size] */
+	fxcell *mrutop, *mrubot;	/* Top and bottom pointers of mru list */
+								/* that tracks allocated fxcells */
 
-	int spx_hash_size;			/* Current size of simplex hash list */
-	simplex **spxhashtop;		/* Face simplex hash index list */
+	int spx_hash_size;			/* Current size of shared face simplex hash list */
+	simplex **spxhashtop;		/* Shared face simplex hash index list */
 	int nspx;					/* Number of simplexes in hash list */
 } revcache;
 
@@ -296,8 +364,8 @@ struct _schbase {
 	int ixc;			/* Cube index of corner that holds maximum input values */
 
 	int snsdi, ensdi;	/* Start and end extra sub-simplex dimensionality */
-	int (*setsort)(struct _schbase *b, cell *c);	/* Function to triage & set cube sort index */
-	int (*check)(struct _schbase *b, cell *c);		/* Function to recheck cube worth keeping */
+	int (*setsort)(struct _schbase *b, fxcell *c);	/* Function to triage & set cube sort index */
+	int (*check)(struct _schbase *b, fxcell *c);		/* Function to recheck cube worth keeping */
 	int (*compute)(struct _schbase *b, simplex *x);	/* Function to compute a simplex solution */
 
 	double v[MXRO+1];	/* Target output value, + ink limit */
@@ -314,7 +382,7 @@ struct _schbase {
 	double ncdir[MXRO];	/* Normalised clip vector */
 	double **cla;		/* Clip vector LHS implicit equation matrix [fdi][fdi+1] (inc. ink tgt.) */
 	double clb[MXRO+1];	/* Clip vector RHS implicit equation vector [fdi+1] (inc. ink tgt.) */
-	double cdist;		/* Best clip locus distance found (aim is min +ve) */
+	double cdist;		/* Best clip locus distance found (aim is min +ve) :- weighted for nn */
 	int    iclip;		/* NZ if result is above (disabled) ink limit */
 
 	int mxsoln;			/* Maximum number of solutions that we want */
@@ -328,20 +396,17 @@ struct _schbase {
 	int    axislz;		/* Space allocated to axisl[] */
 	axisec *axisl;		/* Auxiliary intersections */
 
-	int lclistz;		/* Allocated space to cell sort list */
-	cell **lclist;		/* Sorted list of pointers to candidate cells */
+	int lclistz;		/* Allocated space to fxcell sort list */
+	fxcell **lclist;	/* Sorted list of pointers to candidate fxcells */
 
-	int pauxcell;		/* Indexe of previous call solution cell, -1 if not relevant */
-	int plmaxcell;		/* Indexe of previous call solution cell, -1 if not relevant */
-	int plmincell;		/* Indexe of previous call solution cell, -1 if not relevant */
+	int pauxcell;		/* Indexe of previous call solution fxcell, -1 if not relevant */
+	int plmaxcell;		/* Indexe of previous call solution fxcell, -1 if not relevant */
+	int plmincell;		/* Indexe of previous call solution fxcell, -1 if not relevant */
 
 	int lsxfilt;		/* Allocated space of simplex filter list */
-	char *sxfilt;		/* Flag for simplexes that should be in a cell */
+	char *sxfilt;		/* Flag for simplexes that should be in an fxcell */
 
-	double crad;			/* nn current radius distance */
-	double bw;				/* nn current window distance */
-	int wex[MXRO * 2];		/* nn current window edge indexes */
-	double wed[MXRO * 2];	/* nn current window edge distances */
+	int rix;			/* Diagnostic - rev[] or nnrev[] index for this point */
 
 }; typedef struct _schbase schbase;
 
@@ -376,7 +441,12 @@ struct _rev_struct {
 						/* All other sections depend on this. */
 	int fastsetup;		/* Flag - NZ if fast setup at cost of slow throughput */
 
-	struct _rev_struct *next;	/* Linked list of instances sharing memory */
+	int lchweighted;	/* Non-zero if nearest search is LCh weighted */
+	double lchw[MXRO];	/* LCh nearest weighting */
+	double lchw_sq[MXRO];	/* LCh nearest weighting squared */
+	double lchw_chsq;		/* lchw_sq[1] - lchw_sq[2] */
+
+	struct _rev_struct *next;	/* Linked list of global instances sharing memory */
 	size_t max_sz;		/* Maximum size permitted */
 	size_t sz;			/* Total memory current allocated by rev */
 
@@ -385,32 +455,38 @@ struct _rev_struct {
 #endif
 
 	/* Reverse grid lookup information */
-	int ares;			/* Reverse grid allocated resolution, = res + 1, */
-						/* allows for extra row used during construction */
 	int res;			/* Reverse grid resolution == ncells on a side */
 	int no;				/* Total number of points in reverse grid = rev.ares ^ fdi */
 	int coi[MXRO];		/* Coordinate increments for each dimension */
 	int hoi[1 << MXRO];	/* Coordinate increments for progress through cube */
-	datao gl,gh,gw;		/* Reverse grid low, high, grid cell width */
+	datao gl,gh,gw;		/* Reverse grid low, high, grid bwd cell width */
 
 	/* Second section, accelleration information that changes with ink limit. */
 	int rev_valid;		/* nz if this information in rev[] and nnrev[] is valid */
 	int **rev;			/* Exact reverse lookup starting list. */
-						/* rev.no pointers to lists of fwd grid indexes. */
-						/* First int is allocation length */
-						/* Second int is reference count */
-						/* Then follows cube indexes */
-						/* Last int is -1 */
 	int **nnrev;		/* Nearest reverse lookup starting list. */
-						/* rev.no pointers to lists of fwd grid indexes. */
+						/* These lists are of fwd grid indexes. */
 						/* [0] is allocation length */
-						/* [1] is the next free entry index */
-						/* [2] is reference count */
+						/* [1] is the next free entry index (length + 3, not counting -1) */
+						/* [2] is index into share lists, -1 if not shared. */
 						/* Then follows cube indexes */
-						/* The last entry is marked with -1 */
+						/* Last entry is marked with -1 */
+
+	double ocent[MXRO];	/* rev cell gamut "center" point for thinning and shadow testing. */
+
+	bxcell *surflist;	/* Linked list of rev[] bwd cells that contain gamut surface fwd cells. */
+						/* Used to speed up fill_nncell() when rev.fastsetup is set, else NULL */
+	int surf_hash_size;	/* Current size of bxcell hash list */
+	bxcell **surfhash;	/* bxcell hash index list */
+
+	int **sharelist;	/* Array of pointers to shared (fwd grid list sharer) records. */ 
+						/* Each record is same format as rev[]/nnrev[], except */
+						/* [2] is used to detect scanning the same list. */
+	int sharellen;		/* Size of sharelist */ 
+	int sharelaloc;		/* Allocation size of sharelist */ 
 
 	/* Third section */
-	revcache *cache;	/* Where cells are allocated and cached */
+	revcache *cache;	/* Where fxcells and simplexes are allocated and cached */
 	/* Sub-dimension simplex information */
 	ssxinfo sspxi[MXRI+1];/* One per sub dimenstionality at offset sdi */
 
@@ -424,6 +500,14 @@ struct _rev_struct {
 #endif	/* STATS */
 
 	int primsecwarn;	/* Not primary or secondary warning has been issued */
+
+#ifdef CHECK_NNLU
+int cknn_no;			/* Number checked */
+double cknn_we;			/* Worst DE */
+int cknn_noerrs;		/* Number not as good as closet vertex */
+int cknn_nobsb;			/* Number not as good as second closest vertex */
+int cknn_nonis;			/* Number not in surface */
+#endif /* CHECK_NNLU */
 
 }; typedef struct _rev_struct rev_struct;
 

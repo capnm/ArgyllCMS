@@ -192,6 +192,7 @@ AWK = @AWK@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
+CMAKE = @CMAKE@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CXX = @CXX@
@@ -408,6 +409,10 @@ dist_doc_DATA = $(indexfile) $(docfiles)
 INDEXSTART = '<HTML><HEAD><TITLE>Libtiff HTML manpage index</TITLE></HEAD><BODY BGCOLOR=white><ul><H2>Man Pages</h2><p>'
 INDEXEND = '</ul></BODY></HTML>'
 manpages = $(docfiles:.html=)
+EXTRA_DIST = \
+	CMakeLists.txt \
+	HtmlDoc.cmake
+
 all: all-am
 
 .SUFFIXES:

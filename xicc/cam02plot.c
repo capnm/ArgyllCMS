@@ -577,7 +577,8 @@ main(int argc, char *argv[]) {
 		0.00,		/* Flare as a fraction of the reference white (Y range 0.0 .. 1.0) */
 		0.00,		/* Glare as a fraction of the ambient (Y range 0.0 .. 1.0) */
 		white[4],	/* The Glare color coordinates (typically the Ambient color) */
-		use_hk		/* use Helmholtz-Kohlraush flag */ 
+		use_hk,		/* use Helmholtz-Kohlraush flag */ 
+		1.0			/* HK scaling factor */
 	);
 	
 	/* Setup cam to convert from Jab */
@@ -595,7 +596,8 @@ main(int argc, char *argv[]) {
 		0.00,		/* Flare as a fraction of the reference white (Y range 0.0 .. 1.0) */
 		0.00,		/* Glare as a fraction of the ambient (Y range 0.0 .. 1.0) */
 		white[4],	/* The Glare color coordinates (typically the Ambient color) */
-		use_hk		/* use Helmholtz-Kohlraush flag */ 
+		use_hk,		/* use Helmholtz-Kohlraush flag */ 
+		1.0			/* HK scaling factor */
 	);
 	
 	/* Figure out the size of the raster */

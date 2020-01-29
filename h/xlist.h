@@ -3,6 +3,10 @@
 
 #ifndef _XLIST_H_
 
+#ifdef __cplusplus
+	extern "C" {
+#endif
+
 /* An expanding list structure */
 #define XLIST(objtype, name)								\
 struct {													\
@@ -50,6 +54,10 @@ struct {													\
 /* Free up the list */
 #define XLIST_FREE(xlp) \
 		{ if ((xlp)->_no > 0) free((xlp)->list); }
+
+#ifdef __cplusplus
+	}
+#endif
 
 #define _XLIST_H_
 #endif /* _XLIST_H_ */

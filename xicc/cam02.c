@@ -197,7 +197,7 @@ double minj = 1e38, maxj = -1e38;
 static void cam_free(cam02 *s);
 static int set_view(struct _cam02 *s, ViewingCondition Ev, double Wxyz[3],
 	                double La, double Yb, double Lv, double Yf, double Yg, double Gxyz[3],
-					int hk);
+					int hk, double hkscale);
 static int XYZ_to_cam(struct _cam02 *s, double *Jab, double *xyz);
 static int cam_to_XYZ(struct _cam02 *s, double *xyz, double *Jab);
 
@@ -223,6 +223,9 @@ cam02 *new_cam02(void) {
 	s->set_view = set_view;
 	s->XYZ_to_cam = XYZ_to_cam;
 	s->cam_to_XYZ = cam_to_XYZ;
+
+	/* Initialise default parameters */
+	s->hkscale = 1.0;
 
 	/* Set default range handling limits */
 	s->nldlimit = NLDLIMIT;
@@ -288,7 +291,8 @@ double Yf,		/* Flare as a fraction of the reference white (Y range 0.0 .. 1.0) *
 double Yg,		/* Flare as a fraction of the adapting/surround (Y range 0.0 .. 1.0) */
 double Gxyz[3],	/* The Glare white coordinates (typically the Ambient color) */
 				/* If <= 0 will Wxyz will be used. */
-int hk			/* Flag, NZ to use Helmholtz-Kohlrausch effect */
+int hk,			/* Flag, NZ to use Helmholtz-Kohlrausch effect */
+double hkscale	/* HK effect scaling factor */
 ) {
 	double tt, t1, t2;
 	double tm[3][3];
@@ -378,6 +382,7 @@ int hk			/* Flag, NZ to use Helmholtz-Kohlrausch effect */
 		s->Gxyz[2] = Wxyz[2];
 	}
 	s->hk = hk;
+	s->hkscale = hkscale;
 
 	/* The rgba vectors */
 	s->Va[0] = 1.0;
@@ -633,9 +638,10 @@ double XYZ[3]
 
 	TRACE(("XYZ inc flare = %f %f %f\n",xyz[0], xyz[1], xyz[2]))
 
-	/* Spectrally sharpened cone responses, */
-	/* Chromaticaly transformed sample value, */
-	/* Transform from spectrally sharpened, to Hunt-Pointer_Estevez cone space. */
+	/* Transfor to spectrally sharpened cone responses, */
+	/* apply chromaticaly transform, */
+	/* and transform from spectrally sharpened to Hunt-Pointer_Estevez cone space, */
+	/* all in one step. */
 	icmMulBy3x3(rgbp, s->cc, xyz);
 
 	TRACE(("rgbp = %f %f %f\n", rgbp[0], rgbp[1], rgbp[2]))
@@ -949,7 +955,7 @@ double XYZ[3]
  	/* Helmholtz-Kohlrausch effect */
 	if (s->hk && J < 1.0) {
 //		double kk = C/300.0 * sin(DBL_PI * fabs(0.5 * (h - 90.0))/180.0);
-		double kk = HHKR_MUL * C/300.0 * sin(DBL_PI * fabs(0.5 * (h - 90.0))/180.0);
+		double kk = s->hkscale * HHKR_MUL * C/300.0 * sin(DBL_PI * fabs(0.5 * (h - 90.0))/180.0);
 		if (kk > 1e-6) 	/* Limit kk to a reasonable range */
 			kk = 1.0/(s->hklimit + 1.0/kk);
 		JJ = J + (1.0 - (J > 0.0 ? J : 0.0)) * kk;
@@ -1045,7 +1051,7 @@ double Jab[3]
  	/* Undo Helmholtz-Kohlrausch effect */
 	if (s->hk && J < 1.0) {
 //		double kk = C/300.0 * sin(DBL_PI * fabs(0.5 * (h - 90.0))/180.0);
-		double kk = HHKR_MUL * C/300.0 * sin(DBL_PI * fabs(0.5 * (h - 90.0))/180.0);
+		double kk = s->hkscale * HHKR_MUL * C/300.0 * sin(DBL_PI * fabs(0.5 * (h - 90.0))/180.0);
 		if (kk > 1e-6) 	/* Limit kk to a reasonable range */
 			kk = 1.0/(s->hklimit + 1.0/kk);
 		J = (JJ - kk)/(1.0 - kk);

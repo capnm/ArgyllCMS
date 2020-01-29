@@ -58,6 +58,7 @@
 
 
 
+
     "<span style="font-weight: bold;">DISPLAY</span>",&nbsp; <span
       style="font-weight: bold;">"INPUT"</span> or <span
       style="font-weight: bold;">"EMISINPUT"</span>.<br>
@@ -75,10 +76,18 @@
     what the valid device gamut is, and what total ink limit should be
     used in creating the profile tables.<br>
     <br>
+    An <span style="font-weight: bold;">"OUTPUT"</span> type device may
+    have an <span style="font-weight: bold;">ILLUMINANT_WHITE_POINT_XYZ</span>
+    keyword that contains the XYZ of the illuminant used to compute the
+    CIE values from spectral reflectance or transmittance values. If
+    this tag is absent, the illuminant is assumes to be ICC standard
+    D50.<br>
+    <br>
     A <span style="font-weight: bold;">"DISPLAY"</span> type device may
     have a <span style="font-weight: bold;">LUMINANCE_XYZ_CDM2</span>
     keyword that contains the absolute XYZ value of white in candelas
     per meter squared, e.g. <span style="font-weight: bold;">"112.334770
+
 
 
 
@@ -174,8 +183,10 @@ Cyan
 
 
 
+
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -189,9 +200,11 @@ Cyan
 
 
 
+
     Y<br>
     &nbsp;&nbsp;&nbsp; Black &nbsp;&nbsp;
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -203,9 +216,11 @@ Cyan
 
 
 
+
     O<br>
     &nbsp;&nbsp;&nbsp; Red
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -217,9 +232,11 @@ Cyan
 
 
 
+
     G<br>
     &nbsp;&nbsp;&nbsp; Blue &nbsp;&nbsp; &nbsp;&nbsp;
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -234,9 +251,11 @@ Cyan
 
 
 
+
     c<br>
     &nbsp;&nbsp;&nbsp; Light
     Magenta&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -248,9 +267,11 @@ Cyan
 
 
 
+
     y<br>
     &nbsp;&nbsp;&nbsp; Light
     Black&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 

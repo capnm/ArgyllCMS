@@ -49,6 +49,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <ctype.h>
 #include "copyright.h"
 #include "aconfig.h"
 #include "numlib.h"
@@ -135,8 +136,10 @@ void usage(char *diag, ...) {
 /* Research options: */
 /*	fprintf(stderr," -r sSMOOTH      RSPL or shaper suplimental optimised smoothing factor\n"); */
 /*	fprintf(stderr," -r rSMOOTH      RSPL or shaper raw underlying smoothing factor\n"); */
-	fprintf(stderr," -s src%s      Apply gamut mapping to output profile perceptual B2A table for given source space\n",ICC_FILE_EXT);
-	fprintf(stderr," -S src%s      Apply gamut mapping to output profile perceptual and saturation B2A table\n",ICC_FILE_EXT);
+	fprintf(stderr," -s src%s|cperc  Apply gamut mapping to output profile perceptual B2A table\n",ICC_FILE_EXT);
+	fprintf(stderr,"                   for given source space, or compression percentage\n");
+	fprintf(stderr," -S src%s|experc Apply gamut mapping to output profile perceptual and\n",ICC_FILE_EXT);
+	fprintf(stderr,"                   and saturation B2A table, or expansion percentage\n");
 	fprintf(stderr," -nP             Use colormetric source gamut to make output profile perceptual table\n");
 	fprintf(stderr," -nS             Use colormetric source gamut to make output profile saturation table\n");
 	fprintf(stderr," -g src.gam      Use source image gamut as well for output profile gamut mapping\n");
@@ -207,6 +210,7 @@ int main(int argc, char *argv[]) {
 	icxIllumeType illum = icxIT_none;	/* Spectral illuminant (defaults to D50) */
 	xspect cust_illum;			/* Custom illumination spectrum */
 	icxObserverType observ = icxOT_none;	/* Observer (defaults to 1931 2 degree) */
+	int gcompr = 0, gexpr = 0;		/* Gamut compression/expansion % instead of Input icc profile */
 	char ipname[MAXNAMEL+1] = "";	/* Input icc profile - enables gamut map */
 	char sgname[MAXNAMEL+1] = "";	/* Image source gamut name */
 	char absstring[3 * MAXNAMEL +1];	/* Storage for absnames */
@@ -640,14 +644,24 @@ int main(int argc, char *argv[]) {
 					} else if (strcmp(na, "F10") == 0) {
 						tillum = icxIT_F10;
 					} else {	/* Assume it's a filename */
+						inst_meas_type mt;
+
 						tillum = icxIT_custom;
-						if (read_xspect(&cust_tillum, na) != 0)
+						if (read_xspect(&cust_tillum, &mt, na) != 0)
 							usage("Failed to read custom target illuminant spectrum in file '%s'",na);
+
+						if (mt != inst_mrt_none
+						 && mt != inst_mrt_emission
+						 && mt != inst_mrt_ambient
+						 && mt != inst_mrt_emission_flash
+						 && mt != inst_mrt_ambient_flash) {
+							error("Target illuminant '%s' is wrong measurement type",na);
+						}
 					}
 				}
 			}
 
-			/* Spectral Illuminant type */
+			/* CIE Illuminant type */
 			else if (argv[fa][1] == 'i') {
 				if (na == NULL) usage("Expect argument to illuminant flag -i");
 				fa = nfa;
@@ -676,10 +690,20 @@ int main(int argc, char *argv[]) {
 					spec = 1;
 					illum = icxIT_F10;
 				} else {	/* Assume it's a filename */
+					inst_meas_type mt;
+
 					spec = 1;
 					illum = icxIT_custom;
-					if (read_xspect(&cust_illum, na) != 0)
+					if (read_xspect(&cust_illum, &mt, na) != 0)
 						usage("Failed to read custom illuminant spectrum in file '%s'",na);
+
+					if (mt != inst_mrt_none
+					 && mt != inst_mrt_emission
+					 && mt != inst_mrt_ambient
+					 && mt != inst_mrt_emission_flash
+					 && mt != inst_mrt_ambient_flash) {
+						error("CIE illuminant '%s' is wrong measurement type",na);
+					}
 				}
 			}
 
@@ -727,15 +751,51 @@ int main(int argc, char *argv[]) {
 				}
 			}
 
+			/* Percetual Source Compression and Perceptual/Saturation Gamut Maping mode enable */
 			/* Percetual Source Gamut and Perceptual/Saturation Gamut Maping mode enable */
 			else if (argv[fa][1] == 's'
 			      || argv[fa][1] == 'S') {
-				if (argv[fa][1] == 'S')
+				int sat = 0;
+				if (argv[fa][1] == 'S') {
 					sepsat = 1;
+					sat = 1;
+				} else {
+					sepsat = 0;
+				}
 				if (na == NULL)
 					usage("Unrecognised argument to source gamut flag -%c",argv[fa][1]);
 				fa = nfa;
-				strncpy(ipname,na,MAXNAMEL); ipname[MAXNAMEL] = '\000';
+				{
+					char *cp;
+					int comp = 0;
+					for (cp = na; *cp != '\000'; cp++) {
+						if (!isdigit(*cp))
+							break;
+					}
+					/* If general gamut compression/expansion mode */
+					if (*cp == '\000') {
+						int ratio = atoi(na);
+						if (ratio <= 0 || ratio > 100) {
+							usage("Gamut -%c %s %d%% must be > 0 and < 100",
+							       argv[fa][1], sat ? "expansion" : "compression", ratio);
+						}
+						if (sat) {
+							gexpr = ratio;
+							if (gcompr == 0)
+								gcompr = ratio;
+						} else {
+							gcompr = ratio;
+							if (gexpr == 0)
+								gexpr = ratio;
+						}
+					}
+				}
+				/* Not compression %, so assume it's a filename. */
+				/* We allow both filename and general compression to allow */
+				/* for a non-default L mapping. */
+				if (gcompr == 0) {
+					strncpy(ipname,na,MAXNAMEL); ipname[MAXNAMEL] = '\000';
+				}
 			}
 
 			/* Source image gamut */
@@ -899,10 +959,10 @@ int main(int argc, char *argv[]) {
 	if (fwacomp && spec == 0)
 		error("FWA compensation only works when viewer and/or illuminant selected");
 
-	if (pgmi_set && ipname[0] == '\000')
+	if (pgmi_set && (ipname[0] == '\000' && gcompr == 0))
 		warning("-t perceptual intent override only works if -s srcprof or -S srcprof is used");
 
-	if (sgmi_set && ipname[0] == '\000')
+	if (sgmi_set && (ipname[0] == '\000' && gcompr == 0))
 		warning("-T saturation intent override only works if -S srcprof is used");
 
 	if (sgmi_set && sepsat == 0) {	/* Won't do much otherwise */
@@ -911,11 +971,13 @@ int main(int argc, char *argv[]) {
 		sepsat = 1;
 	}
 
-	if (gamdiag && ipname[0] == '\000')
-		warning("no gamut mapping called for, so -P will produce nothing");
+	if (gamdiag && (ipname[0] == '\000' && gcompr == 0))
+		warning("No gamut mapping called for, so -P will produce nothing");
 		
 	if (sgname[0] != '\000' && ipname[0] == '\000')
 		warning("-g srcgam will do nothing without -s srcprof or -S srcprof");
+
+	/* Should warning input viewing condition set and ipname[0] == '\000' */
 
 	if (oquality == -1) {		/* B2A tables will be used */
 		oquality = iquality;
@@ -945,7 +1007,7 @@ int main(int argc, char *argv[]) {
 	 || strcmp(icg->t[0].kdata[dti],"EMISINPUT") == 0) {
 		if (illum != icxIT_none)
 			warning("-i illuminant ignored for emissive reference type");
-		if (fwacomp != icxIT_none)
+		if (fwacomp != 0)
 			warning("-f FWA compensation ignored for emissive reference type");
 
 		fwacomp = 0;
@@ -1023,7 +1085,7 @@ int main(int argc, char *argv[]) {
 			int kmax;
 			kmax = atoi(icg->t[0].kdata[ti]);
 			if (kmax > 0 && kmax <= 100.0) {
-				if (klimit > 0 && klimit <= 100.0) {	/* User has specified limit as option */
+				if (klimit >= 0 && klimit <= 100.0) {	/* User has specified limit as option */
 					if (kmax < klimit) {
 						warning("Black ink limit greater than original chart! (%d%% > %d%%)",klimit,kmax);
 					}
@@ -1114,6 +1176,7 @@ int main(int argc, char *argv[]) {
 		                &ink, inname, outname, icg, 
 		                spec, tillum, &cust_tillum, illum, &cust_illum, observ, fwacomp,
 		                smooth, avgdev, 1.0,
+						gcompr, gexpr,
 		                ipname[0] != '\000' ? ipname : NULL,
 		                sgname[0] != '\000' ? sgname : NULL,
 		                absnames,
@@ -1162,6 +1225,7 @@ int main(int argc, char *argv[]) {
 		                NULL, inname, outname, icg,
 		                spec, icxIT_none, NULL, illum, &cust_illum, observ, 0,
 		                smooth, avgdev, demph,
+						gcompr, gexpr,
 		                ipname[0] != '\000' ? ipname : NULL,
 		                sgname[0] != '\000' ? sgname : NULL,
 		                absnames,

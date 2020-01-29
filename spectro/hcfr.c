@@ -366,7 +366,7 @@ hcfr_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 	inst_code ev = inst_ok;
 	icomuflags usbflags = icomuf_no_open_clear | icomuf_detach;
 
-#if defined(__APPLE__) && !defined(__ppc__)
+#if defined(UNIX_APPLE) && !defined(__ppc__)
 	/* Except on Intel OS X 10.4/5 for some reasone. */
 	/* It would be good if the HCFR had a better USB implementation... */
 	usbflags &= ~icomuf_no_open_clear;
@@ -919,7 +919,17 @@ hcfr_get_set_opt(inst *pp, inst_opt_type m, ...) {
 		return inst_ok;
 	}
 
-	return inst_unsupported;
+	/* Use default implementation of other inst_opt_type's */
+	{
+		inst_code rv;
+		va_list args;
+
+		va_start(args, m);
+		rv = inst_get_set_opt_def(pp, m, args);
+		va_end(args);
+
+		return rv;
+	}
 }
 
 /* Constructor */

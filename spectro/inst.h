@@ -1,13 +1,15 @@
 
 #ifndef INST_H
 
- /* instlib API definition. */
-
- /* See spotread.c, chartread.c, illumread.c & ccxxmake.c for examples of */
- /* the API usage. */
-
- /* Abstract base class for common color instrument interface */
- /* and other common instrument stuff.                        */
+/*
+ * instlib API definition.
+ *
+ * See spotread.c, chartread.c, illumread.c & ccxxmake.c for examples of
+ * the API usage.
+ *
+ * Abstract base class for common color instrument interface
+ * and other common instrument stuff.
+ */
 
 /* 
  * Argyll Color Correction System
@@ -64,7 +66,7 @@
 /* ------------------------------------------------- */
 /* Structure for holding an instrument patch reading */
 
-#define ICOM_MAX_LOC_LEN 10
+#ifdef NEVER	/* Declared in xicc/xspect.h */
 
 /* Type of measurement result */
 typedef enum {						/* XYZ units,      Spectral units */
@@ -77,6 +79,10 @@ typedef enum {						/* XYZ units,      Spectral units */
 	inst_mrt_transmissive   = 6,	/* %,              %/nm */
 	inst_mrt_frequency      = 7		/* Hz */
 } inst_meas_type;
+
+#endif // NEVER
+
+#define ICOM_MAX_LOC_LEN 10
 
 struct _ipatch {
 	char loc[ICOM_MAX_LOC_LEN];	/* patch location */
@@ -95,11 +101,25 @@ struct _ipatch {
 
 }; typedef struct _ipatch ipatch;
 
+/* ------------------------------------------------------ */
+/* Gretag/X-Rite specific reflective measurement standard */
+
+typedef enum {
+	xcalstd_none = -2,		/* Not set */
+	xcalstd_native = -1,	/* No conversion */
+	xcalstd_xrdi = 0,		/* Historical X-Rite */
+	xcalstd_gmdi = 1,		/* Historical Gretag-Macbeth */
+	xcalstd_xrga = 2,		/* Current X-Rite */
+} xcalstd;
+
+/* Return a string for the xcalstd enum */
+char *xcalstd2str(xcalstd std);
+
 /* ---------------------------------------- */
 /* Instrument interface abstract base class */
 
-/* Abstract return codes in ms byte. */
-/* Instrument dependant codes in ls byte. */
+/* Abstract return codes in ms 8bits. */
+/* Instrument dependant codes in ls 16 bits. */
 /* Note :- update inst_interp_error() in inst.c if anything here is changed. */
 /* and also check all the instrument specific XXX_interp_code() routines too. */
 typedef enum {
@@ -163,7 +183,7 @@ typedef enum {
 typedef enum {
 	inst_mode_none               = 0x00000000, /* No capability or mode */
 
-	/* Mode of light measurement */
+	/* Light measurement mode */
 	inst_mode_reflection         = 0x00000001,	/* General reflection mode */
 #   define inst_mode_reflection_sym             "REFL"
 	inst_mode_s_reflection       = 0x00000002,	/* General saved reflection mode */
@@ -174,7 +194,7 @@ typedef enum {
 #   define inst_mode_emission_sym               "EMIS"
 	inst_mode_illum_mask         = 0x0000000f,	/* Mask of sample illumination sub mode */
 
-	/* Access mode of measurement */
+	/* Action of measurement */
 	inst_mode_spot               = 0x00000010,	/* General spot measurement mode */
 #   define inst_mode_spot_sym                   "SPOT"
 	inst_mode_strip              = 0x00000020,	/* General strip measurement mode */
@@ -241,7 +261,9 @@ typedef enum {
 	                             | inst_mode_s_reflection,
 
 	inst_mode_trans_spot         = inst_mode_spot	/* Transmission spot measurement mode */
-	                             | inst_mode_transmission, 
+	                             | inst_mode_transmission, 	/* Normal Diffuse/90 */
+	inst_mode_trans_spot_a       = inst_mode_ambient /* Transmission spot measurement mode */
+	                             | inst_mode_transmission, /* Alternate 90/diffuse */
 	inst_mode_trans_strip        = inst_mode_strip	/* Transmission strip measurement mode */
 	                             | inst_mode_transmission, 
 	inst_mode_trans_xy           = inst_mode_xy		/* Transmission X-Y measurement mode */
@@ -267,6 +289,8 @@ typedef enum {
 } inst_mode;
 
 /* Test for a specific mode */
+/* (This isn't foolproof - it->check_mode() is better for modes */
+/*  composed of more than one bit) */
 #define IMODETST(mbits, mode) (((mbits) & (mode)) == (mode))
 
 /* Test for a specific mode in capability and mode */
@@ -299,8 +323,11 @@ typedef enum {
 	inst2_emis_refr_meas    = 0x00000080, /* Has an emissive refresh rate measurement func. */
 
 	inst2_prog_trig         = 0x00000100, /* Progromatic trigger measure capability */
-	inst2_user_trig         = 0x00000200, /* User trigger measure capability */
-	inst2_switch_trig       = 0x00000400, /* Inst. switch trigger measure capability */
+	inst2_user_trig         = 0x00000200, /* User trigger measure capability, */
+										  /* i.e. via user button and uicallback. */
+	inst2_switch_trig       = 0x00000400, /* Inst. switch trigger measure capability, */
+										  /* i.e. instrument directly starts measurement */
+										  /* via mechanical switch. */
 	inst2_user_switch_trig  = 0x00000800, /* User or switch trigger measure capability */
 
 	inst2_bidi_scan         = 0x00001000, /* Try and recognise patches scanned from either dir. */
@@ -356,6 +383,11 @@ typedef enum {
 
 		optional password
 		configuration specific calibrations. How are they marked ?
+
+
+	Also for ccss capable instruments:
+
+	 write corresponding ccmx for given ccss.
 */
 
 typedef enum {
@@ -446,7 +478,7 @@ typedef enum {
 
 	inst_opt_trig_prog          = 0x000E,	/* Trigger progromatically [No args] */
 	inst_opt_trig_user          = 0x000F,	/* Trigger from user via uicallback [No args] */
-	inst_opt_trig_switch        = 0x0010,	/* Trigger using instrument switch [No args] */
+	inst_opt_trig_switch        = 0x0010,	/* Trigger directly using instrument switch [No args] */
 	inst_opt_trig_user_switch   = 0x0011,	/* Trigger from user via uicallback or switch (def) [No args] */
 
 	inst_opt_highres            = 0x0012,	/* Enable high res spectral mode indep. of set_mode() */
@@ -468,12 +500,24 @@ typedef enum {
 	inst_opt_get_min_int_time   = 0x001D,	/* Get the minimum integration time [*double time] */
 	inst_opt_set_min_int_time   = 0x001E,	/* Set the minimum integration time [double time] */
 
-	inst_opt_opt_calibs_valid   = 0x001F,	/* Are optional calibrations valid  [*int valid] */
-	inst_opt_clear_opt_calibs   = 0x0020	/* Clear all optional calibrations. */
+	inst_opt_opt_calibs_valid   = 0x001F,	/* Are optional (white/black/gloss etc.) calibrations */
+	                                        /* valid?                     [*int valid] */
+	inst_opt_clear_opt_calibs   = 0x0020,	/* Clear all optional calibrations. */
+
+	inst_opt_get_cal_tile_sp    = 0x0021,	/* Return refl. white tile reference spectrum. */
+	                                        /* for current filter.          [*xspect tile] */
+
+	inst_opt_set_xcalstd        = 0x0022,	/* Set the X-Rite reflective calibration standard */
+											/*                             [xcalstd standard] */
+	inst_opt_get_xcalstd        = 0x0023,	/* Get the effective X-Rite ref. cal. standard */
+											/*                             [xcalstd *standard] */
+	inst_opt_lamp_remediate     = 0x0024	/* Remediate i1Pro lamp           [double seconds] */
+
 
 } inst_opt_type;
 
 /* Optional filter fitted to instrument (for inst_opt_set_filter) */
+/* Set this before calling init_coms() */
 typedef enum {
 	inst_opt_filter_unknown  = 0xffff,	/* Unspecified filter */
 	inst_opt_filter_none     = 0x0000,	/* No filters fitted */
@@ -588,24 +632,42 @@ typedef enum {
 
 } inst_cal_cond;
 
+/* Condition identifier message type. This can be useful in internationalizing the */
+/* string returned in id[] from calibrate() */
+typedef enum {
+	inst_calc_id_none      = 0x00000000,	/* No id */
+	inst_calc_id_ref_sn    = 0x00000001,	/* Calibration reference (ie. tile) serial number */
+
+	inst_calc_id_trans_low = 0x00010000,	/* Trans. Ref. light is too low for accuracy warning */
+	inst_calc_id_trans_wl  = 0x00020000,	/* Trans. Ref. light is low at some wavelengths warning */
+	inst_calc_id_filt_unkn = 0x00100000,	/* Request unknown filter */
+	inst_calc_id_filt_none = 0x00200000,	/* Request no filter */
+	inst_calc_id_filt_pol  = 0x00300000,	/* Request polarizing filter */
+	inst_calc_id_filt_D65  = 0x00400000,	/* Request D65 filter */
+	inst_calc_id_filt_UV   = 0x00500000,	/* Request UV cut filter */
+	inst_calc_id_filt_cust = 0x00600000		/* Request custom filter */
+} inst_calc_id_type;
+
 /* Clamping state */
 typedef enum {
     instNoClamp			= 0,	/* Don't clamp XYZ/Lab to +ve */
     instClamp			= 1,	/* Clamp XYZ/Lab to +ve */
 } instClamping;
 
-/* User interaction callback function purpose */
+/* User interaction callback (uicallback()) function purpose */
 typedef enum {
-    inst_negcoms,		/* Negotiating communications */
-    inst_triggered,		/* Measurement has been triggered by switch or user (not progromatic) */
-    inst_armed,			/* Armed and waiting for a measurement trigger */
-    inst_measuring		/* Busy measuring */
+    inst_negcoms,		/* Negotiating communications - can abort */
+    inst_armed,			/* Armed and waiting for a measurement trigger - can wait, trigger, abort */
+    inst_triggered,		/* Measurement triggered by switch or user (not progromatic) - notice */
+						/* (Also triggered by switch driven calibration,i.e. DTP41) */
+    inst_measuring		/* Busy measuring - can abort */
 } inst_ui_purp;
 
 /* Asynchronous event callback type */
 typedef enum {
-    inst_event_switch,	/* Instrument measure/calibrate switch pressed */
-    inst_event_mconf	/* Change in measurement configuration (ie. sensor position) */
+    inst_event_switch,		/* Instrument measure/calibrate switch pressed. */
+    inst_event_mconf,		/* Change in measurement configuration (ie. sensor position) */
+    inst_event_scan_ready	/* Ready for manual strip scan (i.e. issue audible prompt) */
 } inst_event_type;
 
 /* Instrument configuration/sensor position*/
@@ -641,7 +703,9 @@ typedef enum {
 	inst_code (*uicallback)(void *cntx, inst_ui_purp purp);						\
 	void *uic_cntx;		/* User interaction callback function */				\
 	void (*eventcallback)(void *cntx, inst_event_type event);					\
-	void *event_cntx;	/* Event callback function */							\
+	void *event_cntx;	/* Asynchronous event callback function */				\
+	athread *scan_ready_thread;	/* msec_scan_ready() support */					\
+	int scan_ready_delay;		/* msec_scan_ready() support */					\
 																				\
 	/* Virtual delete. Cleans up things done by new_inst(). */					\
 	inst_code (*vdel)(															\
@@ -819,15 +883,15 @@ typedef enum {
 																				\
 																				\
 	/* Read a set of strips (applicable to strip reader) */						\
-	/* Obeys the trigger mode set, and may return user trigger code */			\
-	/* (to hint that a user command may be available) */						\
+	/* Obeys the trigger mode set, and may return user trigger code, */			\
+	/* to hint that a user command may be available. */							\
 	/* Return the inst error code */											\
 	inst_code (*read_strip)(													\
 		struct _inst *p,														\
-		char *name,			/* Strip name (up to 7 chars) */					\
+		char *name,			/* Strip name (up to 7 chars, for DTP51) */			\
 		int npatch,			/* Number of patches in each pass */				\
-		char *pname,		/* Pass name (3 chars) */							\
-		int sguide,			/* Guide number (decrements by 5) */				\
+		char *pname,		/* Pass name (3 chars, for DTP51) */				\
+		int sguide,			/* Guide number (for DTP51, decrements by 5) */		\
 		double pwid,		/* Patch width in mm (For DTP20/DTP41) */			\
 		double gwid,		/* Gap width in mm  (For DTP20/DTP41) */			\
 		double twid,		/* Trailer width in mm  (For DTP41T) */				\
@@ -836,9 +900,9 @@ typedef enum {
 																				\
 	/* Read a single sample (applicable to spot instruments) */					\
 	/* Obeys the trigger mode set, and may return user trigger code */			\
-	/* Values are in XYZ 0..100 for reflective transmissive, */					\
-	/* aXYZ in cd/m^2 for emissive, amd Lux/3.1415926 for ambient. */			\
-	/* Spectral will be analogous to the XYZ. */								\
+	/* Values are in XYZ % (0..100) for reflective & transmissive, */			\
+	/* cd/m^2 for emissive, and Lux for ambient. */								\
+	/* Spectral will be analogous to the XYZ (see inst_meas_type). */			\
 	/* By default values may be -ve due to noise (depending on instrument) */	\
 	/* Return the inst error code */											\
 	inst_code (*read_sample)(													\
@@ -916,8 +980,10 @@ typedef enum {
 		struct _inst *p,														\
 		inst_cal_type *calt,	/* Calibration type to do/remaining */			\
 		inst_cal_cond *calc,	/* Current condition/desired condition */		\
+		inst_calc_id_type *idtype,	/* Condition identifier type */				\
 		char id[CALIDLEN]);		/* Condition identifier (ie. white */			\
-								/* reference ID, filter ID) */					\
+								/* reference ID, filter ID, message string, */	\
+								/* etc.) */										\
 																				\
 	/* Measure a display update, and instrument reaction time. It is */			\
 	/* assumed that a white to black change will be made to the */				\
@@ -1006,11 +1072,11 @@ typedef enum {
      * For inst_negcoms, the return value of inst_user_abort					\
 	 * will abort the communication negotiation.								\
 	 *																			\
-	 * For inst_triggered, the return value of the callback is ignored.			\
-	 *																			\
 	 * For inst_armed return value should be one of: 							\
 	 * inst_ok to do nothing, inst_user_abort to abort the measurement,			\
 	 * or inst_user_trig to trigger the measurement.							\
+	 *																			\
+	 * For inst_triggered, the return value of the callback is ignored.			\
 	 *																			\
 	 * For inst_measuring the return value should be one of:					\
 	 * inst_ok to do nothing, inst_user_abort to abort the measurement.			\
@@ -1022,10 +1088,11 @@ typedef enum {
 		void *cntx);															\
 																				\
 	/* Supply an aynchronous event callback function.							\
-	 * This is called from a thread with the following possible events:			\
+	 * This is called from a different thread with the following possible events:		\
 	 *																			\
 	 * inst_event_switch: Instrument measure/calibrate switch pressed 			\
 	 * inst_event_mconf: The measurement configuration has changed (ie. sensor position)	\
+     * inst_event_scan_ready: Ready for manual strip scan (i.e. issue audible prompt)	\
 	 *																			\
 	 * NULL can be set to disable the callback.									\
 	 */																			\
@@ -1068,7 +1135,8 @@ extern inst *new_inst(
 );
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-/* Implementation functions used by drivers */
+/* Implementation functions used by instrument drivers */
+/* (Client code should not call these) */
 
 /* Get a status or set or get an option (default implementation) */
 inst_code inst_get_set_opt_def(
@@ -1090,6 +1158,10 @@ int doccmx						/* Add matching installed ccmx files */
 /* Free a display type list */
 void inst_del_disptype_list(inst_disptypesel *list, int no);
 
+/* - - - - - - - - - - - - - - - - - - -- */
+
+/* Issue an inst_event_scan_ready event after a delay */
+void issue_scan_ready(inst *p, int delay);
 
 /* - - - - - - - - - - - - - - - - - - -- */
 /* CCMX support - ccmx instrument proxy */

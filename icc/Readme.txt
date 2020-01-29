@@ -74,7 +74,7 @@ Package contents:
 
  icclib.zip    ZIP archive of the following files
  README.txt    This file.
- License.txt   Important! - Permissions for use of this package.
+ License4.txt  Important! - Permissions for use of this package.
  icc.c         Library source file.
  iccstd.c      Library source that uses stdio and malloc system calls.
 

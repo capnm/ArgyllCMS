@@ -36,7 +36,6 @@
 #include "gamut.h"
 #include "nearsmth.h"
 #include "vrml.h"
-#include "ui.h"
 
 double m21po[3] = { 2.0, 1.0, 2.0 };    /* Many to 1 filter mixing power LCh (theoretically 2) */
 

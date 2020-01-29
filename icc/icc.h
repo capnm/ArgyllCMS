@@ -11,7 +11,7 @@
  * Copyright 1997 - 2013 Graeme W. Gill
  *
  * This material is licensed with an "MIT" free use license:-
- * see the License.txt file in this directory for licensing details.
+ * see the License4.txt file in this directory for licensing details.
  */
 
 /* We can get some subtle errors if certain headers aren't included */
@@ -30,8 +30,8 @@
 
 /* Version of icclib release */
 
-#define ICCLIB_VERSION 0x020020
-#define ICCLIB_VERSION_STR "2.20"
+#define ICCLIB_VERSION 0x020021
+#define ICCLIB_VERSION_STR "2.21"
 
 #undef ENABLE_V4		/* V4 is not fully implemented */
 
@@ -74,14 +74,16 @@
 /* so long shouldn't really be used in any code.... */
 /* (duplicated in icc.h) */ 
 
-/* Use __LP64__ as cross platform 64 bit pointer #define */
-#if !defined(__LP64__) && defined(_WIN64)
-# define __LP64__ 1
+/* Use __P64__ as cross platform 64 bit pointer #define */
+#if defined(__LP64__) || defined(__ILP64__) || defined(__LLP64__) || defined(_WIN64)
+# define __P64__ 1
 #endif
 
 #ifndef ORD32			/* If not defined elsewhere */
 
-#if (__STDC_VERSION__ >= 199901L)	/* C99 */
+#if (__STDC_VERSION__ >= 199901L)	/* C99 */		\
+ || defined(_STDINT_H_) || defined(_STDINT_H)		\
+ || defined(_SYS_TYPES_H)
 
 #include <stdint.h> 
 
@@ -100,7 +102,11 @@
 #define CF64PREC "LL"		/* Constant precision specifier */
 
 #ifndef ATTRIBUTE_NORETURN
-# define ATTRIBUTE_NORETURN __declspec(noreturn)
+# ifdef _MSC_VER
+#  define ATTRIBUTE_NORETURN __declspec(noreturn)
+# else
+#  define ATTRIBUTE_NORETURN __attribute__((noreturn))
+# endif
 #endif
 
 #else  /* !__STDC_VERSION__ */
@@ -141,7 +147,7 @@
 #define ORD32  unsigned int		/* 32 bit unsigned */
 
 #ifdef __GNUC__
-# ifdef __LP64__	/* long long could be 128 bit */
+# ifdef __LP64__	/* long long could be 128 bit ? */
 #  define INR64  long				/* 64 bit signed - not used in icclib */
 #  define ORD64  unsigned long		/* 64 bit unsigned - not used in icclib */
 #  define PF64PREC "l"			/* printf format precision specifier */
@@ -1493,15 +1499,30 @@ struct _icc {
 	int          (*delete_tag)(struct _icc *p, icTagSignature sig);
 															/* Returns 0 if deleted OK */
 	int          (*check_id)(struct _icc *p, ORD8 *id); /* Returns 0 if ID is OK, 1 if not present etc. */
-	double       (*get_tac)(struct _icc *p, double *chmax, /* Returns total ink limit and channel maximums */
-	void         (*calfunc)(void *cntx, double *out, double *in), void *cntx);
-															/* optional cal. lookup */
-	void         (*chromAdaptMatrix)(struct _icc *p, int flags, icmXYZNumber d_wp,
-	                                 icmXYZNumber s_wp, double mat[3][3]);
-									/* Chromatic transform function that uses icc */
-									/* Absolute to Media Relative Transformation Space matrix */
-									/* Set header->deviceClass before calling this! */
-						
+	double       (*get_tac)(struct _icc *p, double *chmax,
+	                        void (*calfunc)(void *cntx, double *out, double *in), void *cntx);
+ 	                           /* Returns total ink limit and channel maximums */
+	                           /* calfunc is optional. */
+	void         (*set_illum)(struct _icc *p, double ill_wp[3]);
+								/* Clear any existing 'chad' matrix, and if Output type profile */
+	                            /* and ARGYLL_CREATE_OUTPUT_PROFILE_WITH_CHAD set and */
+								/* ill_wp != NULL, create a 'chad' matrix. */
+	void         (*chromAdaptMatrix)(struct _icc *p, int flags, double imat[3][3],
+	                                 double mat[3][3], icmXYZNumber d_wp, icmXYZNumber s_wp);
+	                            /* Return an overall Chromatic Adaptation Matrix */
+	                            /* for the given source and destination white points. */
+	                            /* This will depened on the icc profiles current setup */
+	                            /* for Abs->Rel conversion (wpchtmx[][] set to wrong Von */
+	                            /* Kries or not, whether 'arts' tag has been read), and */
+	                            /* whether an Output profile 'chad' tag has bean read */
+	                            /* or will be created. (i.e. on writing assumes */
+	                            /* icc->set_illum() called or not). */
+	                            /* Set header->deviceClass before calling this! */
+	                            /* ICM_CAM_NONE or ICM_CAM_MULMATRIX to mult by mat. */
+	                            /* Return invers of matrix if imat != NULL. */
+	                            /* Use icmMulBy3x3(dst, mat, src). */
+	                            /* NOTE that to transform primaries they */
+	                            /* must be mat[XYZ][RGB] format! */
 
 	/* Get a particular color conversion function */
 	icmLuBase *  (*get_luobj) (struct _icc *p,
@@ -1531,27 +1552,57 @@ struct _icc {
 	int              errc;				/* Error code */
 	int              warnc;				/* Warning code */
 
+	/* - - - - - - - - tweaks - - - - - - - */
 	int              allowclutPoints256; /* Non standard - allow 256 res cLUT */
 
-	int              autoWpchtmx;		/* Whether to automatically set wpchtmx[][] based on */
-										/* the header and the state of the env override */
-										/* ARGYLL_CREATE_WRONG_VON_KRIES_OUTPUT_CLASS_REL_WP. */
-										/* Default true, set false on reading a profile. */ 
 	int              useLinWpchtmx;		/* Force Wrong Von Kries for output class (default false) */
-    icProfileClassSignature wpchtmx_class;	/* Class of profile wpchtmx was set for */
-	double           wpchtmx[3][3];		/* Absolute to Media Relative Transformation Space matrix */
+										/* Could be set by code, and is set set by */
+										/* ARGYLL_CREATE_WRONG_VON_KRIES_OUTPUT_CLASS_REL_WP env. */
+    icProfileClassSignature wpchtmx_class;	/* Class of profile wpchtmx was set for. */
+										/* Set wpchtmx automatically on ->chromAdaptMatrix() */
+										/* or ->get_size() or ->write() if the profile class */
+										/* doesn't match wpchtmx_class. */
+	double           wpchtmx[3][3];		/* Absolute to Media Relative Transformation Space (i.e. */
+										/* Cone Space transformation) matrix. */
 	double           iwpchtmx[3][3];	/* Inverse of wpchtmx[][] */
 										/* (Default is Bradford matrix) */
-	int				 useArts;			/* Save ArgyllCMS private 'arts' tag (default yes) */
-										/* (This creates 'arts' tag on writing) */
+	int				 useArts;			/* Save ArgyllCMS private 'arts' tag (default yes). */
+										/* This creates 'arts' tag on writing. */
+										/* This is cleared if 'arts' tag is not found on reading. */
 
-	int              chadValid;			/* nz if 'chad' tag has been read and chadmx is valid */
-	double			 chadmx[3][3];		/* 'chad' tag matrix if read */
-	int				 useChad;			/* Create 'chad' tag for Display profile (default no) */
-										/* Override with ARGYLL_CREATE_DISPLAY_PROFILE_WITH_CHAD */
-										/* (This set media white point tag to D50 and */
-										/* creates 'chad' tag on writing) */
-									
+	double           illwp[3];			/* Output type profile illuminant white point, */
+										/* used to create 'chad' tag if */
+										/* ARGYLL_CREATE_OUTPUT_PROFILE_WITH_CHAD is set. */
+	int              illwpValid;		/* illwp[] has been set. */
+
+	int              naturalChad;		/* nz if 'chad' tag is naturally present in the profile, */
+										/* because it was read or added. wrD/OChad will be */
+										/* ignored if this is the case. */
+
+	int              chadmxValid;		/* nz if 'chad' tag has been read, or created */
+										/* using ->set_illum() and chadmx is valid. */
+	double			 chadmx[3][3];		/* 'chad' tag matrix if read or created. */
+										/* (This is used to restore full absolute intent for */
+	                                    /* Display and Output type profiles.) */
+
+	int				 wrDChad;			/* Create 'chad' tag for Display profiles (default no). */
+										/* Override with ARGYLL_CREATE_DISPLAY_PROFILE_WITH_CHAD. */
+										/* On writing Display profiles this sets the media white */
+										/* point tag to D50 and creates 'chad' tag from the white */
+										/* point to D50. Ignored if naturalChad. */
+		
+	int				 wrOChad;			/* Create 'chad' tag for Output profiles (default no). */
+										/* Override with ARGYLL_CREATE_DISPLAY_PROFILE_WITH_CHAD. */
+										/* On writing an Output profile, this  Creates a 'chad' */
+										/* tag frp, illwp[] to D50, and sets the white point */
+										/* tag to be the real value transformed by the */
+										/* 'chad' matrix. Ignored if naturalChad. */
+
+	int              tempChad;			/* nz while temporary chad tag is in place and */
+										/* white point has been modified, between */
+										/* ->get_size() to ->write() calls when wrD/OChad active. */
+	icmXYZNumber	 tempWP;			/* Save real wp tag value here between ->get_size() */
+										/* to ->write() calls when wrD/OChad active. */
 		
   /* Private: ? */
 	icmAlloc        *al;				/* Heap allocator */
@@ -2082,7 +2133,8 @@ int icmRGBYxyprim2matrix(
 /* Chromatic Adaption transform utility */
 /* Return a 3x3 chromatic adaption matrix */
 /* Use icmMulBy3x3(dst, mat, src) */
-/* [ use icc->chromAdaptMatrix() to use the profiles cone space matrix] */
+/* [ use icc->chromAdaptMatrix() to use the profiles cone space matrix rather */
+/*   than specify a CAM ] */
 
 #define ICM_CAM_NONE	    0x0000	/* No flags */
 #define ICM_CAM_BRADFORD	0x0001	/* Use Bradford sharpened response space */
@@ -2103,6 +2155,16 @@ void icmChromAdaptMatrix(
 /* the quantized sum. */
 void quantizeRGBprimsS15Fixed16(
 	double mat[3][3]		/* matrix[RGB][XYZ] */
+);
+
+/* Pre-round a 3x3 matrix to ensure that the product of */
+/* the matrix and the input value is the same as */
+/* the quantized matrix product. This is used to improve accuracy */
+/* of 'chad' tag in computing absolute white point. */ 
+void icmQuantize3x3S15Fixed16(
+	double targ[3],			/* Target of product */
+	double mat[3][3],		/* matrix[][] to be quantized */
+	double in[3]			/* Input of product - must not be 0.0! */
 );
 
 /* - - - - - - - - - - - - - - */

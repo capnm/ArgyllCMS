@@ -12,6 +12,9 @@
 
 /* TTBD:
  *
+ * Should reject device link profiles ?
+ *
+ *
  */
 
 #include <stdio.h>
@@ -26,9 +29,13 @@
 #include "icc.h"
 #include "xicc.h"
 #include "vrml.h"
-#include "ui.h"
 
-#define RW 0.5		/* Device Delta */ 
+#define RW 0.5		/* PCS Delta */ 
+
+//#define FLAGS ICX_CLIP_NEAREST | ICX_CAM_CLIP | ICX_FAST_SETUP
+//#define FLAGS ICX_CLIP_NEAREST | ICX_CAM_CLIP
+//#define FLAGS ICX_CLIP_NEAREST | ICX_FAST_SETUP
+#define FLAGS ICX_CLIP_NEAREST
 
 /* - - - - - - - - - - - - - */
 
@@ -63,13 +70,13 @@ void usage(void) {
 	fprintf(stderr,"Author: Graeme W. Gill, licensed under the AGPL Version 3\n");
 	fprintf(stderr,"usage: fbtest [options] infile\n");
 	fprintf(stderr," -v          verbose\n");
-	fprintf(stderr," -f          Show PCS target -> reference clipped PCS vectors\n");
-	fprintf(stderr," -d          Show PCS target -> average of device ref clippped PCS\n");
-	fprintf(stderr," -b          Show PCS target -> B2A lookup clipped PCS\n");
-	fprintf(stderr," -e          Show reference cliped PCS -> B2A lookup clipped PCS\n");
+	fprintf(stderr," -f          Add PCS -inv(a2b)- device -a2b- PCS Vectors\n");
+	fprintf(stderr," -d          Add ave(PCS + 4 x a*b* variations -inv(a2b)- device) -a2b- PCS\n");
+	fprintf(stderr," -b          Add PCS -b2a- device -a2b- PCS Vectors\n");
+	fprintf(stderr," -e          Add dif between inv(a2b) and b2a cliped vectors\n");
 	fprintf(stderr," -r res      Resolution of test grid [Def 33]\n");
-	fprintf(stderr," -g          Do full grid, not just L = 0\n");
-	fprintf(stderr," -c          Do all values, not just clipped ones\n");
+	fprintf(stderr," -g          Do full grid, not just cube\n");
+	fprintf(stderr," -a          Do all values, not just clipped ones\n");
 	fprintf(stderr," -l tlimit   set total ink limit, 0 - 400%% (estimate by default)\n");
 	fprintf(stderr," -L klimit   set black ink limit, 0 - 100%% (estimate by default)\n");
 	exit(1);
@@ -90,7 +97,7 @@ main(
 	int dodelta = 0;		/* Show device interp delta variation */
 	int dob2a = 0;			/* Show B2A lookups */
 	int doeee = 0;			/* Show clipped ref PCS to B2A clipped PCS */
-	int dilzero = 1;		/* Do just L = 0 plane */
+	int dogrid = 0;			/* Do full grid, not just cube */
 	int doclip = 1;			/* Do just clipped values */
 	char in_name[100];
 	char *xl, out_name[100];
@@ -98,6 +105,8 @@ main(
 	icc *rd_icco;
 	int rv = 0;
 	icColorSpaceSignature ins, outs;	/* Type of input and output spaces */
+	int inn;							/* Number of device values */
+	double abscale = 128.0;
 
 	error_program = argv[0];
 
@@ -122,31 +131,31 @@ main(
 			}
 
 			/* Verbosity */
-			if (argv[fa][1] == 'v' || argv[fa][1] == 'V') {
+			if (argv[fa][1] == 'v') {
 				verb = 1;
 			}
 			/* Show reference */
-			else if (argv[fa][1] == 'f' || argv[fa][1] == 'F') {
+			else if (argv[fa][1] == 'f') {
 				doref = 1;
 			}
 			/* Show device delta variation */
-			else if (argv[fa][1] == 'd' || argv[fa][1] == 'D') {
+			else if (argv[fa][1] == 'd') {
 				dodelta = 1;
 			}
 			/* Show B2A table lookup */
-			else if (argv[fa][1] == 'b' || argv[fa][1] == 'B') {
+			else if (argv[fa][1] == 'b') {
 				dob2a = 1;
 			}
 			/* Show reference clipped PCS to clipped B2A PCS */
-			else if (argv[fa][1] == 'e' || argv[fa][1] == 'E') {
+			else if (argv[fa][1] == 'e') {
 				doeee = 1;
 			}
-			/* Do the full grid, not just L = 0 */
-			else if (argv[fa][1] == 'g' || argv[fa][1] == 'G') {
-				dilzero = 0;
+			/* Do full grid, not just cube */
+			else if (argv[fa][1] == 'g') {
+				dogrid = 1;
 			}
 			/* Do all values, not just clipped ones */
-			else if (argv[fa][1] == 'c' || argv[fa][1] == 'C') {
+			else if (argv[fa][1] == 'a') {
 				doclip = 0;
 			}
 			/* Ink limit */
@@ -162,7 +171,7 @@ main(
 			}
 
 			/* Resolution */
-			else if (argv[fa][1] == 'r' || argv[fa][1] == 'R') {
+			else if (argv[fa][1] == 'r') {
 				fa = nfa;
 				if (na == NULL) usage();
 				tres = atoi(na);
@@ -241,15 +250,16 @@ main(
 		ink.c.Kshap = 1.0;		/* Linear transition */
 
 		/* Get a Device to PCS conversion object */
-		if ((luo = xicco->get_luobj(xicco, ICX_CLIP_NEAREST, icmFwd, icAbsoluteColorimetric, icSigLabData, icmLuOrdNorm, NULL, &ink)) == NULL) {
-			if ((luo = xicco->get_luobj(xicco, ICX_CLIP_NEAREST, icmFwd, icmDefaultIntent, icSigLabData, icmLuOrdNorm, NULL, &ink)) == NULL)
+		if ((luo = xicco->get_luobj(xicco, FLAGS, icmFwd, icAbsoluteColorimetric, icSigLabData, icmLuOrdNorm, NULL, &ink)) == NULL) {
+			if ((luo = xicco->get_luobj(xicco, FLAGS, icmFwd, icmDefaultIntent, icSigLabData, icmLuOrdNorm, NULL, &ink)) == NULL)
 				error ("%d, %s",rd_icco->errc, rd_icco->err);
 		}
 		/* Get details of conversion */
-		luo->spaces(luo, &ins, NULL, &outs, NULL, NULL, NULL, NULL, NULL);
+		luo->spaces(luo, &ins, &inn, &outs, NULL, NULL, NULL, NULL, NULL);
 
-		if (ins != icSigCmykData) {
-			error("Expecting CMYK device");
+		if (ins != icSigCmykData
+		 && ins != icSigRgbData) {
+			error("Expecting RGB or CMYK device");
 		}
 		
 		if ((wrl = new_vrml(out_name, doaxes, vrml_lab)) == NULL) {
@@ -258,17 +268,20 @@ main(
 		}
 
 		/* ---------------------------------------------- */
-		/* The PCS target -> Reference clipped vectors */
+		/* Clipping vectors of inverse a2b */
+		/* PCS -inv(a2b)- device -a2b- PCS Vectors */
 
+		/* PCS -> device -> PCS */
 		if (doref) {
 			double rgb[3];
 
 			if (verb)
-				printf("Doing PCS target to reference clipped PCS Vectors\n");
+				printf("Adding PCS -inv(a2b)- device -a2b- PCS Vectors \n");
 
 			wrl->start_line_set(wrl, 0);
 
 			i = 0;
+			/* For range of PCS values */
 			for (coa[0] = 0; coa[0] < tres; coa[0]++) {
 				for (coa[1] = 0; coa[1] < tres; coa[1]++) {
 					for (coa[2] = 0; coa[2] < tres; coa[2]++) {
@@ -276,14 +289,21 @@ main(
 						double temp[4];
 						int rv1, rv2;
 
+						if (!dogrid
+						 && coa[0] != 0 && coa[0] != (tres-1)
+						 && coa[1] != 0 && coa[1] != (tres-1)
+						 && coa[2] != 0 && coa[2] != (tres-1)) {
+							continue;
+						}
+
 						temp[0] = coa[0]/(tres-1.0);
 						temp[1] = coa[1]/(tres-1.0);
 						temp[2] = coa[2]/(tres-1.0);
 
 						/* PCS values */
 						in[0] = temp[0] * 100.0;
-						in[1] = 200.0 * temp[1] -100.0;
-						in[2] = 200.0 * temp[2] -100.0;
+						in[1] = abscale * 2.0 * (temp[1] - 0.5);
+						in[2] = abscale * 2.0 * (temp[2] - 0.5);
 
 						/* Do reference lookup */
 
@@ -307,8 +327,6 @@ main(
 						i++;
 					}
 				}
-				if (dilzero)
-					break;
 			}
 
 			if (verb)
@@ -328,18 +346,19 @@ main(
 		}
 
 		/* ---------------------------------------------- */
-		/* The Device Delta lines */
-		/* The PCS target -> clipped from average of surrounding device values, vectors */
+		/* Clipping vectors of average around PCS of inverse a2b */
+		/* Average of(PCS + 4 x a*b* variations -inv(a2b)- device) -a2b- PCS */
 
 		if (dodelta) {
 			double rgb[3];
 
 			if (verb)
-				printf("Doing target PCS to average of 4 surrounding device to PCS Vectors\n");
+				printf("Adding ave(PCS + 4 x a*b* variations -inv(a2b)- device) -a2b- PCS\n");
 
 			wrl->start_line_set(wrl, 0);
 
 			i = 0;
+			/* For Lab values */
 			for (coa[0] = 0; coa[0] < tres; coa[0]++) {
 				for (coa[1] = 0; coa[1] < tres; coa[1]++) {
 					for (coa[2] = 0; coa[2] < tres; coa[2]++) {
@@ -349,13 +368,22 @@ main(
 						double dev0[4], dev1[4], dev2[4], dev3[4];
 						int rv1, rv2;
 
+						if (!dogrid
+						 && coa[0] != 0
+						 && coa[0] != (tres-1)
+						 && coa[1] != 0
+						 && coa[1] != (tres-1)
+						 && coa[2] != 0
+						 && coa[2] != (tres-1))
+							continue;
+
 						temp[0] = coa[0]/(tres-1.0);
 						temp[1] = coa[1]/(tres-1.0);
 						temp[2] = coa[2]/(tres-1.0);
 
 						in[0] = temp[0] * 100.0;
-						in[1] = 200.0 * temp[1] -100.0;
-						in[2] = 200.0 * temp[2] -100.0;
+						in[1] = abscale * 2.0 * (temp[1] - 0.5);
+						in[2] = abscale * 2.0 * (temp[2] - 0.5);
 
 						/* Do reference lookup */
 
@@ -366,7 +394,7 @@ main(
 						if (doclip && rv2 != 1)	/* Not clip */
 							continue;
 
-						/* Device -> PCS check value */
+						/* Device -> PCS check value - not used */
 						if ((rv1 = luo->lookup(luo, check, dev)) > 1)
 							error ("%d, %s",rd_icco->errc,rd_icco->err);
 		
@@ -377,8 +405,8 @@ main(
 						temp[2] = (coa[2]-RW)/(tres-1.0);
 
 						in4[0] = temp[0] * 100.0;
-						in4[1] = 200.0 * temp[1] -100.0;
-						in4[2] = 200.0 * temp[2] -100.0;
+						in4[1] = abscale * 2.0 * (temp[1] - 0.5);
+						in4[2] = abscale * 2.0 * (temp[2] - 0.5);
 
 						/* PCS -> Device */
 						if ((rv2 = luo->inv_lookup(luo, dev0, in4)) > 1)
@@ -394,8 +422,8 @@ main(
 						temp[2] = (coa[2]-RW)/(tres-1.0);
 
 						in4[0] = temp[0] * 100.0;
-						in4[1] = 200.0 * temp[1] -100.0;
-						in4[2] = 200.0 * temp[2] -100.0;
+						in4[1] = abscale * 2.0 * (temp[1] - 0.5);
+						in4[2] = abscale * 2.0 * (temp[2] - 0.5);
 
 						/* PCS -> Device */
 						if ((rv2 = luo->inv_lookup(luo, dev1, in4)) > 1)
@@ -411,8 +439,8 @@ main(
 						temp[2] = (coa[2]+RW)/(tres-1.0);
 
 						in4[0] = temp[0] * 100.0;
-						in4[1] = 200.0 * temp[1] -100.0;
-						in4[2] = 200.0 * temp[2] -100.0;
+						in4[1] = abscale * 2.0 * (temp[1] - 0.5);
+						in4[2] = abscale * 2.0 * (temp[2] - 0.5);
 
 						/* PCS -> Device */
 						if ((rv2 = luo->inv_lookup(luo, dev2, in4)) > 1)
@@ -428,8 +456,8 @@ main(
 						temp[2] = (coa[2]+RW)/(tres-1.0);
 
 						in4[0] = temp[0] * 100.0;
-						in4[1] = 200.0 * temp[1] -100.0;
-						in4[2] = 200.0 * temp[2] -100.0;
+						in4[1] = abscale * 2.0 * (temp[1] - 0.5);
+						in4[2] = abscale * 2.0 * (temp[2] - 0.5);
 
 						/* PCS -> Device */
 						if ((rv2 = luo->inv_lookup(luo, dev3, in4)) > 1)
@@ -440,7 +468,7 @@ main(
 						adev[2] += 0.25 * dev3[2];
 						adev[3] += 0.25 * dev3[3];
 
-						/* Device -> PCS */
+						/* Average device -> PCS */
 						if ((rv1 = luo->lookup(luo, out, adev)) > 1)
 							error ("%d, %s",rd_icco->errc,rd_icco->err);
 		
@@ -452,8 +480,6 @@ main(
 						i++;
 					}
 				}
-				if (dilzero)
-					break;
 			}
 
 			if (verb)
@@ -473,7 +499,8 @@ main(
 		}
 
 		/* ---------------------------------------------- */
-		/* The target PCS -> clipped PCS using B2A table vectore */
+		/* Clipping vectors of b2a */
+		/* PCS -b2a- device -a2b- PCS Vectors */
 
 		if (dob2a) {
 			double rgb[3];
@@ -482,18 +509,19 @@ main(
 
 			wrl->start_line_set(wrl, 0);
 
-			/* Get a PCS to Device conversion object */
-			if ((luoB = xicco->get_luobj(xicco, ICX_CLIP_NEAREST, icmBwd, icAbsoluteColorimetric,
+			/* Get a B2A (PCS to Device) conversion object */
+			if ((luoB = xicco->get_luobj(xicco, FLAGS, icmBwd, icAbsoluteColorimetric,
 			                             icSigLabData, icmLuOrdNorm, NULL, &ink)) == NULL) {
-				if ((luoB = xicco->get_luobj(xicco, ICX_CLIP_NEAREST, icmBwd, icmDefaultIntent,
+				if ((luoB = xicco->get_luobj(xicco, FLAGS, icmBwd, icmDefaultIntent,
 				                             icSigLabData, icmLuOrdNorm, NULL, &ink)) == NULL)
 					error ("%d, %s",rd_icco->errc, rd_icco->err);
 			}
 
 			if (verb)
-				printf("Doing target PCS to B2A clipped PCS Vectors\n");
+				printf("Adding PCS -b2a- device -a2b- PCS Vectors\n");
 
 			i = 0;
+			/* For PCS values */
 			for (coa[0] = 0; coa[0] < tres; coa[0]++) {
 				for (coa[1] = 0; coa[1] < tres; coa[1]++) {
 					for (coa[2] = 0; coa[2] < tres; coa[2]++) {
@@ -501,13 +529,22 @@ main(
 						double temp[4];
 						int rv1, rv2;
 
+						if (!dogrid
+						 && coa[0] != 0
+						 && coa[0] != (tres-1)
+						 && coa[1] != 0
+						 && coa[1] != (tres-1)
+						 && coa[2] != 0
+						 && coa[2] != (tres-1))
+							continue;
+
 						temp[0] = coa[0]/(tres-1.0);
 						temp[1] = coa[1]/(tres-1.0);
 						temp[2] = coa[2]/(tres-1.0);
 
 						in[0] = temp[0] * 100.0;
-						in[1] = 200.0 * temp[1] -100.0;
-						in[2] = 200.0 * temp[2] -100.0;
+						in[1] = abscale * 2.0 * (temp[1] - 0.5);
+						in[2] = abscale * 2.0 * (temp[2] - 0.5);
 
 						/* PCS -> Device */
 						if ((rv2 = luoB->lookup(luoB, dev, in)) > 1)
@@ -528,8 +565,6 @@ main(
 						i++;
 					}
 				}
-				if (dilzero)
-					break;
 			}
 
 			if (verb)
@@ -551,7 +586,11 @@ main(
 		}
 
 		/* ---------------------------------------------- */
-		/* The reference clipped PCS -> B2A clipped PCS vectore */
+		/* Difference between: 
+		      PCS -inv(a2b)- device -a2b- PCS 
+		   and
+		      PCS -b2a- device -a2b- PCS
+		 */
 
 		if (doeee) {
 			double rgb[3];
@@ -561,15 +600,15 @@ main(
 			wrl->start_line_set(wrl, 0);
 
 			/* Get a PCS to Device conversion object */
-			if ((luoB = xicco->get_luobj(xicco, ICX_CLIP_NEAREST, icmBwd, icAbsoluteColorimetric,
+			if ((luoB = xicco->get_luobj(xicco, FLAGS, icmBwd, icAbsoluteColorimetric,
 			                             icSigLabData, icmLuOrdNorm, NULL, &ink)) == NULL) {
-				if ((luoB = xicco->get_luobj(xicco, ICX_CLIP_NEAREST, icmBwd, icmDefaultIntent,
+				if ((luoB = xicco->get_luobj(xicco, FLAGS, icmBwd, icmDefaultIntent,
 				                             icSigLabData, icmLuOrdNorm, NULL, &ink)) == NULL)
 					error ("%d, %s",rd_icco->errc, rd_icco->err);
 			}
 
 			if (verb)
-				printf("Doing reference clipped PCS to B2A table clipped PCS Vectors\n");
+				printf("Adding differenve between inv(a2b) and b2a cliped vectors\n");
 
 			i = 0;
 			for (coa[0] = 0; coa[0] < tres; coa[0]++) {
@@ -580,15 +619,24 @@ main(
 						double temp[4];
 						int rv1, rv2;
 
+						if (!dogrid
+						 && coa[0] != 0
+						 && coa[0] != (tres-1)
+						 && coa[1] != 0
+						 && coa[1] != (tres-1)
+						 && coa[2] != 0
+						 && coa[2] != (tres-1))
+							continue;
+
 						temp[0] = coa[0]/(tres-1.0);
 						temp[1] = coa[1]/(tres-1.0);
 						temp[2] = coa[2]/(tres-1.0);
 
 						in[0] = temp[0] * 100.0;
-						in[1] = 200.0 * temp[1] -100.0;
-						in[2] = 200.0 * temp[2] -100.0;
+						in[1] = abscale * 2.0 * (temp[1] - 0.5);
+						in[2] = abscale * 2.0 * (temp[2] - 0.5);
 
-						/* Do reference lookup */
+						/* Do reference lookup using inverse a2b */
 						/* PCS -> Device */
 						if ((rv1 = luo->inv_lookup(luo, dev, in)) > 1)
 							error ("%d, %s",rd_icco->errc,rd_icco->err);
@@ -597,6 +645,7 @@ main(
 						if (luo->lookup(luo, check, dev) > 1)
 							error ("%d, %s",rd_icco->errc,rd_icco->err);
 		
+
 						/* Do B2A table lookup */
 						/* PCS -> Device */
 						if ((rv2 = luoB->lookup(luoB, dev, in)) > 1)
@@ -617,8 +666,6 @@ main(
 						i++;
 					}
 				}
-				if (dilzero)
-					break;
 			}
 
 			if (verb)

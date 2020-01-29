@@ -16,14 +16,15 @@
     in Lab or CIECAM02 Jab colorspace, and can also representing the
     gamut as a X3DOM file.<br>
     <br>
-    See <a href="3dformat.html">3D Viewing
-      Format</a> for switching to VRML or X3D output format.<br>
+    See <a href="3dformat.html">3D Viewing Format</a> for switching to
+    VRML or X3D output format.<br>
     <h3>Usage<br>
     </h3>
     <small><span style="font-family: monospace;">iccgamut [-options] </span><i
         style="font-family: monospace;">profile</i><br
         style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp;-v&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -36,6 +37,7 @@
       <span style="font-family: monospace;">&nbsp;-w&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 emit
 
+
         X3DOM .x3d.html file as well as CGATS .gam file</span><br
         style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp;-n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
@@ -45,10 +47,12 @@ Don't
 
 
 
+
         add X3DOM axes or white/black point</span><br
         style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp;-k&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Add
+
 
         X3DOM markers for prim. &amp; sec. "cusp" points</span><br
         style="font-family: monospace;">
@@ -66,6 +70,7 @@ s
 
 
 
+
         = saturation, a = absolute (default), d = profile default</span></small><small><span
         style="font-family: monospace;"></span></small><br
       style="font-family: monospace;">
@@ -76,6 +81,7 @@ s
         monospace;">
       <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 r
+
 
 
 
@@ -104,6 +110,7 @@ either
 
 
 
+
         an enumerated choice, or a series of parameters:value changes</span><br
         style="font-family: monospace;">
       <span style="font-family: monospace;"></span></small><small><span
@@ -117,9 +124,11 @@ either
 
 
 
+
         &nbsp; pe - Print evaluation environment (CIE 116-1995)<br>
       </span></small><small><span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;
+
 
 
 
@@ -135,10 +144,12 @@ either
 
 
 
+
         &nbsp; &nbsp; mt - Monitor in typical work environment</span><br
         style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;
+
 
 
 
@@ -173,10 +184,12 @@ s:surround&nbsp;&nbsp;
 
 
 
+
         n = auto, a = average, m = dim, d = dark,</span><br
         style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;
+
 
 
 
@@ -191,10 +204,12 @@ w:X:Y:Z&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
+
         Adapted white point as XYZ (default media white)</span><br
         style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 w:x:y&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -209,11 +224,13 @@ a:adaptation
 
 
 
+
         Adaptation luminance in cd.m^2 (default 50.0)</span><br
         style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 b:background
 Background
+
 
 
 
@@ -231,12 +248,14 @@ f:flare&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
+
             Flare light % of image luminance (default 0)<br>
           </span></small>&nbsp;</span><span style="font-family:
         monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         g:glare&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Glare light % of ambient
         (default 5)</span><br style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -248,10 +267,14 @@ f:flare&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
+
         g:x:y&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Glare color as
         x, y<br>
+        &nbsp;-x pcent&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        Expand/compress gamut cylindrically by percent<br>
         &nbsp;-s&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Create
+
 
 
 
@@ -355,6 +378,12 @@ Create
     The <b>-c</b> parameter allows setting the CIECAM02 viewing
     conditions, either by choosing a typical viewing environment, or
     controlling particular viewing condition parameters.<br>
+    <br>
+    The <b>-x</b> parameter allows expanding or compressing the
+    resulting gamut in a cylindrical direction by the given percentage
+    :- i.e "-x 120" will expand by 20%. This may be useful for creating
+    a general compression gamut mapping by using such an expanded device
+    gamut as input to <a href="collink.html#g">collink -g or -G</a>.<br>
     <br>
     The <span style="font-weight: bold;">-s</span> flag creates a
     special hyper-cube surface plot that is artificially colored. This

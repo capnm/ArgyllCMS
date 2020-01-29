@@ -238,8 +238,17 @@ main(
 #endif
 
 	if (in_name[0] != '\000') {
-		if (read_xspect(&sp, in_name) != 0)
+		inst_meas_type mt;	
+
+		if (read_xspect(&sp, &mt, in_name) != 0)
 			error ("Unable to read custom spectrum '%s'",in_name);
+
+		if (mt != inst_mrt_none
+		 && mt != inst_mrt_emission
+		 && mt != inst_mrt_ambient
+		 && mt != inst_mrt_emission_flash
+		 && mt != inst_mrt_ambient_flash)
+			error("Custom illuminant '%s' is wrong measurement type",in_name);
 
 		sprintf(buf, "File '%s'",in_name);
 

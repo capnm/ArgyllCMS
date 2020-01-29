@@ -91,9 +91,6 @@ typedef struct {
 } col;
 
 
-/* Maximum number of entries to setup for calibration */
-#define MAX_CAL_ENT 4096
-
 /* Display reading context */
 struct _disprd {
 

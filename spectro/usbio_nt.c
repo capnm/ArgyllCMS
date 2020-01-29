@@ -99,14 +99,14 @@ int *retsz) {
 	return ICOM_OK;
 }
 
-/* Add paths to USB connected instruments */
+/* Add paths to USB connected device */
 /* Return an icom error */
 int usb_get_paths(
 icompaths *p 
 ) {
 	unsigned int vid, pid, nep10 = 0xffff;
 	unsigned int configix, nconfig, nifce;
-	instType itype;
+	devType itype;
 	struct usb_idevice *usbd = NULL;
 	int rv, retsz, i;
 

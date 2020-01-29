@@ -42,7 +42,6 @@
 #include "numlib.h"
 #include "xicc.h"
 #include "imdi.h"
-#include "ui.h"
 
 #undef DO_CHECK		/* Do floating point check */
 

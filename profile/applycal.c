@@ -33,7 +33,6 @@
 #include "numlib.h"
 #include "rspl.h"
 #include "xicc.h"
-#include "ui.h"
 
 #undef DEBUG
 

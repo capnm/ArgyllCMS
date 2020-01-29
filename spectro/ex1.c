@@ -328,7 +328,9 @@ ex1_init_inst(inst *pp) {
 //printf("~1 raw range = %d - %d\n",sconf->rawrange.off, sconf->rawrange.off + sconf->rawrange.num-1);
 //printf("~1 = %f - %f nm\n",rspec_raw2nm(sconf, sconf->rawrange.off), rspec_raw2nm(sconf, sconf->rawrange.off + sconf->rawrange.num-1));
 
-	sconf->ktype = rspec_gausian;
+	sconf->ktype = rspec_gausian;			/* Default */
+//	sconf->ktype = rspec_lanczos2;
+//	sconf->ktype = rspec_lanczos3;
 //	sconf->ktype = rspec_triangle;
 //	sconf->ktype = rspec_cubicspline;
 	sconf->wl_space = 2.0;
@@ -702,6 +704,7 @@ inst_code ex1_calibrate(
 inst *pp,
 inst_cal_type *calt,	/* Calibration type to do/remaining */
 inst_cal_cond *calc,	/* Current condition/desired condition */
+inst_calc_id_type *idtype,	/* Condition identifier type */
 char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 ) {
 	ex1 *p = (ex1 *)pp;
@@ -1160,8 +1163,7 @@ static void ex1_set_noinitcalib(ex1 *p, int v, int losecs) {
  * error if it hasn't been initialised.
  */
 static inst_code
-ex1_get_set_opt(inst *pp, inst_opt_type m, ...)
-{
+ex1_get_set_opt(inst *pp, inst_opt_type m, ...) {
 	ex1 *p = (ex1 *)pp;
 	inst_code ev = inst_ok;
 
@@ -1194,7 +1196,17 @@ ex1_get_set_opt(inst *pp, inst_opt_type m, ...)
 	if (!p->inited)
 		return inst_no_init;
 
-	return inst_unsupported;
+	/* Use default implementation of other inst_opt_type's */
+	{
+		inst_code rv;
+		va_list args;
+
+		va_start(args, m);
+		rv = inst_get_set_opt_def(pp, m, args);
+		va_end(args);
+
+		return rv;
+	}
 }
 
 /* Constructor */

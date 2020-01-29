@@ -78,7 +78,7 @@
 #include "conv.h"
 #include "ccmdns.h"
 
-#undef DEBUG
+#undef DEBUG		/* [und] */
 
 #if defined(NT) // Windows specific
 # if _WIN32_WINNT < 0x0400
@@ -128,8 +128,12 @@ typedef int SOCKET;
 
 #ifdef DEBUG
 # define DBG(xxx) a1logd xxx ;
+# define DBG2(xxx) a1logd xxx ;
+# define DLEV 0
 #else
 # define DBG(xxx) ;
+# define DBG2(xxx) a1logd xxx ;
+# define DLEV 2
 #endif  /* DEBUG */
 
 /* ================================================================ */
@@ -285,7 +289,8 @@ static int init_send_mDNS(SOCKET *psock) {
 		DBG((g_log,0,"[disabling loopback failed with %d]\n",ERRNO)) 
 	} 
 
-#ifdef NEVER		// We only want this to be local
+	/* Is this desirable ? */
+
 	/* increase the IP TTL from the default of one to 64, so our
 	 * multicast datagrams can get off of the local network 
 	 */
@@ -297,7 +302,6 @@ static int init_send_mDNS(SOCKET *psock) {
 		closesocket(sock);
 		return 1;
 	} 
-#endif
 
 	if (psock != NULL)
 		*psock = sock;
@@ -572,80 +576,56 @@ static int receive_mDNS(SOCKET sock, ccast_id ***ids, int emsec) {
 
 /* Get a list of Chromecasts. Return NULL on error */
 /* Last pointer in array is NULL */
-/* Takes 0.5 second to return */
+/* Takes 1.0 second to return */
 ccast_id **get_ccids() {
 	ccast_id **ids = NULL;
-	int i, j;
+	int i, j, k;
 	unsigned int smsec;
+	int waittime = 100;
 	SOCKET ssock, rsock;
 
+	DBG2((g_log,DLEV,"get_ccids: called\n"))
+
 	if (init_mDNS()) {
-		DBG((g_log,0,"init_mDNS() failed\n"))
+		DBG2((g_log,0,"get_ccids: init_mDNS() failed\n"))
 		return NULL;
 	}
 
 	if (init_send_mDNS(&ssock)) {
-		DBG((g_log,0,"init_send_mDNS() failed\n"))
+		DBG2((g_log,0,"get_ccids: init_send_mDNS() failed\n"))
 		return NULL;
 	}
 
 	if (init_receive_mDNS(&rsock)) {
-		DBG((g_log,0,"init_receive_mDNS() failed\n"))
+		DBG2((g_log,0,"get_ccids: init_receive_mDNS() failed\n"))
 		closesocket(ssock);
 		return NULL;
 	}
 
 	smsec = msec_time();
 
-	DBG((g_log,0,"Sending mDNS query:\n"))
-	if (send_mDNS(ssock)) {
-		DBG((g_log,0,"send_mDNS() #1 failed\n"))
-		closesocket(ssock);
-		closesocket(rsock);
-		return NULL;
-	}
+	/* Try a few times, with increasing response wait time */
+	for (k = 1; ids == NULL && (msec_time() - smsec) < 1000; k++) {
 
-	if (receive_mDNS(rsock, &ids, 100)) {
-		DBG((g_log,0,"receive_mDNS() #1 failed\n"))
-		closesocket(ssock);
-		closesocket(rsock);
-		return NULL;
-	}
-
-	if (ids == NULL && (msec_time() - smsec) < 200) {
-
-		DBG((g_log,0,"Sending another mDNS query:\n"))
+		DBG2((g_log,DLEV,"get_ccids: Sending mDNS query #%d:\n",k))
 		if (send_mDNS(ssock)) {
-			DBG((g_log,0,"send_mDNS() #2 failed\n"))
+			DBG2((g_log,0,"get_ccids: send_mDNS() #1 failed\n"))
 			closesocket(ssock);
 			closesocket(rsock);
 			return NULL;
 		}
-
-		if (receive_mDNS(rsock, &ids, 500)) {
-			DBG((g_log,0,"receive_mDNS() #2 failed\n"))
+	
+		DBG2((g_log,DLEV,"get_ccids: Waiting for mDNS reply #%d:\n",k))
+		if (receive_mDNS(rsock, &ids, waittime)) {
+			DBG2((g_log,0,"get_ccids: receive_mDNS() #%d failed\n",k))
 			closesocket(ssock);
 			closesocket(rsock);
 			return NULL;
 		}
-	}
+		if (ids != NULL)
+			DBG2((g_log,DLEV,"get_ccids: Got reply\n"))
 
-	if (ids == NULL) {
-
-		DBG((g_log,0,"Sending a final mDNS query:\n"))
-		if (send_mDNS(ssock)) {
-			DBG((g_log,0,"send_mDNS() #3 failed\n"))
-			closesocket(ssock);
-			closesocket(rsock);
-			return NULL;
-		}
-
-		if (receive_mDNS(rsock, &ids, 500)) {
-			DBG((g_log,0,"receive_mDNS() #3 failed\n"))
-			closesocket(ssock);
-			closesocket(rsock);
-			return NULL;
-		}
+		waittime *= 2;
 	}
 
 	closesocket(ssock);
@@ -653,8 +633,9 @@ ccast_id **get_ccids() {
 
 	/* If no ChromCasts found, return an empty list */
 	if (ids == NULL) {
+		DBG2((g_log,DLEV,"get_ccids: no devices found\n"))
 		if ((ids = calloc(sizeof(ccast_id *), 1)) == NULL) {
-			DBG((g_log,0,"calloc fail\n"))
+			DBG2((g_log,0,"get_ccids: calloc fail\n"))
 			return NULL;
 		}
 	}
@@ -669,6 +650,13 @@ ccast_id **get_ccids() {
 			}
 		}
 	}
+
+	for (i = 0; ids[i] != NULL; i++) {
+		DBG2((g_log,DLEV,"  Entry %d:\n",i))
+		DBG2((g_log,DLEV,"   Name: %s\n",ids[i]->name))
+		DBG2((g_log,DLEV,"   IP:   %s\n",ids[i]->ip))
+	}
+	DBG2((g_log,DLEV,"get_ccids: Returning %d devices\n",i))
 
 	return ids;
 }

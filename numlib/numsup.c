@@ -51,6 +51,7 @@ char *exe_path = "\000";			/* Directory executable resides in ('/' dir separator
 //char *error_program = "Unknown";	/* Name to report as responsible for an error */
 
 static int g_log_init = 0;	/* Initialised ? */
+static int g_deb_init = 0;	/* Debug output Initialised ? */
 extern a1log default_log;
 extern a1log *g_log;
 
@@ -247,9 +248,11 @@ typedef struct {
     BYTE  wReserved;
 } osversioninfoexw;
 
-#define VER_NT_DOMAIN_CONTROLLER 0x0000002
-#define VER_NT_SERVER 0x0000003
-#define VER_NT_WORKSTATION 0x0000001 
+#ifndef VER_NT_DOMAIN_CONTROLLER
+# define VER_NT_DOMAIN_CONTROLLER 0x0000002
+# define VER_NT_SERVER 0x0000003
+# define VER_NT_WORKSTATION 0x0000001 
+#endif
 
 static char *get_sys_info() {
 	static char sysinfo[100] = { "Unknown" };
@@ -328,14 +331,17 @@ static char *get_sys_info() {
 }
 
 
-# define A1LOG_LOCK(log)									\
+# define A1LOG_LOCK(log, deb)								\
 	if (g_log_init == 0) {									\
 	    InitializeCriticalSection(&log->lock);				\
 		EnterCriticalSection(&log->lock);					\
 		g_log_init = 1;										\
-		va_loge(log, "Argyll 'V%s' Build '%s' System '%s'\n",ARGYLL_VERSION_STR,ARGYLL_BUILD_STR, get_sys_info());	\
 	} else {												\
 		EnterCriticalSection(&log->lock);					\
+	}														\
+	if (deb && !g_deb_init) {								\
+		va_loge(log, "Argyll 'V%s' Build '%s' System '%s'\n",ARGYLL_VERSION_STR,ARGYLL_BUILD_STR, get_sys_info());	\
+		g_deb_init = 1;										\
 	}
 # define A1LOG_UNLOCK(log) LeaveCriticalSection(&log->lock)
 #endif
@@ -350,14 +356,17 @@ static char *get_sys_info() {
 	return sysinfo;
 }
 
-# define A1LOG_LOCK(log)									\
+# define A1LOG_LOCK(log, deb)								\
 	if (g_log_init == 0) {									\
 	    pthread_mutex_init(&log->lock, NULL);				\
 		pthread_mutex_lock(&log->lock);						\
 		g_log_init = 1;										\
-		va_loge(log, "Argyll 'V%s' Build '%s' System '%s'\n",ARGYLL_VERSION_STR,ARGYLL_BUILD_STR, get_sys_info());	\
 	} else {												\
 		pthread_mutex_lock(&log->lock);						\
+	}														\
+	if (deb && !g_deb_init) {								\
+		va_loge(log, "Argyll 'V%s' Build '%s' System '%s'\n",ARGYLL_VERSION_STR,ARGYLL_BUILD_STR, get_sys_info());	\
+		g_deb_init = 1;										\
 	}
 # define A1LOG_UNLOCK(log) pthread_mutex_unlock(&log->lock)
 #endif
@@ -485,7 +494,7 @@ void a1logv(a1log *log, int level, char *fmt, ...) {
 		if (log->verb >= level) {
 			va_list args;
 	
-			A1LOG_LOCK(log);
+			A1LOG_LOCK(log, 0);
 			va_start(args, fmt);
 			log->logv(log->cntx, log, fmt, args);
 			va_end(args);
@@ -500,7 +509,7 @@ void a1logd(a1log *log, int level, char *fmt, ...) {
 		if (log->debug >= level) {
 			va_list args;
 	
-			A1LOG_LOCK(log);
+			A1LOG_LOCK(log, 1);
 			va_start(args, fmt);
 			log->loge(log->cntx, log, fmt, args);
 			va_end(args);
@@ -515,20 +524,20 @@ void a1logw(a1log *log, char *fmt, ...) {
 		va_list args;
 	
 		/* log to all the outputs, but only log once */
-		A1LOG_LOCK(log);
+		A1LOG_LOCK(log, 0);
 		va_start(args, fmt);
 		log->loge(log->cntx, log, fmt, args);
 		va_end(args);
 		A1LOG_UNLOCK(log);
 		if (log->logd != log->loge) {
-			A1LOG_LOCK(log);
+			A1LOG_LOCK(log, 1);
 			va_start(args, fmt);
 			log->logd(log->cntx, log, fmt, args);
 			va_end(args);
 			A1LOG_UNLOCK(log);
 		}
 		if (log->logv != log->loge && log->logv != log->logd) {
-			A1LOG_LOCK(log);
+			A1LOG_LOCK(log, 0);
 			va_start(args, fmt);
 			log->logv(log->cntx, log, fmt, args);
 			va_end(args);
@@ -545,7 +554,7 @@ void a1loge(a1log *log, int ecode, char *fmt, ...) {
 		va_list args;
 	
 		if (log->errc == 0) {
-			A1LOG_LOCK(log);
+			A1LOG_LOCK(log, 0);
 			log->errc = ecode;
 			va_start(args, fmt);
 			vsnprintf(log->errm, A1_LOG_BUFSIZE, fmt, args);
@@ -554,20 +563,20 @@ void a1loge(a1log *log, int ecode, char *fmt, ...) {
 		}
 		va_start(args, fmt);
 		/* log to all the outputs, but only log once */
-		A1LOG_LOCK(log);
+		A1LOG_LOCK(log, 0);
 		va_start(args, fmt);
 		log->loge(log->cntx, log, fmt, args);
 		va_end(args);
 		A1LOG_UNLOCK(log);
 		if (log->logd != log->loge) {
-			A1LOG_LOCK(log);
+			A1LOG_LOCK(log, 1);
 			va_start(args, fmt);
 			log->logd(log->cntx, log, fmt, args);
 			va_end(args);
 			A1LOG_UNLOCK(log);
 		}
 		if (log->logv != log->loge && log->logv != log->logd) {
-			A1LOG_LOCK(log);
+			A1LOG_LOCK(log, 0);
 			va_start(args, fmt);
 			log->logv(log->cntx, log, fmt, args);
 			va_end(args);
@@ -640,7 +649,7 @@ verbose(int level, char *fmt, ...) {
 	if (g_log->verb >= level) {
 		va_list args;
 
-		A1LOG_LOCK(g_log);
+		A1LOG_LOCK(g_log, 0);
 		g_logv("%s: ",g_log->tag);
 		va_start(args, fmt);
 		g_log->logv(g_log->cntx, g_log, fmt, args);
@@ -654,7 +663,7 @@ void
 warning(char *fmt, ...) {
 	va_list args;
 
-	A1LOG_LOCK(g_log);
+	A1LOG_LOCK(g_log, 0);
 	g_loge("%s: Warning - ",g_log->tag);
 	va_start(args, fmt);
 	g_log->loge(g_log->cntx, g_log, fmt, args);
@@ -667,7 +676,7 @@ ATTRIBUTE_NORETURN void
 error(char *fmt, ...) {
 	va_list args;
 
-	A1LOG_LOCK(g_log);
+	A1LOG_LOCK(g_log, 0);
 	g_loge("%s: Error - ",g_log->tag);
 	va_start(args, fmt);
 	g_log->loge(g_log->cntx, g_log, fmt, args);
@@ -789,7 +798,7 @@ void osx_userinitiated_start() {
 	Class pic;		/* Process info class */
 	SEL pis;		/* Process info selector */
 	SEL bawo;		/* Begin Activity With Options selector */
-	id pi;		/* Process info */
+	id pi;			/* Process info */
 	id str;
 
 	if (osx_userinitiated_cnt++ != 0)
@@ -797,7 +806,8 @@ void osx_userinitiated_start() {
 
 	a1logd(g_log, 7, "OS X - User Initiated Activity start\n");
 	
-	/* We have to be conservative to avoid triggering an exception when run on older OS X */
+	/* We have to be conservative to avoid triggering an exception when run on older OS X, */
+	/* since beginActivityWithOptions is only available in >= 10.9 */
 	if ((pic = (Class)objc_getClass("NSProcessInfo")) == nil) {
 		return;
 	}
@@ -2200,3 +2210,255 @@ void write_INR64_le(ORD8 *p, INR64 d) {
 	p[7] = (ORD8)(d >> 56);
 }
 
+/*******************************/
+/* System independent timing */
+
+#ifdef NT
+
+/* Sleep for the given number of msec */
+void msec_sleep(unsigned int msec) {
+	Sleep(msec);
+}
+
+/* Return the current time in msec since */
+/* the first invokation of msec_time() */
+/* (Is this based on timeGetTime() ? ) */
+unsigned int msec_time() {
+	unsigned int rv;
+	static unsigned int startup = 0;
+
+	rv =  GetTickCount();
+	if (startup == 0)
+		startup = rv;
+
+	return rv - startup;
+}
+
+/* Return the current time in usec */
+/* since the first invokation of usec_time() */
+/* Return -1.0 if not available */
+double usec_time() {
+	double rv;
+	LARGE_INTEGER val;
+	static double scale = 0.0;
+	static LARGE_INTEGER startup;
+
+	if (scale == 0.0) {
+		if (QueryPerformanceFrequency(&val) == 0)
+			return -1.0;
+		scale = 1000000.0/val.QuadPart;
+		QueryPerformanceCounter(&val);
+		startup.QuadPart = val.QuadPart;
+
+	} else {
+		QueryPerformanceCounter(&val);
+	}
+	val.QuadPart -= startup.QuadPart;
+
+	rv = val.QuadPart * scale;
+		
+	return rv;
+}
+
+#endif /* NT */
+
+#if defined(UNIX)
+
+/* Sleep for the given number of msec */
+/* (Note that OS X 10.9+ App Nap can wreck this, unless */
+/*  it is turned off.) */
+void msec_sleep(unsigned int msec) {
+#ifdef NEVER
+	if (msec > 1000) {
+		unsigned int secs;
+		secs = msec / 1000;
+		msec = msec % 1000;
+		sleep(secs);
+	}
+	usleep(msec * 1000);
+#else
+	struct timespec ts;
+
+	ts.tv_sec = msec / 1000;
+	ts.tv_nsec = (msec % 1000) * 1000000;
+	nanosleep(&ts, NULL);
+#endif
+}
+
+
+#if defined(__APPLE__) && !defined(CLOCK_MONOTONIC)
+
+#include <mach/mach_time.h>
+
+unsigned int msec_time() {
+    mach_timebase_info_data_t timebase;
+    static uint64_t startup = 0;
+    uint64_t time;
+	double msec;
+
+    time = mach_absolute_time();
+	if (startup == 0)
+		startup = time;
+
+    mach_timebase_info(&timebase);
+	time -= startup;
+    msec = ((double)time * (double)timebase.numer)/((double)timebase.denom * 1e6);
+
+    return (unsigned int)floor(msec + 0.5);
+}
+
+/* Return the current time in usec */
+/* since the first invokation of usec_time() */
+double usec_time() {
+    mach_timebase_info_data_t timebase;
+    static uint64_t startup = 0;
+    uint64_t time;
+	double usec;
+
+    time = mach_absolute_time();
+	if (startup == 0)
+		startup = time;
+
+    mach_timebase_info(&timebase);
+	time -= startup;
+    usec = ((double)time * (double)timebase.numer)/((double)timebase.denom * 1e3);
+
+    return usec;
+}
+
+#else
+
+/* Return the current time in msec */
+/* since the first invokation of msec_time() */
+unsigned int msec_time() {
+	unsigned int rv;
+	static struct timespec startup = { 0, 0 };
+	struct timespec cv;
+
+	clock_gettime(CLOCK_MONOTONIC, &cv);
+
+	/* Set time to 0 on first invocation */
+	if (startup.tv_sec == 0 && startup.tv_nsec == 0)
+		startup = cv;
+
+	/* Subtract, taking care of carry */
+	cv.tv_sec -= startup.tv_sec;
+	if (startup.tv_nsec > cv.tv_nsec) {
+		cv.tv_sec--;
+		cv.tv_nsec += 1000000000;
+	}
+	cv.tv_nsec -= startup.tv_nsec;
+
+	/* Convert nsec to msec */
+	rv = cv.tv_sec * 1000 + cv.tv_nsec / 1000000;
+
+	return rv;
+}
+
+/* Return the current time in usec */
+/* since the first invokation of usec_time() */
+double usec_time() {
+	double rv;
+	static struct timespec startup = { 0, 0 };
+	struct timespec cv;
+
+	clock_gettime(CLOCK_MONOTONIC, &cv);
+
+	/* Set time to 0 on first invocation */
+	if (startup.tv_sec == 0 && startup.tv_nsec == 0)
+		startup = cv;
+
+	/* Subtract, taking care of carry */
+	cv.tv_sec -= startup.tv_sec;
+	if (startup.tv_nsec > cv.tv_nsec) {
+		cv.tv_sec--;
+		cv.tv_nsec += 1000000000;
+	}
+	cv.tv_nsec -= startup.tv_nsec;
+
+	/* Convert to usec */
+	rv = cv.tv_sec * 1000000.0 + cv.tv_nsec/1000;
+
+	return rv;
+}
+
+#endif
+
+#endif /* UNIX */
+
+/*******************************/
+/* Debug convenience functions */
+/*******************************/
+
+#define DEB_MAX_CHAN 15
+
+/* Print an int vector to a string. */
+/* Returned static buffer is re-used every 5 calls. */
+char *debPiv(int di, int *p) {
+	static char buf[5][DEB_MAX_CHAN * 16];
+	static int ix = 0;
+	int e;
+	char *bp;
+
+	if (++ix >= 5)
+		ix = 0;
+	bp = buf[ix];
+
+	if (di > DEB_MAX_CHAN)
+		di = DEB_MAX_CHAN;		/* Make sure that buf isn't overrun */
+
+	for (e = 0; e < di; e++) {
+		if (e > 0)
+			*bp++ = ' ';
+		sprintf(bp, "%d", p[e]); bp += strlen(bp);
+	}
+	return buf[ix];
+}
+
+/* Print a double color vector to a string. */
+/* Returned static buffer is re-used every 5 calls. */
+char *debPdv(int di, double *p) {
+	static char buf[5][DEB_MAX_CHAN * 16];
+	static int ix = 0;
+	int e;
+	char *bp;
+
+	if (++ix >= 5)
+		ix = 0;
+	bp = buf[ix];
+
+	if (di > DEB_MAX_CHAN)
+		di = DEB_MAX_CHAN;		/* Make sure that buf isn't overrun */
+
+	for (e = 0; e < di; e++) {
+		if (e > 0)
+			*bp++ = ' ';
+		sprintf(bp, "%.8f", p[e]); bp += strlen(bp);
+	}
+	return buf[ix];
+}
+
+/* Print a float color vector to a string. */
+/* Returned static buffer is re-used every 5 calls. */
+char *debPfv(int di, float *p) {
+	static char buf[5][DEB_MAX_CHAN * 16];
+	static int ix = 0;
+	int e;
+	char *bp;
+
+	if (++ix >= 5)
+		ix = 0;
+	bp = buf[ix];
+
+	if (di > DEB_MAX_CHAN)
+		di = DEB_MAX_CHAN;		/* Make sure that buf isn't overrun */
+
+	for (e = 0; e < di; e++) {
+		if (e > 0)
+			*bp++ = ' ';
+		sprintf(bp, "%.8f", p[e]); bp += strlen(bp);
+	}
+	return buf[ix];
+}
+
+#undef DEB_MAX_CHAN

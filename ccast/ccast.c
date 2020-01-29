@@ -471,7 +471,7 @@ static int start_ccast(ccast *p) {
 			DBG((g_log,0,"start_ccast: PING failed with '%s'\n",ccmessv_emes(merr)))
 			return 1;
 		}
-		
+
 		/* Wait for a PONG */
 //	get_a_reply(p->messv, NULL);
 #endif

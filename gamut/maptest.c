@@ -33,7 +33,6 @@
 #include "rspl.h"
 #include "gammap.h"
 #include "vrml.h"
-#include "ui.h"
 
 void usage(void) {
 	fprintf(stderr,"Map bteween two gamuts, Version %s\n",ARGYLL_VERSION_STR);
@@ -203,6 +202,7 @@ main(int argc, char *argv[]) {
 		gimg,			/* Image gamut */
 		gout,			/* Destination gamut */
 		&gmi,
+		NULL,			/* No gamut hull gamut */
 		0, 0, 			/* Normal black points */
 		0,				/* Normal CMY cusp mapping */
 		0,				/* No relative weighting override */

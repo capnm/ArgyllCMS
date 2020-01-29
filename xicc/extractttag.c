@@ -32,7 +32,6 @@
 #include "numlib.h"
 #include "icc.h"
 #include "xicc.h"
-#include "ui.h"
 
 #define MXTGNMS 30
 

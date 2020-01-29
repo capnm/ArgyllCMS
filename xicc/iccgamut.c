@@ -42,14 +42,13 @@
 #include "gamut.h"
 #include "counters.h"
 #include "vrml.h"
-#include "ui.h"
 
 static void diag_gamut(icxLuBase *p, double detail, int doaxes,
                        double tlimit, double klimit, char *outname);
 
 void usage(char *diag) {
 	int i;
-	fprintf(stderr,"Create Lab/Jab gamut plot Version %s\n",ARGYLL_VERSION_STR);
+	fprintf(stderr,"Create ICC profile Lab/Jab gamut & plot Version %s\n",ARGYLL_VERSION_STR);
 	fprintf(stderr,"Author: Graeme W. Gill, licensed under the AGPL Version 3\n");
 	fprintf(stderr,"usage: iccgamut [options] profile\n");
 	if (diag != NULL)
@@ -89,7 +88,8 @@ void usage(char *diag) {
 	fprintf(stderr,"         g:glare       Flare light %% of ambient (default %d)\n",XICC_DEFAULT_GLARE);
 	fprintf(stderr,"         g:X:Y:Z       Flare color as XYZ (default media white, Abs: D50)\n");
 	fprintf(stderr,"         g:x:y         Flare color as x, y\n");
-    fprintf(stderr," -s                    Create special cube surface topology plot\n");
+    fprintf(stderr," -x pcent      Expand/compress gamut cylindrically by percent\n");
+    fprintf(stderr," -s            Create special cube surface topology plot\n");
 	fprintf(stderr,"\n");
 	exit(1);
 }
@@ -126,6 +126,7 @@ main(int argc, char *argv[]) {
 	double vc_g = -1.0;			/* Glare % overide */
 	double vc_gXYZ[3] = {-1.0, -1.0, -1.0};	/* Glare color override in XYZ */
 	double vc_gxy[2] = {-1.0, -1.0};		/* Glare color override in x,y */
+	double expand = 1.0;		/* Expand gamut cylindrically */
 
 	icxLuBase *luo;
 
@@ -286,6 +287,18 @@ main(int argc, char *argv[]) {
 				gamres = atof(na);
 				if (gamres < 0.1 || gamres > 50.0)
 					usage("Parameter after flag -d seems out of range");
+			}
+
+			/* Expand gamut cylindrically */
+			else if (argv[fa][1] == 'x') {
+				double rr;
+				fa = nfa;
+				if (na == NULL) usage("No parameter after flag -x");
+				rr = atof(na)/100.0;
+
+				if (rr < 0.01 || rr > 100.0)
+					usage("-x ratio is out of range");
+				expand = rr;
 			}
 
 			/* Viewing conditions */
@@ -488,6 +501,19 @@ main(int argc, char *argv[]) {
 		/* Creat a gamut surface */
 		if ((gam = luo->get_gamut(luo, gamres)) == NULL)
 			error ("%d, %s",xicco->errc, xicco->err);
+
+		/* Expand gamut cylindrically */
+		if (expand != 1.0) {
+			gamut *xgam;
+
+			if ((xgam = new_gamut(1.0, 0, 0)) == NULL
+			 || xgam->exp_cyl(xgam, gam, expand)) {
+				error ("Creating expanded gamut failed");
+			}
+
+			gam->del(gam);
+			gam = xgam;
+		}
 
 		if (gam->write_gam(gam, out_name))
 			error ("write gamut failed on '%s'",out_name);

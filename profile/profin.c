@@ -1164,6 +1164,7 @@ make_input_icc(
 					flags |= ICX_VERBOSE;
 	
 				flags |= ICX_CLIP_NEAREST;		/* Not vector clip */
+
 #ifdef USE_CAM_CLIP_OPT
 				flags |= ICX_CAM_CLIP;			/* Clip in CAM Jab space rather than Lab */
 #else

@@ -225,10 +225,10 @@ char *vrml_format();
 
 /* Create a vrml/x3d plot object. */
 /* Filename will have appropriate extension added automatically. */
-vrml *new_vrml_vdist(char *name, int doaxes, vrml_space ispace, double vdist);
+vrml *new_vrml(char *name, int doaxes, vrml_space ispace);
 
 /* Same as above but override default Z viewing distance */
-vrml *new_vrml(char *name, int doaxes, vrml_space ispace);
+vrml *new_vrml_vdist(char *name, int doaxes, vrml_space ispace, double vdist);
 
 
 #define VRML_H

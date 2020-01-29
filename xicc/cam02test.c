@@ -562,7 +562,8 @@ main(void) {
 			0.00,		/* Flare as a fraction of the reference white (Y range 0.0 .. 1.0) */
 			0.00,		/* Glare as a fraction of the ambient (Y range 0.0 .. 1.0) */
 			sp_white[c],/* The Glare color coordinates (typically the Ambient color) */
-			USE_HK		/* use Helmholtz-Kohlraush flag */ 
+			USE_HK,		/* use Helmholtz-Kohlraush flag */ 
+			1.0			/* Normal Helmholtz-Kohlraush scale */
 		);
 
 		cam->set_view(
@@ -575,7 +576,8 @@ main(void) {
 			0.00,		/* Flare as a fraction of the reference white (Y range 0.0 .. 1.0) */
 			0.00,		/* Glare as a fraction of the ambient (Y range 0.0 .. 1.0) */
 			sp_white[c],/* The Glare color coordinates (typically the Ambient color) */
-			USE_HK		/* use Helmholtz-Kohlraush flag */ 
+			USE_HK,		/* use Helmholtz-Kohlraush flag */ 
+			1.0			/* Normal Helmholtz-Kohlraush scale */
 		);
 
 		camr->nldlimit = cam->nldlimit;
@@ -716,7 +718,8 @@ main(void) {
 			0.00,		/* Flare as a fraction of the reference white (Y range 0.0 .. 1.0) */
 			0.00,		/* Glare as a fraction of the ambient (Y range 0.0 .. 1.0) */
 			white[c],	/* The Glare color coordinates (typically the Ambient color) */
-			USE_HK		/* use Helmholtz-Kohlraush flag */ 
+			USE_HK,		/* use Helmholtz-Kohlraush flag */ 
+			1.0			/* Normal Helmholtz-Kohlraush scale */
 		);
 		
 		cam->set_view(
@@ -729,7 +732,8 @@ main(void) {
 			0.00,		/* Flare as a fraction of the reference white (Y range 0.0 .. 1.0) */
 			0.00,		/* Glare as a fraction of the ambient (Y range 0.0 .. 1.0) */
 			white[c],	/* The Glare color coordinates (typically the Ambient color) */
-			USE_HK		/* use Helmholtz-Kohlraush flag */ 
+			USE_HK,		/* use Helmholtz-Kohlraush flag */ 
+			1.0			/* Normal Helmholtz-Kohlraush scale */
 		);
 		
 		/* Make reference return error where it's going to disagree with implementation */
@@ -950,7 +954,8 @@ main(void) {
 				0.0,		/* Flare as a fraction of the reference white (Y range 0.0 .. 1.0) */
 				0.0,		/* Glare as a fraction of the ambient (Y range 0.0 .. 1.0) */
 				white[c],	/* The Glare color coordinates (typically the Ambient color) */
-				USE_HK		/* use Helmholtz-Kohlraush flag */ 
+				USE_HK,		/* use Helmholtz-Kohlraush flag */ 
+				1.0			/* Normal Helmholtz-Kohlraush scale */
 			);
 		
 #ifdef INVTEST1
@@ -1132,7 +1137,8 @@ main(void) {
 				0.0,		/* Flare as a fraction of the reference white (Y range 0.0 .. 1.0) */
 				0.0,		/* Glare as a fraction of the ambient (Y range 0.0 .. 1.0) */
 				white[c],	/* The Glare color coordinates (typically the Ambient color) */
-				USE_HK		/* use Helmholtz-Kohlraush flag */ 
+				USE_HK,		/* use Helmholtz-Kohlraush flag */ 
+				1.0			/* Normal Helmholtz-Kohlraush scale */
 			);
 		
 #ifdef TESTINV1

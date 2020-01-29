@@ -1,7 +1,7 @@
 
 /*
  * Argyll Color Correction System
- * Spectral .ti3 file converter
+ * Spectral .ti3 or .sp file converter
  *
  * Copyright 2005 Gerhard Fuernkranz
  * All rights reserved.
@@ -26,17 +26,17 @@
  * under the GNU GENERAL PUBLIC LICENSE Version 3 :-
  * see the License.txt file for licencing details.
  *
- * This program takes the spectral data in a .ti3 file, converts them
+ * This program takes the spectral data in a .ti3 or .sp file, converts them
  * to XYZ and Lab and fills the XYZ_[XYZ] and LAB_[LAB] columns in the
- * output .ti3 file with the computed XYZ and Lab values. If the columns
+ * output .ti3 or .sp file with the computed XYZ and Lab values. If the columns
  * XYZ_[XYZ] and/or LAB_[LAB] are missing in the input file, they are
  * added to the output file.
  *
- * All other colums are copied from the input to the output .ti3 file.
+ * All other colums are copied from the input to the output .ti3 or .sp file.
  *
  * If the -f option is used, the FWA corrected spectral reflectances
- * are written to the output .ti3 file, instead of simply copying the
- * spectral reflectances from the input .ti3 file. In this case, the
+ * are written to the output .ti3 or .sp file, instead of simply copying the
+ * spectral reflectances from the input .ti3 or .sp file. In this case, the
  * XYZ_[XYZ] and D50 LAB_[LAB] values are computed from the FWA corrected
  * reflectances as well.
  */
@@ -50,10 +50,11 @@
 
 	Calibration tables aren't being passed through either ??
 
-	L*a*b* is always D50.
-
     This is intended for conversion of reflective measurements to XYZ -
 	there is no illuminant for emissive values.
+
+	L*a*b* is always D50.
+
  */
 
 #define ALLOW_PLOT
@@ -74,33 +75,33 @@
 #include "inst.h"
 #ifdef ALLOW_PLOT
 #include "plot.h"
-#endif
 #include "ui.h"
+#endif
 
 
 void
 usage (void)
 {
-	fprintf (stderr, "Convert spectral .ti3 file, Version %s\n", ARGYLL_VERSION_STR);
+	fprintf (stderr, "Convert spectral .ti3 or .sp file, Version %s\n", ARGYLL_VERSION_STR);
 	fprintf (stderr, "Author: Gerhard Fuernkranz, licensed under the AGPL Version 3\n");
 	fprintf (stderr, "\n");
-	fprintf (stderr, "Usage: spec2cie [options] input.ti3 output.ti3\n");
-	fprintf (stderr, " -v          Verbose mode\n");
-	fprintf (stderr, " -I illum    Override actual instrument illuminant in .ti3 file:\n");
-	fprintf (stderr, "              A, C, D50, D50M2, D65, F5, F8, F10 or file.sp\n");
-	fprintf (stderr, "              (only used in conjunction with -f)\n");
-	fprintf (stderr, " -f [illum]  Use Fluorescent Whitening Agent compensation [simulated inst. illum.:\n");
-	fprintf (stderr, "              M0, M1, M2, A, C, D50 (def.), D50M2, D65, F5, F8, F10 or file.sp]\n");
-	fprintf (stderr, " -i illum    Choose illuminant for computation of CIE XYZ from spectral data & FWA:\n");
-	fprintf (stderr, "             A, C, D50 (def.), D50M2, D65, F5, F8, F10 or file.sp\n");
-	fprintf (stderr, " -o observ   Choose CIE Observer for spectral data:\n");
-	fprintf (stderr, "              1931_2 (def), 1964_10, S&B 1955_2, shaw, J&V 1978_2 or file.cmf\n");
-	fprintf (stderr, " -n          Don't output spectral values\n"); 
+	fprintf (stderr, "Usage: spec2cie [options] input.[ti3|sp] output.[ti3|sp]\n");
+	fprintf (stderr, " -v              Verbose mode\n");
+	fprintf (stderr, " -I illum        Override actual instrument illuminant in .ti3 or .sp  file:\n");
+	fprintf (stderr, "                  A, C, D50, D50M2, D65, F5, F8, F10 or file.sp\n");
+	fprintf (stderr, "                  (only used in conjunction with -f)\n");
+	fprintf (stderr, " -f [illum]      Use Fluorescent Whitening Agent compensation [simulated inst. illum.:\n");
+	fprintf (stderr, "                  M0, M1, M2, A, C, D50 (def.), D50M2, D65, F5, F8, F10 or file.sp]\n");
+	fprintf (stderr, " -i illum        Choose illuminant for computation of CIE XYZ from spectral data & FWA:\n");
+	fprintf (stderr, "                 A, C, D50 (def.), D50M2, D65, F5, F8, F10 or file.sp\n");
+	fprintf (stderr, " -o observ       Choose CIE Observer for spectral data:\n");
+	fprintf (stderr, "                  1931_2 (def), 1964_10, S&B 1955_2, shaw, J&V 1978_2 or file.cmf\n");
+	fprintf (stderr, " -n              Don't output spectral values\n"); 
 #ifdef ALLOW_PLOT
-	fprintf (stderr, " -p          Plot each values spectrum\n"); 
+	fprintf (stderr, " -p              Plot each values spectrum\n"); 
 #endif
-	fprintf (stderr, " input.ti3   Measurement file\n");
-	fprintf (stderr, " output.ti3  Converted measurement file\n");
+	fprintf (stderr, " input.[ti3|sp]  Measurement file\n");
+	fprintf (stderr, " output.[ti3|sp] Converted measurement file\n");
 	exit (1);
 }
 
@@ -116,6 +117,7 @@ main(int argc, char *argv[])
 	cgats *ocg;						/* output cgats structure */
 	cgats_set_elem *elems;
 
+	int isspect = 0;				/* nz if SPECT file rathe than TI3 */
 	int isemis = 0;					/* nz if this is an emissive reference */
 	int isdisp = 0;					/* nz if this is a display device */
 	int isdnormed = 0;				/* Has display data been normalised to 100 ? */
@@ -126,12 +128,18 @@ main(int argc, char *argv[])
 	int fwacomp = 0;				/* FWA compensation */
 	int doplot = 0;					/* Plot each patches spectrum */
 	char* illum_str = "D50";
-	icxIllumeType tillum = icxIT_none;	/* Target/simulated instrument illuminant */ 
+	icxIllumeType tillum = icxIT_none;	/* Target/simulated instrument illuminant, if set. */ 
 	xspect cust_tillum, *tillump = NULL; /* Custom target/simulated illumination spectrum */
-	icxIllumeType illum = icxIT_none;			/* Spectral defaults */
-	xspect cust_illum;				/* Custom CIE illumination spectrum */
-	icxIllumeType inst_illum = icxIT_none;		/* Spectral defaults */
+	                                     /* if tillum == icxIT_custom */
+	icxIllumeType illum = icxIT_none;	/* CIE calc. illuminant spectrum, and FWA inst. */
+										/* illuminant if tillum not set. */
+	xspect cust_illum;				/* Custom CIE illumination spectrum if illum == icxIT_custom */
+	double *ill_wp = NULL;			/* If illum is not D50, illum white point XYZ */
+	double _ill_wp[3];				/* (What ill_wp points at if it is not NULL) */
+	icxIllumeType inst_illum = icxIT_none;		/* Actual instrument illumination */
 	xspect inst_cust_illum;			/* Custom actual instrument illumination spectrum */
+									/* if inst_illum == icxIT_custom */
+
 	icxObserverType observ = icxOT_none;
 	xspect cust_observ[3];			/* Custom observer CMF's */
 
@@ -211,9 +219,18 @@ main(int argc, char *argv[])
 					inst_illum = icxIT_F10;
 				}
 				else {				/* Assume it's a filename */
+					inst_meas_type mt;
+
 					inst_illum = icxIT_custom;
-					if (read_xspect (&inst_cust_illum, na) != 0)
+					if (read_xspect (&inst_cust_illum, &mt,na) != 0)
 						usage ();
+
+					if (mt != inst_mrt_none
+					 && mt != inst_mrt_emission
+					 && mt != inst_mrt_ambient
+					 && mt != inst_mrt_emission_flash
+					 && mt != inst_mrt_ambient_flash)
+						error("Instrument illuminant '%s' is wrong measurement type",na);
 				}
 			}
 
@@ -243,14 +260,24 @@ main(int argc, char *argv[])
 					} else if (strcmp(na, "F10") == 0) {
 						tillum = icxIT_F10;
 					} else {	/* Assume it's a filename */
+						inst_meas_type mt;
+
 						tillum = icxIT_custom;
-						if (read_xspect(&cust_tillum, na) != 0)
+						if (read_xspect(&cust_tillum, &mt, na) != 0)
 							usage();
+
+						if (mt != inst_mrt_none
+						 && mt != inst_mrt_emission
+						 && mt != inst_mrt_ambient
+						 && mt != inst_mrt_emission_flash
+						 && mt != inst_mrt_ambient_flash)
+							error("Target illuminant '%s' is wrong measurement type",na);
 					}
 				}
 			}
 
 			/* CIE tristimulous spectral Illuminant type */
+			/* (and FWA simulated instrument illuminant if tillum == icxIT_none) */
 			else if (argv[fa][1] == 'i') {
 				fa = nfa;
 				if (na == NULL)
@@ -281,9 +308,18 @@ main(int argc, char *argv[])
 					illum = icxIT_F10;
 				}
 				else {				/* Assume it's a filename */
+					inst_meas_type mt;
+
 					illum = icxIT_custom;
-					if (read_xspect (&cust_illum, na) != 0)
+					if (read_xspect (&cust_illum, &mt, na) != 0)
 						usage ();
+
+					if (mt != inst_mrt_none
+					 && mt != inst_mrt_emission
+					 && mt != inst_mrt_ambient
+					 && mt != inst_mrt_emission_flash
+					 && mt != inst_mrt_ambient_flash)
+						error("CIE illuminant '%s' is wrong measurement type",na);
 				}
 			}
 
@@ -334,23 +370,32 @@ main(int argc, char *argv[])
 
 	/* Open and look at the .ti3 profile patches file */
 
-	icg = new_cgats ();						/* Create a CGATS structure */
+	icg = new_cgats ();					/* Create a CGATS structure */
 	icg->add_other (icg, "CTI3");		/* Calibration Target Information 3 */
+	icg->add_other (icg, "SPECT");		/* Spectral file */
 
-	ocg = new_cgats ();						/* Create a CGATS structure */
+	ocg = new_cgats ();					/* Create a CGATS structure */
 	ocg->add_other (ocg, "CTI3");		/* Calibration Target Information 3 */
+	icg->add_other (ocg, "SPECT");		/* Spectral file */
 
 	if (icg->read_name (icg, in_ti3_name))
 		error ("CGATS file read error: %s", icg->err);
 
-	if (icg->ntables == 0 || icg->t[0].tt != tt_other || icg->t[0].oi != 0)
-		error ("Input file isn't a CTI3 format file");
+	if (icg->ntables == 0 || icg->t[0].tt != tt_other
+	 || (icg->t[0].oi != 0 && icg->t[0].oi != 1))
+		error ("Input file isn't a CTI3 or SPECT format file");
+
+	if (icg->t[0].oi == 1)
+		isspect = 1;
+
 	if (icg->ntables < 1)
 		error ("Input file doesn't contain at least one table");
 
 	/* add table to output file */
-
-	ocg->add_table(ocg, tt_other, 0);
+	if (isspect)
+		ocg->add_table(ocg, tt_other, 1);
+	else
+		ocg->add_table(ocg, tt_other, 0);
 
 	/* copy keywords */
 
@@ -370,19 +415,39 @@ main(int argc, char *argv[])
 		}
 	}
 
-	if ((dti = icg->find_kword (icg, 0, "DEVICE_CLASS")) < 0)
-		error ("Input file doesn't contain keyword DEVICE_CLASS");
+	if (isspect) {
+		if ((dti = icg->find_kword (icg, 0, "MEAS_TYPE")) < 0)
+			error ("Input file doesn't contain keyword MEAS_TYPE");
+	
+		/* Reflective options when not a reflective profile type */
+		if (strcmp(icg->t[0].kdata[dti],"EMISSION") == 0
+		 || strcmp(icg->t[0].kdata[dti],"AMBIENT") == 0
+		 || strcmp(icg->t[0].kdata[dti],"EMISSION_FLASH") == 0
+		 || strcmp(icg->t[0].kdata[dti],"AMBIENT_FLASH") == 0) {
+			isemis = 1;
+			if (illum != icxIT_none)
+				error("-i illuminant can't be used for emissive reference type");
+			if (fwacomp)
+				error("-f FWA compensation can't be used for emissive reference type");
+			fwacomp = 0;
+			tillum = icxIT_none;
+		}
 
-	/* Reflective options when not a reflective profile type */
-	if (strcmp(icg->t[0].kdata[dti],"DISPLAY") == 0
-	 || strcmp(icg->t[0].kdata[dti],"EMISINPUT") == 0) {
-		isemis = 1;
-		if (illum != icxIT_none)
-			error("-i illuminant can't be used for emissive reference type");
-		if (fwacomp)
-			error("-f FWA compensation can't be used for emissive reference type");
-		fwacomp = 0;
-		tillum = icxIT_none;
+	} else {
+		if ((dti = icg->find_kword (icg, 0, "DEVICE_CLASS")) < 0)
+			error ("Input file doesn't contain keyword DEVICE_CLASS");
+	
+		/* Reflective options when not a reflective profile type */
+		if (strcmp(icg->t[0].kdata[dti],"DISPLAY") == 0
+		 || strcmp(icg->t[0].kdata[dti],"EMISINPUT") == 0) {
+			isemis = 1;
+			if (illum != icxIT_none)
+				error("-i illuminant can't be used for emissive reference type");
+			if (fwacomp)
+				error("-f FWA compensation can't be used for emissive reference type");
+			fwacomp = 0;
+			tillum = icxIT_none;
+		}
 	}
 
 	/* Set defaults */
@@ -392,25 +457,29 @@ main(int argc, char *argv[])
 	if (observ == icxOT_none)
 		observ = icxOT_CIE_1931_2;
 
-	/* Figure out what sort of device it is */
+	/* See if the display CIE data has been normalised to Y = 100 */
 	{
 		int ti;
-		char *tos;
 
-		if (strcmp (icg->t[0].kdata[dti], "DISPLAY") == 0) {
-			isdisp = 1;
-		}
-
-		/* See if the display CIE data has been normalised to Y = 100 */
 		if ((ti = icg->find_kword(icg, 0, "NORMALIZED_TO_Y_100")) < 0
 		 || strcmp(icg->t[0].kdata[ti],"NO") == 0) {
 			isdnormed = 0;
 		} else {
 			isdnormed = 1;
 		}
+	}
+
+	/* Figure out what sort of device it is */
+	if (icg->find_kword(icg, 0, "COLOR_REP") >= 0) {
+		int ti;
+		char *tos;
 
 		if ((ti = icg->find_kword(icg, 0, "COLOR_REP")) < 0)
 			error("Input file doesn't contain keyword COLOR_REP");
+
+		if (strcmp (icg->t[0].kdata[dti], "DISPLAY") == 0) {
+			isdisp = 1;
+		}
 
 		if ((tos = strchr(icg->t[0].kdata[ti], '_')) == NULL)
 			tos = icg->t[0].kdata[ti];
@@ -513,7 +582,7 @@ main(int argc, char *argv[])
 	/* Read in the CGATs fields */
 
 	{
-		int sidx;				/* Sample ID index */
+//		int sidx;				/* Sample ID index */
 		int ti, ii;
 		int Xi, Yi, Zi, Li, ai, bi;		/* CGATS indexes for each field */
 		int spi[XSPECT_MAX_BANDS];		/* CGATS indexes for each wavelength */
@@ -528,10 +597,12 @@ main(int argc, char *argv[])
 		xspect mwsp;		/* FWA compensated medium white spectrum */
 		double mwXYZ[3];	/* Media white XYZ */
 
+#ifdef NEVER
 		if ((sidx = icg->find_field (icg, 0, "SAMPLE_ID")) < 0)
 			error ("Input file doesn't contain field SAMPLE_ID");
 		if (icg->t[0].ftype[sidx] != nqcs_t)
 			error ("Field SAMPLE_ID is wrong type");
+#endif
 
 		/* Using spectral data */
 
@@ -628,12 +699,26 @@ main(int argc, char *argv[])
 			error("Out of memory");
 		}
 
+		/* If CIE calculation illuminant is not standard, compute it's white point */
+		if (illum != icxIT_D50) {
+			ill_wp = _ill_wp;
+
+			/* Compute XYZ of illuminant */
+			if (icx_ill_sp2XYZ(ill_wp, observ, cust_observ, illum, 0.0, &cust_illum) != 0) 
+				error("icx_ill_sp2XYZ returned error");
+		}
+
 		/* Create a spectral conversion object */
-		if ((sp2cie = new_xsp2cie (illum,
-								   illum == icxIT_none ?  NULL : &cust_illum,
-								   observ, cust_observ, icSigXYZData, icxClamp)) == NULL)
+		if ((sp2cie = new_xsp2cie(illum, &cust_illum, observ, cust_observ,
+			                              icSigXYZData, icxClamp)) == NULL)
 		{
 			error ("Creation of spectral conversion object failed");
+		}
+
+		if (fwacomp && devspace == icmSigDefaultData) {
+			// In theory could fake white spectra by accumulating max of
+			// all values as an alternative.
+			error ("No device values, so can't locate white patch for FWA compensation");
 		}
 
 		if (fwacomp) {
@@ -741,6 +826,8 @@ main(int argc, char *argv[])
 				}
 			}
 
+			/* Enable FWA, and use tillump as instrument illuminant if */
+			/* it is set, else use observer illuminant set by new_xsp2cie(). */
 			/* (Note that sp and mwsp.norm is set to 100.0) */
 			if (sp2cie->set_fwa(sp2cie, &insp, tillump, &mwsp)) 
 				error ("Set FWA on sp2cie failed");
@@ -755,6 +842,15 @@ main(int argc, char *argv[])
 			sp2cie->sconvert (sp2cie, &rmwsp, mwXYZ, &mwsp);
 		}
 
+		/* If CIE conversion illuminant is non-standard, add it to the output */
+		if (ill_wp != NULL) {
+			char buf[100];
+	
+			sprintf(buf,"%f %f %f", ill_wp[0], ill_wp[1], ill_wp[2]);
+			ocg->add_kword(ocg, 0, "ILLUMINANT_WHITE_POINT_XYZ",buf, NULL);
+		}
+
+		/* Transform patches from spectral to CIE */
 		for (i = 0; i < npat; i++) {
 			xspect corr_sp;
 

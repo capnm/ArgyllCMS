@@ -1,4 +1,4 @@
-/* $Id: tiffcmp.c,v 1.17 2014-12-21 18:52:42 erouault Exp $ */
+/* $Id$ */
 
 /*
  * Copyright (c) 1988-1997 Sam Leffler
@@ -68,8 +68,10 @@ main(int argc, char* argv[])
 {
 	TIFF *tif1, *tif2;
 	int c, dirnum;
+#if !HAVE_DECL_OPTARG
 	extern int optind;
 	extern char* optarg;
+#endif
 
 	while ((c = getopt(argc, argv, "ltz:")) != -1)
 		switch (c) {

@@ -71,7 +71,7 @@ int do_plot10p(double *x, double *y1, double *y2, double *y3, double *y4, double
 
 /* Plot a bunch of vectors + points + optional colored points & notation */
 /* return 0 on success, -1 on error */
-/* Vectors are x1, y1 to x2, y2 with 'X' at x2, y3, */
+/* Vectors are x1, y1 to x2, y2 with 'X' at x2, y2, */
 /* Colored annotated Crosss at x3, y3. */
 int do_plot_vec(double xmin, double xmax, double ymin, double ymax,
                 double *x1, double *y1, double *x2, double *y2, int n,
@@ -81,7 +81,7 @@ int do_plot_vec(double xmin, double xmax, double ymin, double ymax,
 /* Plot a bunch of vectors + points + optional colored points & notation */
 /* + optional colored vectors */
 /* return 0 on success, -1 on error */
-/* Vectors are x1, y1 to x2, y2 with annotated 'X' at x2, y3, */
+/* Vectors are x1, y1 to x2, y2 with annotated 'X' at x2, y2, */
 /* Colored annotated Crosss at x3, y3. */
 /* Colored vector from x4, y4 to x5, y5 */
 int do_plot_vec2(double xmin, double xmax, double ymin, double ymax,

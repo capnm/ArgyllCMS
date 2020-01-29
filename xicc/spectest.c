@@ -33,8 +33,8 @@
 #include "numlib.h"
 #ifdef DOPLOT
 #include "plot.h"
-#endif
 #include "ui.h"
+#endif
 
 
 /* Spectrolino filter "D65" illuminant */

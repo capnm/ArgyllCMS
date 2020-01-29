@@ -600,7 +600,9 @@ double cc[3]	/* Surface color, cc == NULL or cc[0] < 0.0 */
 	if (set < 0 || set > 9)
 		error("vrml make_line_tri_quad set %d out of range",set);
 
-	if (s->set[set].npoints > 0 && s->set[set].tqary[0].ix[2] < 0)	/* First is a line */
+	if (s->set[set].npoints > 0
+	 && s->set[set].ntrqu > 0
+	 && s->set[set].tqary[0].ix[2] < 0)	/* First is a line */
 		lines = 1;		/* Assume all are lines */
 
 	if (cc != NULL && cc[0] >= 0.0) {
@@ -1744,7 +1746,6 @@ static int do_flush(vrml *s) {
 	
 		fflush(s->fp);
 		rv = fclose(s->fp);
-
 
 		/* Check that there are the x3dom files with the output file */
 		if (s->fmt == fmt_x3dom) {

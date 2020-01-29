@@ -1,7 +1,10 @@
 
 /* 
+ * See xfbview ! 
+ *
  * International Color Consortium Format Library (icclib)
  * View the gamut clipping implemented by the bwd profile.
+ * abscol intent, asumes CMYK
  *
  * Author:  Graeme W. Gill
  * Date:    2000/12/8
@@ -58,7 +61,7 @@ double absdiff(double in1[3], double in2[3]) {
 /* ---------------------------------------- */
 
 void usage(void) {
-	fprintf(stderr,"View bwd table clipping of an ICC file, , Version %s\n",ARGYLL_VERSION_STR);
+	fprintf(stderr,"View abscol bwd table clipping of an ICC file, , Version %s\n",ARGYLL_VERSION_STR);
 	fprintf(stderr,"Author: Graeme W. Gill, licensed under the AGPL Version 3\n");
 	fprintf(stderr,"usage: fbtest [-v] infile\n");
 	fprintf(stderr," -v        verbose\n");

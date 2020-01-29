@@ -3,8 +3,8 @@
 
 # Optimization and Debug flags
 
-PREF_CCFLAGS 	+= $(CCOPTFLAG) ;		# Turn optimisation on
-#PREF_CCFLAGS	+= $(CCDEBUGFLAG) ;		# Debugging flags
+#PREF_CCFLAGS 	+= $(CCOPTFLAG) ;		# Turn optimisation on
+PREF_CCFLAGS	+= $(CCDEBUGFLAG) ;		# Debugging flags
 #PREF_CCFLAGS 	+= $(CCPROFFLAG) ;		# Profile flags
 #PREF_LINKFLAGS	+= $(LINKPROFFLAG) ;    # Profile flags
 #PREF_CCFLAGS		+= $(CCHEAPDEBUG) ;		# Heap Debugging flags
@@ -59,9 +59,14 @@ if $(BUILD_TESTS) {
 
 
 # Test code
-if $(HOME) = "d:\\usr\\graeme" && $(PWD) = "/src/argyll/rspl" {
+if ( $(HOME) = "D:\\usr\\graeme" && $(PWD) = "/src/argyll/rspl" )
+ ||  ( $(HOME) = "/Users/graeme" && $(PWD) = "/Users/graeme/src/argyll/rspl" ) {
 	#	Main tt : tt.c : : ../xicc : : : ../plot/libvrml ../icc/libicc ;
 
+	Main lchw : lchw.c : : : ../h ../numlib ../icc ../plot : : ../plot/libplot ../icc/libicc ../numlib/libui ../numlib/libnum ;
+	Main lchw_solve : lchw_solve.c : : : ../h ../numlib ../icc ../plot : : ../plot/libplot ../icc/libicc ../numlib/libui ../numlib/libnum ;
+	Main lchw_deriv : lchw_deriv.c : : : ../h ../numlib ../icc ../plot : : ../plot/libplot ../icc/libicc ../numlib/libui ../numlib/libnum ;
+	Main lchw_2deriv : lchw_2deriv.c : : : ../h ../numlib ../icc ../plot : : ../plot/libplot ../icc/libicc ../numlib/libui ../numlib/libnum ;
 	Main crossv : crossv.c : : : ../numlib ../plot : : ../plot/libplot ../numlib/libui ../numlib/libnum ;
 
 }

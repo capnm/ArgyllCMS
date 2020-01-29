@@ -72,7 +72,7 @@
 	a curvature error).
 
 	The default assumption is that the grid resolution is set
-	to matche the input data range for that dimension, eg. if
+	to match the input data range for that dimension, eg. if
 	a sub range of input space is all that is needed, then a
 	smaller grid resolution can/should be used if smoothness
 	is expected to remain symetric in relation to the input
@@ -129,13 +129,17 @@
 
 /* algorithm parameters [Release defaults] */
 #define INCURVEADJ		/* [Defined] Adjust smoothness criteria for input curve grid spacing */
-#undef SMOOTH2			/* [Undef] INCOMPLETE Use 3nd order smoothness rather than curvature. */
+#undef SMOOTH2			/* [Undef] INCOMPLETE - would be nice to finish this to help XYZ! */
+						/*  Use 3nd order smoothness rather than curvature. */
 						/* 2nd order is optimal about 2.5 x lower than 3rd order, */
 						/* so an even split between 3rd:2nd would be 1.0 0.4, */
 						/* a 9:1 split would be 0.9 0.04 */
 						/* This also disables the incorrect scaling of smoothness with */
 						/* output range */
 #undef AUTOSM			/* [Undef] INCOMPLETE Support auto smoothing using LOOCV */
+						/* - started implementing this using shadow grid map of */
+						/* smoothness (see  see mgtmp *sm), then switch to */
+						/* Leave One Out Cross Validation (LOOCV) idea. */
 
 # define CW2 0.9
 # define CW ((1.0 - CW2) * 0.4)
@@ -275,6 +279,7 @@ struct _loocv {
 						/* in the list in the cell. -1 for no more data */
 
 	double *sm;		/* smoothness map grid data values in log space, 0.0 for none */ 
+					/* (Not fully implemented, and being superceeded) */
 
 	double **As;	/* A matrix of smoothness vertex weights */
 	double *bs;		/* b vector for RHS of smoothness equation */
@@ -1725,7 +1730,7 @@ print_smsens(mgtmp *m) {
 	of any sum term that does not have the grid point in question in it
 	will have a partial derivative of zero, each row equation consists
 	of just those terms that have that grid points value in it,
-	with the vast majoroty of the sum terms omitted.
+	with the vast majority of the sum terms omitted.
 
  */
 
@@ -1871,7 +1876,7 @@ mgtmp *sm		/* Optional smoothing map for ausm mode */
 	/* The ipos[] factor is to allow for the possibility that the */
 	/* grid spacing may be non-uniform in the colorspace where the */
 	/* function being modelled is smooth. Our curvature computation */
-	/* needs to make allowsance for this fact in computing the */
+	/* needs to make allowance for this fact in computing the */
 	/* node value differences that equate to zero curvature. */ 
 	/*
 		The old curvature fixed grid spacing equation was:
@@ -2078,7 +2083,7 @@ mgtmp *sm		/* Optional smoothing map for ausm mode */
 		}
 
 		/* We setup the equation to be solved for each grid point. */
-		/* Each grid point participates in foure curvature equations, */
+		/* Each grid point participates in four curvature equations, */
 		/* one centered on the grid line below, one that it's the center of, */
 		/* one centered on the grid line above, and one centered on the */
 		/* grid line two above. The equation setup is for the differential */

@@ -1,4 +1,4 @@
-/* $Id: rgb2ycbcr.c,v 1.15 2013-05-02 14:44:29 tgl Exp $ */
+/* $Id$ */
 
 /*
  * Copyright (c) 1991-1997 Sam Leffler
@@ -72,8 +72,10 @@ main(int argc, char* argv[])
 {
 	TIFF *in, *out;
 	int c;
+#if !HAVE_DECL_OPTARG
 	extern int optind;
 	extern char *optarg;
+#endif
 
 	while ((c = getopt(argc, argv, "c:h:r:v:z")) != -1)
 		switch (c) {
@@ -93,9 +95,13 @@ main(int argc, char* argv[])
 			break;
 		case 'h':
 			horizSubSampling = atoi(optarg);
+            if( horizSubSampling != 1 && horizSubSampling != 2 && horizSubSampling != 4 )
+                usage(-1);
 			break;
 		case 'v':
 			vertSubSampling = atoi(optarg);
+            if( vertSubSampling != 1 && vertSubSampling != 2 && vertSubSampling != 4 )
+                usage(-1);
 			break;
 		case 'r':
 			rowsperstrip = atoi(optarg);

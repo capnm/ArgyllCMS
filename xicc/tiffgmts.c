@@ -42,7 +42,6 @@
 #include "xicc.h"
 #include "vrml.h"
 #include "sort.h"
-#include "ui.h"
 
 #define DE_SPACE 3		/* Delta E of spacing for output points */
 #undef DEBUG_PLOT

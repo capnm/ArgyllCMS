@@ -43,8 +43,10 @@
 
 /* NOTE:
 
-	The device model is assumed to not take xpow into account,
-	hence the expected values don't reflect its effect.
+	xpow is applied over the top of the normal or supplied
+	device model, so it effectively becomes a modification
+	of the device model.
+
 	The general filter is applied prior to the xpow being applied.
 	Many of the test patch types do take it into account
 	when computing the ink limit.
@@ -100,6 +102,10 @@
    Ideally, in any colorspace (input or output), when viewed from
    any possible angle, none of the test data points should appear
    to line up. The Argyll target generator seems to acheive this goal.
+
+   A final problem withe regular grids is that they can lead to
+   Runge's phenomenon, depending on the nature of the interpolation
+   algorithm used.
 
  */
 
@@ -677,7 +683,7 @@ double xpow				/* Extra device power, default = none */
 
 	if (xpow < 0.0)
 		xpow = XPOW_DEFAULT;
-	s->ixpow = xpow;
+	s->ixpow = 1.0/xpow;
 
 	/* See if we have a profile */
 	if (profName != NULL
@@ -719,9 +725,19 @@ double xpow				/* Extra device power, default = none */
 			/* Get details of conversion (Arguments may be NULL if info not needed) */
 			s->luo->spaces(s->luo, &ins, NULL, &outs, NULL, NULL, NULL, NULL, NULL, NULL);
 
+//printf("~1 xmask = 0x%x, ins = %s\n",xmask,icm2str(icmColorSpaceSignature, ins));
 			if (icx_colorant_comb_match_icc(xmask, ins) == 0) {
-				s->luo->del(s->luo);
-				error("ICC profile doesn't match device!");
+
+				/* Should really see if ICC profile has ColorantTable tag, */
+				/* and match them against targen specs. For now, */
+				/* simply make sure the channel counts match and issue */
+				/* a warning. */
+				if (icx_noofinks(xmask) != icmCSSig2nchan(ins)) {
+					s->luo->del(s->luo);
+					error("ICC profile doesn't match device!");
+				} else {
+					warning("Profile '%s' no. channels match, but colorant types have not been checked",profName);
+				}
 			}
 
 			/* Grab any device calibration curves */
@@ -877,6 +893,7 @@ usage(int level, char *diag, ...) {
 	fprintf(stderr," -V demphasis     Degree of dark region patch concentration 1.0-4.0 (default %.2f = none)\n",DEMPH_DEFAULT);
 	fprintf(stderr," -F L,a,b,rad     Filter out samples outside Lab sphere.\n");
 	fprintf(stderr," -O               Don't re-order display RGB patches for minimum delay\n");
+	fprintf(stderr," -U               Don't filter out duplicate patches\n");
 #ifdef VRML_DIAG
 	fprintf(stderr," -w               Dump diagnostic outfilel%s file (Lab locations)\n",vrml_ext());
 	fprintf(stderr," -W               Dump diagnostic outfiled%s file (Device locations)\n",vrml_ext());
@@ -941,8 +958,9 @@ int main(int argc, char *argv[]) {
 	double uilimit = -1.0;	/* Underlying (pre-calibration, scale 1.0) ink limit */
 	double nemph = NEMPH_DEFAULT;
 	double demph = DEMPH_DEFAULT;
+	int dontdedupe = 0;		/* Don't filter duplicate samples */
 	int dontreorder = 0;	/* Don't re-order RGB display patches for min delay */
-	int filter = 0;			/* Filter values */
+	int filter = 0;			/* Filter values outside given sphere */
 	double filt[4] = { 50,0,0,0 };	
 	static char fname[MAXNAMEL+1] = { 0 };		/* Output file base name */
 	static char pname[MAXNAMEL+1] = { 0 };		/* Device profile name */
@@ -1229,6 +1247,11 @@ int main(int argc, char *argv[]) {
 			/* Don't re-order RGB display patches for best speed */
 			else if (argv[fa][1] == 'O') {
 				dontreorder = 1;
+			}
+
+			/* Don't filter out redundant patches */
+			else if (argv[fa][1] == 'U') {
+				dontdedupe = 1;
 			}
 
 #ifdef VRML_DIAG
@@ -1612,7 +1635,7 @@ int main(int argc, char *argv[]) {
 					val[e] = icx_powlike(val[e], xpow * demph);
 
 				/* See if it is already in the fixed list */
-				if (fxlist != NULL) {
+				if (!dontdedupe && fxlist != NULL) {
 					int k;
 					for (k = 0; k < fxno; k++) {
 						for (e = 0; e < di; e++) {
@@ -1717,7 +1740,7 @@ int main(int argc, char *argv[]) {
 				addp = 0;
 
 			/* See if it is already in the fixed list */
-			if (fxlist != NULL) {
+			if (!dontdedupe && fxlist != NULL) {
 				int k;
 				for (k = 0; k < fxno; k++) {
 					for (e = 0; e < di; e++) {
@@ -1802,7 +1825,7 @@ int main(int argc, char *argv[]) {
 				addp = 0;		/* Don't add patches over ink limit */
 
 			/* See if it is already in the fixed list */
-			if (addp && fxlist != NULL) { 
+			if (addp && !dontdedupe && fxlist != NULL) { 
 				int k;
 				for (k = 0; k < fxno; k++) {
 					for (e = 0; e < di; e++) {
@@ -1891,7 +1914,7 @@ int main(int argc, char *argv[]) {
 							addp = 1;			/* Default add the point */
 
 							/* See if it is already in the fixed list */
-							if (fxlist != NULL) {
+							if (!dontdedupe && fxlist != NULL) {
 								int k;
 								for (k = 0; k < fxno; k++) {
 									for (e = 0; e < di; e++) {
@@ -1998,7 +2021,7 @@ int main(int argc, char *argv[]) {
 					addp = 0;		/* Don't add patches over ink limit */
 
 				/* See if it is already in the fixed list */
-				if (addp && fxlist != NULL) { 
+				if (addp && !dontdedupe && fxlist != NULL) { 
 					int k;
 					for (k = 0; k < fxno; k++) {
 						for (e = 0; e < di; e++) {

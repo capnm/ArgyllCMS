@@ -393,7 +393,7 @@ int main(int argc, char *argv[])
 				if (na == NULL) usage(NULL);
 
 					if (na[0] == 'n' || na[0] == 'N')
-						fc = fc_none;
+						fc = fc_None;
 					else if (na[0] == 'h' || na[0] == 'H')
 						fc = fc_Hardware;
 					else if (na[0] == 'x' || na[0] == 'X')
@@ -431,17 +431,17 @@ int main(int argc, char *argv[])
 	
 		/* Special debug */
 		strcpy(tnp, "_i.sp");
-		if (read_xspect(&i_sp, tname) == 0) {
+		if (read_xspect(&i_sp, NULL, tname) == 0) {
 			rd_i = 1;
 			printf("(Found '%s' file and loaded it)\n",tname);
 		}
 		strcpy(tnp, "_r.sp");
-		if (read_xspect(&r_sp, tname) == 0) {
+		if (read_xspect(&r_sp, NULL, tname) == 0) {
 			rd_r = 1;
 			printf("(Found '%s' file and loaded it)\n",tname);
 		}
 		strcpy(tnp, "_p.sp");
-		if (read_xspect(&p_sp, tname) == 0) {
+		if (read_xspect(&p_sp, NULL, tname) == 0) {
 			rd_p = 1;
 			/* Should read instrument type from debug_p.sp !! */
 			if (inst_illuminant(&insp, instI1Pro) != 0)		/* Hack !! */
@@ -548,8 +548,8 @@ int main(int argc, char *argv[])
 					printf("Instrument lacks spectral measurement capability");
 				}
 
-				if (refrmode >= 0 && !IMODETST(cap, inst_mode_emis_refresh_ovd)
-				                  && !IMODETST(cap, inst_mode_emis_norefresh_ovd)) {
+				if (refrmode >= 0 && it->check_mode(it, inst_mode_emis_refresh_ovd) != inst_ok
+				                  && it->check_mode(it, inst_mode_emis_norefresh_ovd) != inst_ok) { 
 					if (verb) {
 						printf("Requested refresh mode override and instrument doesn't support it (ignored)\n");
 						refrmode = -1;
@@ -570,9 +570,9 @@ int main(int argc, char *argv[])
 			it->capabilities(it, &cap, &cap2, &cap3);
 
 			if (c == '1') {
-				if (IMODETST(cap, inst_mode_emis_ambient)) {
+				if (it->check_mode(it, inst_mode_emis_ambient) == inst_ok) {
 					mode = inst_mode_emis_ambient;
-				} else if (IMODETST(cap, inst_mode_emis_spot)) {
+				} else if (it->check_mode(it, inst_mode_emis_spot) == inst_ok) {
 					mode = inst_mode_emis_spot;
 				} else {
 					printf("!!! Instrument doesn't have ambient or emissive capability !!!\n");
@@ -580,9 +580,9 @@ int main(int argc, char *argv[])
 				}
 			}
 			if (c == '2') {
-				if (IMODETST(cap, inst_mode_emis_tele)) {
+				if (it->check_mode(it, inst_mode_emis_tele) == inst_ok) {
 					mode = inst_mode_emis_tele;
-				} else if (IMODETST(cap, inst_mode_emis_spot)) {
+				} else if (it->check_mode(it, inst_mode_emis_spot) == inst_ok) {
 					mode = inst_mode_emis_spot;
 				} else {
 					printf("!!! Instrument doesn't have telephoto or emissive capability !!!\n");
@@ -592,7 +592,7 @@ int main(int argc, char *argv[])
 			if (c == '3') {
 				inst_opt_filter filt;
 
-				if (IMODETST(cap, inst_mode_ref_spot)) {
+				if (it->check_mode(it, inst_mode_ref_spot) == inst_ok) {
 					mode = inst_mode_ref_spot;
 				} else {
 					printf("!!! Instrument lacks reflective spot measurement capability !!!\n");
@@ -769,7 +769,7 @@ int main(int argc, char *argv[])
 			} else {
 
 				if (c == '1') {
-					if (IMODETST(cap, inst_mode_emis_ambient)) {
+					if (it->check_mode(it, inst_mode_emis_ambient) == inst_ok) {
 						printf("\n(If applicable) set instrument to ambient measurenent mode, or place\n");
 						printf("ambient adapter on it, and position it so as to measure the illuminant directly.\n");
 					} else {
@@ -777,7 +777,7 @@ int main(int argc, char *argv[])
 						printf("and position it so as to measure the illuminant directly.\n");
 					}
 				} else if (c == '2') {
-					if (IMODETST(cap, inst_mode_emis_tele)) {
+					if (it->check_mode(it, inst_mode_emis_tele) == inst_ok) {
 						printf("\n(If applicable) set instrument to telephoto measurenent mode,\n");
 						printf("position it so as to measure the illuminant reflected from the paper.\n");
 					} else {
@@ -921,19 +921,19 @@ int main(int argc, char *argv[])
 				continue;
 			}
 
-			if (c == '1') {
+			if (c == '1') {		/* Illuminant */
 				i_sp = val.sp;
 				if (tmode && rd_i == 0) {
 					strcpy(tnp, "_i.sp");
-					write_xspect(tname,&i_sp);
+					write_xspect(tname, inst_mrt_emission, &i_sp);
 				}
-			} else if (c == '2') {
+			} else if (c == '2') {	/* Illuminant reflected on paper */
 				r_sp = val.sp;
 				if (tmode && rd_r == 0) {
 					strcpy(tnp, "_r.sp");
-					write_xspect(tname,&r_sp);
+					write_xspect(tname, inst_mrt_emission, &r_sp);
 				}
-			} else if (c == '3') {
+			} else if (c == '3') {	/* Paper reflectance */
 				p_sp = val.sp;
 
 				/* Get the illuminant spectrum too */
@@ -943,7 +943,7 @@ int main(int argc, char *argv[])
 				if (tmode && rd_p == 0) {
 					/* Should save instrument type/instrument illuminant spectrum !!! */
 					strcpy(tnp, "_p.sp");
-					write_xspect(tname,&p_sp);
+					write_xspect(tname, inst_mrt_reflective, &p_sp);
 				}
 			}
 
@@ -1125,16 +1125,16 @@ int main(int argc, char *argv[])
 				for (i = 0; i < ill.spec_n; i++)
 					ill.spec[i] = aill.spec[i]/nacc;
 				
-				if(write_xspect(outname, &ill))
+				if(write_xspect(outname, inst_mrt_ambient, &ill))
 					printf("\nWriting file '%s' failed\n",outname);
 				else
 					printf("\nWriting file '%s' succeeded\n",outname);
 
 				if (tmode) {
 					strcpy(tnp, "_mpir.sp");		// Measured paper under illuminant spectrum
-					write_xspect(tname,&bf.srop);
+					write_xspect(tname, inst_mrt_reflective, &bf.srop);
 					strcpy(tnp, "_cpir.sp");		// Computed paper under illuminant spectrum
-					write_xspect(tname,&bf.cpsp);
+					write_xspect(tname, inst_mrt_reflective, &bf.cpsp);
 				}
 			}
 
@@ -1188,9 +1188,9 @@ int main(int argc, char *argv[])
 				for (j = 0; j < bf.ill.spec_n; j++) {
 					GCC_BUGFIX(j)
 					xx[j] = XSPECT_XWL(&bf.ill, j);
-					y1[j] = value_xspect(bf.i_sp, xx[j]);		/* Measured (black) */
-					y2[j] = value_xspect(&bf.ill, xx[j]);		/* Computed (red)*/
-					y3[j] = value_xspect(&cf.dxx, xx[j]);		/* Daylight match (green)*/
+					y1[j] = value_xspect(bf.i_sp, xx[j]); /* Measured (black) */
+					y2[j] = value_xspect(&bf.ill, xx[j]); /* Computed (red)*/
+					y3[j] = value_xspect(&cf.dxx, xx[j]); /* Daylight match (green)*/
 				}
 				
 				xmax = bf.ill.spec_wl_long;
@@ -1212,10 +1212,10 @@ int main(int argc, char *argv[])
 				for (j = 0; j < bf.cpsp.spec_n; j++) {
 					GCC_BUGFIX(j)
 					xx[j] = XSPECT_XWL(&bf.cpsp, j);
-					y1[j] = value_xspect(&bf.srop, xx[j]);		/* Measured reflectance (black) */
-					y2[j] = value_xspect(&cpisp, xx[j]);		/* Computed initial reflectance (red) */
-					y3[j] = value_xspect(&bf.cpsp, xx[j]);		/* Computed final reflectance (green) */
-//					y3[j] = value_xspect(&cpdsp, xx[j]);		/* Computed daylight reflectance (green) */
+					y1[j] = value_xspect(&bf.srop, xx[j]); 	/* Measured reflectance (black) */
+					y2[j] = value_xspect(&cpisp, xx[j]);	 /* Computed initial reflectance (red) */
+					y3[j] = value_xspect(&bf.cpsp, xx[j]); 	/* Computed final reflectance (green) */
+//					y3[j] = value_xspect(&cpdsp, xx[j]); 	/* Computed daylight reflectance (green) */
 				}
 				
 				xmax = bf.cpsp.spec_wl_long;
@@ -1233,8 +1233,8 @@ int main(int argc, char *argv[])
 				for (j = 0; j < bf.ill.spec_n; j++) {
 					GCC_BUGFIX(j)
 					xx[j] = XSPECT_XWL(&bf.ill, j);
-					y1[j] = value_xspect(bf.i_sp, xx[j]);		/* Measured (black) */
-					y2[j] = value_xspect(&bf.ill, xx[j]);		/* Computed (red)*/
+					y1[j] = value_xspect(bf.i_sp, xx[j]);	/* Measured (black) */
+					y2[j] = value_xspect(&bf.ill, xx[j]);	/* Computed (red)*/
 				}
 				
 				xmax = bf.ill.spec_wl_long;
@@ -1248,9 +1248,9 @@ int main(int argc, char *argv[])
 				for (j = 0; j < bf.cpsp.spec_n; j++) {
 					GCC_BUGFIX(j)
 					xx[j] = XSPECT_XWL(&bf.cpsp, j);
-					y1[j] = value_xspect(&bf.srop, xx[j]);		/* Measured reflectance (black) */
-					y2[j] = value_xspect(&cpisp, xx[j]);		/* Computed initial reflectance (red) */
-					y3[j] = value_xspect(&bf.cpsp, xx[j]);		/* Computed final reflectance (green) */
+					y1[j] = value_xspect(&bf.srop, xx[j]);	/* Measured reflectance (black) */
+					y2[j] = value_xspect(&cpisp, xx[j]);	/* Computed initial reflectance (red) */
+					y3[j] = value_xspect(&bf.cpsp, xx[j]);	/* Computed final reflectance (green) */
 				}
 				
 				xmax = bf.cpsp.spec_wl_long;

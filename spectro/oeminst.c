@@ -20,6 +20,7 @@
 #include "copyright.h"
 #include "aconfig.h"
 #include "numlib.h"
+#include "ui.h"
 #else /* SALONEINSTLIB */
 #include <fcntl.h>
 #include "sa_config.h"
@@ -33,7 +34,6 @@
 #include "disptechs.h"
 #include "ccmx.h"
 #include "ccss.h"
-#include "ui.h"
 
 void usage(void) {
 	fprintf(stderr,"Install OEM data files, Version %s\n",ARGYLL_VERSION_STR);
@@ -43,7 +43,7 @@ void usage(void) {
 	fprintf(stderr," -n                      Don't install, show where files would be installed\n");
 	fprintf(stderr," -c                      Don't install, save files to current directory\n");
 	fprintf(stderr," -S d                    Specify the install scope u = user (def.), l = local system]\n");
-	fprintf(stderr," infile                  setup.exe CD install file(s) or .dll(s) containing install files\n");
+	fprintf(stderr," infile                  Manufacturers setup.exe install file(s) or .dll(s) containing install files\n");
 	fprintf(stderr," infile.[edr|ccss|ccmx]  EDR file(s) to translate and install or CCSS or CCMX files to install\n");
 	fprintf(stderr,"                         If no file is provided, oeminst will look for the install CD.\n");
 	exit(1);

@@ -2,7 +2,7 @@ CAL
 
 DESCRIPTOR "Argyll Device Calibration Curves"
 ORIGINATOR "Argyll synthcal"
-CREATED "Mon Oct 26 01:10:48 2015"
+CREATED "Tue Sep 27 01:29:33 2016"
 DEVICE_CLASS "DISPLAY"
 COLOR_REP "RGB"
 

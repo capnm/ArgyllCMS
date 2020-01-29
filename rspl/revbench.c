@@ -27,6 +27,7 @@
 #undef DOLIMIT			/* Define to have ink limit */
 #define LIMITVAL 2.5	/* Total ink limit sum */
 #undef DOCHECK
+#define TESTNN			/* Test Nearest Clipping */
 
 #define SHOW_OUTPUT		/* Define for printf on each conversion */
 
@@ -217,6 +218,9 @@ main(int argc, char *argv[]) {
 		
 		stime = clock();
 
+#ifdef TESTNN
+		flags |= RSPL_NEARCLIP;
+#endif
 		/* Itterate though the grid */
 		for (ops = 0;; ops++) {
 			int r;

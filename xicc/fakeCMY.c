@@ -31,7 +31,6 @@
 #include "xicc.h"
 #include "cgats.h"
 #include "targen.h"
-#include "ui.h"
 
 #define EXTRA_NEUTRAL 50		/* Crude way of increasing weighting */
 
@@ -257,14 +256,15 @@ main(
 	for (j = 0; j < 3; j++)
 		gc[j] = 0;
 			
-	for (;;) {	/* For all grid points */
+	/* Add CMY grid surface points */
+	for (;;) {	/* Generate all grid points */
 
 		/* Check if this position is on the CMY surface */
 		for (j = 0; j < 3; j++) {
 			if (gc[j] == 0 || gc[j] == (tres-1))
 				break;
 		}
-		if (j < 3) {		/* On the surface */
+		if (j < 3) {		/* On the surface, so add a point */
 
 			/* Make sure there is room */
 			if (fxno >= fxlist_a) {
@@ -274,7 +274,7 @@ main(
 			}
 			for (j = 0; j < 3; j++)
 				fxlist[fxno].p[j] = gc[j]/(tres-1.0);
-			fxlist[fxno].p[3] = 0.0;
+			fxlist[fxno].p[3] = 0.0;	/* K = 0 */
 			fxno++;
 		}
 
@@ -289,7 +289,8 @@ main(
 			break;		/* Done grid */
 	}
 
-	for (i = 1; i < ((EXTRA_NEUTRAL * gres)-1); i++) {	/* For all grey axis points */
+	/* Add neutral axis points */
+	for (i = 1; i < ((EXTRA_NEUTRAL * gres)-1); i++) {
 
 		/* Make sure there is room */
 		if (fxno >= fxlist_a) {
@@ -299,7 +300,7 @@ main(
 		}
 		for (j = 0; j < 3; j++)
 			fxlist[fxno].p[j] = i/((EXTRA_NEUTRAL * gres)-1.0);
-		fxlist[fxno].p[3] = 0.0;
+		fxlist[fxno].p[3] = 0.0;		/* K = 0 */
 		fxno++;
 	}
 
@@ -309,6 +310,9 @@ main(
 			error ("%d, %s",rd_icco->errc,rd_icco->err);
 //printf("~1 initial lookup %f %f %f -> %f %f %f\n", fxlist[i].p[0], fxlist[i].p[1], fxlist[i].p[2], fxlist[i].v[0], fxlist[i].v[1], fxlist[i].v[2]);
 	}
+
+	/* A CMYK black will be deeper than CMY0, so we need to figure out */
+	/* how to scale the initial values to fully occupy the CMYK gamut. */
 
 	/* Figure out the general scale at the black end */
 	{

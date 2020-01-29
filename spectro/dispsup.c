@@ -281,16 +281,26 @@ a1log *log				/* Verb, debug & error log */
 	itype = p->get_itype(p);			/* Actual type */
 	p->capabilities(p, &cap, &cap2, &cap3);
 
-	if (tele && !IMODETST(cap, inst_mode_emis_tele)) {
+	if (tele && p->check_mode(p, inst_mode_emis_tele) != inst_ok) {
 		printf("Want telephoto measurement capability but instrument doesn't support it\n");
 		printf("so falling back to emissive spot mode.\n");
 		tele = 0;
 	}
 	
-	if (!tele && !IMODETST(cap, inst_mode_emis_spot)) {
+	if (!tele && p->check_mode(p, inst_mode_emis_spot) != inst_ok) {
 		printf("Want emissive spot measurement capability but instrument doesn't support it\n");
 		printf("so switching to telephoto spot mode.\n");
 		tele = 1;
+	}
+	
+	if (( tele && p->check_mode(p, inst_mode_emis_tele) != inst_ok)
+	 || (!tele && p->check_mode(p, inst_mode_emis_spot) != inst_ok)) {
+		printf("Need %s emissive measurement capability,\n", tele ? "telephoto" : "spot");
+		printf("but instrument doesn't support it\n");
+		a1logd(p->log,1,"Need %s emissive measurement capability but device doesn't support it,\n",
+		       tele ? "telephoto" : "spot");
+		p->del(p);
+		return -1;
 	}
 	
 	/* Set to emission mode to read a display */
@@ -434,6 +444,7 @@ static int disprd_read_imp(
 	ipatch val;		/* Return value */
 	int ch;			/* Character */
 	int cal_type;
+	inst_calc_id_type idtype;
 	char id[CALIDLEN];
 	inst2_capability cap2;
 
@@ -521,7 +532,7 @@ static int disprd_read_imp(
 			return 3;
 		}
 		/* Do calibrate, but ignore return code. Press on regardless. */
-		if ((rv = p->it->calibrate(p->it, &calt, &calc, id)) != inst_ok) {
+		if ((rv = p->it->calibrate(p->it, &calt, &calc, &idtype, id)) != inst_ok) {
 			a1logd(p->log,1,"warning, frequency calibrate failed with '%s' (%s)\n",
 				      p->it->inst_interp_error(p->it, rv), p->it->interp_error(p->it, rv));
 		}
@@ -538,7 +549,7 @@ static int disprd_read_imp(
 			return 3;
 		}
 		/* Do calibrate, but ignore return code. Press on regardless. */
-		if ((rv = p->it->calibrate(p->it, &calt, &calc, id)) != inst_ok) {
+		if ((rv = p->it->calibrate(p->it, &calt, &calc, &idtype, id)) != inst_ok) {
 			a1logd(p->log,1,"warning, display integration calibrate failed with '%s' (%s)\n",
 				      p->it->inst_interp_error(p->it, rv), p->it->interp_error(p->it, rv));
 		}
@@ -681,7 +692,8 @@ static int disprd_read_imp(
 						return 1;
 					}
 					printf("\n");
-					if (p->it->icom->port_type(p->it->icom) == icomt_serial) {
+					if ((p->it->icom->port_type(p->it->icom) & icomt_serial)
+					 && !(p->it->icom->port_attr(p->it->icom) & icomt_fastserial)) {
 						/* Allow retrying at a lower baud rate */
 						int tt = p->it->last_scomerr(p->it);
 						if (tt & (ICOM_BRK | ICOM_FER | ICOM_PER | ICOM_OER)) {
@@ -1198,7 +1210,7 @@ int disprd_ambient(
 		p->it->capabilities(p->it, &cap, &cap2, &cap3);
 	}
 	
-	if (!IMODETST(cap, inst_mode_emis_ambient)) {
+	if (p->it->check_mode(p->it, inst_mode_emis_ambient) != inst_ok) {
 		printf("Need ambient measurement capability,\n");
 		printf("but instrument doesn't support it\n");
 		return 8;
@@ -1297,7 +1309,7 @@ int disprd_ambient(
 				                                        setup_display_calibrate, &dwi, 0);
 				setup_display_calibrate(p->it,inst_calc_none, &dwi); 
 				if (rv != inst_ok) {	/* Abort or fatal error */
-					return 1;
+					return ((rv & inst_mask) == inst_user_abort) ? 1 : 2;
 				}
 				continue;
 
@@ -1336,7 +1348,8 @@ int disprd_ambient(
 					return 1;
 				}
 				printf("\n");
-				if (p->it->icom->port_type(p->it->icom) == icomt_serial) {
+				if ((p->it->icom->port_type(p->it->icom) & icomt_serial)
+				 && !(p->it->icom->port_attr(p->it->icom) & icomt_fastserial)) {
 					/* Allow retrying at a lower baud rate */
 					int tt = p->it->last_scomerr(p->it);
 					if (tt & (ICOM_BRK | ICOM_FER | ICOM_PER | ICOM_OER)) {
@@ -2146,21 +2159,21 @@ static int config_inst_displ(disprd *p) {
 	
 	p->it->capabilities(p->it, &cap, &cap2, &cap3);
 	
-	if (p->tele && !IMODETST(cap, inst_mode_emis_tele)) {
+	if (p->tele && p->it->check_mode(p->it, inst_mode_emis_tele) != inst_ok) {
 		printf("Want telephoto measurement capability but instrument doesn't support it\n");
 		printf("so falling back to spot mode.\n");
 		a1logd(p->log,1,"No telephoto mode so falling back to spot mode.\n");
 		p->tele = 0;
 	}
 	
-	if (!p->tele && !IMODETST(cap, inst_mode_emis_spot)) {
+	if (!p->tele && p->it->check_mode(p->it, inst_mode_emis_spot) != inst_ok) {
 		printf("Want emissive spot measurement capability but instrument doesn't support it\n");
 		printf("so switching to telephoto spot mode.\n");
 		p->tele = 1;
 	}
 	
-	if (( p->tele && !IMODETST(cap, inst_mode_emis_tele))
-	 || (!p->tele && !IMODETST(cap, inst_mode_emis_spot))) {
+	if (( p->tele && p->it->check_mode(p->it, inst_mode_emis_tele) != inst_ok)
+	 || (!p->tele && p->it->check_mode(p->it, inst_mode_emis_spot) != inst_ok)) {
 		printf("Need %s emissive measurement capability,\n", p->tele ? "telephoto" : "spot");
 		printf("but instrument doesn't support it\n");
 		a1logd(p->log,1,"Need %s emissive measurement capability but device doesn't support it,\n",
@@ -2685,7 +2698,7 @@ a1log *log      	/* Verb, debug & error log */
 				printf("Calibrate failed with '%s' (%s)\n",
 				       p->it->inst_interp_error(p->it, rv), p->it->interp_error(p->it, rv));
 				p->del(p);
-				if (errc != NULL) *errc = 2;
+				if (errc != NULL) *errc = ((rv & inst_mask) == inst_user_abort) ? 1 : 2;
 				return NULL;
 			}
 		}

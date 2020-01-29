@@ -23,7 +23,7 @@
 	( Most of the below code is stubbed out, with the Linux
 	code as a placeholder. )
 
-	BSD uses fd per end point, so simplifies things.
+	BSD uses fd per end point, so simplifies things (good).
 
 	No clear ep or abort i/o though, so we could try clear halt,
 	or close fd and see if that works in aborting transaction ?
@@ -57,7 +57,7 @@
 #define poll_x poll
 #endif
 
-/* Add paths to USB connected instruments */
+/* Add paths to USB connected device */
 /* Return an icom error */
 int usb_get_paths(
 icompaths *p 
@@ -75,7 +75,7 @@ icompaths *p
 	int vid, pid;
 	int nconfig = 0, nep = 0;
 	char *dpath;
-	instType itype;
+	devType itype;
 	struct usb_idevice *usbd = NULL;
 
 	a1logd(p->log, 6, "usb_get_paths: about to look through usb devices:\n");
@@ -193,7 +193,7 @@ icompaths *p
 		break;
 	}
 
-	a1logd(p->log, 8, "usb_get_paths: returning %d paths and ICOM_OK\n",p->npaths);
+	a1logd(p->log, 8, "usb_get_paths: returning %d paths and ICOM_OK\n",p->ndpaths[dtix_combined]);
 	return ICOM_OK;
 }
 

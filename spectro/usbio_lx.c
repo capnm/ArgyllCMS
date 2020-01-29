@@ -81,7 +81,7 @@ char *dpath		/* path to device */
 	unsigned char buf[IUSB_DESC_TYPE_DEVICE_SIZE];
 	unsigned vid, pid, nep10 = 0xffff;
 	unsigned int configix, nconfig, totlen;
-	instType itype;
+	devType itype;
 	struct usb_idevice *usbd = NULL;
 	int fd;			/* device file descriptor */
 
@@ -322,7 +322,7 @@ icompaths *p
 		}
 	}
 
-	a1logd(p->log, 8, "usb_get_paths: returning %d paths and ICOM_OK\n",p->npaths);
+	a1logd(p->log, 8, "usb_get_paths: returning %d paths and ICOM_OK\n",p->ndpaths[dtix_combined]);
 	return ICOM_OK;
 }
 
@@ -384,6 +384,9 @@ void usb_close_port(icoms *p) {
 			ioctl(p->usbd->fd, USBDEVFS_RELEASEINTERFACE, &iface);
 
 		/* Workaround for some bugs - reset device on close */
+		/* !!!! Alternative would be to do reset before open. 
+		   On Linux the path stays the same, so could do open/reset/open
+		 */
 		if (p->uflags & icomuf_reset_before_close) {
 			if ((rv = ioctl(p->usbd->fd, USBDEVFS_RESET, NULL)) != 0) {
 				a1logd(p->log, 1, "usb_close_port: reset returned %d\n",rv);
@@ -531,7 +534,8 @@ char **pnames		/* List of process names to try and kill before opening */
 
 		/* Clear any errors. */
 		/* (Some I/F seem to hang if we do this, some seem to hang if we don't !) */
-		/* The ColorMunki on Linux only starts every second time if we don't do this. */
+		/* (The ColorMunki on some Linux's only starts every second time if we don't do this, */
+		/* and on others, every second time if we do.) */
 		if (!(p->uflags & icomuf_no_open_clear)) {
 			for (i = 0; i < 32; i++) {
 				if (!p->ep[i].valid)
@@ -701,7 +705,8 @@ static void *urb_reaper(void *context) {
 		iurb = (usbio_urb *)out->usercontext;
 		req = iurb->req;
 
-		a1logd(p->log, 8, "urb_reaper: urb reap URB %d with status %d bytes %d, urbs left %d\n",iurb->urbno, out->status, out->actual_length, req->nourbs-1);
+		a1logd(p->log, 8, "urb_reaper: urb reap URB %d with status %d, bytes %d, urbs left %d\n",iurb->urbno, out->status, out->actual_length, req->nourbs-1);
+
 
 		pthread_mutex_lock(&req->lock);	/* Stop requester from missing reap */
 		req->nourbs--;					/* We're reaped one */
@@ -778,7 +783,7 @@ static int icoms_usb_transaction(
 	int i;
 
 	in_usb_rw++;
-	a1logd(p->log, 8, "icoms_usb_transaction: req type 0x%x ep 0x%x size %d\n",ttype,endpoint,length);
+	a1logd(p->log, 8, "icoms_usb_transaction: req type 0x%x ep 0x%x size %d to %d\n",ttype,endpoint,length, timeout);
 
 	if (!p->usbd->running) {
 		in_usb_rw--;
@@ -834,7 +839,7 @@ static int icoms_usb_transaction(
 		bp += req.urbs[i].urb.buffer_length;
 		req.urbs[i].urb.status = -EINPROGRESS;
 	}
-	a1logd(p->log, 8, "icoms_usb_transaction: reset req %p nourbs to %d\n",&req,req.nourbs);
+	a1logd(p->log, 8, "icoms_usb_transaction: set req %p nourbs to %d\n",&req,req.nourbs);
 
 	/* Add our request to the req list so that it can be cancelled on reap failure */
 	pthread_mutex_lock(&p->usbd->lock);

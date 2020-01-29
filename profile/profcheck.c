@@ -294,10 +294,20 @@ int main(int argc, char *argv[])
 						spec = 1;
 						tillum = icxIT_F10;
 					} else {	/* Assume it's a filename */
+						inst_meas_type mt;
+
 						spec = 1;
 						tillum = icxIT_custom;
-						if (read_xspect(&cust_tillum, na) != 0)
+						if (read_xspect(&cust_tillum, &mt, na) != 0)
 							usage();
+
+						if (mt != inst_mrt_none
+						 && mt != inst_mrt_emission
+						 && mt != inst_mrt_ambient
+						 && mt != inst_mrt_emission_flash
+						 && mt != inst_mrt_ambient_flash) {
+							error("Target illuminant '%s' is wrong measurement type",na);
+						}
 					}
 				}
 			}
@@ -330,10 +340,20 @@ int main(int argc, char *argv[])
 					spec = 1;
 					illum = icxIT_F10;
 				} else {	/* Assume it's a filename */
+					inst_meas_type mt;
+
 					spec = 1;
 					illum = icxIT_custom;
-					if (read_xspect(&cust_illum, na) != 0)
+					if (read_xspect(&cust_illum, &mt, na) != 0)
 						usage();
+
+					if (mt != inst_mrt_none
+					 && mt != inst_mrt_emission
+					 && mt != inst_mrt_ambient
+					 && mt != inst_mrt_emission_flash
+					 && mt != inst_mrt_ambient_flash) {
+						error("CIE illuminant '%s' is wrong measurement type",na);
+					}
 				}
 			}
 

@@ -96,7 +96,6 @@
 #include "icc.h"
 #include "xicc.h"
 #include "imdi.h"
-#include "ui.h"
 
 #undef DEBUG		/* Print detailed debug info */
 

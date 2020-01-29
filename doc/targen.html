@@ -12,8 +12,10 @@
     Generate a profiling test target values&nbsp;<a
       href="File_Formats.html#.ti1">.ti1</a> file. &nbsp;<b>targen</b>
     is used to generate the device channel test point values for
-    grayscale, RGB, CMY, CMYK or N-color output or display
-    devices.&nbsp;
+    grayscale, RGB, CMY, CMYK or N-color output or display devices. <br>
+    <br>
+    [ Note though that colprof will only create RGB, CMY or CMYK
+    profiles. ]<br>
     <h3>Usage Summary</h3>
     <small><span style="font-family: monospace;">targen [options]
         outfile</span><br style="font-family: monospace;">
@@ -28,6 +30,8 @@
         colorant combination from the following:</span><br
         style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -60,9 +64,13 @@
 
 
 
+
+
         &nbsp; &nbsp; &nbsp;&nbsp;&nbsp;&nbsp; 1: Video grey</span><br
         style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -103,6 +111,8 @@
 
 
 
+
+
         5: CMY<br style="font-family: monospace;">
       </span><span style="font-family: monospace;">&nbsp;&nbsp; &nbsp;
         &nbsp; &nbsp; &nbsp;
@@ -110,6 +120,8 @@
         Light CM</span><br style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;
+
+
 
 
 
@@ -136,6 +148,8 @@
 CMYK
 +
 Red
+
+
 
 
 
@@ -182,6 +196,8 @@ Red
 
 
 
+
+
         &nbsp; &nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 12:
         CMYK + Light CM + Medium CM</span><br style="font-family:
         monospace;">
@@ -191,6 +207,8 @@ Red
         delete colorant from combination:</span><br style="font-family:
         monospace;">
       <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -236,9 +254,13 @@ Red
 
 
 
+
+
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4: Black</span><br
         style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -273,9 +295,13 @@ Red
 
 
 
+
+
         6: Red</span><br style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -309,9 +335,13 @@ Red
 
 
 
+
+
         8: Blue</span><br style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -345,9 +375,13 @@ Red
 
 
 
+
+
         10: Light Cyan</span><br style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -381,8 +415,12 @@ Red
 
 
 
+
+
         12: Light Yellow</span><br style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -418,9 +456,13 @@ Red
 
 
 
+
+
         14: Medium Cyan</span><br style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -454,8 +496,12 @@ Red
 
 
 
+
+
         16: Medium Yellow</span><br style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -489,9 +535,13 @@ Red
 
 
 
+
+
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 18: Light
         Light Black<br>
         &nbsp;<a href="#G">-G</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -534,7 +584,11 @@ Red
 
 
 
+
+
         steps</a><span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -577,10 +631,14 @@ steps
 
 
 
+
+
         0)</span><br style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp;</span><a
         style="font-family: monospace;" href="#m">-m steps</a><span
         style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -616,9 +674,13 @@ steps
 
 
 
+
+
             Multidimensional body centered cubic steps (default 0)<br>
           </span></small></span>&nbsp; <span style="font-family:
         monospace;"></span><a style="font-family: monospace;" href="#f">-f
+
+
 
 
 
@@ -649,9 +711,13 @@ steps
 
 
 
+
+
         Add iterative &amp; adaptive full spread patches to total
         (default 836)<br>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -694,6 +760,8 @@ for
 
 
 
+
+
         full spread</span><br style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp; </span><a
         style="font-family: monospace;" href="#r">-r</a><span
@@ -705,6 +773,8 @@ device
 space
 random
 for
+
+
 
 
 
@@ -746,6 +816,8 @@ for
 
 
 
+
+
         full spread</span><br style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp; </span><a
         style="font-family: monospace;" href="#q">-q</a><span
@@ -757,6 +829,8 @@ device
 space-filling
 quasi-random
 for
+
+
 
 
 
@@ -805,6 +879,8 @@ centered
 
 
 
+
+
         cubic grid for full spread</span><br style="font-family:
         monospace;">
       <span style="font-family: monospace;">&nbsp; </span><a
@@ -832,6 +908,8 @@ centered
 
 
 
+
+
         cubic grid for full spread</span><br style="font-family:
         monospace;">
       <span style="font-family: monospace;">&nbsp; </span><a
@@ -844,6 +922,8 @@ angle
 -
 0.5
 for
+
+
 
 
 
@@ -891,12 +971,16 @@ spread
 
 
 
+
+
         (default iterative)</span><br style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp;</span><a
         style="font-family: monospace;" href="#l">-l ilimit</a><span
         style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Total
 ink
+
+
 
 
 
@@ -923,6 +1007,8 @@ applied
 to
 all
 device
+
+
 
 
 
@@ -967,13 +1053,23 @@ device
 
 
 
+
+
         Filter out samples outside Lab sphere.<br>
         &nbsp;<a href="#O">-O</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        Don't re-order display RGB patches for minimum delay<br
-          style="font-family: monospace;">
-      </span> <span style="font-family: monospace;">&nbsp;</span><a
-        style="font-family: monospace;" href="#w">-w</a><span
+
+
+        Don't re-order display RGB patches for minimum delay</span></small><br
+      style="font-family: monospace;">
+    <small><span style="font-family: monospace;"><small><span
+            style="font-family: monospace;">&nbsp;<a href="#U">-U</a>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            Don't filter out duplicate patches<br>
+          </span></small>&nbsp;</span><span style="font-family:
+        monospace;"></span><a style="font-family: monospace;" href="#w">-w</a><span
         style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -1000,6 +1096,8 @@ device
         style="font-family: monospace;">&nbsp;</span><a
         style="font-family: monospace;" href="#p1">outfile</a><span
         style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -1091,6 +1189,8 @@ device
 
 
 
+
+
       5</span> will generate steps at 0.0 0.25 0.5 0.75 and 1.0, while
     the option <span style="font-weight: bold;">-s 5 -p 2.0</span> will
     generate steps at 0.0 0.0625 0.25 0.5625 and 1.0. By default, no per
@@ -1139,6 +1239,8 @@ device
     points, it fills the space better.)<br>
     <br>
     The behavior of the <b>-e</b>, <b>-s</b>, <b>-g</b> <b>-m </b>and
+
+
 
 
 
@@ -1323,18 +1425,11 @@ device
     accuracy of measuring and modelling the lighter regions, given a
     fixed number of test points and profile quality/grid resolution. The
     parameter will also be used in an analogous way to the <small><a
-        href="targen.html#p">-p power</a>
-      value in changing the distribution of </small><small><a
-        href="targen.html#s">-s steps</a>, </small><small><a
-        href="targen.html#g">-g steps</a>, </small><small><a
-        href="targen.html#m">-m steps</a></small>
-    and <small><small><a href="targen.html#b">-b
-
-
-
-
-
-          steps</a></small></small> patches.<br>
+        href="targen.html#p">-p power</a> value in changing the
+      distribution of </small><small><a href="targen.html#s">-s steps</a>,
+    </small><small><a href="targen.html#g">-g steps</a>, </small><small><a
+        href="targen.html#m">-m steps</a></small> and <small><small><a
+          href="targen.html#b">-b steps</a></small></small> patches.<br>
     <br>
     <a name="F"></a> The <b>-F</b> flag and parameters is used to
     define an L*a*b* sphere to filter the test points through. Only test
@@ -1359,12 +1454,15 @@ device
     this re-ordering, leaving the patches in whatever order they were
     generated.<br>
     <br>
+    <a name="U"></a> The <b>-U</b> flag disables the normal filtering
+    out of duplicate patches.<br>
+    <br>
     <a name="w"></a> The <b>-w</b> flag causes a diagnostic <a
-      href="File_Formats.html#X3DOM">X3DOM</a> .x3d.html file to be created, in
-    which the test points are plotted as small spheres in L*a*b*
-    colorspace. Note that for a CMYK device, the point spacing may seem
-    strange, since the extra K dimension is compressed into the 3
-    dimensional L*a*b* space. <a name="W"></a>If the <span
+      href="File_Formats.html#X3DOM">X3DOM</a> .x3d.html file to be
+    created, in which the test points are plotted as small spheres in
+    L*a*b* colorspace. Note that for a CMYK device, the point spacing
+    may seem strange, since the extra K dimension is compressed into the
+    3 dimensional L*a*b* space. <a name="W"></a>If the <span
       style="font-weight: bold;">-W</span> flag is given, the plot will
     be in device space, with only the first 3 dimensions of each point
     being plotted.<br>

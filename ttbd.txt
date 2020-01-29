@@ -1,6 +1,15 @@
 Argyll - Things To Be Done & odeas (in no particular priority)
 --------------------------
 
+Next release:
+
+	Fix LUT loading to have +/- 1 margine
+
+	Add new JETI instrument support 
+
+
+--------------------
+
 Categories:
 
 1)  Ideas list

@@ -3,7 +3,9 @@
  * Committee for Graphics Arts Technologies Standards
  * CGATS.5 and IT8.7 family file I/O class
  * Version 2.05
- *
+ */
+
+/*
  * Author: Graeme W. Gill
  * Date:   20/12/95
  *
@@ -11,8 +13,9 @@
  * All rights reserved.
  * 
  * This material is licensed with an "MIT" free use license:-
- * see the License.txt file in this directory for licensing details.
+ * see the License4.txt file in this directory for licensing details.
  */
+
 
 /*
 

@@ -22,14 +22,15 @@
 #include <ctype.h>
 #include <string.h>
 #include <time.h>
+#include "numsup.h"
 #ifndef SALONEINSTLIB
 #include "copyright.h"
 #include "aconfig.h"
 #include "icc.h"
 #else
 #include "sa_config.h"
+#include "sa_conv.h"
 #endif /* !SALONEINSTLIB */
-#include "numsup.h"
 #include "conv.h"
 #include "disptechs.h"
 

@@ -2464,6 +2464,8 @@ i1d3_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 	/* On Linux, the i1d3 doesn't seem to close properly, and won't re-open - */
 	/* something to do with detaching the default HID driver ?? */
 #if defined(UNIX_X11)
+	usbflags |= icomuf_detach;
+	usbflags |= icomuf_no_open_clear;
 	usbflags |= icomuf_reset_before_close;
 #endif
 	/* Open as an HID if available */
@@ -2485,7 +2487,7 @@ i1d3_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 		/* Set config, interface, write end point, read end point */
 		/* ("serial" end points aren't used - the i1d3 uses USB control messages) */
 		/* We need to detatch the HID driver on Linux */
-		if ((se = p->icom->set_usb_port(p->icom, 1, 0x00, 0x00, usbflags | icomuf_detach, 0, NULL))
+		if ((se = p->icom->set_usb_port(p->icom, 1, 0x00, 0x00, usbflags, 0, NULL))
 			                                                                          != ICOM_OK) { 
 			a1logd(p->log, 1, "i1d3_init_coms: set_usb_port failed ICOM err 0x%x\n",se);
 			return i1d3_interp_code((inst *)p, icoms2i1d3_err(se, 0));
@@ -2694,6 +2696,8 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 		return inst_no_coms;
 	if (!p->inited)
 		return inst_no_init;
+
+	a1logd(p->log, 1, "i1d3: i1d3_read_sample called\n");
 
 	if (p->trig == inst_opt_trig_user) {
 
@@ -2944,6 +2948,7 @@ static inst_code i1d3_calibrate(
 inst *pp,
 inst_cal_type *calt,	/* Calibration type to do/remaining */
 inst_cal_cond *calc,	/* Current condition/desired condition */
+inst_calc_id_type *idtype,	/* Condition identifier type */
 char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 ) {
 	i1d3 *p = (i1d3 *)pp;
@@ -2955,6 +2960,7 @@ char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 	if (!p->inited)
 		return inst_no_init;
 
+	*idtype = inst_calc_id_none;
 	id[0] = '\000';
 
 	if ((ev = i1d3_get_n_a_cals((inst *)p, &needed, &available)) != inst_ok)
@@ -3816,8 +3822,7 @@ int *cbid) {
  * error if it hasn't been initialised.
  */
 static inst_code
-i1d3_get_set_opt(inst *pp, inst_opt_type m, ...)
-{
+i1d3_get_set_opt(inst *pp, inst_opt_type m, ...) {
 	i1d3 *p = (i1d3 *)pp;
 	inst_code ev;
 
@@ -4018,7 +4023,18 @@ i1d3_get_set_opt(inst *pp, inst_opt_type m, ...)
 		if (trans_time_prop != NULL) *trans_time_prop = p->led_trans_time_prop;
 		return inst_ok;
 	}
-	return inst_unsupported;
+
+	/* Use default implementation of other inst_opt_type's */
+	{
+		inst_code rv;
+		va_list args;
+
+		va_start(args, m);
+		rv = inst_get_set_opt_def(pp, m, args);
+		va_end(args);
+
+		return rv;
+	}
 }
 
 /* Constructor */

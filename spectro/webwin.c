@@ -70,7 +70,9 @@ char src_addr[20];
 	}
 
 	mg_printf(conn,
-			"\r\n#%02X%02X%02X",
+			"HTTP/1.1 200 OK\r\n"
+			"Content-Type: text/plain\r\n\r\n"
+			"#%02X%02X%02X",
 			(int)(p->r_rgb[0] * 255.0 + 0.5),
 			(int)(p->r_rgb[1] * 255.0 + 0.5),
 			(int)(p->r_rgb[2] * 255.0 + 0.5));
@@ -93,7 +95,8 @@ static void *webwin_ehandler(enum mg_event event,
 	} else if (strcmp(request_info->uri, "/webdisp.js") == 0) {
 #ifndef NEVER
 		char *webdisp_js = 
-	"\r\n"
+	"HTTP/1.1 200 OK\r\n"
+	"Content-Type: application/javascript\r\n\r\n"
 	"if (typeof XMLHttpRequest == \"undefined\") {\r\n"
 	"	XMLHttpRequest = function () {\r\n"
 	"		try { return new ActiveXObject(\"Msxml2.XMLHTTP.6.0\"); }\r\n"
@@ -141,16 +144,25 @@ static void *webwin_ehandler(enum mg_event event,
 #else
 		return NULL;	/* Read webdisp.js */
 #endif
-	} else {
+	} else if (strcmp(request_info->uri, "/") == 0) {
 	    mg_printf(conn, "HTTP/1.1 200 OK\r\n"
 		"Cache-Control: no-cache\r\n"
-		"Content-Type: text/html\r\n\r\n"
+		"Content-Type: text/html; charset=UTF-8\r\n\r\n"
+		"<!DOCTYPE html>\r\n"
 		"<html>\r\n"
 		"<head>\r\n"
 		"<title>ArgyllCMS Web Display</title>\r\n"
 		"<script src=\"webdisp.js\"></script>\r\n"
 		"</head>\r\n"
+		"<body>\r\n"
+		"</body>\r\n"
 		"</html>\r\n"
+		);
+	} else {
+	    mg_printf(conn, "HTTP/1.1 404 Not Found\r\n"
+		"Content-Type: text/plain\r\n\r\n"
+		"404 Not Found: %s",
+		request_info->uri
 		);
 	}
 
@@ -230,9 +242,9 @@ double r, double g, double b	/* Color values 0.0 - 1.0 */
 
 			/* For video encoding the extra bits of precision are created by bit shifting */
 			/* rather than scaling, so we need to scale the fp value to account for this. */
-			if (p->pdepth > 8)
-				p->r_rgb[j] = (p->s_rgb[j] * 255 * (1 << (p->pdepth - 8)))
-				            /((1 << p->pdepth) - 1.0); 	
+			if (p->edepth > 8)
+				p->r_rgb[j] = (p->s_rgb[j] * 255 * (1 << (p->edepth - 8)))
+				            /((1 << p->edepth) - 1.0); 	
 		}
 	}
 
@@ -361,8 +373,11 @@ int ddebug						/* >0 to print debug statements to stderr */
 
 	p->ncix = 1;
 
-	p->pdepth = 8;		/* Assume this by API */
-	p->edepth = 8;
+	p->fdepth = 8;				/* Assume this by API */
+	p->rdepth = p->fdepth;		/* Assumed */
+	p->ndepth = p->rdepth;		/* Assumed */
+	p->nent = 0;				/* No ramdac */
+	p->edepth = 8;				/* Assumed */
 
 	/* Basic object is initialised, so create a web server */
 

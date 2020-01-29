@@ -172,11 +172,10 @@ typedef struct {
 /* Structure to convey inverse lookup clip handling details */
 struct _icxClip {
 	int     nearclip;				/* Flag - use near clipping not vector */
-	int     LabLike;				/* Flag Its an Lab like colorspace */
+	int     LabLike;				/* Flag It's an Lab like colorspace */
 	int     fdi;					/* Dimentionality of clip vector */
-	double  ocent[MXDO];			/* base of center of clut output gamut */
-	double  ocentv[MXDO];			/* vector direction of clut output clip target line */
-	double  ocentl;					/* clip target line length */
+	struct  _icxCuspMap *cm;		/* Cusp map for computing vector (if !NULL) */
+	double  ocent[MXDO];			/* Default center of clut output gamut used if cm == NULL */
 }; typedef struct _icxClip icxClip;
 
 /* Structure to convey viewing conditions */
@@ -191,6 +190,7 @@ typedef struct {
 	double Yg;			/* Glare as a fraction of the adapting/surround (Y range 0.0 .. 1.0) */
 	double Gxyz[3];		/* The Glare white coordinates (ie the Ambient color) */
 						/* will be taken from Wxyz if Gxyz <= 0.0 */
+	double hkscale;		/* [1.0] HK scaling factor */
 	char *desc;			/* Possible description of this VC */
 } icxViewCond;
 
@@ -227,6 +227,7 @@ typedef struct {
 	double gamlpwf;			/* Gamut Lightness preserving perceptual Map whtg. factor, 0.0 - 1.0 */
 	double gamswf;			/* Gamut Saturation Map weighting factor, 0.0 - 1.0 */
 	double satenh;			/* Saturation enhancement value, 0.0 - Inf */
+	double hkscale;			/* [1.0] Optional HK scaling factor */
 	char *as;				/* Alias string (option name) */
 	char *desc;				/* Possible description of this VC */
 	icRenderingIntent icci;	/* Closest ICC intent */
@@ -431,6 +432,13 @@ xicc *new_xicc(icc *picc);
 	gamut * (*get_gamut) (struct _icxLuBase *plu,	/* xicc lookup object */			\
 	                      double detail);			/* gamut detail level, 0.0 = def */	\
 																						\
+	/* Given an xicc lookup object, return an icxCuspMap object. */						\
+	/* Note that the PCS must be Lab or Jab. */											\
+	/* An icxLuLut type must be icmFwd, and the ink limit (if supplied) */				\
+	/* will be applied. */																\
+	/* Return NULL on error, check errc+err for reason */								\
+	struct _icxCuspMap *(*get_cuspmap)(struct _icxLuBase *p, int res);					\
+																						\
 	/* The following two functions expose the relative colorimetric native ICC PCS */	\
 	/* <--> absolute/CAM space transform, so that CAM based gamut compression */		\
 	/* can be applied in creating the ICC Lut tabls in profout.c. */					\
@@ -599,6 +607,10 @@ struct _icxLuLut {
 /* ------------------------------------------------------------------------------ */
 /* Utility declarations and functions */
 
+/* Utility that mirrors get_luobj intent handling: */
+/* return nz if the intent implies Jab space */
+int xiccIsIntentJab(icRenderingIntent intent);
+
 /* Profile Creation Suplimental Information structure */
 struct _profxinf {
     icmSig manufacturer;	/* Device manufacturer ICC Sig, 0 for default */
@@ -663,7 +675,7 @@ icxViewCond *vc,	/* Viewing parameters to return, May be NULL if desc is nz */
 int no,				/* Enumeration to return, -1 for default, -2 for none */
 char *as,			/* String alias to number, NULL if none */
 int desc,			/* NZ - Just return a description of this enumeration in vc */
-double *wp			/* Provide white point if xicc is NULL */
+double *wp			/* Provide XYZ white point if xicc is NULL */
 );
 
 /* Debug: dump a Viewing Condition to standard out */
@@ -719,7 +731,8 @@ double icxMaxUnderlyingLimit(struct _xcal *cal, double ilimit);
 double *icxClipVector(
 icxClip *p,			/* Clipping setup information */
 double *in,			/* Target point */
-double *cdirv		/* Space for returned clip vector */
+double *cdirv,		/* Returned clip vector */
+int safe			/* Flag - return safe vector */
 );
 
 /* - - - - - - - - - - */
@@ -928,6 +941,28 @@ void icxdpdiMulBy3x3Parm(
 	double mat[9],			/* Matrix organised in [slow][fast] order */
 	double in[3]			/* Input values */
 );
+
+/* - - - - - - - - - - */
+
+/* Cusp map - used for vector clipping in Lab like spaces */
+struct _icxCuspMap {
+	double Lmax[3];	/* Maximum L* value found */
+	double Lmin[3];	/* Minimum L* value found */
+	int res;		/* Resolution of hue map */
+	double *L;		/* L* value of cusp at hue angle */
+	double *C;		/* C* value of cusp at hue angle */
+
+	/* Expand cusp map with given point */
+	void (*expand)(struct _icxCuspMap *p, double lab[3]);  
+
+	/* Return the corresponding cusp location, given the source point */
+	void (*getCusp)(struct _icxCuspMap *p,double cuspLCh[3], double srcLab[3]);  
+
+	/* We're done with CuspMap */
+	void (*del)(struct _icxCuspMap *p);  
+
+}; typedef struct _icxCuspMap icxCuspMap;
+
 
 /* - - - - - - - - - - */
 

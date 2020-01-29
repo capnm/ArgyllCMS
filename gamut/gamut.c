@@ -175,6 +175,7 @@ static int compute_vector_isect(gamut *s, double *p1, double *p2, double *min, d
 static int compute_vector_isectns(gamut *s, double *p1, double *p2, gispnt *lp, int ll); 
 static double log_scale(gamut *s, double ss);
 static int intersect(gamut *s, gamut *s1, gamut *s2);
+static int exp_cyl(gamut *s, gamut *s1, double ratio);
 static int nexpintersect(gamut *s, gamut *s1, gamut *s2);
 static int expdstbysrcmdst(gamut *s, gamut *s1, gamut *s2, gamut *s3,
                            void (*cvect)(void *cntx, double *p2, double *p1), void *cntx);
@@ -561,7 +562,8 @@ gamut *new_gamut(
 double sres,			/* Resolution (in rect coord units) of surface triangles */
 						/* 0.0 = default */
 int isJab,				/* Flag indicating Jab space */
-int isRast				/* Flag indicating Raster rather than colorspace */
+int isRast				/* Flag indicating Raster rather than colorspace, */
+						/* so that we only do one pass rather than two of surface fitting. */
 ) {
 	gamut *s;
 
@@ -658,6 +660,7 @@ int isRast				/* Flag indicating Raster rather than colorspace */
 	s->getvert     = getvert;
 	s->volume      = volume;
 	s->intersect   = intersect;
+	s->exp_cyl     = exp_cyl;
 	s->nexpintersect   = nexpintersect;
 	s->expdstbysrcmdst = expdstbysrcmdst;
 	s->radial      = radial;
@@ -1205,6 +1208,128 @@ static int intersect(gamut *s, gamut *sa, gamut *sb) {
 
 	return 0;
 }
+
+
+/* ------------------------------------ */
+
+/* Initialise this gamut with the source gamut */
+/* expanded cylindrically around the nautral axis by  */
+/* the given ratio. */
+/* (We assume that the this gamut is currently empty) */
+static int exp_cyl(gamut *s, gamut *sa, double ratio) {
+	int i, j, k;
+	double bp[3], wp[3];
+
+	if IS_LIST_EMPTY(sa->tris)
+		triangulate(sa);
+
+	s->sres = sa->sres;
+
+	s->isJab = sa->isJab;
+
+	s->isRast = sa->isRast;
+
+	if (s->isRast) {
+		s->logpow = RAST_LOG_POW;	/* Wrap the surface more closely */
+		s->no2pass = 1;				/* Only do one pass */
+	}
+
+	for (j = 0; j < 3; j++)
+		s->cent[j] = sa->cent[j];
+
+	/* Clear some flags */
+	s->cswbset = 0;
+	s->cswbset = 0;
+	s->dcuspixs = 0;
+
+	/* Copy white & black points */
+	if (sa->cswbset) {
+		for (j = 0; j < 3; j++) {
+			s->cs_wp[j] = sa->cs_wp[j];
+			s->cs_bp[j] = sa->cs_bp[j];
+			s->cs_kp[j] = sa->cs_kp[j];
+		}
+		s->cswbset = sa->cswbset;
+
+		icmCpy3(wp, s->cs_wp);
+		icmCpy3(bp, s->cs_bp);
+
+	} else {
+		wp[0] = 100.0, wp[1] = 0.0, wp[2] = 0.0;
+		bp[0] = 0.0, bp[1] = 0.0, bp[2] = 0.0;
+	}
+
+	/* Don't filter the points (gives a more accurate result) */
+	s->nofilter = 1;
+
+	/* For each vertex */
+	for (i = 0; i < sa->nv; i++) {
+		double pp[3], cp[3];
+		double vv;
+
+		if (!(sa->verts[i]->f & GVERT_TRI))
+			continue;
+
+		icmCpy3(pp, sa->verts[i]->p);		/* Point in question */
+
+		/* Parameter along neutral axis black to white */
+		vv = (pp[0] - bp[0])/(wp[0] - bp[0]);
+
+		/* lv is point at same L on neutral axis */
+		cp[0] = pp[0];
+		cp[1] = vv * (wp[1] - bp[1]) + bp[1];
+		cp[2] = vv * (wp[2] - bp[2]) + bp[2];
+
+		/* Convert to vector from neutral axis point */
+		icmSub3(pp, pp, cp);
+
+		/* Scale a,b */
+		pp[1] *= ratio;
+		pp[2] *= ratio;
+
+		/* Convert back to point */
+		icmAdd3(pp, pp, cp);
+
+		expand_gamut(s, pp);
+	}
+
+	/* Copy and expand cusps */
+	if (sa->cu_inited != 0) {
+		/* For each cusp */
+		for (i = 0; i < 6; i++) {
+			double pp[3], cp[3];
+			double vv;
+	
+			icmCpy3(pp, sa->cusps[i]);
+	
+			/* Parameter along neutral axis black to white */
+			vv = (pp[0] - bp[0])/(wp[0] - bp[0]);
+	
+			/* lv is point at same L on neutral axis */
+			cp[0] = pp[0];
+			cp[1] = vv * (wp[1] - bp[1]) + bp[1];
+			cp[2] = vv * (wp[2] - bp[2]) + bp[2];
+	
+			/* Convert to vector from neutral axis point */
+			icmSub3(pp, pp, cp);
+	
+			/* Scale a,b */
+			pp[1] *= ratio;
+			pp[2] *= ratio;
+	
+			/* Convert back to point */
+			icmAdd3(pp, pp, cp);
+
+			icmCpy3(s->cusps[i], pp);
+		}
+		s->cu_inited = sa->cu_inited;
+	}
+
+	s->nofilter = 0;
+
+	return 0;
+}
+
 
 /* ------------------------------------ */
 
@@ -4534,8 +4659,10 @@ double *gakp
 	}
 //printf("~1 colorspace white %f %f %f, black %f %f %f, kblack %f %f %f\n", s->cs_wp[0], s->cs_wp[1], s->cs_wp[2], s->cs_bp[0], s->cs_bp[1], s->cs_bp[2], s->cs_kp[0],s->cs_kp[1],s->cs_kp[2]);
 	
-	if (gawp != NULL || gabp != NULL) {
+	if (gawp != NULL || gabp != NULL || gakp != NULL) {
 //printf("~1 computing gamut white & black\n");
+		if (s->nv == 0)
+			return 1;
 		compgawb(s);		/* make sure we have gamut white/black available */
 	}
 

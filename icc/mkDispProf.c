@@ -10,7 +10,7 @@
  * Copyright 2006 - 2014 Graeme W. Gill
  *
  * This material is licensed with an "MIT" free use license:-
- * see the License.txt file in this directory for licensing details.
+ * see the License4.txt file in this directory for licensing details.
  *
  * Based on icc/lutest.c
  */
@@ -267,7 +267,7 @@ char *argv[]
 
 			/* Convert to D50 adapated */
 			icmAry2XYZ(white, wrgb[0]);
-			wr_icco->chromAdaptMatrix(wr_icco, ICM_CAM_NONE, icmD50, white, fromAbs);
+			wr_icco->chromAdaptMatrix(wr_icco, ICM_CAM_NONE, NULL, fromAbs, icmD50, white);
 			icmMulBy3x3(d50m[0], fromAbs, mat[0]);
 			icmMulBy3x3(d50m[1], fromAbs, mat[1]);
 			icmMulBy3x3(d50m[2], fromAbs, mat[2]);

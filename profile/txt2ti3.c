@@ -45,6 +45,8 @@
 #include "numlib.h"
 #include "ui.h"
 
+static int trans(char *dst, char *src);
+
 void
 usage(char *mes) {
 	fprintf(stderr,"Convert Gretag/Logo or X-Rite ColorPport raw RGB or CMYK device profile data to Argyll CGATS data, Version %s\n",ARGYLL_VERSION_STR);
@@ -57,6 +59,7 @@ usage(char *mes) {
 	fprintf(stderr," -l limit      set ink limit, 0 - 400%% (default max in file)\n");
 	fprintf(stderr," -d            Set type of device as Display, not Output\n");
 	fprintf(stderr," -i            Set type of device as Input, not Output\n");
+	fprintf(stderr," -T            Transpose sample name Letters and Numbers\n");
 	fprintf(stderr," [devfile]     Input Device CMYK target file (typically file.txt)\n");
 	fprintf(stderr," infile        Input CIE, Spectral or Device & Spectral file (typically file.txt)\n");
 	fprintf(stderr," [specfile]    Input Spectral file (typically file.txt)\n");
@@ -72,11 +75,13 @@ int main(int argc, char *argv[])
 	int out2 = 0;			/* Create dumy .ti2 file output */
 	int disp = 0;			/* nz if this is a display device */
 	int inp = 0;			/* nz if this is an input device */
+	int transpose = 0;		/* nz to transpose letters and numbers */
 	static char devname[MAXNAMEL+1] = { 0 };		/* Input CMYK/Device .txt file (may be null) */
 	static char ciename[MAXNAMEL+1] = { 0 };		/* Input CIE .txt file (may be null) */
 	static char specname[MAXNAMEL+1] = { 0 };		/* Input Device / Spectral .txt file */
 	static char outname[MAXNAMEL+9] = { 0 };		/* Output cgats .ti3 file base name */
 	static char outname2[MAXNAMEL+9] = { 0 };		/* Output cgats .ti2 file base name */
+	int ti;					/* Temporary field index */
 	cgats *cmy = NULL;		/* Input RGB/CMYK reference file */
 	int f_id1 = -1, f_c, f_m, f_y, f_k = 0;	/* Field indexes */
 	double dev_scale = 1.0;	/* Device value scaling */
@@ -91,6 +96,7 @@ int main(int argc, char *argv[])
 	time_t clk = time(0);
 	struct tm *tsp = localtime(&clk);
 	char *atm = asctime(tsp); /* Ascii time */
+	char *devcalstd = NULL;		/* X-Rite calibration standard if any */
 	int islab = 0;			/* CIE is Lab rather than XYZ */
 	int specmin = 0, specmax = 0, specnum = 0;	/* Min and max spectral in nm, inclusive */
 	int npat = 0;			/* Number of patches */
@@ -142,6 +148,9 @@ int main(int argc, char *argv[])
 			} else if (argv[fa][1] == 'i') {
 				disp = 0;
 				inp = 1;
+
+			} else if (argv[fa][1] == 'T') {
+				transpose = 1;
 
 			} else if (argv[fa][1] == 'v')
 				verb = 1;
@@ -309,6 +318,9 @@ int main(int argc, char *argv[])
 	 && cmy->t[0].ftype[f_id2] != i_t)
 		error("Field SampleName (%s) from cie file '%s' is wrong type",ncie->t[0].fsym[f_id2],ciename);
 
+	if ((ti = ncie->find_kword(ncie, 0, "DEVCALSTD")) >= 0)
+		devcalstd = ncie->t[0].kdata[ti];
+
 	if (ncie->find_field(ncie, 0, "XYZ_X") < 0
 	 && ncie->find_field(ncie, 0, "LAB_L") < 0) {
 
@@ -359,7 +371,7 @@ int main(int argc, char *argv[])
 
 	/* Open up the input Spectral device data file */
 	if (specname[0] != '\000') {
-		char bufs[5][50];
+		char bufs[6][50];
 
 		spec = new_cgats();	/* Create a CGATS structure */
 		spec->add_other(spec, "LGOROWLENGTH"); 	/* Gretag/Logo Target file */
@@ -390,12 +402,14 @@ int main(int argc, char *argv[])
 			sprintf(bufs[2],"SPECTRAL_NM_%03d", specmin);
 			sprintf(bufs[3],"R_%03d", specmin);
 			sprintf(bufs[4],"SPECTRAL_%03d", specmin);
+			sprintf(bufs[5],"SPECTRAL_NM%03d", specmin);
 
 			if (spec->find_field(spec, 0, bufs[0]) < 0
 			 && spec->find_field(spec, 0, bufs[1]) < 0
 			 && spec->find_field(spec, 0, bufs[2]) < 0
 			 && spec->find_field(spec, 0, bufs[3]) < 0
-			 && spec->find_field(spec, 0, bufs[4]) < 0)	/* Not found */
+			 && spec->find_field(spec, 0, bufs[4]) < 0
+			 && spec->find_field(spec, 0, bufs[5]) < 0)	/* Not found */
 			break;
 		}
 		specmin += 10;
@@ -405,12 +419,14 @@ int main(int argc, char *argv[])
 			sprintf(bufs[2],"SPECTRAL_NM_%03d", specmax);
 			sprintf(bufs[3],"R_%03d", specmax);
 			sprintf(bufs[4],"SPECTRAL_%03d", specmax);
+			sprintf(bufs[5],"SPECTRAL_NM%03d", specmax);
 
 			if (spec->find_field(spec, 0, bufs[0]) < 0
 			 && spec->find_field(spec, 0, bufs[1]) < 0
 			 && spec->find_field(spec, 0, bufs[2]) < 0
 			 && spec->find_field(spec, 0, bufs[3]) < 0
-			 && spec->find_field(spec, 0, bufs[4]) < 0) /* Not found */
+			 && spec->find_field(spec, 0, bufs[4]) < 0
+			 && spec->find_field(spec, 0, bufs[5]) < 0) /* Not found */
 			break;
 		}
 		specmax -= 10;
@@ -419,6 +435,8 @@ int main(int argc, char *argv[])
 			spec->del(spec);
 			spec = NULL;
 			specname[0] = '\000';
+			if (verb)
+				printf("Not enough (%d) spectral values - discarding spectral\n",specnum);
 		} else {
 
 			specnum = (specmax - specmin)/10 + 1;
@@ -434,12 +452,14 @@ int main(int argc, char *argv[])
 				sprintf(bufs[2],"SPECTRAL_NM_%03d", specmin + 10 * j);
 				sprintf(bufs[3],"R_%03d", specmin + 10 * j);
 				sprintf(bufs[4],"SPECTRAL_%03d", specmin + 10 * j);
+				sprintf(bufs[5],"SPECTRAL_NM%03d", specmin + 10 * j);
 	
 				if ((spi[j] = spec->find_field(spec, 0, bufs[0])) < 0
 				 && (spi[j] = spec->find_field(spec, 0, bufs[1])) < 0
 				 && (spi[j] = spec->find_field(spec, 0, bufs[2])) < 0
 				 && (spi[j] = spec->find_field(spec, 0, bufs[3])) < 0
-				 && (spi[j] = spec->find_field(spec, 0, bufs[4])) < 0) {	/* Not found */
+				 && (spi[j] = spec->find_field(spec, 0, bufs[4])) < 0
+				 && (spi[j] = spec->find_field(spec, 0, bufs[5])) < 0) {	/* Not found */
 					
 					spec->del(spec);
 					spec = NULL;
@@ -477,10 +497,13 @@ int main(int argc, char *argv[])
 	/* Assume this - could try reading from file INSTRUMENTATION "SpectroScan" ?? */
 	ocg->add_kword(ocg, 0, "TARGET_INSTRUMENT", inst_name(instSpectrolino) , NULL);
 
+	if (devcalstd != NULL)
+		ocg->add_kword(ocg, 0, "DEVCALSTD", devcalstd, NULL);
+
 	/* Fields we want */
 	ocg->add_field(ocg, 0, "SAMPLE_ID", nqcs_t);
 	if (f_id1 >= 0) 
-		ocg->add_field(ocg, 0, "SAMPLE_NAME", cs_t);
+		ocg->add_field(ocg, 0, "SAMPLE_LOC", cs_t);
 
 	if (ndchan == 3) {
 		ocg->add_field(ocg, 0, "RGB_R", r_t);
@@ -606,6 +629,7 @@ int main(int argc, char *argv[])
 		/* Write out the patch info to the output CGATS file */
 		for (i = 0; i < npat; i++) {
 			char id[100];
+			char loc[100];
 			int k = 0;
 
 			if (ncie != NULL) {
@@ -631,8 +655,15 @@ int main(int argc, char *argv[])
 			setel[k++].c = id;
 
 			/* SAMPLE NAME */
-			if (f_id1 >= 0) 
-				setel[k++].c = (char *)cmy->t[0].rfdata[i][f_id1];
+			if (f_id1 >= 0) { 
+				strcpy(loc, (char *)cmy->t[0].rfdata[i][f_id1]);
+
+				/* Transpose Letters and Numbers */
+				if (transpose)
+					trans(loc, (char *)cmy->t[0].rfdata[i][f_id1]);
+
+				setel[k++].c = loc;
+			}
 			
 			if (ndchan == 3) {
 				setel[k++].d = dev_scale * *((double *)cmy->t[0].fdata[i][f_c]);
@@ -828,4 +859,88 @@ int main(int argc, char *argv[])
 }
 
 
+/* Transpose Letters and Numbers of location */
+/* return nz on error */
+static int trans(char *dst, char *src) {
+	int tt = 0, first = 0, second = 0;		/* 1..n */
+	char *c, *d;		/* Dividing point */
+
+//printf("\nGot '%s'\n",src);
+	d = src;
+
+	if (*d == '\000')
+		return 1; 
+
+	if ((*d >= 'A' && *d <= 'Z')
+	 || (*d >= 'a' && *d <= 'z'))
+		tt = 1;						// Initial is letters
+	else
+		tt = 0;
+//printf("Initial is %s\n",tt ? "letters" : "numbers");
+
+	for (; ; d++) {
+		if (*d == '\000') {
+//printf("Failed to find division\n");
+			return 1;
+		}
+		if (tt && *d >= '0' && *d <= '9') {
+//printf("Found number at offset %d\n",d - src);
+			break;
+
+		} else if (!tt && ((*d >= 'A' && *d <= 'Z')
+			            || (*d >= 'a' && *d <= 'z'))) {
+//printf("Found letter at offset %d\n",d - src);
+			break;
+		}
+	}
+
+
+//printf("2nd seg = '%s'\n",d);
+
+	for (c = src; c < d; c++) {
+		if (tt) {
+			if (*c >= 'A' && *c <= 'Z')
+				first = first * 26 + (*c - 'A' + 1);
+			else
+				first = first * 26 + (*c - 'a' + 1);
+		} else {
+				first = first * 10 + (*c - '0');
+		}
+	}
+	for (; *c != '\000'; c++) {
+		if (!tt) {
+			if (*c >= 'A' && *c <= 'Z')
+				second = second * 26 + (*c - 'A' + 1);
+			else
+				second = second * 26 + (*c - 'a' + 1);
+		} else {
+				second = second * 10 + (*c - '0');
+		}
+	}
+//printf("First = %d, second = %d\n",first,second);
+
+	c = dst;
+	if (tt) {		/* Output letters */
+		if (second > 26) {
+			*c++ = 'A' + ((second-1) / 26) -1;
+			second = ((second-1) % 26) + 1;
+		}
+		*c++ = 'A' + second -1;
+	} else {		/* Output letters */
+		c += sprintf(c, "%d",second);
+	}
+	if (tt) {		/* Output letters */
+		c += sprintf(c, "%d",first);
+	} else {		/* Output numbers */
+		if (first > 26) {
+			*c++ = 'A' + ((first-1) / 26) -1;
+			first = ((first-1) % 26) + 1;
+		}
+		*c++ = 'A' + first -1;
+	}
+	*c = '\000';
+//printf("Output '%s'\n",dst);
+
+	return 0;
+}
 

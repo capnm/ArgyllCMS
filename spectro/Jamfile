@@ -127,7 +127,7 @@ if $(USE_DEMOINST) = true && [ GLOB [ NormPaths . ] : demoinst.c ] {
 	INST_SRCS += demoinst.c ;
 }
 
-Library libinst : inst.c insttypes.c icoms.c disptechs.c rspec.c $(INST_SRCS) ;
+Library libinst : inst.c insttypes.c icoms.c disptechs.c rspec.c xrga.c $(INST_SRCS) ;
 
 # Display access library 
 ObjectKeep mongoose.c ;

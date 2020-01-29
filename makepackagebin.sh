@@ -3,6 +3,9 @@ echo "Script to invoke Jam and then package the binary release."
 
 # Must use this rather than "jam -q" to ensure builtin libraries are used.
 
+# Set the environment string VERSION from the #define, ie 1.0.0
+VERSION=`grep ARGYLL_VERSION_STR h/aconfig.h | head -1 | sed 's/# define ARGYLL_VERSION_STR //' | sed 's/"//g'`
+
 #   Typical environment variables:
 #   (NOTE some systems don't export these ENV vars. by default !!!)
 #
@@ -33,10 +36,7 @@ echo "Script to invoke Jam and then package the binary release."
 #   FreeBSD 9.1 64 bit [bash]       freebsd9.1   amd64-portbld-freebsd9.1 amd64
 #
 
-# Set the environment string VERSION from the #define, ie 1.0.0
-VERSION=`grep ARGYLL_VERSION_STR h/aconfig.h | sed 's/#define ARGYLL_VERSION_STR //' | sed 's/"//g'`
-
-echo "About to make Argyll binary distribution"
+echo "About to make Argyll binary distribution $VERSION"
 
 TOPDIR=Argyll_V$VERSION
 
@@ -47,6 +47,7 @@ fi
 
 # Make sure that some environment variable are visible to Jam:
 export OSTYPE MACHTYPE HOSTTYPE
+unset USETARPREFIX
 
 # .sp come from profile, .cht from scanin and .ti3 from spectro
 rm -f bin/*.exe bin/*.dll
@@ -104,6 +105,7 @@ else if [ X$OSTYPE = "Xdarwin10.0" \
 	USBDIRS="usb"
 	USBBINFILES="binfiles.osx"
 	USETAR=true
+	USETARPREFIX=true
 else if [ X$OSTYPE = "Xlinux-gnu" ] ; then
 	if [[ "$MACHTYPE" = x86_64-*-linux-gnu ]] ; then
 		echo "We're on Linux x86_64!"
@@ -160,7 +162,12 @@ done
 # Create the package
 rm -f $PACKAGE
 if [ X$USETAR = "Xtrue" ] ; then
-	tar -czvf $PACKAGE $TOPDIR
+	if [ X$USETARPREFIX = "Xtrue" ] ; then
+		# Don't save ._* files...
+		COPYFILE_DISABLE=1 tar -czvf $PACKAGE $TOPDIR
+	else
+		tar -czvf $PACKAGE $TOPDIR
+	fi
 	# tar -xzf to extract
 	# tar -tzf to list
 	# Should we use "COPYFILE_DISABLE=1 tar .." on OS X ??

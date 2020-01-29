@@ -1138,8 +1138,7 @@ int *cbid) {
  * error if it hasn't been initialised.
  */
 static inst_code
-colorhug_get_set_opt(inst *pp, inst_opt_type m, ...)
-{
+colorhug_get_set_opt(inst *pp, inst_opt_type m, ...) {
 	colorhug *p = (colorhug *)pp;
 	inst_code ev = inst_ok;
 
@@ -1184,7 +1183,17 @@ colorhug_get_set_opt(inst *pp, inst_opt_type m, ...)
 		return colorhug_set_LEDs(p, mask);
 	}
 
-	return inst_unsupported;
+	/* Use default implementation of other inst_opt_type's */
+	{
+		inst_code rv;
+		va_list args;
+
+		va_start(args, m);
+		rv = inst_get_set_opt_def(pp, m, args);
+		va_end(args);
+
+		return rv;
+	}
 }
 
 /* Constructor */
