@@ -76,6 +76,7 @@
 #include "sa_config.h"
 #include "numsup.h"
 #endif /* SALONEINSTLIB */
+#include "cgats.h"
 #include "xspect.h"
 #include "insttypes.h"
 #include "conv.h"
@@ -223,7 +224,7 @@ ss_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 			ss_command(p, SH_TMO);
 			
 			if (ss_sub_1(p) == ss_AnsPFX) {				/* Got comms */
-				p->itype = instSpectroScan;				/* Preliminary */
+				p->dtype = instSpectroScan;				/* Preliminary */
 				break;
 			}
 
@@ -233,7 +234,7 @@ ss_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 			ss_command(p, SH_TMO);
 			
 			if (ss_sub_1(p) == ss_ParameterAnswer) {	/* Got comms */
-			 	p->itype = instSpectrolino;
+			 	p->dtype = instSpectrolino;
 				break;
 			}
 			
@@ -259,7 +260,7 @@ ss_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 	a1logd(p->log, 4, "ss_init_coms: got basic communications\n");
 
 	/* Finalise the communications */
-	if (p->itype == instSpectrolino) {
+	if (p->dtype == instSpectrolino) {
 
 		if ((ev = so_do_MeasControlDownload(p, fcc1)) != inst_ok)
 			return ev;
@@ -326,7 +327,7 @@ ss_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 	a1logd(p->log, 4, "ss_init_coms: establish communications\n");
 
 	/* See if we have a Spectroscan or SpectroscanT, and get other details */
-	p->itype = instUnknown;
+	p->dtype = instUnknown;
 	{
 		char devn[19];
 
@@ -335,9 +336,9 @@ ss_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 		if (ev == inst_ok) {
 			a1logd(p->log, 5, "ss_init_coms: got device name '%s'\n",devn);
 			if (strncmp(devn, "SpectroScanT",12) == 0) {
-				p->itype = instSpectroScanT;
+				p->dtype = instSpectroScanT;
 			} else if (strncmp(devn, "SpectroScan",11) == 0) {
-				p->itype = instSpectroScan;
+				p->dtype = instSpectroScan;
 			}
 		}
 	}
@@ -363,8 +364,8 @@ ss_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 			  || strncmp(devn, "Spectrolino",11) != 0)
 				return inst_unknown_model;
 	
-			if (p->itype == instUnknown)	/* No SpectroScan */
-			 	p->itype = instSpectrolino;
+			if (p->dtype == instUnknown)	/* No SpectroScan */
+			 	p->dtype = instSpectrolino;
 		}
 	}
 	
@@ -390,15 +391,15 @@ static void ss_determine_capabilities(ss *p) {
 	       | inst_mode_spectral
 	       ;
 
-	if (p->itype == instSpectrolino) {
+	if (p->dtype == instSpectrolino) {
 		p->cap |= inst_mode_trans_spot;		/* Support this manually using a light table */
 	}
 
-	if (p->itype == instSpectroScan
-	 || p->itype == instSpectroScanT)	/* Only in reflective mode */
+	if (p->dtype == instSpectroScan
+	 || p->dtype == instSpectroScanT)	/* Only in reflective mode */
 		p->cap |= inst_mode_ref_xy;
 
-	if (p->itype == instSpectroScanT) {
+	if (p->dtype == instSpectroScanT) {
 		p->cap |= inst_mode_trans_spot;
 	}
 
@@ -408,8 +409,8 @@ static void ss_determine_capabilities(ss *p) {
 	        | inst2_user_switch_trig
 	        ;
 
-	if (p->itype == instSpectroScan
-	 || p->itype == instSpectroScanT) {
+	if (p->dtype == instSpectroScan
+	 || p->dtype == instSpectroScanT) {
 		/* These are not available in transmission mode */
 		if ((p->mode & inst_mode_illum_mask) != inst_mode_transmission) {
 			p->cap2 |= inst2_xy_holdrel
@@ -451,10 +452,10 @@ ss_init_inst(inst *pp) {
 	}
 
 	/* Reset the instrument to a known state */
-	if (p->itype != instSpectrolino) { 
+	if (p->dtype != instSpectrolino) { 
 		
 		/* Initialise the device without resetting the baud rate */
-		if (p->itype == instSpectroScanT) {
+		if (p->dtype == instSpectroScanT) {
 			if ((rv = ss_do_SetTableMode(p, ss_tmt_Reflectance)) != inst_ok)
 				return rv; 
 		}
@@ -726,8 +727,8 @@ ipatch *vals) { 		/* Pointer to array of values */
 	if (!p->inited)
 		return inst_no_init;
 
-	if (p->itype != instSpectroScan
-	 && p->itype != instSpectroScanT)
+	if (p->dtype != instSpectroScan
+	 && p->dtype != instSpectroScanT)
 		return inst_unsupported;
 
 	/* Move quickest in X direction to minimise noise, */
@@ -1044,7 +1045,7 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 				break;
 			}
 			/* If SpectroScanT transmission, poll the enter key */
-			if (p->itype == instSpectroScanT
+			if (p->dtype == instSpectroScanT
 			 && (p->mode & inst_mode_illum_mask) == inst_mode_transmission) {
 				ss_sks sk;
 				ss_ptt pt;
@@ -1117,14 +1118,14 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 
 		/* For the spectroscan, make sure the instrument is on line, */
 		/* since it may be off line to allow the user to position it. */
-		if (p->itype != instSpectrolino && p->offline) {
+		if (p->dtype != instSpectrolino && p->offline) {
 			if ((rv = p->xy_locate_end((inst *)p)) != inst_ok)
 				return rv;
 		}
 
 		/* For reflection spot mode on a SpectroScan, lower the head. */
 		/* (A SpectroScanT in transmission will position automatically) */
-		if (p->itype != instSpectrolino
+		if (p->dtype != instSpectrolino
 		 && (p->mode & inst_mode_illum_mask) != inst_mode_transmission) {
 			if ((rv = ss_do_MoveDown(p)) != inst_ok)
 					return rv;
@@ -1139,7 +1140,7 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 
 		/* For reflection spot mode on a SpectroScan, raise the head. */
 		/* (A SpectroScanT in transmission will position automatically) */
-		if (p->itype != instSpectrolino
+		if (p->dtype != instSpectrolino
 		 && (p->mode & inst_mode_illum_mask) != inst_mode_transmission) {
 			if ((rv = ss_do_MoveUp(p)) != inst_ok)
 					return rv;
@@ -1153,7 +1154,7 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 
 	/* Emulated spot transmission mode: */
 	if ((p->mode & inst_mode_illum_mask) == inst_mode_transmission
-	 && p->itype == instSpectrolino) {
+	 && p->dtype == instSpectrolino) {
 		ss_st rst;		/* Return Spectrum Type (Reflectance/Density) */
 		ss_rvt rvf;		/* Return Reference Valid Flag */
 		ss_aft af;		/* Return filter being used (None/Pol/D65/UV/custom */
@@ -1376,7 +1377,7 @@ static inst_code ss_get_n_a_cals(inst *pp, inst_cal_type *pn_cals, inst_cal_type
 	inst_cal_type a_cals = inst_calt_none;
 		
 	if ((p->mode & inst_mode_illum_mask) == inst_mode_transmission) {
-		if (p->itype == instSpectrolino) {		/* Emulated transmission */
+		if (p->dtype == instSpectrolino) {		/* Emulated transmission */
 			if (p->need_wd_cal && p->noinitcalib == 0)
 				n_cals |= inst_calt_ref_white;
 			a_cals |= inst_calt_ref_white;
@@ -1464,7 +1465,7 @@ char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 			p->filt = ss_aft_NoFilter;	/* Need no filter for emission */
 	
 		/* Set mode to reflection as a default for calibration */
-		if (p->itype == instSpectroScanT) {
+		if (p->dtype == instSpectroScanT) {
 			if ((rv = ss_do_SetTableMode(p, ss_tmt_Reflectance)) != inst_ok)
 				return rv;
 		} else {
@@ -1484,7 +1485,7 @@ char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 		if (p->noinitcalib == 0) {
 
 			/* Make sure we're in a condition to do the calibration */
-			if (p->itype == instSpectrolino
+			if (p->dtype == instSpectrolino
 			 && (*calc & inst_calc_cond_mask) != inst_calc_man_ref_white) {
 				*calc = inst_calc_man_ref_white;
 				a1logd(p->log, 3, "ss cal need cond. inst_calc_man_ref_white and haven't got it\n");
@@ -1496,7 +1497,7 @@ char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 
 				a1logd(p->log, 3, "ss cal doing white reflective cal\n");
 				/* For SpectroScan, move to the white reference in slot 1 and lower */
-				if (p->itype != instSpectrolino) {
+				if (p->dtype != instSpectrolino) {
 					if ((rv = ss_do_MoveToWhiteRefPos(p, ss_wrpt_RefTile1)) != inst_ok)
 						return rv;
 					if ((rv = ss_do_MoveDown(p)) != inst_ok)
@@ -1510,7 +1511,7 @@ char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 				rv = inst_ok;
 
 				/* For SpectroScan, raise */
-				if (p->itype != instSpectrolino) {
+				if (p->dtype != instSpectrolino) {
 					if ((rv = ss_do_MoveUp(p)) != inst_ok)
 						return rv;
 				}
@@ -1541,7 +1542,7 @@ char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 			/* Emission or spot transmission mode, dark calibration. */
 			if ((p->mode & inst_mode_illum_mask) == inst_mode_emission
 			 || ((p->mode & inst_mode_illum_mask) == inst_mode_transmission
-			     && p->itype == instSpectrolino)) {
+			     && p->dtype == instSpectrolino)) {
 					a1logd(p->log, 3, "emmission/transmission dark calibration:\n");
 					/* Set emission mode */
 					if ((rv = so_do_MeasControlDownload(p, ss_ctt_EmissionMeas)) != inst_ok)
@@ -1563,7 +1564,7 @@ char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 		/* Restore the instrument to the desired mode */
 		/* SpectroScanT - Transmission mode, set transmission mode. */
 		if ((p->mode & inst_mode_illum_mask) == inst_mode_transmission
-		     && p->itype == instSpectroScanT) {
+		     && p->dtype == instSpectroScanT) {
 
 			if ((p->mode & inst_mode_illum_mask) == inst_mode_transmission) {
 				if ((rv = ss_do_SetTableMode(p, ss_tmt_Transmission)) != inst_ok)
@@ -1584,7 +1585,7 @@ char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 
 		a1logd(p->log, 3, "ss cal need trans with calt = trans_white\n");
 		/* Emulated spot transmission using spectrolino */
-		if ((*calt & inst_calt_trans_vwhite) && p->itype == instSpectrolino) {
+		if ((*calt & inst_calt_trans_vwhite) && p->dtype == instSpectrolino) {
 			ss_st rst;		/* Return Spectrum Type (Reflectance/Density) */
 			ss_rvt rvf;		/* Return Reference Valid Flag */
 			ss_aft af;		/* Return filter being used (None/Pol/D65/UV/custom */
@@ -1631,7 +1632,7 @@ char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 			a1logd(p->log, 3, "transmission lino cal done\n");
 
 		/* SpectroScanT */
-		} else if ((*calt & inst_calt_trans_white) && p->itype != instSpectrolino) {
+		} else if ((*calt & inst_calt_trans_white) && p->dtype != instSpectrolino) {
 			/* Hmm. Should we really return a message and resume somehow, */
 			/* rather than communicating directly with the user... */
 
@@ -2154,7 +2155,7 @@ ss_del(inst *pp) {
 	ss *p = (ss *)pp;
 
 	if (p->inited
-	 && p->itype == instSpectroScanT
+	 && p->dtype == instSpectroScanT
 	 && (p->mode & inst_mode_illum_mask) == inst_mode_transmission) {
 		ss_do_SetDeviceOnline(p);
 		ss_do_SetTableMode(p, ss_tmt_Reflectance);
@@ -2175,7 +2176,7 @@ ss_del(inst *pp) {
 }
 
 /* Constructor */
-extern ss *new_ss(icoms *icom, instType itype) {
+extern ss *new_ss(icoms *icom, instType dtype) {
 	ss *p;
 	if ((p = (ss *)calloc(sizeof(ss),1)) == NULL) {
 		a1loge(icom->log, 1, "new_ss: malloc failed!\n");
@@ -2209,7 +2210,7 @@ extern ss *new_ss(icoms *icom, instType itype) {
 
 	/* Init state */
 	p->icom = icom;
-	p->itype = itype;
+	p->dtype = dtype;
 	p->cap = inst_mode_none;				/* Unknown until initialised */
 	p->mode = inst_mode_none;				/* Not in a known mode yet */
 	p->nextmode = inst_mode_none;			/* Not in a known mode yet */

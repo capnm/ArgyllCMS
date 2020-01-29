@@ -70,7 +70,8 @@ static void cs2xyz(vrml *s, double *out, double *in) {
 } 
 
 /* Add a sphere at the given location, with transparency. */
-/* if col[] is NULL, use natural color. */
+/* If col[] is NULL, use natural color. */
+/* rad is in normalized delta E scale units */
 /* Need to do this before or after start_line_set()/dd_vertex()/make_lines() ! */
 static void add_marker_trans(vrml *s, double pos[3], double col[3], double trans, double rad) {
 	double rgb[3], xyz[3];
@@ -97,7 +98,7 @@ static void add_marker_trans(vrml *s, double pos[3], double col[3], double trans
 		fprintf(s->fp,"    Transform { translation %f %f %f\n", xyz[0], xyz[1], xyz[2]);
 		fprintf(s->fp,"      children [\n");
 		fprintf(s->fp,"        Shape{\n");
-		fprintf(s->fp,"          geometry Sphere { radius %f }\n", s->scale * rad);
+		fprintf(s->fp,"          geometry Sphere { radius %f }\n", rad);
 		fprintf(s->fp,"          appearance Appearance { material Material { \n");
 		if (trans > 0.0) {
 			fprintf(s->fp,"              transparency %f, \n",trans);
@@ -119,7 +120,7 @@ static void add_marker_trans(vrml *s, double pos[3], double col[3], double trans
 			fprintf(s->fp,"          <Material diffuseColor='%f %f %f'></Material>\n", rgb[0], rgb[1], rgb[2]);
 		}
 		fprintf(s->fp,"        </Appearance>\n");
-		fprintf(s->fp,"        <Sphere radius='%f'></Sphere>\n",s->scale * rad);
+		fprintf(s->fp,"        <Sphere radius='%f'></Sphere>\n",rad);
 		fprintf(s->fp,"      </Shape>\n");
 		fprintf(s->fp,"    </Transform>\n");
 	}
@@ -127,6 +128,7 @@ static void add_marker_trans(vrml *s, double pos[3], double col[3], double trans
 
 /* Add a sphere at the given location. */
 /* if col[] is NULL, use natural color. */
+/* rad is in normalized delta E scale units */
 /* Need to do this before or after start_line_set()/dd_vertex()/make_lines() ! */
 /* (Hasn't been fixed to work in RGB space) */
 static void add_marker(vrml *s, double pos[3], double col[3], double rad) {
@@ -134,6 +136,7 @@ static void add_marker(vrml *s, double pos[3], double col[3], double rad) {
 }
 
 /* Add a cone marker to the plot. col == NULL for natural color  */
+/* rad is in normalized delta E scale units */
 /* Need to do this before or after start_line_set()/dd_vertex()/make_lines() ! */
 static void add_cone(vrml *s, double pp0[3], double pp1[3], double col[3], double rad) {
 	double rgb[3];
@@ -232,7 +235,7 @@ static void add_cone(vrml *s, double pp0[3], double pp1[3], double col[3], doubl
 			fprintf(s->fp,"      translation %f %f %f\n",loc[1], loc[2], loc[0]);
 			fprintf(s->fp,"      children [\n");
 			fprintf(s->fp,"		Shape { \n");
-			fprintf(s->fp,"		 geometry Cone { bottomRadius %f height %f }\n",s->scale * rad,len);
+			fprintf(s->fp,"		 geometry Cone { bottomRadius %f height %f }\n",rad,len);
 			fprintf(s->fp,"        appearance Appearance { material Material { diffuseColor %f %f %f } }\n",rgb[0],rgb[1],rgb[2]);
 			fprintf(s->fp,"		} \n");
 			fprintf(s->fp,"      ]\n");
@@ -246,7 +249,7 @@ static void add_cone(vrml *s, double pp0[3], double pp1[3], double col[3], doubl
 			fprintf(s->fp,"        <Appearance>\n");
 			fprintf(s->fp,"          <Material diffuseColor='%f %f %f'></Material>\n", rgb[0], rgb[1], rgb[2]);
 			fprintf(s->fp,"        </Appearance>\n");
-			fprintf(s->fp,"        <Cone bottomRadius='%f' height='%f'></Cone>\n",s->scale * rad, len);
+			fprintf(s->fp,"        <Cone bottomRadius='%f' height='%f'></Cone>\n",rad, len);
 			fprintf(s->fp,"      </Shape>\n");
 			fprintf(s->fp,"    </Transform>\n");
 		}
@@ -254,6 +257,7 @@ static void add_cone(vrml *s, double pp0[3], double pp1[3], double col[3], doubl
 }
 
 /* Add a text marker to the plot. col == NULL for natural color  */
+/* size is in normalized delta E scale units */
 /* (Need to do this before or after start_line_set()/dd_vertex()/make_lines() !) */
 static void add_text(vrml *s, char *text, double p[3], double col[3], double size) {
 	double rgb[3], xyz[3];
@@ -282,7 +286,7 @@ static void add_text(vrml *s, char *text, double p[3], double col[3], double siz
 		fprintf(s->fp,"        Shape{\n");
 		fprintf(s->fp,"          geometry Text { string [\"%s\"]\n",text);
 		fprintf(s->fp,"            fontStyle FontStyle { family \"SANS\" style \"BOLD\" size %f }\n",
-		                                                                                      s->scale * size);
+		                                                                                      size);
 		fprintf(s->fp,"                        }\n");
 		fprintf(s->fp,"          appearance Appearance { material Material ");
 		fprintf(s->fp,"{ diffuseColor %f %f %f } }\n", rgb[0], rgb[1], rgb[2]);
@@ -298,7 +302,7 @@ static void add_text(vrml *s, char *text, double p[3], double col[3], double siz
 		fprintf(s->fp,"          <Material diffuseColor='%f %f %f'></Material>\n", rgb[0], rgb[1], rgb[2]);
 		fprintf(s->fp,"        </Appearance>\n");
 		fprintf(s->fp,"        <Text string='\"%s\"'>\n",text);
-		fprintf(s->fp,"          <FontStyle family='\"SANS\"' style='BOLD' size='%f'></FontStyle>\n", s->scale * size);
+		fprintf(s->fp,"          <FontStyle family='\"SANS\"' style='BOLD' size='%f'></FontStyle>\n", size);
 		fprintf(s->fp,"        </Text>\n");
 		fprintf(s->fp,"      </Shape>\n");
 		fprintf(s->fp,"    </Transform>\n");
@@ -1432,7 +1436,6 @@ double vdist
 		s->off = 50.0;			/* z axis offset */
 	}
 
-	
 	/* Create filename with the right exension */
 	{
 		char *xl = NULL;

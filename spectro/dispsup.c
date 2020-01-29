@@ -32,9 +32,11 @@
 #include <sys/types.h>
 #include <time.h>
 #include <string.h>
+#include <ctype.h>
 #include "copyright.h"
 #include "aconfig.h"
 #include "numlib.h"
+#include "cgats.h"
 #include "xspect.h"
 #include "insttypes.h"
 #include "conv.h"

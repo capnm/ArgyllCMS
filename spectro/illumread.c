@@ -253,8 +253,8 @@ usage(char *diag, ...) {
 			for (i = 0; ; i++) {
 				if (paths[i] == NULL)
 					break;
-				if ((paths[i]->itype == instSpyder1 && setup_spyd2(0) == 0)
-				 || (paths[i]->itype == instSpyder2 && setup_spyd2(1) == 0))
+				if ((paths[i]->dtype == instSpyder1 && setup_spyd2(0) == 0)
+				 || (paths[i]->dtype == instSpyder2 && setup_spyd2(1) == 0))
 					fprintf(stderr,"    %d = '%s' !! Disabled - no firmware !!\n",i+1,paths[i]->name);
 				else
 					fprintf(stderr,"    %d = '%s'\n",i+1,paths[i]->name);
@@ -999,8 +999,8 @@ int main(int argc, char *argv[])
 					for (i = 0; ; i++) {
 						if (paths[i] == NULL)
 							break;
-						if ((paths[i]->itype == instSpyder1 && setup_spyd2(0) == 0)
-						 || (paths[i]->itype == instSpyder2 && setup_spyd2(1) == 0))
+						if ((paths[i]->dtype == instSpyder1 && setup_spyd2(0) == 0)
+						 || (paths[i]->dtype == instSpyder2 && setup_spyd2(1) == 0))
 							fprintf(stderr,"    %d = '%s' !! Disabled - no firmware !!\n",i+1,paths[i]->name);
 						else
 							fprintf(stderr,"    %d = '%s'\n",i+1,paths[i]->name);

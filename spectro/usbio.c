@@ -33,6 +33,7 @@
 #include "sa_config.h"
 #endif
 #include "numsup.h"
+#include "cgats.h"
 #include "xspect.h"
 #include "insttypes.h"
 #include "conv.h"

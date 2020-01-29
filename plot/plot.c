@@ -553,11 +553,13 @@ int zero	/* Flag - make sure zero is in y range */
 }
 
 /* Public routines */
-/* Plot up to 10 graphs + optional crosses. Wait for a key */
+/* Plot up to 10 graphs + optional crosses */
+/* if dowait > 0, wait for user key */
+/* if dowait < 0, wait for no seconds */
 /* return 0 on success, -1 on error */
 /* If n is -ve, reverse the X axis */
 int
-do_plot10p(
+do_plot10pw(
 double *x,	/* X coord */
 double *y1,	/* Black */
 double *y2,	/* Red */
@@ -571,7 +573,8 @@ double *y9,	/* Grey */
 double *y10,/* White */
 int n,		/* Number of values */
 double *xp, double *yp,		/* And crosses */
-int m) {
+int m,
+int dowait) {
 	int i, j;
 	double xmin, xmax, ymin, ymax;
 	int nn = abs(n);
@@ -588,8 +591,8 @@ int m) {
 	yy[5] = y6;
 	yy[6] = y7;
 	yy[7] = y8;
-	yy[9] = y9;
-	yy[5] = y10;
+	yy[8] = y9;
+	yy[9] = y10;
 
 	/* Determine min and max dimensions of plot */
 	xmin = ymin = 1e6;
@@ -633,10 +636,32 @@ int m) {
 		ymax += 0.5, ymin -= 0.5;
 
 	return do_plot_imp(PLOTF_NONE,
-	                   xmin, xmax, ymin, ymax, 1.0, 1,
+	                   xmin, xmax, ymin, ymax, 1.0, dowait,
 	                   x, NULL, yy, NULL, n,
 	                   xp, yp, NULL, NULL, m,
 	                   NULL, NULL, NULL, NULL, NULL, 0); 
+}
+
+/* Plot up to 10 graphs + optional crosses. Wait for a key */
+/* return 0 on success, -1 on error */
+/* If n is -ve, reverse the X axis */
+int
+do_plot10p(
+double *x,	/* X coord */
+double *y1,	/* Black */
+double *y2,	/* Red */
+double *y3,	/* Green */
+double *y4,	/* Blue */
+double *y5,	/* Yellow */
+double *y6,	/* Purple */
+double *y7,	/* Brown */
+double *y8,	/* Orange */
+double *y9,	/* Grey */
+double *y10,/* White */
+int n,		/* Number of values */
+double *xp, double *yp,		/* And crosses */
+int m) {
+	return do_plot10pw(x, y1, y2, y3, y4, y5, y6, y7, y8, y9, y10, n, xp, yp, m, 1);
 }
 
 

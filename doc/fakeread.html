@@ -37,6 +37,8 @@
 
 
 
+
+
       </span><i style="font-family: monospace;">inoutfile</i></small><small><span
         style="font-family: monospace;"><br>
         &nbsp;-v
@@ -50,9 +52,13 @@
 
 
 
+
+
         normal 0..1 full range RGB levels (default)<br>
         &nbsp;&nbsp;&nbsp;&nbsp;
         t&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -62,9 +68,13 @@
 
 
 
+
+
         Rec601 YCbCr SD (16-235,240)/255 "TV" levels<br>
         &nbsp;&nbsp;&nbsp;&nbsp;
         7&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -74,15 +84,21 @@
 
 
 
+
+
         Rec709 1250/50Hz YCbCr HD (16-235,240)/255 "TV" levels<br>
         &nbsp;&nbsp;&nbsp;&nbsp;
         2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
+
+
         Rec2020 YCbCr UHD (16-235,240)/255 "TV" levels<br>
         &nbsp;&nbsp;&nbsp;&nbsp;
         C&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -97,6 +113,8 @@
         style="font-family: monospace;"><small><span style="font-family:
             monospace;">Quantize test values to fit in nbits<br>
           </span></small>&nbsp;-k <i>file.cal</i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -131,8 +149,12 @@
 
 
 
+
+
         Output Lab rather than XYZ<br>
         &nbsp;-s&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -148,11 +170,16 @@
 
 
 
+
+
         Make random deviations have uniform distributions rather than
         normal<br>
         &nbsp;-S
         seed&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         Set random seed<br>
+        &nbsp;-U&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+        Reverse convert PCS to device, output_r.ti3<br>
       </span><span style="font-family: monospace;">&nbsp;</span><i
         style="font-family: monospace;">profile.</i><span
         style="font-family: monospace;">[icm|mpp|ti3] &nbsp; &nbsp; </span><a
@@ -173,9 +200,13 @@
 
 
 
+
+
         &nbsp; Base name for input[</span><a style="font-family:
-        monospace;" href="File_Formats.html#.ti1">.ti1</a><span
-        style="font-family: monospace;">]/output[</span><a
+        monospace;" href="File_Formats.html#.ti1">.ti1</a></small><small><span
+        style="font-family: monospace;"><small><a style="font-family:
+            monospace;" href="File_Formats.html#.ti3"></a><span
+            style="font-family: monospace;"></span></small>]/output[</span><a
         style="font-family: monospace;" href="File_Formats.html#.ti3">.ti3</a><span
         style="font-family: monospace;">] file</span></small><br>
     <b><br>
@@ -225,6 +256,8 @@
 
 
 
+
+
     <a href="#e"><b>-e</b></a> for the list of decodings. Setting a
     video encoding for output will also set quantization of 8 bits (see
     -Z flag below). If your video connection is better than 8 bits (ie.
@@ -239,13 +272,12 @@
     quantization to be specified. The parameter is the number of binary
     digits (bits) that the device values should be quantized to. An idea
     of the number of bits of precision that makes its way to your
-    display can be obtained by using <a
-      href="dispcal.html#R">dispcal -R</a> If
-    Video encoding is selected (see -E flag above), then 8 bits is
-    selected by default. On systems using an VGA connection or Display
-    Port with a graphics card with VideoLUT entries with greater than 8
-    bits depth, or if using the MadVR rendered with dithering, then a
-    higher bit depth is typically possible.<br>
+    display can be obtained by using <a href="dispcal.html#R">dispcal
+      -R</a> If Video encoding is selected (see -E flag above), then 8
+    bits is selected by default. On systems using an VGA connection or
+    Display Port with a graphics card with VideoLUT entries with greater
+    than 8 bits depth, or if using the MadVR rendered with dithering,
+    then a higher bit depth is typically possible.<br>
     <br>
     <a name="k"></a>The <b>-k file.cal</b> parameter specifies a
     calibration file created by <a href="printcal.html">printcal</a> or
@@ -351,6 +383,10 @@
     random offsets, so that the randomness can be made repeatable.
     Normally a different seed will be used for each run. <br>
     <br>
+    <a name="U"></a>The <b>-U</b> flag causes fakeread to read <i>inoutfile.ti3</i>
+    and use a backwards lookup (CIE to device conversion), saving the
+    result in <i>inoutfile</i>_r.<i>ti3</i>.<br>
+    <br>
     Fakeread is useful in creating artificial test value for testing <a
       href="colprof.html">colprof</a>, as well as providing one path for
     turning an MPP profile into an ICC profile. It can also be used to
@@ -386,6 +422,9 @@
     before "printing", or perhaps a Video RGB-&gt;RGB calibration link)
     then this will be applied to the .ti1 device values, before
     converting the the device values into .ti3 PCS values.<br>
+    <br>
+    Note that a .ti3 file can be renamed to be .ti1 and fakeread will
+    treat it as if it was a .ti1.<br>
     <br>
     <br>
     <br>

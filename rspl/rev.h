@@ -62,10 +62,10 @@
  * Reversing the Parameter -> Baricentric equations gives the
  * following interpolation equation using Parameter coordinates:
  *
- *   VV0 - VV1 * P0
- * + VV1 - VV2 * P1
- * + VV2 - VV3 * P2
- * + VV3
+ *   (VV0 - VV1) * P0
+ * + (VV1 - VV2) * P1
+ * + (VV2 - VV3) * P2
+ * +  VV3
  *
  * Note that withing the simplex, 0 <= P0 && P0 <= P1 && P1 <= P2 && P2 <= 1
  *
@@ -270,6 +270,7 @@ struct _bxcell{
 
 	bxstat status;				/* State of sl list */					
 	int *sl;					/* fwd vertex seed list for surface bxcells */
+								/* or cell list after conversion to cells */
 	int *dl;					/* deleted fwd vertex list for this bxcell */
 
 	int *scell;					/* If non-NULL, this is a (non-surface) */
@@ -441,6 +442,8 @@ struct _rev_struct {
 						/* All other sections depend on this. */
 	int fastsetup;		/* Flag - NZ if fast setup at cost of slow throughput */
 
+	int probxyz;		/* Flag - NZ - guess if XYZ for VRML diagnostics use */
+
 	int lchweighted;	/* Non-zero if nearest search is LCh weighted */
 	double lchw[MXRO];	/* LCh nearest weighting */
 	double lchw_sq[MXRO];	/* LCh nearest weighting squared */
@@ -465,7 +468,7 @@ struct _rev_struct {
 	int rev_valid;		/* nz if this information in rev[] and nnrev[] is valid */
 	int **rev;			/* Exact reverse lookup starting list. */
 	int **nnrev;		/* Nearest reverse lookup starting list. */
-						/* These lists are of fwd grid indexes. */
+						/* These lists are of fwd grid base indexes. */
 						/* [0] is allocation length */
 						/* [1] is the next free entry index (length + 3, not counting -1) */
 						/* [2] is index into share lists, -1 if not shared. */
@@ -473,6 +476,10 @@ struct _rev_struct {
 						/* Last entry is marked with -1 */
 
 	double ocent[MXRO];	/* rev cell gamut "center" point for thinning and shadow testing. */
+
+	int surflin_en;			/* Flag set when suflin is enabled */
+	struct _rspl *surflin; /* gamut surface linearization transform used by logcomp() */
+	double linoff[MXRO];	/* ocent offset after surflin mapping */
 
 	bxcell *surflist;	/* Linked list of rev[] bwd cells that contain gamut surface fwd cells. */
 						/* Used to speed up fill_nncell() when rev.fastsetup is set, else NULL */

@@ -3,10 +3,10 @@ rasters to the Google ChromeCast.
 
 Hierarchy:
 
-	cccast.c		Top level actions & receive thread
-	ccmes.c			Message handling, uses probuf
+	ccast.c			Top level actions & receive thread
+	ccmes.c			Message handling, uses protobuf
 	chan/			protobuf encoding
 	ccpacket.c		socket write/read
 
 	ccmdns.c		MDNS sign on
-	axTLS			SSL/TLS library
+	axTLS			Standalone SSL/TLS library

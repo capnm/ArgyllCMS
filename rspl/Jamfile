@@ -27,6 +27,8 @@ HDRS = ../h ../numlib ../plot $(TIFFINC) ;
 LINKLIBS = librspl ../plot/libplot ../numlib/libnum ../numlib/libui ../plot/libvrml ../icc/libicc $(TIFFLIB) $(JPEGLIB) ;
 
 # Test programs
+LINKFLAGS += $(GUILINKFLAGS) ;
+
 MainsFromSources revbench.c c1.c cw1.c cw3.c c1df.c t2d.c t2ddf.c t3d.c t3ddf.c tnd.c trnd.c ;
 
 BUILD_TESTS = false ;

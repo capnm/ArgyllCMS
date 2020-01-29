@@ -55,6 +55,7 @@ extern "C" {
 #define X509_VFY_ERROR_INVALID_CHAIN        -7
 #define X509_VFY_ERROR_UNSUPPORTED_DIGEST   -8
 #define X509_INVALID_PRIV_KEY               -9
+#define X509_INVALID_PUB_KEY                -10
 
 /*
  * The Distinguished Name
@@ -128,6 +129,7 @@ const char * x509_display_error(int error);
 
 int get_asn1_length(const uint8_t *buf, int *offset);
 int asn1_get_private_key(const uint8_t *buf, int len, RSA_CTX **rsa_ctx);
+int asn1_get_public_key(const uint8_t *cert, int *offset, RSA_CTX **rsa_ctx);
 int asn1_next_obj(const uint8_t *buf, int *offset, int obj_type);
 int asn1_skip_obj(const uint8_t *buf, int *offset, int obj_type);
 int asn1_get_int(const uint8_t *buf, int *offset, uint8_t **object);

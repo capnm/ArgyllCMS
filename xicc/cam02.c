@@ -197,7 +197,7 @@ double minj = 1e38, maxj = -1e38;
 static void cam_free(cam02 *s);
 static int set_view(struct _cam02 *s, ViewingCondition Ev, double Wxyz[3],
 	                double La, double Yb, double Lv, double Yf, double Yg, double Gxyz[3],
-					int hk, double hkscale);
+					int hk, double hkscale, double mtaf, double Wxyz2[3]);
 static int XYZ_to_cam(struct _cam02 *s, double *Jab, double *xyz);
 static int cam_to_XYZ(struct _cam02 *s, double *xyz, double *Jab);
 
@@ -292,7 +292,9 @@ double Yg,		/* Flare as a fraction of the adapting/surround (Y range 0.0 .. 1.0)
 double Gxyz[3],	/* The Glare white coordinates (typically the Ambient color) */
 				/* If <= 0 will Wxyz will be used. */
 int hk,			/* Flag, NZ to use Helmholtz-Kohlrausch effect */
-double hkscale	/* HK effect scaling factor */
+double hkscale,	/* HK effect scaling factor */
+double mtaf,	/* Mid tone partial adapation factor from Wxyz to Wxyz2, <= 0.0 if none */
+double Wxyz2[3] /* Mid tone Adapted White XYZ (Y range 0.0 .. 1.0) */
 ) {
 	double tt, t1, t2;
 	double tm[3][3];
@@ -383,6 +385,24 @@ double hkscale	/* HK effect scaling factor */
 	}
 	s->hk = hk;
 	s->hkscale = hkscale;
+	if (mtaf > 0.0 && Wxyz2 != NULL) {		/* Mid tone Adaption hack enabled */
+		if (mtaf > 1.0)
+			mtaf = 1.0;
+		s->mtaf = mtaf;
+		s->Wxyz2[0] = Wxyz2[0]/Wxyz2[1] * Wxyz[1];		/* Normalize scale */
+		s->Wxyz2[2] = Wxyz2[2]/Wxyz2[1] * Wxyz[1];
+		s->Wxyz2[1] =                     Wxyz[1];
+		s->mtap = (4.0 * mtaf);		/* 0.5 -> pow 4 */
+		s->mtap *= s->mtaf;
+		s->pmta_en = 1;
+	} else {
+		s->mtaf = mtaf;
+		s->Wxyz2[0] = Wxyz[0];
+		s->Wxyz2[1] = Wxyz[1];
+		s->Wxyz2[2] = Wxyz[2];
+		s->mtap = 1.0;
+		s->pmta_en = 0;
+	}
 
 	/* The rgba vectors */
 	s->Va[0] = 1.0;
@@ -432,10 +452,16 @@ double hkscale	/* HK effect scaling factor */
 	s->rgbW[0] =  0.7328 * s->Wxyz[0] + 0.4296 * s->Wxyz[1] - 0.1624 * s->Wxyz[2];
 	s->rgbW[1] = -0.7036 * s->Wxyz[0] + 1.6975 * s->Wxyz[1] + 0.0061 * s->Wxyz[2];
 	s->rgbW[2] =  0.0000 * s->Wxyz[0] + 0.0000 * s->Wxyz[1] + 1.0000 * s->Wxyz[2];
+	s->rgbW2[0] =  0.7328 * s->Wxyz2[0] + 0.4296 * s->Wxyz2[1] - 0.1624 * s->Wxyz2[2];
+	s->rgbW2[1] = -0.7036 * s->Wxyz2[0] + 1.6975 * s->Wxyz2[1] + 0.0061 * s->Wxyz2[2];
+	s->rgbW2[2] =  0.0000 * s->Wxyz2[0] + 0.0000 * s->Wxyz2[1] + 1.0000 * s->Wxyz2[2];
 #else
 	s->rgbW[0] = s->Wxyz[0];
 	s->rgbW[1] = s->Wxyz[1];
 	s->rgbW[2] = s->Wxyz[2];
+	s->rgbW2[0] = s->Wxyz2[0];
+	s->rgbW2[1] = s->Wxyz2[1];
+	s->rgbW2[2] = s->Wxyz2[2];
 #endif
 
 	/* Degree of chromatic adaptation */
@@ -445,11 +471,17 @@ double hkscale	/* HK effect scaling factor */
 	s->Drgb[0] = s->D * (s->Wxyz[1]/s->rgbW[0]) + 1.0 - s->D;
 	s->Drgb[1] = s->D * (s->Wxyz[1]/s->rgbW[1]) + 1.0 - s->D;
 	s->Drgb[2] = s->D * (s->Wxyz[1]/s->rgbW[2]) + 1.0 - s->D;
+	s->Drgb2[0] = s->D * (s->Wxyz2[1]/s->rgbW2[0]) + 1.0 - s->D;
+	s->Drgb2[1] = s->D * (s->Wxyz2[1]/s->rgbW2[1]) + 1.0 - s->D;
+	s->Drgb2[2] = s->D * (s->Wxyz2[1]/s->rgbW2[2]) + 1.0 - s->D;
 
-	/* Chromaticaly transformed white value */
+	/* Chromaticaly transformed sharpened white value */
 	s->rgbcW[0] = s->Drgb[0] * s->rgbW[0];
 	s->rgbcW[1] = s->Drgb[1] * s->rgbW[1];
 	s->rgbcW[2] = s->Drgb[2] * s->rgbW[2];
+	s->rgbcW2[0] = s->Drgb2[0] * s->rgbW2[0];
+	s->rgbcW2[1] = s->Drgb2[1] * s->rgbW2[1];
+	s->rgbcW2[2] = s->Drgb2[2] * s->rgbW2[2];
 	
 #ifndef DISABLE_HPE
 	/* Transform from spectrally sharpened, to Hunt-Pointer_Estevez cone space */
@@ -462,10 +494,22 @@ double hkscale	/* HK effect scaling factor */
 	s->rgbpW[2] = -0.0096276087384294 * s->rgbcW[0]
 	            -  0.0056980312161134 * s->rgbcW[1]
 	            +  1.0153256399545427 * s->rgbcW[2];
+	s->rgbpW2[0] =  0.7409744840453773 * s->rgbcW2[0]
+	             +  0.2180245944753982 * s->rgbcW2[1]
+	             +  0.0410009214792244 * s->rgbcW2[2];
+	s->rgbpW2[1] =  0.2853532916858801 * s->rgbcW2[0]
+	             +  0.6242015741188157 * s->rgbcW2[1]
+	             +  0.0904451341953042 * s->rgbcW2[2];
+	s->rgbpW2[2] = -0.0096276087384294 * s->rgbcW2[0]
+	             -  0.0056980312161134 * s->rgbcW2[1]
+	             +  1.0153256399545427 * s->rgbcW2[2];
 #else
 	s->rgbpW[0] = s->rgbcW[0];
 	s->rgbpW[1] = s->rgbcW[1];
 	s->rgbpW[2] = s->rgbcW[2];
+	s->rgbpW2[0] = s->rgbcW2[0];
+	s->rgbpW2[1] = s->rgbcW2[1];
+	s->rgbpW2[2] = s->rgbcW2[2];
 #endif /* DISABLE_HPE */
 
 #ifndef DISABLE_SCR
@@ -479,6 +523,7 @@ double hkscale	/* HK effect scaling factor */
 	s->cc[1][0] = 0.0; s->cc[1][1] = 1.0; s->cc[1][2] = 0.0;
 	s->cc[2][0] = 0.0; s->cc[2][1] = 0.0; s->cc[2][2] = 1.0;
 #endif
+	icmCpy3x3(s->cc2, s->cc);
 	
 	/* Chromaticaly transformed sample value */
 	icmSetUnity3x3(tm);
@@ -486,6 +531,11 @@ double hkscale	/* HK effect scaling factor */
 	tm[1][1] = s->Drgb[1];
 	tm[2][2] = s->Drgb[2];
 	icmMul3x3(s->cc, tm);
+	
+	tm[0][0] = s->Drgb2[0];
+	tm[1][1] = s->Drgb2[1];
+	tm[2][2] = s->Drgb2[2];
+	icmMul3x3(s->cc2, tm);
 	
 #ifndef DISABLE_HPE
 	/* Transform from spectrally sharpened, to Hunt-Pointer_Estevez cone space */
@@ -499,10 +549,12 @@ double hkscale	/* HK effect scaling factor */
 	tm[2][1] = -0.0056980312161134;
 	tm[2][2] =  1.0153256399545427;
 	icmMul3x3(s->cc, tm);
+	icmMul3x3(s->cc2, tm);
 #endif /* DISABLE_HPE */
 
 	/* Create inverse combined cone and chromatic transform matrix: */
 	icmInverse3x3(s->icc, s->cc);		/* Hmm. we assume it cannot fail */
+	icmInverse3x3(s->icc2, s->cc2);
 
 #ifdef ENABLE_COMPR
 	/* Compression ranges */
@@ -594,6 +646,11 @@ double hkscale	/* HK effect scaling factor */
 	printf("Base exponential nonlinearity z = %f\n", s->z);
 	printf("Post adapted cone response white rgbaW = %f %f %f\n", s->rgbaW[0], s->rgbaW[1], s->rgbaW[2]);
 	printf("Achromatic response of white Aw = %f\n", s->Aw);
+	if (s->pmta_en) {
+		printf("Mid tone partial adapation factor = %f\n", s->mtaf);
+		printf("Mid tone Adapted White Wxyz2 = %f %f %f\n", s->Wxyz2[0], s->Wxyz2[1], s->Wxyz2[2]);
+		printf("Mid tone partial adapation power = %f\n", s->mtap);
+	}
 	printf("\n");
 #endif
 	return 0;
@@ -643,6 +700,23 @@ double XYZ[3]
 	/* and transform from spectrally sharpened to Hunt-Pointer_Estevez cone space, */
 	/* all in one step. */
 	icmMulBy3x3(rgbp, s->cc, xyz);
+
+	/* Partial mid-tone adapation hack. */
+	/* Blend between two adapation states along Y */
+	if (s->pmta_en) {
+		double rgbp2[3], t;
+
+//printf("\nIn xyz %f %f %f\n",xyz[0], xyz[1], xyz[2]);
+		icmMulBy3x3(rgbp2, s->cc2, xyz);
+		t = xyz[1]/s->Wxyz[1];
+		if (t < 0.0)
+			t = 0.0;
+		else if (t > 1.0)
+			t = 1.0;
+		t = pow(t, s->mtap);
+//printf("Blend %f from %f %f %f and %f %f %f\n",t, rgbp2[0], rgbp2[1], rgbp2[2], rgbp[0], rgbp[1], rgbp[2]);
+		icmBlend3(rgbp, rgbp2, rgbp, t);
+	}
 
 	TRACE(("rgbp = %f %f %f\n", rgbp[0], rgbp[1], rgbp[2]))
 
@@ -1299,7 +1373,52 @@ double Jab[3]
 	/* Chromaticaly transformed sample value */
 	/* Spectrally sharpened cone responses */
 	/* XYZ values */
-	icmMulBy3x3(xyz, s->icc, rgbp);
+	if (!s->pmta_en) {
+		icmMulBy3x3(xyz, s->icc, rgbp);
+
+	/* Partial mid-tone adapation hack. */
+	} else {
+		double xyz1[3], xyz2[3], t;
+		int i;
+
+		/* Aprox bwd transform to compute starting value */
+		icmMulBy3x3(xyz1, s->icc,  rgbp);
+		icmMulBy3x3(xyz2, s->icc2, rgbp);
+		t = 0.5 * (xyz1[1] + xyz2[1])/s->Wxyz[1];
+		if (t < 0.0)
+			t = 0.0;
+		else if (t > 1.0)
+			t = 1.0;
+		t = pow(t, s->mtap);
+		icmBlend3(xyz, xyz2, xyz1, t);
+
+		/* Simple Newton itteration to more accurately invert */
+		for (i = 0; i < 5; i++) {
+			double rgbp0[3], rgbp1[3], rgbp2[3];
+			double rgbd[3], xyzd0[3], xyzd1[3], xyzd2[3];
+
+			/* Fwd transform */
+			icmMulBy3x3(rgbp1, s->cc, xyz);
+			icmMulBy3x3(rgbp2, s->cc2, xyz);
+			t = xyz[1]/s->Wxyz[1];
+			if (t < 0.0)
+				t = 0.0;
+			else if (t > 1.0)
+				t = 1.0;
+			t = pow(t, s->mtap);
+			icmBlend3(rgbp0, rgbp2, rgbp1, t);
+
+			icmSub3(rgbd, rgbp, rgbp0);			/* Error to input value */
+
+			/* Bwd transform of error */
+			icmMulBy3x3(xyzd1, s->icc,  rgbd);
+			icmMulBy3x3(xyzd2, s->icc2, rgbd);
+			icmBlend3(xyzd0, xyzd2, xyzd1, t);
+
+			/* Adjust solution for error */
+			icmAdd3(xyz, xyz, xyzd0);
+		}
+	}
 
 	TRACE(("XYZ = %f %f %f\n",xyz[0], xyz[1], xyz[2]))
 

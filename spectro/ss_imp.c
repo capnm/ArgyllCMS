@@ -50,6 +50,7 @@
 #include "sa_config.h"
 #include "numsup.h"
 #endif /* SALONEINSTLIB */
+#include "cgats.h"
 #include "xspect.h"
 #include "insttypes.h"
 #include "conv.h"

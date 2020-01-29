@@ -204,6 +204,7 @@ void RSA_pub_key_new(RSA_CTX **rsa_ctx,
 void RSA_free(RSA_CTX *ctx);
 int RSA_decrypt(const RSA_CTX *ctx, const uint8_t *in_data, uint8_t *out_data,
         int is_decryption);
+int RSA_decrypt2(const RSA_CTX *ctx, const uint8_t *in_data, uint8_t *out_data);
 bigint *RSA_private(const RSA_CTX *c, bigint *bi_msg);
 #if defined(CONFIG_SSL_CERT_VERIFICATION) || defined(CONFIG_SSL_GENERATE_X509_CERT)
 bigint *RSA_sign_verify(BI_CTX *ctx, const uint8_t *sig, int sig_len,

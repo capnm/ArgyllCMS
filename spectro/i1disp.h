@@ -78,6 +78,7 @@
 
 /* Sub-type of instrument (i.e. based on vers, char code, unlock code) */
 typedef enum {
+	i1d2_unkn       = -1,
 	i1d2_norm       = 0,	/* Normal (i1d1, i1d2, Smile) */
 	i1d2_lite       = 1,	/* "Lite" */
 	i1d2_munki      = 2,	/* "Munk" */
@@ -88,15 +89,15 @@ typedef enum {
 	i1d1_sencoreIII = 7, 	/* Sencore ColorPro III */
 	i1d1_sencoreIV  = 8, 	/* Sencore ColorPro IV */
 	i1d1_sencoreV   = 9 	/* Sencore ColorPro V */
-} i1d2_dtype;
+} i1d2_stype;
 
 
 /* I1DISP communication object */
 struct _i1disp {
 	INST_OBJ_BASE
 
-	int        dtype;			/* Device type: 0 = i1D1, 1 = i1D2, 2 = Smile */	
-	i1d2_dtype stype;			/* Sub type */
+	int        btype;			/* Device type: 0 = i1D1, 1 = i1D2, 2 = Smile */	
+	i1d2_stype stype;			/* Sub type */
 
 	inst_mode mode;				/* Currently selected mode */
 

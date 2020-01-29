@@ -84,7 +84,7 @@ static void cvt_Lab_to_CIELAB16(double *out, double *in) {
 		out[0] = 100.0;
 	out[0] = out[0] / 100.0 * 65535.0;
 
-	out[1] = in[1];
+	out[1] = 256.0 * in[1];
 	if (out[1] < -32768.0)
 		out[1] = -32768.0;
 	else if (out[1] > 32767.0)
@@ -92,7 +92,7 @@ static void cvt_Lab_to_CIELAB16(double *out, double *in) {
 	if (out[1] < 0.0)
 		out[1] = 65536.0 + out[1];
 
-	out[2] = in[2];
+	out[2] = 256.0 * in[2];
 	if (out[2] < -32768.0)
 		out[2] = -32768.0;
 	else if (out[2] > 32767.0)
@@ -733,6 +733,7 @@ static int render2d_write(
 						for (j = 0; j < s->ncc; j++)
 							pixv1[x][j] = rv[j];
 						pixv1[x][PRIX2D] = rv[PRIX2D];
+//printf("x %d y %d, set %f %f %f ix %f\n",x,y,rv[0],rv[1],rv[2], rv[PRIX2D]);
 					}
 					pthp = &th->xl;
 					th = th->xl;
@@ -827,7 +828,9 @@ static int render2d_write(
 
 				/* Translate from render value to output pixel value */
 				if (s->dpth == bpc8_2d) {
-					/* if dithering and dithering all or found FG in line */
+
+					/* if dithering and dithering all or found FG in line, */
+					/* start with 16 bit values to dither from */
 					if (s->dither) {
 						unsigned short *p = ((unsigned short *)dithbuf16) + x * s->ncc;
 
@@ -839,6 +842,8 @@ static int render2d_write(
 							for (j = 0; j < s->ncc; j++)
 								p[j] = (int)(65535.0 * cc[j] + 0.5);
 						}
+
+					/* Else quantize to 8 bits */
 					} else {
 						unsigned char *p = ((unsigned char *)outbuf) + x * s->ncc;
 						if (s->csp == lab_2d) {
@@ -932,6 +937,7 @@ static int render2d_write(
 #endif
 			if (fmt == tiff_file) {
 #ifdef RENDER_TIFF
+
 				if (TIFFWriteScanline(wh, outbuf, y, 0) < 0) {
 					a1loge(g_log, 1, "Failed to write TIFF file '%s' line %d\n",filename,y);
 					return 1;
@@ -1230,7 +1236,6 @@ static int rectvs2d_rend(prim2d *ss, color2d rv, double x, double y) {
 		rv[j] = 0.0;
 		for (i = 0; i < 4; i++)
 			rv[j] += b[i] * s->c[i][j];
-		rv[j] = rv[j];
 	}
 	rv[PRIX2D] = s->ix;
 

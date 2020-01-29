@@ -73,6 +73,7 @@
 #include "conv.h"
 #include "icoms.h"
 #include "inst.h"
+#include "xrga.h"
 #ifdef ALLOW_PLOT
 #include "plot.h"
 #include "ui.h"
@@ -87,6 +88,7 @@ usage (void)
 	fprintf (stderr, "\n");
 	fprintf (stderr, "Usage: spec2cie [options] input.[ti3|sp] output.[ti3|sp]\n");
 	fprintf (stderr, " -v              Verbose mode\n");
+	fprintf (stderr, " -A NN|AX|AG|XA|XG|GA|GX    XRGA conversion (default NN)\n");
 	fprintf (stderr, " -I illum        Override actual instrument illuminant in .ti3 or .sp  file:\n");
 	fprintf (stderr, "                  A, C, D50, D50M2, D65, F5, F8, F10 or file.sp\n");
 	fprintf (stderr, "                  (only used in conjunction with -f)\n");
@@ -95,7 +97,7 @@ usage (void)
 	fprintf (stderr, " -i illum        Choose illuminant for computation of CIE XYZ from spectral data & FWA:\n");
 	fprintf (stderr, "                 A, C, D50 (def.), D50M2, D65, F5, F8, F10 or file.sp\n");
 	fprintf (stderr, " -o observ       Choose CIE Observer for spectral data:\n");
-	fprintf (stderr, "                  1931_2 (def), 1964_10, S&B 1955_2, shaw, J&V 1978_2 or file.cmf\n");
+	fprintf (stderr, "                  1931_2 (def), 1964_10, 2012_2, 2012_10, S&B 1955_2, shaw, J&V 1978_2 or file.cmf\n");
 	fprintf (stderr, " -n              Don't output spectral values\n"); 
 #ifdef ALLOW_PLOT
 	fprintf (stderr, " -p              Plot each values spectrum\n"); 
@@ -110,6 +112,10 @@ main(int argc, char *argv[])
 {
 	int fa, nfa;					/* current argument we're looking at */
 	int verb = 0;
+	xcalstd calstd = xcalstd_none;	/* X-Rite calibration standard of .ti3 file */
+	xcalpol calpol = xcalstd_nonpol; /* If measurement is polarized */
+	xcalstd calstdi = xcalstd_none;	/* X-Rite calibration standard conversion in */
+	xcalstd calstdo = xcalstd_none;	/* X-Rite calibration standard conversion out */
 	int nospec = 0;					/* NZ if not to output spectral values */
 	char *in_ti3_name;
 	char *out_ti3_name;
@@ -117,7 +123,7 @@ main(int argc, char *argv[])
 	cgats *ocg;						/* output cgats structure */
 	cgats_set_elem *elems;
 
-	int isspect = 0;				/* nz if SPECT file rathe than TI3 */
+	int isspect = 0;				/* nz if SPECT file rather than TI3 */
 	int isemis = 0;					/* nz if this is an emissive reference */
 	int isdisp = 0;					/* nz if this is a display device */
 	int isdnormed = 0;				/* Has display data been normalised to 100 ? */
@@ -140,11 +146,11 @@ main(int argc, char *argv[])
 	xspect inst_cust_illum;			/* Custom actual instrument illumination spectrum */
 									/* if inst_illum == icxIT_custom */
 
-	icxObserverType observ = icxOT_none;
-	xspect cust_observ[3];			/* Custom observer CMF's */
+	icxObserverType obType = icxOT_none;
+	xspect custObserver[3];			/* Custom observer CMF's */
 
 	int npat;						/* Number of patches */
-	int dti;						/* Device Type index */
+	int ti;							/* Field index */
 	char *kw;
 	int i, j, jj, k;
 
@@ -175,11 +181,42 @@ main(int argc, char *argv[])
 			}
 
 			if (argv[fa][1] == '?')
-				usage ();
+				usage();
 
 			/* Verbose */
 			else if (argv[fa][1] == 'v' || argv[fa][1] == 'V')
 				verb = 1;
+
+			/* XRGA conversion */
+			else if (argv[fa][1] == 'A') {
+				fa = nfa;
+				if (na == NULL) usage();
+				if (na[0] == 'N' && na[1] == 'N') {
+					calstdi = xcalstd_none;
+					calstdo = xcalstd_none;
+				} else if (na[0] == 'A' && na[1] == 'X') {
+					calstdi = xcalstd_xrga;
+					calstdo = xcalstd_xrdi;
+				} else if (na[0] == 'A' && na[1] == 'G') {
+					calstdi = xcalstd_xrga;
+					calstdo = xcalstd_gmdi;
+				} else if (na[0] == 'X' && na[1] == 'A') {
+					calstdi = xcalstd_xrdi;
+					calstdo = xcalstd_xrga;
+				} else if (na[0] == 'X' && na[1] == 'G') {
+					calstdi = xcalstd_xrdi;
+					calstdo = xcalstd_gmdi;
+				} else if (na[0] == 'G' && na[1] == 'A') {
+					calstdi = xcalstd_gmdi;
+					calstdo = xcalstd_xrga;
+				} else if (na[0] == 'G' && na[1] == 'X') {
+					calstdi = xcalstd_gmdi;
+					calstdo = xcalstd_xrdi;
+				} else {
+					//usage("Paramater after -A '%c%c' not recognized",na[0],na[1]);
+					usage();
+				}
+			}
 
 			/* Don't output spectral */
 			else if (argv[fa][1] == 'n' || argv[fa][1] == 'N')
@@ -327,25 +364,25 @@ main(int argc, char *argv[])
 			else if (argv[fa][1] == 'o' || argv[fa][1] == 'O') {
 				fa = nfa;
 				if (na == NULL)
-					usage ();
+					usage();
 				if (strcmp (na, "1931_2") == 0) {		/* Classic 2 degree */
-					observ = icxOT_CIE_1931_2;
+					obType = icxOT_CIE_1931_2;
 				}
 				else if (strcmp (na, "1964_10") == 0) {		/* Classic 10 degree */
-					observ = icxOT_CIE_1964_10;
-				}
-				else if (strcmp (na, "1955_2") == 0) {		/* Stiles and Burch 1955 2 degree */
-					observ = icxOT_Stiles_Burch_2;
-				}
-				else if (strcmp (na, "1978_2") == 0) {		/* Judd and Voss 1978 2 degree */
-					observ = icxOT_Judd_Voss_2;
-				}
-				else if (strcmp (na, "shaw") == 0) {		/* Shaw and Fairchilds 1997 2 degree */
-					observ = icxOT_Shaw_Fairchild_2;
-				}
-				else {				/* Assume it's a filename */
-					observ = icxOT_custom;
-					if (read_cmf (cust_observ, na) != 0)
+					obType = icxOT_CIE_1964_10;
+				} else if (strcmp(na, "2012_2") == 0) {		/* Latest 2 degree */
+					obType = icxOT_CIE_2012_2;
+				} else if (strcmp(na, "2012_10") == 0) {	/* Latest 10 degree */
+					obType = icxOT_CIE_2012_10;
+				} else if (strcmp (na, "1955_2") == 0) {	/* Stiles and Burch 1955 2 degree */
+					obType = icxOT_Stiles_Burch_2;
+				} else if (strcmp (na, "1978_2") == 0) {	/* Judd and Voss 1978 2 degree */
+					obType = icxOT_Judd_Voss_2;
+				} else if (strcmp (na, "shaw") == 0) {		/* Shaw and Fairchilds 1997 2 degree */
+					obType = icxOT_Shaw_Fairchild_2;
+				} else {				/* Assume it's a filename */
+					obType = icxOT_custom;
+					if (read_cmf (custObserver, na) != 0)
 						usage ();
 				}
 			}
@@ -376,20 +413,20 @@ main(int argc, char *argv[])
 
 	ocg = new_cgats ();					/* Create a CGATS structure */
 	ocg->add_other (ocg, "CTI3");		/* Calibration Target Information 3 */
-	icg->add_other (ocg, "SPECT");		/* Spectral file */
+	ocg->add_other (ocg, "SPECT");		/* Spectral file */
 
 	if (icg->read_name (icg, in_ti3_name))
 		error ("CGATS file read error: %s", icg->err);
+
+	if (icg->ntables < 1)
+		error ("Input file doesn't contain at least one table");
 
 	if (icg->ntables == 0 || icg->t[0].tt != tt_other
 	 || (icg->t[0].oi != 0 && icg->t[0].oi != 1))
 		error ("Input file isn't a CTI3 or SPECT format file");
 
-	if (icg->t[0].oi == 1)
+	if (icg->t[0].oi == 1)	/* SPECT type */
 		isspect = 1;
-
-	if (icg->ntables < 1)
-		error ("Input file doesn't contain at least one table");
 
 	/* add table to output file */
 	if (isspect)
@@ -416,14 +453,14 @@ main(int argc, char *argv[])
 	}
 
 	if (isspect) {
-		if ((dti = icg->find_kword (icg, 0, "MEAS_TYPE")) < 0)
+		if ((ti = icg->find_kword (icg, 0, "MEAS_TYPE")) < 0)
 			error ("Input file doesn't contain keyword MEAS_TYPE");
 	
 		/* Reflective options when not a reflective profile type */
-		if (strcmp(icg->t[0].kdata[dti],"EMISSION") == 0
-		 || strcmp(icg->t[0].kdata[dti],"AMBIENT") == 0
-		 || strcmp(icg->t[0].kdata[dti],"EMISSION_FLASH") == 0
-		 || strcmp(icg->t[0].kdata[dti],"AMBIENT_FLASH") == 0) {
+		if (strcmp(icg->t[0].kdata[ti],"EMISSION") == 0
+		 || strcmp(icg->t[0].kdata[ti],"AMBIENT") == 0
+		 || strcmp(icg->t[0].kdata[ti],"EMISSION_FLASH") == 0
+		 || strcmp(icg->t[0].kdata[ti],"AMBIENT_FLASH") == 0) {
 			isemis = 1;
 			if (illum != icxIT_none)
 				error("-i illuminant can't be used for emissive reference type");
@@ -434,12 +471,12 @@ main(int argc, char *argv[])
 		}
 
 	} else {
-		if ((dti = icg->find_kword (icg, 0, "DEVICE_CLASS")) < 0)
+		if ((ti = icg->find_kword (icg, 0, "DEVICE_CLASS")) < 0)
 			error ("Input file doesn't contain keyword DEVICE_CLASS");
 	
 		/* Reflective options when not a reflective profile type */
-		if (strcmp(icg->t[0].kdata[dti],"DISPLAY") == 0
-		 || strcmp(icg->t[0].kdata[dti],"EMISINPUT") == 0) {
+		if (strcmp(icg->t[0].kdata[ti],"DISPLAY") == 0
+		 || strcmp(icg->t[0].kdata[ti],"EMISINPUT") == 0) {
 			isemis = 1;
 			if (illum != icxIT_none)
 				error("-i illuminant can't be used for emissive reference type");
@@ -454,8 +491,38 @@ main(int argc, char *argv[])
 	if (illum == icxIT_none)
 		illum = icxIT_D50;
 	
-	if (observ == icxOT_none)
-		observ = icxOT_CIE_1931_2;
+	if (obType == icxOT_none)
+		obType = icxOT_CIE_1931_2;
+
+	/* See if the measurements were polarized */
+	if ((ti = icg->find_kword(icg, 0, "INSTRUMENT_FILTER")) >= 0
+	 && strcmp(icg->t[0].kdata[ti], "POLARIZED") == 0) {
+		calpol = xcalstd_pol; /* If measurement is polarized */
+	}
+
+	/* See if there is an XRGA anotation in the incoming file */
+	if ((ti = icg->find_kword(icg, 0, "DEVCALSTD")) >= 0) {
+		calstd = str2xcalstd(icg->t[0].kdata[ti]);
+	}
+
+	/* Check XRGA conversion */
+	if (calstdo != xcalstd_none) {
+
+		if (isemis || isdisp)
+			error("XRGA conversion only applies to reflective measurements");
+
+		if (calstd != xcalstd_none
+		 && calstd != calstdi) {
+			warning("Input file calibration standard '%s' doesn't match -A parameter '%s'",
+			        xcalstd2str(calstd), xcalstd2str(calstdi));
+		}
+
+		/* Anotate output file */
+		if ((ti = ocg->find_kword (ocg, 0, "DEVCALSTD")) >= 0)
+			ocg->add_kword_at(ocg, 0, ti, "DEVCALSTD",xcalstd2str(calstdo), NULL);
+		else
+			ocg->add_kword(ocg, 0, "DEVCALSTD",xcalstd2str(calstdo), NULL);
+	}
 
 	/* See if the display CIE data has been normalised to Y = 100 */
 	{
@@ -477,7 +544,7 @@ main(int argc, char *argv[])
 		if ((ti = icg->find_kword(icg, 0, "COLOR_REP")) < 0)
 			error("Input file doesn't contain keyword COLOR_REP");
 
-		if (strcmp (icg->t[0].kdata[dti], "DISPLAY") == 0) {
+		if (strcmp (icg->t[0].kdata[ti], "DISPLAY") == 0) {
 			isdisp = 1;
 		}
 
@@ -700,16 +767,16 @@ main(int argc, char *argv[])
 		}
 
 		/* If CIE calculation illuminant is not standard, compute it's white point */
-		if (illum != icxIT_D50) {
+		if (illum != icxIT_D50 && illum != icxIT_none) {
 			ill_wp = _ill_wp;
 
-			/* Compute XYZ of illuminant */
-			if (icx_ill_sp2XYZ(ill_wp, observ, cust_observ, illum, 0.0, &cust_illum) != 0) 
+			/* Compute normalised XYZ of illuminant */
+			if (icx_ill_sp2XYZ(ill_wp, obType, custObserver, illum, 0.0, &cust_illum, 0) != 0) 
 				error("icx_ill_sp2XYZ returned error");
 		}
 
 		/* Create a spectral conversion object */
-		if ((sp2cie = new_xsp2cie(illum, &cust_illum, observ, cust_observ,
+		if ((sp2cie = new_xsp2cie(illum, &cust_illum, obType, custObserver,
 			                              icSigXYZData, icxClamp)) == NULL)
 		{
 			error ("Creation of spectral conversion object failed");
@@ -789,6 +856,10 @@ main(int argc, char *argv[])
 			for (j = 0; j < rmwsp.spec_n; j++) {
 				rmwsp.spec[j] /= nw;	/* Compute average */
 			}
+
+			if (calstdo != xcalstd_none)
+				xspec_convert_xrga(&rmwsp, &rmwsp, calpol, calstdo, calstdi);
+
 			mwsp = rmwsp;		/* Structure copy */
 		}
 
@@ -838,7 +909,7 @@ main(int argc, char *argv[])
 				printf("FWA content = %f\n",FWAc);
 			}
 
-			/* Create an FWA compensated white spectrum  and XYZ value */
+			/* Create an FWA compensated white spectrum and XYZ value */
 			sp2cie->sconvert (sp2cie, &rmwsp, mwXYZ, &mwsp);
 		}
 
@@ -895,6 +966,8 @@ main(int argc, char *argv[])
 			for (j = 0; j < sp.spec_n; j++) {
 				sp.spec[j] = *((double *)icg->t[0].fdata[i][spi[j]]);
 			}
+			if (calstdo != xcalstd_none)
+				xspec_convert_xrga(&sp, &sp, calpol, calstdo, calstdi);
 
 			if (fwacomp) {
 				corr_sp = sp;		/* Copy spectrum */

@@ -21,6 +21,7 @@
 
 #include <stdio.h>
 #include <math.h>
+#include "cgats.h"
 #include "xspect.h"
 #include "numlib.h"
 #include "plot.h"
@@ -112,10 +113,17 @@ static int do_spec(
 			 || mt == inst_mrt_emission_flash
 			 || mt == inst_mrt_ambient_flash) {
 	
-				/* Compute XYZ of illuminant */
-				if (icx_ill_sp2XYZ(xyz, icxOT_CIE_1931_2, NULL, icxIT_custom, 0, &tsp) != 0) 
+				/* Compute absolute XYZ of illuminant */
+				if (icx_ill_sp2XYZ(xyz, icxOT_CIE_1931_2, NULL, icxIT_custom, 0, &tsp, 1) != 0) 
 					warning("icx_ill_sp2XYZ returned error");
 	
+				printf("Abs. Y = %f\n", xyz[1]);
+
+				/* Normalise to Y = 1 */
+				xyz[0] /= xyz[1];
+				xyz[2] /= xyz[1];
+				xyz[1] /= xyz[1];
+
 				icmXYZ2Yxy(Yxy, xyz);
 				icmXYZ2Lab(&icmD50, Lab, xyz);
 

@@ -25,6 +25,7 @@
 
 #include <stdio.h>
 #include <math.h>
+#include "cgats.h"
 #include "xspect.h"
 #include "insttypes.h"
 //#include "inst.h"

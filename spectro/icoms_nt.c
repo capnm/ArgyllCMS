@@ -18,7 +18,7 @@
 
 #include <conio.h>
 
-instType fast_ser_inst_type(icoms *p, int tryhard, void *, void *); 
+devType fast_ser_dev_type(icoms *p, int tryhard, void *, void *); 
 
 /* Add paths to serial connected device. */
 /* Return an icom error */
@@ -128,12 +128,14 @@ int serial_get_paths(icompaths *p, icom_type mask) {
 				icoms *icom;
 				if ((path = p->get_last_path(p)) != NULL
 				 && (icom = new_icoms(path, p->log)) != NULL) {
-					devType itype = fast_ser_inst_type(icom, 0, NULL, NULL);
-					if (itype != instUnknown)
-						icompaths_set_serial_itype(path, itype);	/* And set category */
+					if (!p->fs_excluded(p, path)) {
+						devType itype = fast_ser_dev_type(icom, 0, NULL, NULL);
+						if (itype != instUnknown)
+							icompaths_set_serial_itype(path, itype);	/* And set category */
+					}
 					icom->del(icom);
 				}
-				a1logd(p->log, 8, "serial_get_paths: Identified '%s' dctype 0x%x\n",inst_sname(path->itype),path->dctype);
+				a1logd(p->log, 8, "serial_get_paths: Identified '%s' dctype 0x%x\n",inst_sname(path->dtype),path->dctype);
 			}
 		}
 		if ((stat = RegCloseKey(sch)) != ERROR_SUCCESS) {
@@ -163,6 +165,15 @@ void serial_close_port(icoms *p) {
 
 /* -------------------------------------------------------------------- */
 
+#ifndef CBR_230400
+# define CBR_230400 230400
+#endif
+#ifndef CBR_460800
+# define CBR_460800 460800
+#endif
+#ifndef CBR_512000
+# define CBR_512000 512000
+#endif
 #ifndef CBR_921600
 # define CBR_921600 921600
 #endif
@@ -190,10 +201,12 @@ int          delayms) {		/* Delay after open in msec */
 		              "       Open delay = %d ms\n"
 		              ,p->name ,fc ,baud_rate_to_str(baud) ,parity ,stop ,word, delayms);
 
+#ifdef NEVER	/* Is this needed ? */
 	if (p->is_open) {
 		a1logd(p->log, 8, "icoms_set_ser_port: closing port '%s'\n",p->name);
 		p->close_port(p);
 	}
+#endif
 
 	if (p->port_type(p) == icomt_serial) {
 		DCB dcb;
@@ -385,6 +398,9 @@ int          delayms) {		/* Delay after open in msec */
 				break;
 			case baud_115200:
 				dcb.BaudRate = CBR_115200;
+				break;
+			case baud_230400:
+				dcb.BaudRate = CBR_230400;
 				break;
 			case baud_921600:
 				dcb.BaudRate = CBR_921600;

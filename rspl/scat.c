@@ -221,20 +221,24 @@ struct _mgtmp {
 		int bres, brix;	/* Biggest resolution and its index */
 		double mres;	/* Geometric mean res[] */
 		int no;			/* Total number of points in grid = res ^ di */
-		ratai l,h,w;	/* Grid low, high, grid cell width */
+		datai l,h,w;	/* Grid low, high, grid cell width */
 
 		double *ipos[MXDI]; /* Optional relative grid cell position for each input dim cell */
 
 		/* Grid array offset lookups */
-		int ci[MXRI];		/* Grid coordinate increments for each dimension */
-		int hi[POW2MXRI];	/* Combination offset for sequence through cube. */
+		int ci[MXDI];		/* Grid coordinate increments for each dimension */
+		int hi[POW2MXDI];	/* Combination offset for sequence through cube. */
 	} g;
 
-	/* Data point grid dependent information */
+	/* Data point grid dependent information - allocate for size of 2^di */
 	struct mgdat {
 		int b;				/* Index for associated base grid point, in grid points */
-		double w[POW2MXRI];	/* Weight for surrounding gridpoints [2^di] */
+		double w[0];		/* Weight for surrounding gridpoints [2^di] */
 	} *d;
+	int sizeof_mgdat;		/* sizeof(mgdat) + sizeof(double) * (1<<di) */
+
+	/* Address of mgdat at index N from given mgtmp *M */
+#define MGDAT_N(M,N) ((struct mgdat *)(((char *)&(M)->d[0]) + (N) * (M)->sizeof_mgdat))
 
 	/* Equation Solution related (Grid point solutions) */
 	struct {
@@ -245,8 +249,7 @@ struct _mgtmp {
 							/* and +/-1 offset in all dimensions, but only the +ve offset */
 							/* half of the sparse matrix is stored, due to equations */
 							/* being symetrical. */
-#define XCOLPMAX (HACOMPS+8)
-		int xcol[XCOLPMAX];	/* A array column translation from packed to sparse index */ 
+		int *xcol;			/* A array column translation from packed to sparse index */ 
 		int *ixcol;			/* A array column translation from sparse to packed index */ 
 		double *b;			/* b vector for RHS of simultabeous equation b[g.no] */
 		double normb;		/* normal of b vector */
@@ -408,11 +411,11 @@ fit_rspl_imp(
 	void *d,		/* Array holding position and function values of data points */
 	int dtp,		/* Flag indicating data type, 0 = (co *), 1 = (cow *), 2 = (coww *) */
 	int dno,		/* Number of data points */
-	ratai glow,		/* Grid low scale - will be expanded to enclose data, NULL = default 0.0 */
-	ratai ghigh,	/* Grid high scale - will be expanded to enclose data, NULL = default 1.0 */
+	datai glow,		/* Grid low scale - will be expanded to enclose data, NULL = default 0.0 */
+	datai ghigh,	/* Grid high scale - will be expanded to enclose data, NULL = default 1.0 */
 	int gres[MXDI],	/* Spline grid resolution */
-	ratao vlow,		/* Data value low normalize, NULL = default 0.0 */
-	ratao vhigh,	/* Data value high normalize - NULL = default 1.0 */
+	datao vlow,		/* Data value low normalize, NULL = default 0.0 */
+	datao vhigh,	/* Data value high normalize - NULL = default 1.0 */
 	double smooth,	/* Smoothing factor, 0.0 = default 1.0 */
 					/* (if -ve, overides optimised smoothing, and sets raw smoothing */
 					/*  typically between 1e-7 .. 1e-1) */
@@ -430,12 +433,11 @@ fit_rspl_imp(
 	int i, e, f;
 
 #ifdef NEVER
-printf("~1 rspl: gres = %d %d %d %d, smooth = %f, avgdev = %f %f %f\n",
-gres[0], gres[1], gres[2], gres[3], smooth, avgdev[0], avgdev[1], avgdev[2]);
-printf("~1 rspl: glow = %f %f %f %f ghigh = %f %f %f %f\n",
-glow[0], glow[1], glow[2], glow[3], ghigh[0], ghigh[1], ghigh[2], ghigh[3]);
-printf("~1 rspl: vlow = %f %f %f vhigh = %f %f %f\n",
-vlow[0], vlow[1], vlow[2], vhigh[0], vhigh[1], vhigh[2]);
+printf("~1 rspl: di %d, fdi %d\n",fdi);
+printf("~1 rspl: gres = %s, smooth = %f, avgdev = %s\n",
+debPiv(di, gres),smooth, debPdv(fdi,avgdev));
+printf("~1 rspl: glow = %s ghigh = %s\n", debPdv(di,glow), debPdv(di,ghigh));
+printf("~1 rspl: vlow = %s vhigh = %s\n",debPdv(fdi,vlow), debPdv(fdi,vhigh));
 printf("~1 rspl: flags = 0x%x\n",flags);
 #endif
 
@@ -444,9 +446,9 @@ printf("~1 rspl: flags = 0x%x\n",flags);
 #endif
 
 	/* This is a restricted size function */
-	if (di > MXRI)
+	if (di > MXDI)
 		error("rspl: fit can't handle di = %d",di);
-	if (fdi > MXRO)
+	if (fdi > MXDO)
 		error("rspl: fit can't handle fdi = %d",fdi);
 
 	/* set debug level */
@@ -528,8 +530,9 @@ printf("~1 rspl: flags = 0x%x\n",flags);
 
 		for (i = 0; i < dno; i++) {
 			for (e = 0; e < s->di; e++) {
-				if (dp[i].p[e] > s->g.h[e])
+				if (dp[i].p[e] > s->g.h[e]) {
 					s->g.h[e] = dp[i].p[e];
+				}
 				if (dp[i].p[e] < s->g.l[e])
 					s->g.l[e] = dp[i].p[e];
 			}
@@ -882,11 +885,11 @@ fit_rspl(
 	int flags,		/* Combination of flags */
 	co *d,			/* Array holding position and function values of data points */
 	int dno,		/* Number of data points */
-	ratai glow,		/* Grid low scale - will be expanded to enclose data, NULL = default 0.0 */
-	ratai ghigh,	/* Grid high scale - will be expanded to enclose data, NULL = default 1.0 */
+	datai glow,		/* Grid low scale - will be expanded to enclose data, NULL = default 0.0 */
+	datai ghigh,	/* Grid high scale - will be expanded to enclose data, NULL = default 1.0 */
 	int gres[MXDI],	/* Spline grid resolution */
-	ratao vlow,		/* Data value low normalize, NULL = default 0.0 */
-	ratao vhigh,	/* Data value high normalize - NULL = default 1.0 */
+	datao vlow,		/* Data value low normalize, NULL = default 0.0 */
+	datao vhigh,	/* Data value high normalize - NULL = default 1.0 */
 	double smooth,	/* Smoothing factor, nominal = 1.0 */
 	double avgdev[MXDO],
 	                /* Average Deviation of function values as proportion of function range. */
@@ -906,11 +909,11 @@ fit_rspl_w(
 	int flags,		/* Combination of flags */
 	cow *d,			/* Array holding position, function and weight values of data points */
 	int dno,		/* Number of data points */
-	ratai glow,		/* Grid low scale - will be expanded to enclose data, NULL = default 0.0 */
-	ratai ghigh,	/* Grid high scale - will be expanded to enclose data, NULL = default 1.0 */
+	datai glow,		/* Grid low scale - will be expanded to enclose data, NULL = default 0.0 */
+	datai ghigh,	/* Grid high scale - will be expanded to enclose data, NULL = default 1.0 */
 	int gres[MXDI],		/* Spline grid resolution */
-	ratao vlow,		/* Data value low normalize, NULL = default 0.0 */
-	ratao vhigh,	/* Data value high normalize - NULL = default 1.0 */
+	datao vlow,		/* Data value low normalize, NULL = default 0.0 */
+	datao vhigh,	/* Data value high normalize - NULL = default 1.0 */
 	double smooth,	/* Smoothing factor, nominal = 1.0 */
 	double avgdev[MXDO],
 	                /* Average Deviation of function values as proportion of function range. */
@@ -930,11 +933,11 @@ fit_rspl_ww(
 	int flags,		/* Combination of flags */
 	coww *d,		/* Array holding position, function and weight values of data points */
 	int dno,		/* Number of data points */
-	ratai glow,		/* Grid low scale - will be expanded to enclose data, NULL = default 0.0 */
-	ratai ghigh,	/* Grid high scale - will be expanded to enclose data, NULL = default 1.0 */
+	datai glow,		/* Grid low scale - will be expanded to enclose data, NULL = default 0.0 */
+	datai ghigh,	/* Grid high scale - will be expanded to enclose data, NULL = default 1.0 */
 	int gres[MXDI],		/* Spline grid resolution */
-	ratao vlow,		/* Data value low normalize, NULL = default 0.0 */
-	ratao vhigh,	/* Data value high normalize - NULL = default 1.0 */
+	datao vlow,		/* Data value low normalize, NULL = default 0.0 */
+	datao vhigh,	/* Data value high normalize - NULL = default 1.0 */
 	double smooth,	/* Smoothing factor, nominal = 1.0 */
 	double avgdev[MXDO],
 	                /* Average Deviation of function values as proportion of function range. */
@@ -1530,15 +1533,17 @@ static mgtmp *new_mgtmp(
 #endif
 
 	/* Allocate space for auiliary data point related info */
-	if ((m->d = (struct mgdat *) calloc(dno, sizeof(struct mgdat))) == NULL)
+	m->sizeof_mgdat = sizeof(struct mgdat) + sizeof(double) * (1 << di);
+	if ((m->d = (struct mgdat *) calloc(dno, m->sizeof_mgdat)) == NULL)
 		error("rspl: malloc failed - mgtmp");
 
 	/* fill in the aux data point info */
 	/* (We're assuming N-linear interpolation here. */
 	/*  Perhaps we should try simplex too ?) */
 	for (n = 0; n < dno; n++) {
-		double we[MXRI];	/* 1.0 - Weight in each dimension */
+		double we[MXDI];	/* 1.0 - Weight in each dimension */
 		int ix = 0;			/* Index to base corner of surrounding cube in grid points */
+		struct mgdat *dd;
 
 		/* Figure out which grid cell the point falls into */
 		for (e = 0; e < di; e++) {
@@ -1557,21 +1562,22 @@ static mgtmp *new_mgtmp(
 			ix += mi * m->g.ci[e];		/* Add Index offset for grid cube base in dimen */
 			we[e] = t - (double)mi;		/* 1.0 - weight */
 		}
-		m->d[n].b = ix;
+		dd = MGDAT_N(m, n);
+		dd->b = ix;
 
 		/* Compute corner weights needed for interpolation */
-		m->d[n].w[0] = 1.0;
+		dd->w[0] = 1.0;
 		for (e = 0, g = 1; e < di; g *= 2, e++) {
 			for (i = 0; i < g; i++) {
-				m->d[n].w[g+i] = m->d[n].w[i] * we[e];
-				m->d[n].w[i] *= (1.0 - we[e]);
+				dd->w[g+i] = dd->w[i] * we[e];
+				dd->w[i] *= (1.0 - we[e]);
 			}
 		}
 
 #ifdef DEBUG
 		printf("Data point %d weighting factors = \n",n);
 		for (e = 0; e < (1 << di); e++) {
-			printf("%d: %f\n",e,m->d[n].w[e]);
+			printf("%d: %f\n",e,dd->w[e]);
 		}
 #endif /* DEBUG */
 
@@ -1588,6 +1594,7 @@ static mgtmp *new_mgtmp(
 
 	/* Set the solution matricies to unalocated */
 	m->q.A = NULL;
+	m->q.xcol = NULL;
 	m->q.ixcol = NULL;
 	m->q.b = NULL;
 	m->q.x = NULL;
@@ -1620,6 +1627,7 @@ static void free_mgtmp(mgtmp  *m) {
 	}
 	free_dvector(m->q.x,0,gno-1);
 	free_dvector(m->q.b,0,gno-1);
+	free((void *)m->q.xcol);
 	free((void *)m->q.ixcol);
 	free_dmatrix(m->q.A,0,gno-1,0,m->q.acols-1);
 	free((void *)m->d);
@@ -1770,8 +1778,24 @@ mgtmp *sm		/* Optional smoothing map for ausm mode */
 		DCOUNT(gc, MXDIDO, di, -2, -2, 3);	/* Step through +/- 2 cube offset */
 #endif
 		int ix;						/* Grid point offset in grid points */
+		int xcolpmax;
 		acols = 0;
 	
+		/* Allocate xcol[] */
+		if (xcol == NULL) {
+			/* Comput used dimensions XCOLPMAX, */
+			/* = number of array components, */
+			/* = HACOMPS + 8 */
+			xcolpmax = 1;
+			for (k = 0; k < di; k++)
+				xcolpmax *= 3;
+			xcolpmax += 2 * di + 1;
+			xcolpmax /= 2;
+			xcolpmax += 8;
+			if ((xcol = (int *) malloc(xcolpmax * sizeof(int))) == NULL)
+				error("rspl malloc failed - xcol");
+		}
+
 		DC_INIT(gc);
 	
 		while (!DC_DONE(gc)) {
@@ -1796,7 +1820,7 @@ mgtmp *sm		/* Optional smoothing map for ausm mode */
 				for (ix = 0, k = 0; k < di; k++)
 					ix += gc[k] * gci[k];		/* Multi-dimension grid offset */
 				if (ix >= 0) {
-					if (acols >= XCOLPMAX)
+					if (acols >= xcolpmax)
 						error("rspl internal: exceeded xcol bounds"); 
 					xcol[acols++] = ix;			/* We only store half, due to symetry */
 				}
@@ -1849,6 +1873,7 @@ mgtmp *sm		/* Optional smoothing map for ausm mode */
 		m->q.b = b;
 		m->q.x = x;
 		m->q.acols = acols;
+		m->q.xcol = xcol;
 		m->q.ixcol = ixcol;
 
 	} else { 	/* re-initializing, zero matrices */
@@ -2264,7 +2289,8 @@ mgtmp *sm		/* Optional smoothing map for ausm mode */
 	/* Accumulate data point dependent factors */
 	for (n = 0; n < dno; n++) {		/* Go through all the data points */
 		int j,k;
-		int bp = m->d[n].b; 		/* index to base grid point in grid points */
+		struct mgdat *dd = MGDAT_N(m, n);
+		int bp = dd->b; 		/* index to base grid point in grid points */
 
 		/* For each point in the cube as the base grid point, */
 		/* add in the appropriate weighting for its weighted neighbors. */
@@ -2274,7 +2300,7 @@ mgtmp *sm		/* Optional smoothing map for ausm mode */
 
 			ai = bp + m->g.hi[j];			/* A matrix index */
 
-			w = m->d[n].w[j];				/* Base point grid weight */
+			w = dd->w[j];				/* Base point grid weight */
 			d = 2.0 * s->d.a[n].k[f] * w;	/* (2.0, w are derivtv factors, k data pnt wgt) */
 			tt = d * s->d.a[n].v[f];		/* Change in data component */
 
@@ -2287,7 +2313,7 @@ mgtmp *sm		/* Optional smoothing map for ausm mode */
 			for (k = j+1; k < (1 << di); k++) {	/* Binary sequence */
 				int ii;
 				ii = ixcol[m->g.hi[k] - m->g.hi[j]];	/* A matrix column index */
-				A[ai][ii] += d * m->d[n].w[k];			/* dui component due to ui+1 */
+				A[ai][ii] += d * dd->w[k];			/* dui component due to ui+1 */
 			}
 		}
 	}
@@ -2337,14 +2363,15 @@ static void comp_fit_errors(
 	/* Compute error for each data point */
 	for (n = 0; n < dno; n++) {
 		int j;
-		int bp = m->d[n].b; 		/* index to base grid point in grid points */
+		struct mgdat *dd = MGDAT_N(m, n);
+		int bp = dd->b; 				/* index to base grid point in grid points */
 		double val;					/* Current interpolated value */
 		double err;
 		double gain = 1.0;
 
 		/* Compute the interpolated grid value for this data point */
 		for (val = 0.0, j = 0; j < (1 << di); j++) 		/* Binary sequence */
-			val += m->d[n].w[j] * x[bp + m->g.hi[j]];
+			val += dd->w[j] * x[bp + m->g.hi[j]];
 
 		err = s->d.a[n].v[f] - val;
 		err *= 0.8;
@@ -2367,8 +2394,8 @@ static double mgtmp_interp(
 	rspl *s = m->s;
 	int di  = s->di;
 	int e, n;
-	double we[MXRI];		/* 1.0 - Weight in each dimension */
-	double gw[POW2MXRI];	/* weight for each grid cube corner */
+	double we[MXDI];		/* 1.0 - Weight in each dimension */
+	double gw[POW2MXDI];	/* weight for each grid cube corner */
 	double *gp;				/* Pointer to x2[] grid cube base */
 	double val;
 		
@@ -2428,7 +2455,7 @@ static void init_soln(
 	/* For all output grid points */
 	EC_INIT(gc);
 	for (n = 0; n < gno; n++) {
-		double p[MXRI];		/* Grid relative location */
+		double p[MXDI];		/* Grid relative location */
 
 		for (e = 0; e < di; e++)
 			p[e] = (double)gc[e]/(m1->g.res[e] - 1.0);
@@ -2645,7 +2672,7 @@ one_itter1(
 	/* For each dimension */
 	for (d = 0; d < di; d++) {
 		int ld = d == 0 ? 1 : 0;	/* lowest dim */
-		int sof, gc[MXRI];
+		int sof, gc[MXDI];
 
 //printf("~1 doing one_itter1 for dim %d\n",d);
 		for (e = 0; e < di; e++)
@@ -2713,7 +2740,7 @@ one_itter2(
 	double ovsh		/* Overshoot to use, 1.0 for none */
 ) {
 	int e,i,k;
-	int gc[MXRI];
+	int gc[MXDI];
 
 	for (i = e = 0; e < di; e++)
 		gc[e] = 0;	/* init coords */

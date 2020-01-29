@@ -804,7 +804,7 @@ static void read_PCSNumber(icc *icp, icColorSpaceSignature csig, double pcs[3], 
 		pcs[1] = read_DCS16Number(p+2);
 		pcs[2] = read_DCS16Number(p+4);
 	}
-	switch (csig) {
+	switch ((int)csig) {
 		case icSigXYZData:
 			Lut_Lut2XYZ(pcs, pcs);
 			break;
@@ -840,7 +840,7 @@ static int write_PCSNumber(icc *icp, icColorSpaceSignature csig, double pcs[3], 
 			csig = icmSigLabV2Data;
 	}
 
-	switch (csig) {
+	switch ((int)csig) {
 		case icSigXYZData:
 			Lut_XYZ2Lut(v, pcs);
 			break;
@@ -876,7 +876,7 @@ static int write_PCSNumber(icc *icp, icColorSpaceSignature csig, double pcs[3], 
 /* Public: */
 int read_Primitive(icc *icp, icmPrimType ptype, void *prim, char *p) {
 
-	switch(ptype) {
+	switch (ptype) {
 		case icmUInt8Number:
 			*((unsigned int *)prim) = read_UInt8Number(p);
 			return 0;
@@ -944,7 +944,7 @@ int read_Primitive(icc *icp, icmPrimType ptype, void *prim, char *p) {
 /* Public: */
 int write_Primitive(icc *icp, icmPrimType ptype, char *p, void *prim) {
 
-	switch(ptype) {
+	switch (ptype) {
 		case icmUInt8Number:
 			return write_UInt8Number(*((unsigned int *)prim), p);
 		case icmUInt16Number:
@@ -1073,7 +1073,7 @@ static int check_null_string16(char *cp, int len) {
 /* Color Space to number of component conversion */
 /* Return 0 on error */
 static unsigned int number_ColorSpaceSignature(icColorSpaceSignature sig) {
-	switch(sig) {
+	switch ((int)sig) {
 		case icSigXYZData:
 			return 3;
 		case icSigLabData:
@@ -1134,6 +1134,9 @@ static unsigned int number_ColorSpaceSignature(icColorSpaceSignature sig) {
 			return 1;
 		case icmSigLData:
 			return 1;
+		case icmSigLptData:
+			return 3;
+
 		case icmSigL8Data:
 			return 1;
 		case icmSigLV2Data:
@@ -1171,7 +1174,7 @@ static int chnames_ColorSpaceSignature(
 icColorSpaceSignature sig,
 char *cvals[]				/* Pointers to return for each channel */
 ) {
-	switch (sig) {
+	switch ((int)sig) {
     	case icSigXYZData:
 			cvals[0] = "CIE X";
 			cvals[1] = "CIE Y";
@@ -1244,6 +1247,12 @@ char *cvals[]				/* Pointers to return for each channel */
 
     	case icmSigLData:
 			cvals[0] = "CIE L*";
+			return 2;
+
+		case icmSigLptData:
+			cvals[0] = "L";
+			cvals[1] = "p";
+			cvals[2] = "t";
 			return 2;
 
 		default:
@@ -1382,7 +1391,7 @@ static char *string_AsciiOrBinaryData(unsigned int flags) {
 /* public tags and sizes */
 static const char *string_TagSignature(icTagSignature sig) {
 	static char buf[80];
-	switch(sig) {
+	switch ((int)sig) {
 		case icSigAToB0Tag:
 			return "AToB0 Multidimentional Transform";
 		case icSigAToB1Tag:
@@ -1487,7 +1496,7 @@ static const char *string_TagSignature(icTagSignature sig) {
 /* technology signature descriptions */
 static const char *string_TechnologySignature(icTechnologySignature sig) {
 	static char buf[80];
-	switch(sig) {
+	switch (sig) {
 		case icSigDigitalCamera:
 			return "Digital Camera";
 		case icSigFilmScanner:
@@ -1541,7 +1550,7 @@ static const char *string_TechnologySignature(icTechnologySignature sig) {
 /* type signatures */
 static const char *string_TypeSignature(icTagTypeSignature sig) {
 	static char buf[80];
-	switch(sig) {
+	switch (sig) {
 		case icSigCurveType:
 			return "Curve";
 		case icSigDataType:
@@ -1599,7 +1608,7 @@ static const char *string_TypeSignature(icTagTypeSignature sig) {
 /* Color Space Signatures */
 static const char *string_ColorSpaceSignature(icColorSpaceSignature sig) {
 	static char buf[80];
-	switch(sig) {
+	switch ((int)sig) {
 		case icSigXYZData:
 			return "XYZ";
 		case icSigLabData:
@@ -1662,6 +1671,9 @@ static const char *string_ColorSpaceSignature(icColorSpaceSignature sig) {
 			return "L";
 		case icmSigL8Data:
 			return "L";
+		case icmSigLptData:
+			return "Lpt";
+
 		case icmSigLV2Data:
 			return "L";
 		case icmSigLV4Data:
@@ -1692,7 +1704,7 @@ char *ColorSpaceSignature2str(icColorSpaceSignature sig) {
 /* profileClass enumerations */
 static const char *string_ProfileClassSignature(icProfileClassSignature sig) {
 	static char buf[80];
-	switch(sig) {
+	switch (sig) {
 		case icSigInputClass:
 			return "Input";
 		case icSigDisplayClass:
@@ -1716,7 +1728,7 @@ static const char *string_ProfileClassSignature(icProfileClassSignature sig) {
 /* Platform Signatures */
 static const char *string_PlatformSignature(icPlatformSignature sig) {
 	static char buf[80];
-	switch(sig) {
+	switch ((int)sig) {
 		case icSigMacintosh:
 			return "Macintosh";
 		case icSigMicrosoft:
@@ -1738,7 +1750,7 @@ static const char *string_PlatformSignature(icPlatformSignature sig) {
 /* Measurement Geometry, used in the measurmentType tag */
 static const char *string_MeasurementGeometry(icMeasurementGeometry sig) {
 	static char buf[30];
-	switch(sig) {
+	switch (sig) {
 		case icGeometryUnknown:
 			return "Unknown";
 		case icGeometry045or450:
@@ -1754,7 +1766,7 @@ static const char *string_MeasurementGeometry(icMeasurementGeometry sig) {
 /* Rendering Intents, used in the profile header */
 static const char *string_RenderingIntent(icRenderingIntent sig) {
 	static char buf[30];
-	switch(sig) {
+	switch((int)sig) {
 		case icPerceptual:
 			return "Perceptual";
 		case icRelativeColorimetric:
@@ -5130,7 +5142,7 @@ double *in		/* Input array[outputChan] */
 	int rv = 0;
 	double *gp;					/* Pointer to grid cube base */
 	double co[MAX_CHAN];		/* Coordinate offset with the grid cell */
-	int    si[MAX_CHAN];		/* co[] Sort index, [0] = smalest */
+	int    si[MAX_CHAN];		/* co[] Sort index, [0] = smallest */
 
 	/* We are using a simplex (ie. tetrahedral for 3D input) interpolation. */
 	/* This method is more appropriate for XYZ/RGB/CMYK input spaces, */
@@ -5388,7 +5400,7 @@ double *in		/* Input array[outputChan] */
 	int rv = 0;
 	double *gp;					/* Pointer to grid cube base */
 	double co[MAX_CHAN];		/* Coordinate offset with the grid cell */
-	int    si[MAX_CHAN];		/* co[] Sort index, [0] = smalest */
+	int    si[MAX_CHAN];		/* co[] Sort index, [0] = smallest */
 
 	/* We are using a simplex (ie. tetrahedral for 3D input) interpolation. */
 	/* This method is more appropriate for XYZ/RGB/CMYK input spaces, */
@@ -5825,7 +5837,7 @@ int icmSetMultiLutTables(
 	iv = _iv + maxchan;		/* Allow for "index under" and smoothing radius values */
 
 	/* Setup input table value min-max */
-	if (inmin == NULL || imax == NULL) {
+	if (inmin == NULL || inmax == NULL) {
 #ifdef SYMETRICAL_DEFAULT_LAB_RANGE	/* Symetrical default range. */
 		/* We are assuming V2 Lab16 encoding, since this is a lut16type that always uses */
 		/* this encoding */
@@ -13548,6 +13560,13 @@ void icmClamp3(double out[3], double in[3]) {
 		out[i] = in[i] < 0.0 ? 0.0 : in[i];
 }
 
+/* Invert a 3 vector */
+void icmInv3(double out[3], double in[3]) {
+	int i;
+	for (i = 0; i < 3; i++)
+		out[i] = -in[i];
+}
+
 /* Add two 3 vectors */
 void icmAdd3(double out[3], double in1[3], double in2[3]) {
 	out[0] = in1[0] + in2[0];
@@ -13576,6 +13595,18 @@ void icmMul3(double out[3], double in1[3], double in2[3]) {
 	out[2] = in1[2] * in2[2];
 }
 
+/* Take values to power */
+void icmPow3(double out[3], double in[3], double p) {
+	int i;
+
+	for (i = 0; i < 3; i++) {
+		if (in[i] < 0.0)
+			out[i] = -pow(-in[i], p);
+		else
+			out[i] = pow(in[i], p);
+	}
+}
+
 /* Take absolute of a 3 vector */
 void icmAbs3(double out[3], double in[3]) {
 	out[0] = fabs(in[0]);
@@ -13584,6 +13615,16 @@ void icmAbs3(double out[3], double in[3]) {
 }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - */
+
+/* Set a 3x3 matrix to a value */
+void icmSetVal3x3(double mat[3][3], double val) {
+	int i, j;
+	for (j = 0; j < 3; j++) {
+		for (i = 0; i < 3; i++) {
+			mat[j][i] = val;
+		}
+	}
+}
 
 /* Set a 3x3 matrix to unity */
 void icmSetUnity3x3(double mat[3][3]) {
@@ -13606,6 +13647,17 @@ void icmCpy3x3(double dst[3][3], double src[3][3]) {
 	for (j = 0; j < 3; j++) {
 		for (i = 0; i < 3; i++)
 			dst[j][i] = src[j][i];
+	}
+}
+
+/* Add one 3x3 to another */
+/* dst = src1 + src2 */
+void icmAdd3x3(double dst[3][3], double src1[3][3], double src2[3][3]) {
+	int i, j;
+
+	for (j = 0; j < 3; j++) {
+		for (i = 0; i < 3; i++)
+			dst[j][i] = src1[j][i] + src2[j][i];
 	}
 }
 
@@ -13645,17 +13697,6 @@ void icmMulBy3x3(double out[3], double mat[3][3], double in[3]) {
 }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - */
-/* Add one 3x3 to another */
-/* dst = src1 + src2 */
-void icmAdd3x3(double dst[3][3], double src1[3][3], double src2[3][3]) {
-	int i, j;
-
-	for (j = 0; j < 3; j++) {
-		for (i = 0; i < 3; i++)
-			dst[j][i] = src1[j][i] + src2[j][i];
-	}
-}
-
 /* - - - - - - - - - - - - - - - - - - - - - - - - */
 /* Tensor product. Multiply two 3 vectors to form a 3x3 matrix */
 /* src1[] forms the colums, and src2[] forms the rows in the result */
@@ -13885,6 +13926,13 @@ void icmScale3(double out[3], double in[3], double rat) {
 	out[2] = in[2] * rat;
 }
 
+/* Scale a 3 vector by the given ratio and add it */
+void icmScaleAdd3(double out[3], double in2[3], double in1[3], double rat) {
+	out[0] = in2[0] + in1[0] * rat;
+	out[1] = in2[1] + in1[1] * rat;
+	out[2] = in2[2] + in1[2] * rat;
+}
+
 /* Compute a blend between in0 and in1 */
 void icmBlend3(double out[3], double in0[3], double in1[3], double bf) {
 	out[0] = (1.0 - bf) * in0[0] + bf * in1[0];
@@ -13904,6 +13952,47 @@ void icmClip3(double out[3], double in[3]) {
 	}
 }
 
+/* Clip a vector to the range 0.0 .. 1.0 */
+/* and retun nz if clipping occured */
+int icmClip3sig(double out[3], double in[3]) {
+	int j;
+	int clip = 0;
+	for (j = 0; j < 3; j++) {
+		out[j] = in[j];
+		if (out[j] < 0.0) {
+			out[j] = 0.0;
+			clip = 1;
+		} else if (out[j] > 1.0) {
+			out[j] = 1.0;
+			clip = 1;
+		}
+	}
+	return clip;
+}
+
+/* Clip a vector to the range 0.0 .. 1.0 */
+/* and return any clipping margine */
+double icmClip3marg(double out[3], double in[3]) {
+	int j;
+	double tt, marg = 0.0;
+	for (j = 0; j < 3; j++) {
+		out[j] = in[j];
+		if (out[j] < 0.0) {
+			tt = 0.0 - out[j];
+			out[j] = 0.0;
+			if (tt > marg)
+				marg = tt;
+		} else if (out[j] > 1.0) {
+			tt = out[j] - 1.0;
+			out[j] = 1.0;
+			if (tt > marg)
+				marg = tt;
+		}
+	}
+	return marg;
+}
+
+
 /* Normalise a 3 vector to the given length. Return nz if not normalisable */
 int icmNormalize3(double out[3], double in[3], double len) {
 	double tt = sqrt(in[0] * in[0] + in[1] * in[1] + in[2] * in[2]);
@@ -13915,6 +14004,17 @@ int icmNormalize3(double out[3], double in[3], double len) {
 	out[1] = in[1] * tt;
 	out[2] = in[2] * tt;
 	return 0;
+}
+
+/* Compute the norm (length) of a vector define by two points */
+double icmNorm22(double in1[2], double in0[2]) {
+	int j;
+	double rv;
+	for (rv = 0.0, j = 0; j < 2; j++) {
+		double tt = in1[j] - in0[j];
+		rv += tt * tt;
+	}
+	return sqrt(rv);
 }
 
 /* Compute the norm (length) squared of a vector define by two points */
@@ -14063,6 +14163,199 @@ void icmRotMat(double m[3][3], double s[3], double t[3]) {
 }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - */
+
+/* 
+
+  mat     in    out
+
+[     ]   []    []
+[     ] * [] => []
+[     ]   []    []
+[     ]   []    []
+
+ */
+
+/* Multiply 4 array by 4x4 transform matrix */
+void icmMulBy4x4(double out[4], double mat[4][4], double in[4]) {
+	double tt[4];
+
+	tt[0] = mat[0][0] * in[0] + mat[0][1] * in[1] + mat[0][2] * in[2] + mat[0][3] * in[3];
+	tt[1] = mat[1][0] * in[0] + mat[1][1] * in[1] + mat[1][2] * in[2] + mat[1][3] * in[3];
+	tt[2] = mat[2][0] * in[0] + mat[2][1] * in[1] + mat[2][2] * in[2] + mat[2][3] * in[3];
+	tt[3] = mat[3][0] * in[0] + mat[3][1] * in[1] + mat[3][2] * in[2] + mat[3][3] * in[3];
+
+	out[0] = tt[0];
+	out[1] = tt[1];
+	out[2] = tt[2];
+	out[3] = tt[3];
+}
+
+/* Transpose a 4x4 matrix */
+void icmTranspose4x4(double out[4][4], double in[4][4]) {
+	int i, j;
+	if (out != in) {
+		for (i = 0; i < 4; i++)
+			for (j = 0; j < 4; j++)
+				out[i][j] = in[j][i];
+	} else {
+		double tt[4][4];
+		for (i = 0; i < 4; i++)
+			for (j = 0; j < 4; j++)
+				tt[i][j] = in[j][i];
+		for (i = 0; i < 4; i++)
+			for (j = 0; j < 4; j++)
+				out[i][j] = tt[i][j];
+	}
+}
+
+/* Clip a vector to the range 0.0 .. 1.0 */
+/* and return any clipping margine */
+double icmClip4marg(double out[4], double in[4]) {
+	int j;
+	double tt, marg = 0.0;
+	for (j = 0; j < 4; j++) {
+		out[j] = in[j];
+		if (out[j] < 0.0) {
+			tt = 0.0 - out[j];
+			out[j] = 0.0;
+			if (tt > marg)
+				marg = tt;
+		} else if (out[j] > 1.0) {
+			tt = out[j] - 1.0;
+			out[j] = 1.0;
+			if (tt > marg)
+				marg = tt;
+		}
+	}
+	return marg;
+}
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - */
+
+/* 
+
+  mat     in    out
+
+[     ]   []    []
+[     ]   []    []
+[     ] * [] => []
+[     ]   []    []
+[     ]   []    []
+
+ */
+
+/* Multiply 5 array by 5x5 transform matrix */
+void icmMulBy5x5(double out[5], double mat[5][5], double in[5]) {
+	int i, j;
+	double tt[5];
+
+	for (i = 0; i < 5; i++) {
+		tt[i] = 0.0;
+		for (j = 0; j < 5; j++)
+			tt[i] += mat[i][j] * in[j];
+	}
+
+	for (i = 0; i < 5; i++)
+		out[i] = tt[i];
+}
+
+/* Transpose a 5x5 matrix */
+void icmTranspose5x5(double out[5][5], double in[5][5]) {
+	int i, j;
+	if (out != in) {
+		for (i = 0; i < 5; i++)
+			for (j = 0; j < 5; j++)
+				out[i][j] = in[j][i];
+	} else {
+		double tt[5][5];
+		for (i = 0; i < 5; i++)
+			for (j = 0; j < 5; j++)
+				tt[i][j] = in[j][i];
+		for (i = 0; i < 5; i++)
+			for (j = 0; j < 5; j++)
+				out[i][j] = tt[i][j];
+	}
+}
+
+/* Clip a vector to the range 0.0 .. 1.0 */
+/* and return any clipping margine */
+double icmClip5marg(double out[5], double in[5]) {
+	int j;
+	double tt, marg = 0.0;
+	for (j = 0; j < 5; j++) {
+		out[j] = in[j];
+		if (out[j] < 0.0) {
+			tt = 0.0 - out[j];
+			out[j] = 0.0;
+			if (tt > marg)
+				marg = tt;
+		} else if (out[j] > 1.0) {
+			tt = out[j] - 1.0;
+			out[j] = 1.0;
+			if (tt > marg)
+				marg = tt;
+		}
+	}
+	return marg;
+}
+
+
+/* Multiply 6 array by 6x6 transform matrix */
+void icmMulBy6x6(double out[6], double mat[6][6], double in[6]) {
+	int i, j;
+	double tt[6];
+
+	for (i = 0; i < 6; i++) {
+		tt[i] = 0.0;
+		for (j = 0; j < 6; j++)
+			tt[i] += mat[i][j] * in[j];
+	}
+
+	for (i = 0; i < 6; i++)
+		out[i] = tt[i];
+}
+
+/* Transpose a 6x6 matrix */
+void icmTranspose6x6(double out[6][6], double in[6][6]) {
+	int i, j;
+	if (out != in) {
+		for (i = 0; i < 6; i++)
+			for (j = 0; j < 6; j++)
+				out[i][j] = in[j][i];
+	} else {
+		double tt[6][6];
+		for (i = 0; i < 6; i++)
+			for (j = 0; j < 6; j++)
+				tt[i][j] = in[j][i];
+		for (i = 0; i < 6; i++)
+			for (j = 0; j < 6; j++)
+				out[i][j] = tt[i][j];
+	}
+}
+
+/* Clip a vector to the range 0.0 .. 1.0 */
+/* and return any clipping margine */
+double icmClip6marg(double out[6], double in[6]) {
+	int j;
+	double tt, marg = 0.0;
+	for (j = 0; j < 6; j++) {
+		out[j] = in[j];
+		if (out[j] < 0.0) {
+			tt = 0.0 - out[j];
+			out[j] = 0.0;
+			if (tt > marg)
+				marg = tt;
+		} else if (out[j] > 1.0) {
+			tt = out[j] - 1.0;
+			out[j] = 1.0;
+			if (tt > marg)
+				marg = tt;
+		}
+	}
+	return marg;
+}
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - */
 /* Multiply 2 array by 2x2 transform matrix */
 void icmMulBy2x2(double out[2], double mat[2][2], double in[2]) {
 	double tt[2];
@@ -14207,11 +14500,11 @@ double ve_0[3]			/* Second point on line */
 int icmLinePointClosest(double cp[3], double *pa,
                        double la0[3], double la1[3], double pp[3]) {
 	double va[3], vp[3];
-	double val;				/* Vector length */
+	double val;				/* Vector length squared */
 	double a;				/* Parameter value */
 
 	icmSub3(va, la1, la0);	/* Line vector */
-	val = icmNorm3(va);		/* Vector length */
+	val = icmNorm3sq(va);	/* Vector length squared */
 
 	if (val < 1e-12)
 		return 1;
@@ -14345,7 +14638,7 @@ double icmPlaneDist3(double eq[4], double p[3]) {
 }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - */
-/* Given 2 2D points, compute a plane equation. */
+/* Given 2 2D points, compute a plane equation (implicit line equation). */
 /* The normal will be right handed given the order of the points */
 /* The plane equation will be the 2 normal components and the constant. */
 /* Return nz if any points are cooincident or co-linear */
@@ -14375,7 +14668,7 @@ int icmPlaneEqn2(double eq[3], double p0[2], double p1[2]) {
 	return 0;
 }
 
-/* Given a 2D point and a plane equation, return the signed */
+/* Given a 2D point and a plane equation (implicit line), return the signed */
 /* distance from the plane. The distance will be +ve if the point */
 /* is to the right of the plane formed by two points in order */
 double icmPlaneDist2(double eq[3], double p[2]) {
@@ -14386,6 +14679,70 @@ double icmPlaneDist2(double eq[3], double p[2]) {
 	   + eq[2];
 
 	return rv;
+}
+
+/* Return the closest point on an implicit line to a point. */
+/* Also return the absolute distance */
+double icmImpLinePointClosest2(double cp[2], double eq[3], double pp[2]) {
+	double q;		/* Closest distance to line */
+
+	q = eq[0] * pp[0]
+	  + eq[1] * pp[1]
+	  + eq[2];
+	
+	cp[0] = pp[0] - q * eq[0];
+	cp[1] = pp[1] - q * eq[1];
+
+	return fabs(q);
+}
+
+/* Return the point of intersection of two implicit lines . */
+/* Return nz if there is no intersection (lines are parallel) */
+int icmImpLineIntersect2(double res[2], double eq1[3], double eq2[3]) {
+	double num;
+
+	num = eq1[0] * eq2[1] - eq2[0] * eq1[1];
+
+	if (fabs(num) < 1e-10)
+		return 1;
+
+	res[0] = (eq2[2] * eq1[1] - eq1[2] * eq2[1])/num;
+	res[1] = (eq1[2] * eq2[0] - eq2[2] * eq1[0])/num;
+
+	return 0;
+}
+
+/* Compute the closest point on a line to a point. */
+/* Return closest point and parameter value if not NULL. */
+/* Return nz if the line length is zero */
+int icmLinePointClosest2(double cp[2], double *pa,
+                       double la0[2], double la1[2], double pp[2]) {
+	double va[2], vp[2];
+	double val;				/* Vector length squared */
+	double a;				/* Parameter value */
+
+	va[0] = la1[0] - la0[0];	/* Line vector */
+	va[1] = la1[1] - la0[1];
+
+	val = va[0] * va[0] + va[1] * va[1];
+
+	if (val < 1e-12)
+		return 1;
+
+	vp[0] = pp[0] - la0[0];		/* Point vector to line base */
+	vp[1] = pp[1] - la0[1];
+
+	a = (vp[0] * va[0] + vp[1] * va[1]) / val;	/* Normalised dist of point projected onto line */
+
+	if (cp != NULL) {
+		cp[0] = (1.0 - a) * la0[0] + a * la1[0];
+		cp[1] = (1.0 - a) * la0[1] + a * la1[1];
+	}
+
+	if (pa != NULL)
+		*pa = a;
+
+	return 0;
 }
 
 /* Given two infinite 2D lines define by 4 points, compute the intersection. */
@@ -14407,6 +14764,41 @@ int icmLineIntersect2(double res[2], double p1[2], double p2[2], double p3[2], d
 
 	res[0] = (x1y2_y1x2 * x3_x4 - x1_x2 * x3y4_y3x4)/num;
 	res[1] = (x1y2_y1x2 * y3_y4 - y1_y2 * x3y4_y3x4)/num;
+
+	return 0;
+}
+
+/* Given two finite 2D lines define by 4 points, compute their paramaterized intersection. */
+/* aprm may be NULL */
+/* Return 2 if there is no intersection (lines are parallel) */
+/* Return 1 lines do not cross within their length */
+int icmParmLineIntersect2(double res[2], double aprm[2], double p1[2], double p2[2], double p3[2], double p4[2]) {
+	double _prm[2];
+	double *prm = aprm != NULL ? aprm : _prm;
+	double x21     = p2[0] - p1[0];
+	double y21     = p2[1] - p1[1];
+	double x31     = p3[0] - p1[0];
+	double y31     = p3[1] - p1[1];
+	double x43     = p4[0] - p3[0];
+	double y43     = p4[1] - p3[1];
+	double num;							/* Numerator */
+
+	num = x43 * y21 - x21 * y43;
+
+	if (fabs(num) < 1e-10)
+		return 2;
+
+	prm[0] = (x43 * y31 - x31 * y43)/num;		/* Parameter of 1->2 */
+	prm[1] = (x21 * y31 - x31 * y21)/num;		/* Parameter of 3->4 */
+
+	if (res != NULL) {
+		res[0] = x21 * prm[0] + p1[0];
+		res[1] = y21 * prm[0] + p1[1];
+	}
+
+	if (prm[0] < -1e-10 || prm[0] > (1.0 + 1e-10)
+	 || prm[1] < -1e-10 || prm[1] > (1.0 + 1e-10))
+		return 1;
 
 	return 0;
 }
@@ -14497,26 +14889,122 @@ icmLab2XYZ(icmXYZNumber *w, double *out, double *in) {
 	out[2] = z * w->Z;
 }
 
+/*
+ * This is a modern update to L*a*b*, based on IPT space.
+ *
+ * Differences to L*a*b* and IPT:
+ *	Using inverse CIE 2012 2degree LMS to XYZ matrix instead of Hunt-Pointer-Estevez
+ *  Von Kries chromatic adapation in LMS space.
+ *  Using L* compression rather than IPT pure 0.43 power.
+ *  Tweaked LMS' to IPT matrix to account for change in XYZ to LMS matrix.
+ *  Output scaled to L*a*b* type ranges, to maintain 1 JND scale.
+ *  (Watch out - L* value is not a non-linear Y value though!).
+ */
 
-/* LCh to Lab */
+/* CIE XYZ to perceptual Lpt */
+void
+icmXYZ2Lpt(icmXYZNumber *w, double *out, double *in) {
+	double wxyz[3];
+	double wlms[3];
+	double lms[3];
+	double xyz2lms[3][3] = {
+        {  0.2052445519046028, 0.8334486497310412, -0.0386932016356441 },
+        { -0.4972221301804286, 1.4034846060306130,  0.0937375241498157 },
+        {  0.0000000000000000, 0.0000000000000000,  1.0000000000000000 }
+	};
+	double lms2ipt[3][3] = {
+        {  0.6585034777870502,  0.1424555300344579,  0.1990409921784920 },
+        {  5.6413505933276049, -6.1697985811414187,  0.5284479878138138 },
+        {  1.6370552576322106,  0.0192823194340315, -1.6563375770662419 }
+	};
+	int j;
+
+	/* White point in Cone space */
+	wxyz[0] = w->X;
+	wxyz[1] = w->Y;
+	wxyz[2] = w->Z;
+	icmMulBy3x3(wlms, xyz2lms, wxyz);
+
+	/* Incoming XYZ to Cone space */
+	icmMulBy3x3(lms, xyz2lms, in);
+
+	for (j = 0; j < 3; j++) {
+		/* Von Kries chromatic adapation */
+		lms[j] /= wlms[j];
+
+		/* Non-linearity */
+		if (lms[j] > 0.008856451586)
+			lms[j] = pow(lms[j],1.0/3.0);
+		else
+			lms[j] = 7.787036979 * lms[j] + 16.0/116.0;
+		lms[j] = 116.0 * lms[j] - 16.0;
+	}
+	/* IPT */
+	icmMulBy3x3(out, lms2ipt, lms);
+}
+
+void
+icmLpt2XYZ(icmXYZNumber *w, double *out, double *in) {
+	double wxyz[3];
+	double wlms[3];
+	double lms[3];
+	double xyz2lms[3][3] = {
+        {  0.2052445519046028, 0.8334486497310412, -0.0386932016356441 },
+        { -0.4972221301804286, 1.4034846060306130,  0.0937375241498157 },
+        {  0.0000000000000000, 0.0000000000000000,  1.0000000000000000 }
+	};
+	double ipt2lms[3][3] = {
+        {  1.0000000000000000,  0.0234881527511557,  0.1276631419615779 },
+        {  1.0000000000000000, -0.1387534648407132,  0.0759005921388901 },
+        {  1.0000000000000000,  0.0215994105411036, -0.4766811148374502 }
+	};
+	double lms2xyz[3][3] = {
+        {  1.9979376130193824, -1.1864600428553205,  0.1885224298359384 },
+        {  0.7078230795296872,  0.2921769204703129, -0.0000000000000000 },
+        {  0.0000000000000000,  0.0000000000000000,  1.0000000000000000 }
+	};
+	int j;
+
+	wxyz[0] = w->X;
+	wxyz[1] = w->Y;
+	wxyz[2] = w->Z;
+	icmMulBy3x3(wlms, xyz2lms, wxyz);
+
+	icmMulBy3x3(lms, ipt2lms, in);
+
+	for (j = 0; j < 3; j++) {
+		lms[j] = (lms[j] + 16.0)/116.0;
+
+		if (lms[j] > 24.0/116.0)
+			lms[j] = pow(lms[j], 3.0);
+		else
+			lms[j] = (lms[j] - 16.0/116.0)/7.787036979;
+
+		lms[j] *= wlms[j];
+	}
+
+	icmMulBy3x3(out, lms2xyz, lms);
+}
+
+/* LCh to Lab (general to polar, works with Lpt, Luv too) */
 void icmLCh2Lab(double *out, double *in) {
 	double C, h;
 
 	C = in[1];
-	h = 3.14159265359/180.0 * in[2];
+	h = M_PI/180.0 * in[2];
 
 	out[0] = in[0];
 	out[1] = C * cos(h);
 	out[2] = C * sin(h);
 }
 
-/* Lab to LCh (general to polar, works with Luv too) */
+/* Lab to LCh (general to polar, works with Lpt, Luv too) */
 void icmLab2LCh(double *out, double *in) {
 	double C, h;
 
 	C = sqrt(in[1] * in[1] + in[2] * in[2]);
 
-    h = (180.0/3.14159265359) * atan2(in[2], in[1]);
+    h = (180.0/M_PI) * atan2(in[2], in[1]);
 	h = (h < 0.0) ? h + 360.0 : h;
 
 	out[0] = in[0];
@@ -14531,8 +15019,8 @@ extern ICCLIB_API void icmXYZ2Yxy(double *out, double *in) {
 
 	if (sum < 1e-9) {
 		Y = 0.0;
-		y = 0.333333333;
-		x = 0.333333333;
+		y = 1.0/3.0;
+		x = 1.0/3.0;
 	} else {
 		Y = in[1];
 		x = in[0]/sum;
@@ -14541,6 +15029,22 @@ extern ICCLIB_API void icmXYZ2Yxy(double *out, double *in) {
 	out[0] = Y;
 	out[1] = x;
 	out[2] = y;
+}
+
+/* XYZ to xy */
+extern ICCLIB_API void icmXYZ2xy(double *out, double *in) {
+	double sum = in[0] + in[1] + in[2];
+	double x, y;
+
+	if (sum < 1e-9) {
+		y = 1.0/3.0;
+		x = 1.0/3.0;
+	} else {
+		x = in[0]/sum;
+		y = in[1]/sum;
+	}
+	out[0] = x;
+	out[1] = y;
 }
 
 /* Yxy to XYZ */
@@ -14560,6 +15064,21 @@ extern ICCLIB_API void icmYxy2XYZ(double *out, double *in) {
 	}
 }
 
+/* Y & xy to XYZ */
+extern ICCLIB_API void icmY_xy2XYZ(double *out, double *xy, double Y) {
+	double x = xy[0];
+	double y = xy[1];
+	double z = 1.0 - x - y;
+	double sum;
+	if (y < 1e-9) {
+		out[0] = out[1] = out[2] = 0.0;
+	} else {
+		sum = Y/y;
+		out[0] = x * sum;
+		out[1] = Y;
+		out[2] = z * sum;
+	}
+}
 
 /* CIE XYZ to perceptual CIE 1976 L*u*v* */
 extern ICCLIB_API void icmXYZ2Luv(icmXYZNumber *w, double *out, double *in) {
@@ -14616,7 +15135,7 @@ extern ICCLIB_API void icmLuv2XYZ(icmXYZNumber *w, double *out, double *in) {
 }
 
 /* CIE XYZ to perceptual CIE 1976 UCS diagram Yu'v'*/
-/* (Yu'v' is a better chromaticity space than Yxy) */
+/* (Yu'v' is a better linear chromaticity space than Yxy) */
 extern ICCLIB_API void icmXYZ21976UCS(double *out, double *in) {
 	double X = in[0], Y = in[1], Z = in[2];
 	double den, u, v;
@@ -14656,6 +15175,27 @@ extern ICCLIB_API void icm1976UCS2XYZ(double *out, double *in) {
 	out[1] = Y;
 	out[2] = Z;
 }
+
+/* CIE XYZ to perceptual CIE 1976 UCS diagram u'v'*/
+/* (u'v' is a better linear chromaticity space than xy) */
+extern ICCLIB_API void icmXYZ21976UCSuv(double *out, double *in) {
+	double X = in[0], Y = in[1], Z = in[2];
+	double den, u, v;
+
+	den = (X + 15.0 * Y + 3.0 * Z);
+
+	if (den < 1e-9) {
+		u = 4.0/19.0;
+		v = 9.0/19.0;
+	} else {
+		u = (4.0 * X) / den;
+		v = (9.0 * Y) / den;
+	}
+	
+	out[0] = u;
+	out[1] = v;
+}
+
 
 /* CIE XYZ to perceptual CIE 1960 UCS */
 /* (This was obsoleted by the 1976UCS, but is still used */
@@ -14862,12 +15402,42 @@ double icmLabDEsq(double *Lab0, double *Lab1) {
 	return rv;
 }
 
+/* Return the normal Delta E squared given two XYZ values */
+extern ICCLIB_API double icmXYZLabDEsq(icmXYZNumber *w, double *in0, double *in1) {
+	double lab0[3], lab1[3], rv;
+
+	icmXYZ2Lab(w, lab0, in0);
+	icmXYZ2Lab(w, lab1, in1);
+	rv = icmLabDEsq(lab0, lab1);
+	return rv;
+}
+
 /* Return the normal Delta E given two XYZ values */
 extern ICCLIB_API double icmXYZLabDE(icmXYZNumber *w, double *in0, double *in1) {
 	double lab0[3], lab1[3], rv;
 
 	icmXYZ2Lab(w, lab0, in0);
 	icmXYZ2Lab(w, lab1, in1);
+	rv = icmLabDE(lab0, lab1);
+	return rv;
+}
+
+/* Return the normal Delta E squared given two XYZ values */
+extern ICCLIB_API double icmXYZLptDEsq(icmXYZNumber *w, double *in0, double *in1) {
+	double lab0[3], lab1[3], rv;
+
+	icmXYZ2Lpt(w, lab0, in0);
+	icmXYZ2Lpt(w, lab1, in1);
+	rv = icmLabDEsq(lab0, lab1);
+	return rv;
+}
+
+/* Return the normal Delta E given two XYZ values */
+extern ICCLIB_API double icmXYZLptDE(icmXYZNumber *w, double *in0, double *in1) {
+	double lab0[3], lab1[3], rv;
+
+	icmXYZ2Lpt(w, lab0, in0);
+	icmXYZ2Lpt(w, lab1, in1);
 	rv = icmLabDE(lab0, lab1);
 	return rv;
 }
@@ -14962,8 +15532,8 @@ double icmCIE2Ksq(double *Lab0, double *Lab1) {
 	/* test cases pass, as one of them lies on the edge of */
 	/* a mathematical discontinuity. The precision is still */
 	/* enough for any practical use. */
-#define RAD2DEG(xx) (180.0/3.14159265358979 * (xx))
-#define DEG2RAD(xx) (3.14159265358979/180.0 * (xx))
+#define RAD2DEG(xx) (180.0/M_PI * (xx))
+#define DEG2RAD(xx) (M_PI/180.0 * (xx))
 
 	/* Compute Cromanance and Hue angles */
 	{
@@ -18487,7 +19057,7 @@ static icmLuBase* icc_get_luobj (
 					if (intent == icmDefaultIntent)
 						intent = icPerceptual;	/* Make this the default */
 
-					switch (intent) {
+					switch ((int)intent) {
 		    			case icAbsoluteColorimetric:
 							ttag = icSigAToB1Tag;
 							fbtag = icSigAToB0Tag;
@@ -18588,7 +19158,7 @@ static icmLuBase* icc_get_luobj (
 					if (intent == icmDefaultIntent)
 						intent = icPerceptual;	/* Make this the default */
 
-					switch (intent) {
+					switch ((int)intent) {
 		    			case icAbsoluteColorimetric:
 							ttag = icSigBToA1Tag;
 							fbtag = icSigBToA0Tag;
@@ -18708,7 +19278,7 @@ static icmLuBase* icc_get_luobj (
 					if (intent == icmDefaultIntent)
 						intent = icPerceptual;	/* Make this the default */
 
-					switch (intent) {
+					switch ((int)intent) {
 		    			case icRelativeColorimetric:
 		    			case icAbsoluteColorimetric:
 								ttag = icSigAToB1Tag;
@@ -18778,7 +19348,7 @@ static icmLuBase* icc_get_luobj (
 					if (intent == icmDefaultIntent)
 						intent = icPerceptual;			/* Make this the default */
 
-					switch (intent) {
+					switch ((int)intent) {
 		    			case icRelativeColorimetric:
 		    			case icAbsoluteColorimetric:
 								ttag = icSigBToA1Tag;
@@ -18852,7 +19422,7 @@ static icmLuBase* icc_get_luobj (
 						return NULL;
 					}
 #else				/* Be more forgiving */
-					switch (intent) {
+					switch ((int)intent) {
 		    			case icAbsoluteColorimetric:
 		    			case icmAbsolutePerceptual:		/* Special icclib intent */
 		    			case icmAbsoluteSaturation:		/* Special icclib intent */
@@ -18879,7 +19449,7 @@ static icmLuBase* icc_get_luobj (
 
 		    	case icmPreview:	/* PCS to PCS */
 
-					switch (intent)  {
+					switch ((int)intent)  {
 		    			case icRelativeColorimetric:
 								ttag = icSigPreview1Tag;
 							break;
@@ -19267,6 +19837,40 @@ icmAlloc *al			/* Memory allocator */
 	return p;
 }
 
+
+/* ---------------------------------------------------------- */
+
+/* Convert an angle in radians into chromatic RGB values */
+/* in a simple geometric fashion, with 0 = Red. */
+void icmRad2RGB(double rgb[3], double ang) {
+	double th1 = 1.0/3.0 * 2.0 * M_PI;
+	double th2 = 2.0/3.0 * 2.0 * M_PI;
+	double bl;
+
+	while (ang < 0.0)
+		ang += 2.0 * M_PI; 
+	while (ang >= (2.0 * M_PI))
+		ang -= 2.0 * M_PI; 
+
+	if (ang < th1) {
+		bl = ang/th1;
+		rgb[0] = (1.0 - bl);
+		rgb[1] = bl;
+		rgb[2] = 0.0;
+
+	}  else if (ang < th2) {
+		bl = (ang - th1)/th1;
+		rgb[0] = 0.0;
+		rgb[1] = (1.0 - bl);
+		rgb[2] = bl;
+
+	} else {
+		bl = (ang - th2)/th1;
+		rgb[0] = bl;
+		rgb[1] = 0.0;
+		rgb[2] = (1.0 - bl);
+	}
+}
 
 /* ---------------------------------------------------------- */
 /* Print an int vector to a string. */

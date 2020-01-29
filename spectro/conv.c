@@ -41,6 +41,9 @@
 #include <stdarg.h>
 #include <errno.h>
 #include <string.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <pwd.h>
 
 /* select() defined, but not poll(), so emulate poll() */
 #if defined(FD_CLR) && !defined(POLLIN)
@@ -59,6 +62,7 @@
 #include "sa_config.h"
 #endif
 #include "numsup.h"
+#include "cgats.h"
 #include "xspect.h"
 #include "insttypes.h"
 #include "conv.h"
@@ -241,6 +245,12 @@ void empty_con_chars(void) {
 		if ((stdinh = GetStdHandle(STD_INPUT_HANDLE)) == INVALID_HANDLE_VALUE)
 			return;
 		for (;;) {
+			/* Wait for 1msec */
+
+			/* Do dummy read, as stdin seems to be signalled on startup */
+			if (WaitForSingleObject(stdinh, 1) == WAIT_OBJECT_0)
+				ReadFile(stdinh, buf, 0, &bread, NULL);
+
 			if (WaitForSingleObject(stdinh, 1) == WAIT_OBJECT_0) {
 				ReadFile(stdinh, buf, 100, &bread, NULL);
 			} else {
@@ -422,6 +432,13 @@ athread *new_athread(
 }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+/* Return the login $HOME directory. */
+/* (Useful if we might be running sudo) */
+/* No NT equivalent ?? */
+char *login_HOME() {
+	return getenv("HOME");
+}
 
 /* Delete a file */
 void delete_file(char *fname) {
@@ -789,6 +806,7 @@ static void *threadproc(
 	athread *p = (athread *)param;
 
 	/* Register this thread with the Objective-C garbage collector */
+	/* (Hmm. Done by default in latter versions though, hence deprecated in them ?) */
 #if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
 	 objc_registerThreadWithCollector();
 #endif
@@ -832,6 +850,29 @@ athread *new_athread(
 }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - */
+
+/* Return the login $HOME directory. */
+/* (Useful if we might be running sudo) */
+char *login_HOME() {
+
+	if (getuid() == 0) {	/* If we are running as root */
+		char *uids;
+
+		if ((uids = getenv("SUDO_UID")) != NULL) {		/* And we sudo's to get it */
+			int uid;
+			struct passwd *pwd;
+
+			uid = atoi(uids);
+
+			if ((pwd = getpwuid(uid)) != NULL) {
+				return pwd->pw_dir;
+			}
+		}
+	}
+
+	return getenv("HOME");
+}
+
 
 /* Delete a file */
 void delete_file(char *fname) {

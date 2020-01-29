@@ -29,6 +29,7 @@
 
 #include <stdio.h>
 #include <math.h>
+#include "cgats.h"
 #include "xspect.h"
 #include "numlib.h"
 #ifdef DOPLOT

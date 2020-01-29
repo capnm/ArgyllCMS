@@ -51,6 +51,7 @@
 #include "sa_config.h"
 #include "numsup.h"
 #endif /* !SALONEINSTLIB */
+#include "cgats.h"
 #include "xspect.h"
 #include "insttypes.h"
 #include "conv.h"
@@ -179,7 +180,7 @@ dtp92_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 	char *brc[5]     = { "30BR\r",  "60BR\r",   "18BR\r",  "0CBR\r",  "06BR\r" };
 	char *fcc;
 	unsigned int etime;
-	instType itype = pp->itype;
+	instType dtype = pp->dtype;
 	int ci, bi, i, se;
 	inst_code ev = inst_ok;
 
@@ -202,7 +203,7 @@ dtp92_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 		/*											*/
 		/* Set config, interface, write end point, read end point, read quanta */
 
-		if (itype == instDTP94) {
+		if (dtype == instDTP94) {
 			wr_ep = 0x02;
 			rd_ep = 0x81;
 		} else {
@@ -407,17 +408,17 @@ dtp92_init_inst(inst *pp) {
 		return inst_unknown_model;
 
     if (strncmp(buf,"X-Rite DTP94",12) == 0)
-		p->itype = instDTP94;
+		p->dtype = instDTP94;
 	else
-		p->itype = instDTP92;
+		p->dtype = instDTP92;
 
-	if (p->itype == instDTP92) {
+	if (p->dtype == instDTP92) {
 		/* Turn echoing of characters off */
 		if ((ev = dtp92_command(p, "DEC\r", buf, MAX_MES_SIZE, DEF_TIMEOUT)) != inst_ok)
 			return ev;
 	}
 
-	if (p->itype == instDTP92) {
+	if (p->dtype == instDTP92) {
 		/* Set decimal point on */
 		if ((ev = dtp92_command(p, "0106CF\r", buf, MAX_MES_SIZE, DEF_TIMEOUT)) != inst_ok)
 			return ev;
@@ -435,7 +436,7 @@ dtp92_init_inst(inst *pp) {
 	if ((ev = dtp92_command(p, "010ACF\r", buf, MAX_MES_SIZE, DEF_TIMEOUT)) != inst_ok)
 		return ev;
 
-	if (p->itype == instDTP92) {
+	if (p->dtype == instDTP92) {
 		/* Set absolute (luminance) calibration */
 		if ((ev = dtp92_command(p, "0118CF\r", buf, MAX_MES_SIZE, DEF_TIMEOUT)) != inst_ok)
 			return ev;
@@ -449,13 +450,13 @@ dtp92_init_inst(inst *pp) {
 	if ((ev = dtp92_command(p, "EFC\r", buf, MAX_MES_SIZE, DEF_TIMEOUT)) != inst_ok)
 		return ev;
 
-	if (p->itype == instDTP94) {
+	if (p->dtype == instDTP94) {
 		/* Compensate for offset drift */
 		if ((ev = dtp92_command(p, "0117CF\r", buf, MAX_MES_SIZE, DEF_TIMEOUT)) != inst_ok)
 			return ev;
 	}
 
-	if (p->itype == instDTP92) {
+	if (p->dtype == instDTP92) {
 		/* Enable ABS mode (in case firmware doesn't default to this after EFC) */
 		if ((ev = dtp92_command(p, "0118CF\r", buf, MAX_MES_SIZE, DEF_TIMEOUT)) != inst_ok)
 			return ev;
@@ -505,7 +506,7 @@ dtp92_init_inst(inst *pp) {
 	/* ??? Need to set CTYP appropriately ??? */
 
 #ifdef NEVER	/* Debug code */
-	if (p->itype == instDTP94) {
+	if (p->dtype == instDTP94) {
 		int i, val;
 		char tb[50];
 
@@ -571,7 +572,7 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 
 	/* Could change SS to suite level expected. */
 #ifdef NEVER
-	if (p->itype == instDTP92) {
+	if (p->dtype == instDTP92) {
 		/* Set sample size to 31 (default is 16) for low level readings */
 		if ((rv = dtp92_command(p, "1fSS\r", buf, MAX_MES_SIZE, DEF_TIMEOUT)) != inst_ok)
 			return rv;
@@ -652,7 +653,7 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 	}
 
 #ifdef NEVER
-	if (p->itype == instDTP92) {
+	if (p->dtype == instDTP92) {
 		/* Set sample size back to 16 */
 		if ((rv = dtp92_command(p, "10SS\r", buf, MAX_MES_SIZE, DEF_TIMEOUT)) != inst_ok)
 			return rv;
@@ -759,7 +760,7 @@ static inst_code dtp92_get_n_a_cals(inst *pp, inst_cal_type *pn_cals, inst_cal_t
 	inst_cal_type n_cals = inst_calt_none;
 	inst_cal_type a_cals = inst_calt_none;
 		
-	if (p->itype == instDTP92) {
+	if (p->dtype == instDTP92) {
 		if (p->need_ratio_cal)
 			n_cals |= inst_calt_emis_ratio;
 		a_cals |= inst_calt_emis_ratio;
@@ -1058,7 +1059,7 @@ inst3_capability *pcap3) {
 	     |  inst2_ccmx
 	        ;				/* The '92 does have a switch, but we're not currently supporting it */
 
-	if (p->itype == instDTP94) {
+	if (p->dtype == instDTP94) {
 		cap2 |= inst2_disptype;
 	} else {
 		cap2 |= inst2_get_refresh_rate;
@@ -1167,7 +1168,7 @@ static inst_disptypesel dtp94_disptypesel[4] = {
 };
 
 static void set_base_disptype_list(dtp92 *p) {
-	if (p->itype == instDTP94) {
+	if (p->dtype == instDTP94) {
 		p->_dtlist = dtp94_disptypesel;
 	} else {
 		p->_dtlist = dtp92_disptypesel;
@@ -1218,7 +1219,7 @@ static inst_code set_disp_type(dtp92 *p, inst_disptypesel *dentry) {
 		p->cbid = dentry->cbid; 
 		p->ucbid = dentry->cbid; 	/* is underying base if dentry is base selection */
 
-		if (p->itype == instDTP92) {
+		if (p->dtype == instDTP92) {
 			if (p->icx != 0)
 				return inst_unsupported;
 
@@ -1395,7 +1396,7 @@ dtp92_get_set_opt(inst *pp, inst_opt_type m, ...) {
 }
 
 /* Constructor */
-extern dtp92 *new_dtp92(icoms *icom, instType itype) {
+extern dtp92 *new_dtp92(icoms *icom, instType dtype) {
 	dtp92 *p;
 	if ((p = (dtp92 *)calloc(sizeof(dtp92),1)) == NULL) {
 		a1loge(icom->log, 1, "new_dtp92: malloc failed!\n");
@@ -1423,7 +1424,7 @@ extern dtp92 *new_dtp92(icoms *icom, instType itype) {
 	p->del               = dtp92_del;
 
 	p->icom = icom;
-	p->itype = itype;
+	p->dtype = dtype;
 
 	icmSetUnity3x3(p->ccmat);	/* Set the colorimeter correction matrix to do nothing */
 	set_base_disptype_list(p);

@@ -160,15 +160,16 @@
 #undef DISABLE_KCURVE_FILTER	/* [Undef] don't filter the Kcurve */
 #undef REPORT_LOCUS_SEGMENTS    /* [Undef[ Examine how many segments there are in aux inversion */
 
-#undef FASTREVSETUP_NON_CAM		/* [Undef] Use fast setup on innerm non-CAM lookup, if we're */
+#undef FASTREVSETUP_NON_CAM		/* [Undef] Use fast setup on inner non-CAM lookup, if we're */
 								/* going to use CAM clip for nn lookup */
 
-#define XYZ_EXTRA_SMOOTH 20.0		/* Extra smoothing factor for XYZ profiles */
+#define XYZ_EXTRA_SMOOTH 20.0		/* [20] Extra smoothing factor for XYZ profiles */
 									/* !!! Note this is mainly due to smoothing being */
 									/* scaled by data range in rspl code !!! */
-#define SHP_SMOOTH 1.0	/* Input shaper curve smoothing */
-#define OUT_SMOOTH1 1.0	/* Output shaper curve smoothing for L*, X,Y,Z */
-#define OUT_SMOOTH2 1.0	/* Output shaper curve smoothing for a*, b* */
+									/* - have fix but all rspl use then needs re-tuning! */
+#define SHP_SMOOTH 1.0			/* [1.0] Input shaper curve smoothing */
+#define OUT_SMOOTH1 1.0			/* [1.0] Output shaper curve smoothing for L*, X,Y,Z */
+#define OUT_SMOOTH2 1.0			/* [1.0] Output shaper curve smoothing for a*, b* */
 
 #define CAMCLIPTRANS 1.0		/* [1.0] Cam clipping transition region Delta E */
 								/* Should this be smaller ? */
@@ -2190,7 +2191,7 @@ icxLuLut *p			/* Object being initialised */
 		p->clip.LabLike = 0;
 		p->clip.fdi = p->clutTable->fdi;
 
-		switch(clutos) {
+		switch((int)clutos) {
 			case icxSigJabData:
 			case icSigLabData: {
 
@@ -2343,7 +2344,8 @@ fprintf(stderr,"~1 Internal optimised 4D separations not yet implemented!\n");
 			xicc_enum_viewcond(xicp, &p->vc, -1, NULL, 0, NULL);	/* Use a default */
 		p->cam = new_icxcam(cam_default);
 		p->cam->set_view(p->cam, p->vc.Ev, p->vc.Wxyz, p->vc.La, p->vc.Yb, p->vc.Lv,
-		                 p->vc.Yf, p->vc.Yg, p->vc.Gxyz, XICC_USE_HK, p->vc.hkscale);
+		                 p->vc.Yf, p->vc.Yg, p->vc.Gxyz, XICC_USE_HK, p->vc.hkscale,
+		                 p->vc.mtaf, p->vc.Wxyz2);
 	} else {
 		p->cam = NULL;
 	}
@@ -2449,6 +2451,8 @@ fprintf(stderr,"~1 Internal optimised 4D separations not yet implemented!\n");
 			gres[i] = p->lut->clutPoints;
 
 #ifdef FASTREVSETUP_NON_CAM
+		# pragma message("!!!!!!!!!!!! FASTREVSETUP_NON_CAM is on !!!!!!!!!")
+
 		/* Don't fill in nnrev array if we aren't going to use it */
 		if (p->camclip && p->nearclip)
 			xflags = RSPL_FASTREVSETUP;
@@ -2486,6 +2490,8 @@ fprintf(stderr,"~1 Internal optimised 4D separations not yet implemented!\n");
 			/* Set the Nearest Neighbor clipping Weighting */
 			p->clutTable->rev_set_lchw(p->clutTable, lchw);
 		}
+#else
+# pragma message("!!!!!!!!!!!! USELCHWEIGHT is off !!!!!!!!!")
 #endif /* USELCHWEIGHT */
 
 		/* clut clipping is setup separately */
@@ -3117,7 +3123,7 @@ int                quality			/* Quality metric, 0..3 */
 		for (e = 0; e < p->inputChan; e++)
 			dgwhite[e] = dwhite[e];
 
-		/* If this is actuall an input device, lookup wp & bp */
+		/* If this is actualy an input device, lookup wp & bp */
 		/* and override dwhite & dblack */
 		if (h->deviceClass == icSigInputClass) {
 			double wpy = -1e60, bpy = 1e60;
@@ -3371,12 +3377,16 @@ int                quality			/* Quality metric, 0..3 */
 
 		if (flags & ICX_SET_WHITE) {
 
-			xfflags |= XFIT_OUT_WP_REL;
-			if ((flags & ICX_SET_WHITE_C) == ICX_SET_WHITE_C) {
-				xfflags |= XFIT_OUT_WP_REL_C;
+			if ((flags & ICX_SET_WHITE_ABS) != ICX_SET_WHITE_ABS) {
+
+				xfflags |= XFIT_OUT_WP_REL;
+
+				if ((flags & ICX_SET_WHITE_C) == ICX_SET_WHITE_C)
+					xfflags |= XFIT_OUT_WP_REL_C;
+
+				else if ((flags & ICX_SET_WHITE_US) == ICX_SET_WHITE_US)
+					xfflags |= XFIT_OUT_WP_REL_US;
 			}
-			else if ((flags & ICX_SET_WHITE_US) == ICX_SET_WHITE_US)
-				xfflags |= XFIT_OUT_WP_REL_US;
 
 			if (p->pcs != icSigXYZData)
 				xfflags |= XFIT_OUT_LAB;
@@ -3956,7 +3966,8 @@ int                quality			/* Quality metric, 0..3 */
 		xicc_enum_viewcond(xicp, &p->vc, -1, NULL, 0, NULL);	/* Use a default */
 	p->cam = new_icxcam(cam_default);
 	p->cam->set_view(p->cam, p->vc.Ev, p->vc.Wxyz, p->vc.La, p->vc.Yb, p->vc.Lv,
-	                 p->vc.Yf, p->vc.Yg, p->vc.Gxyz, XICC_USE_HK, p->vc.hkscale);
+	                 p->vc.Yf, p->vc.Yg, p->vc.Gxyz, XICC_USE_HK, p->vc.hkscale,
+	                 p->vc.mtaf, p->vc.Wxyz2);
 	
 	if (flags & ICX_VERBOSE)
 		printf("Done A to B table creation\n");
@@ -4257,7 +4268,7 @@ double       detail		/* gamut detail level, 0.0 = def */
 	
 		/* Get an appropriate device to PCS conversion for the fwd conversion */
 		/* we use after bwd conversion in lutbwdgam_func() */
-		switch (intent) {
+		switch ((int)intent) {
 			/* If it is relative */
 			case icmDefaultIntent:					/* Shouldn't happen */
 			case icPerceptual:

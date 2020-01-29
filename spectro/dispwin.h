@@ -118,10 +118,10 @@ typedef struct {
 	CGDirectDisplayID ddid;
 #endif /* UNIX_APPLE */
 #if defined(UNIX_X11)
-	int screen;				/* Screen to select */
-	int uscreen;			/* Underlying screen */
-	int rscreen;			/* Underlying RAMDAC screen */
-	Atom icc_atom;			/* ICC profile root atom for this display */
+	int screen;				/* X11 (possibly virtual) Screen */
+	int uscreen;			/* Underlying Xinerma/XRandr screen */
+	int rscreen;			/* Underlying RAMDAC screen (user override) */
+	Atom icc_atom;			/* ICC profile root/output atom for this display */
 	unsigned char *edid;	/* 128 or 256 bytes of monitor EDID, NULL if none */
 	int edid_len;			/* 128 or 256 */
 
@@ -272,9 +272,9 @@ struct _dispwin {
 
 #if defined(UNIX_X11)
 	Display *mydisplay;
-	int myscreen;			/* Usual or virtual screen with Xinerama */
-	int myuscreen;			/* Underlying screen */
-	int myrscreen;			/* Underlying RAMDAC screen */
+	int myscreen;			/* Overall X11 (possibly virtual) Screen */
+	int myuscreen;			/* Underlying Xinerma/Xrandr screen */
+	int myrscreen;			/* Underlying RAMDAC screen (user override) */
 	Atom icc_atom;			/* ICC profile root atom for this display */
 	unsigned char *edid;	/* 128 or 256 bytes of monitor EDID, NULL if none */
 	int edid_len;			/* 128 or 256 */

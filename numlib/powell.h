@@ -54,18 +54,20 @@ double powell_funk(		/* Return function value */
 	void *fdata,		/* Opaque data pointer */
 	double tp[]);		/* Multivriate input value */
 
-/* Line in multi-dimensional space minimiser */
-double brentnd(			/* vector multiplier return value */
-double ax,				/* Minimum of multiplier range */
-double bx,				/* Starting point multiplier of search */
-double cx,				/* Maximum of multiplier range */
-double ftol,			/* Tollerance to stop search */
-double *xmin,			/* Return value of multiplier at minimum */		
-int n,					/* Dimensionality */
+/* Line bracketing and minimisation routine. */
+/* Return value at minimum. */
+double linmin(
+double cp[],		/* Start point, and returned value */
+double xi[],		/* Search vector */
+int di,				/* Dimensionality */
+#ifdef ABSTOL
+double ftol,		/* Absolute tolerance to stop on */
+#else
+double ftol,		/* Relative tolerance to stop on */
+#endif
 double (*func)(void *fdata, double tp[]),		/* Error function to evaluate */
-void *fdata,			/* Opaque data */
-double pcom[],			/* Base vector point */
-double xicom[]);		/* Vector that will be multiplied and added to pcom[] */
+void *fdata			/* Opaque data for func() */
+);
 
 #ifdef __cplusplus
 	}

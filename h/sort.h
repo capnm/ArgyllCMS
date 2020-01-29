@@ -28,10 +28,10 @@
 		int hs_l,hs_j,hs_ir,hs_i;	\
 		TYPE hs_rra;	\
 		\
-		if (NUMBER >= 2)	\
+		if ((NUMBER) >= 2)	\
 			{	\
-			hs_l = NUMBER >> 1;	\
-			hs_ir = NUMBER-1;	\
+			hs_l = (NUMBER) >> 1;	\
+			hs_ir = (NUMBER)-1;	\
 			for (;;)	\
 				{	\
 				if (hs_l > 0)	\

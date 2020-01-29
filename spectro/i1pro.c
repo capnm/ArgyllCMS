@@ -64,6 +64,7 @@
 #include "numsup.h"
 #include "rspl1.h"
 #endif /* SALONEINSTLIB */
+#include "cgats.h"
 #include "xspect.h"
 #include "insttypes.h"
 #include "conv.h"
@@ -140,15 +141,15 @@ i1pro_determine_capabilities(i1pro *p) {
 	       ;
 
 	/* Set the Pro capabilities mask */
-	if (p->itype == instI1Pro
-	 || p->itype == instI1Pro2) {
+	if (p->dtype == instI1Pro
+	 || p->dtype == instI1Pro2) {
 		p->cap |= inst_mode_ref_spot
 		       |  inst_mode_ref_strip
 		       ;
 	}
 
 	/* Set the Pro2 capabilities mask */
-	if (p->itype == instI1Pro2) {
+	if (p->dtype == instI1Pro2) {
 		p->cap |= inst_mode_ref_uv
 		       ;
 	}
@@ -911,7 +912,7 @@ i1pro_del(inst *pp) {
 }
 
 /* Constructor */
-extern i1pro *new_i1pro(icoms *icom, instType itype) {
+extern i1pro *new_i1pro(icoms *icom, instType dtype) {
 	i1pro *p;
 	int rv;
 	if ((p = (i1pro *)calloc(sizeof(i1pro),1)) == NULL) {
@@ -940,7 +941,7 @@ extern i1pro *new_i1pro(icoms *icom, instType itype) {
 	p->del               = i1pro_del;
 
 	p->icom = icom;
-	p->itype = itype;
+	p->dtype = dtype;
 
 	i1pro_determine_capabilities(p);
 

@@ -71,7 +71,7 @@ usage(void) {
 	fprintf(stderr," -i illum        Choose illuminant for computation of CIE XYZ from spectral data & FWA:\n");
 	fprintf(stderr,"                  A, C, D50 (def.), D50M2, D65, F5, F8, F10 or file.sp\n");
 	fprintf(stderr," -o observ       Choose CIE Observer for spectral data:\n");
-	fprintf(stderr,"                  1931_2 (def), 1964_10, S&B 1955_2, shaw, J&V 1978_2\n");
+	fprintf(stderr,"                  1931_2 (def), 1964_10, 2012_2, 2012_10, S&B 1955_2, shaw, J&V 1978_2 or file.cmf\n");
 	fprintf(stderr," -I intent       r = relative colorimetric, a = absolute (default)\n");
 	fprintf(stderr," data.ti3        Test data file\n");
 	fprintf(stderr," iccprofile.icm  Profile to check against\n");
@@ -130,7 +130,8 @@ int main(int argc, char *argv[])
 	xspect cust_tillum, *tillump = NULL; /* Custom target/simulated illumination spectrum */
 	icxIllumeType illum = icxIT_none;	/* Spectral defaults */
 	xspect cust_illum;			/* Custom illumination spectrum */
-	icxObserverType observ = icxOT_none;
+	icxObserverType obType = icxOT_none;
+	xspect custObserver[3];		/* If obType = icxOT_custom */
 
 	int sortbyde = 0;			/* Sort by delta E */
 
@@ -363,21 +364,30 @@ int main(int argc, char *argv[])
 				fa = nfa;
 				if (strcmp(na, "1931_2") == 0) {			/* Classic 2 degree */
 					spec = 1;
-					observ = icxOT_CIE_1931_2;
+					obType = icxOT_CIE_1931_2;
 				} else if (strcmp(na, "1964_10") == 0) {	/* Classic 10 degree */
 					spec = 1;
-					observ = icxOT_CIE_1964_10;
+					obType = icxOT_CIE_1964_10;
+				} else if (strcmp(na, "2012_2") == 0) {		/* Latest 2 degree */
+					spec = 1;
+					obType = icxOT_CIE_2012_2;
+				} else if (strcmp(na, "2012_10") == 0) {	/* Latest 10 degree */
+					spec = 1;
+					obType = icxOT_CIE_2012_10;
 				} else if (strcmp(na, "1955_2") == 0) {		/* Stiles and Burch 1955 2 degree */
 					spec = 1;
-					observ = icxOT_Stiles_Burch_2;
+					obType = icxOT_Stiles_Burch_2;
 				} else if (strcmp(na, "1978_2") == 0) {		/* Judd and Voss 1978 2 degree */
 					spec = 1;
-					observ = icxOT_Judd_Voss_2;
+					obType = icxOT_Judd_Voss_2;
 				} else if (strcmp(na, "shaw") == 0) {		/* Shaw and Fairchilds 1997 2 degree */
 					spec = 1;
-					observ = icxOT_Shaw_Fairchild_2;
-				} else
-					usage();
+					obType = icxOT_Shaw_Fairchild_2;
+				} else {	/* Assume it's a filename */
+					obType = icxOT_custom;
+					if (read_cmf(custObserver, na) != 0)
+						usage();
+				}
 			}
 
 			/* Intent (only applies to ICC profile) */
@@ -466,8 +476,8 @@ int main(int argc, char *argv[])
 	if (illum == icxIT_none)
 		illum = icxIT_D50;
 	
-	if (observ == icxOT_none)
-		observ = icxOT_CIE_1931_2;
+	if (obType == icxOT_none)
+		obType = icxOT_CIE_1931_2;
 
 	/* See if CIE is actually available - some sources of .TI3 don't provide it */
 	if (!spec
@@ -482,7 +492,7 @@ int main(int argc, char *argv[])
 			printf("No CIE data found, switching to spectral with standard observer & D50\n");
 		spec = 1;
 		illum = icxIT_D50;
-		observ = icxOT_CIE_1931_2;
+		obType = icxOT_CIE_1931_2;
 	}
 	
 	/* Figure out what sort of device colorspace it is */
@@ -772,7 +782,7 @@ int main(int argc, char *argv[])
 
 			/* Create a spectral conversion object */
 			if ((sp2cie = new_xsp2cie(illum, illum == icxIT_none ? NULL : &cust_illum,
-			                          observ, NULL, icSigLabData, icxClamp)) == NULL)
+			                          obType, custObserver, icSigLabData, icxClamp)) == NULL)
 				error("Creation of spectral conversion object failed");
 
 			if (fwacomp) {

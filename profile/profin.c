@@ -261,7 +261,8 @@ make_input_icc(
 	int nooluts,			/* nz to supress creation of output (PCS) shaper luts */
 	int nocied,				/* nz to supress inclusion of .ti3 data in profile */
 	int verify,
-	int autowpsc,			/* nz for Auto scale the WP to prevent clipping above WP patch */
+	int autowpsc,			/* 1 for Auto scale the WP to prevent clipping above WP patch */
+	                        /* 2 = Force absolute colorimetric */
 	int clipovwp,			/* nz for Clip cLUT values above WP */
 	double wpscale,			/* >= 0.0 for media white point scale factor */
 	int dob2a,				/* nz to create a B2A table as well */
@@ -274,7 +275,8 @@ make_input_icc(
 	int spec,				/* Use spectral data flag */
 	icxIllumeType illum,	/* Spectral illuminant */
 	xspect *cust_illum,		/* Possible custom illumination */
-	icxObserverType observ,	/* Spectral observer */
+	icxObserverType obType,	/* Spectral observer */
+	xspect custObserver[3],	/* If obType = icxOT_custom */
 	double smooth,			/* RSPL smoothing factor, -ve if raw */
 	double avgdev,			/* reading Average Deviation as a proportion of the input range */
 	profxinf *xpi			/* Optional Profile creation extra data */
@@ -784,7 +786,7 @@ make_input_icc(
 				illum = icxIT_none;
 				cust_illum = NULL;
 			}
-			if ((sp2cie = new_xsp2cie(illum, cust_illum, observ, NULL,
+			if ((sp2cie = new_xsp2cie(illum, cust_illum, obType, custObserver,
 			                          wantLab ? icSigLabData : icSigXYZData, icxClamp)) == NULL)
 				error("Creation of spectral conversion object failed");
 
@@ -835,8 +837,10 @@ make_input_icc(
 		flags |= ICX_SET_WHITE;		/* Compute & use white */
 
 		/* ICX_SET_WHITE_C isn't applicable to matrix profiles */
-		if (autowpsc)
+		if (autowpsc == 1)
 	        flags |= ICX_SET_WHITE_US;	/* Compute & use white without scaling to L */
+		else if (autowpsc == 2)
+	        flags |= ICX_SET_WHITE_ABS;	/* Set dummy D50 white point to force absolute intent */
 
         flags |= ICX_WRITE_WBL;		/* Matrix: write white/black/luminence */
 
@@ -1117,8 +1121,10 @@ make_input_icc(
 		flags |= ICX_SET_WHITE;		/* Compute & use white */
 		if (clipovwp)
 	        flags |= ICX_SET_WHITE_C;	/* Compute & use white and clip cLUT over D50 */
-		else if (autowpsc)
+		else if (autowpsc == 1)
 	        flags |= ICX_SET_WHITE_US;	/* Compute & use white without scaling to L */
+		else if (autowpsc == 2)
+	        flags |= ICX_SET_WHITE_ABS;	/* Set dummy D50 white point to force absolute intent */
 
 		/* Setup RGB -> Lab conversion object from scattered data. */
 		/* Note that we've layered it on a native XYZ icc profile. */

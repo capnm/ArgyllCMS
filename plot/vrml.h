@@ -103,17 +103,21 @@ struct _vrml {
 
 
 	/* Add a spherical marker point to the plot. col == NULL for natural color  */
+	/* rad is in normalized delta E scale units */
 	/* (Need to do this before or after start_line_set()/dd_vertex()/make_lines() !) */
 	void (*add_marker)(struct _vrml *s, double pos[3], double col[3], double rad);
 
 	/* Add a spherical marker with transparency */
+	/* rad is in normalized delta E scale units */
 	void (*add_marker_trans)(struct _vrml *s, double pos[3], double col[3], double trans, double rad);
 
 	/* Add a cone marker to the plot. col == NULL for natural color  */
+	/* rad is in normalized delta E scale units */
 	/* (Need to do this before or after start_line_set()/dd_vertex()/make_lines() !) */
 	void (*add_cone)(struct _vrml *s, double p0[3], double p1[3], double col[3], double rad);
 
 	/* Add a text marker to the plot. col == NULL for natural color  */
+	/* size is in normalized delta E scale units */
 	/* (Need to do this before or after start_line_set()/dd_vertex()/make_lines() !) */
 	void (*add_text)(struct _vrml *s, char *text, double p[3], double col[3], double size);
 

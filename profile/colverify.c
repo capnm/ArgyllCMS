@@ -81,8 +81,8 @@ usage(void) {
 	fprintf(stderr," -i illum        Choose illuminant for computation of CIE XYZ from spectral data & FWA:\n");
 	fprintf(stderr,"                  A, C, D50 (def.), D50M2, D65, F5, F8, F10 or file.sp\n");
 	fprintf(stderr," -o observ       Choose CIE Observer for spectral data:\n");
-	fprintf(stderr,"                 1931_2 (def), 1964_10, S&B 1955_2, shaw, J&V 1978_2\n");
-	fprintf(stderr," -L profile.%s  Skip any first file out of profile gamut patches\n",ICC_FILE_EXT_ND);
+	fprintf(stderr,"                  1931_2 (def), 1964_10, 2012_2, 2012_10, S&B 1955_2, shaw, J&V 1978_2 or file.cmf\n");
+	fprintf(stderr," -L profile.%s  Skip any first file, out of profile gamut patches\n",ICC_FILE_EXT_ND);
 	fprintf(stderr," -X file.ccmx    Apply Colorimeter Correction Matrix to second file\n");
 //	fprintf(stderr," -Z A|X          Just print Average|Max +tab\n");
 	fprintf(stderr," target.ti3      Target (reference) PCS or spectral values.\n");
@@ -156,7 +156,8 @@ int main(int argc, char *argv[])
 	xspect cust_tillum, *tillump = NULL; /* Custom target/simulated illumination spectrum */
 	icxIllumeType illum = icxIT_none;	/* Spectral defaults to D50 */
 	xspect cust_illum;			/* Custom illumination spectrum */
-	icxObserverType observ = icxOT_none;	/* Defaults to 1931 2 degree */
+	icxObserverType obType = icxOT_none;	/* Defaults to 1931 2 degree */
+	xspect custObserver[3];		/* If obType = icxOT_custom */
 
 	icmXYZNumber labw = icmD50;	/* The Lab white reference */
 
@@ -375,21 +376,30 @@ int main(int argc, char *argv[])
 				fa = nfa;
 				if (strcmp(na, "1931_2") == 0) {			/* Classic 2 degree */
 					spec = 1;
-					observ = icxOT_CIE_1931_2;
+					obType = icxOT_CIE_1931_2;
 				} else if (strcmp(na, "1964_10") == 0) {	/* Classic 10 degree */
 					spec = 1;
-					observ = icxOT_CIE_1964_10;
+					obType = icxOT_CIE_1964_10;
+				} else if (strcmp(na, "2012_2") == 0) {		/* Latest 2 degree */
+					spec = 1;
+					obType = icxOT_CIE_2012_2;
+				} else if (strcmp(na, "2012_10") == 0) {	/* Latest 10 degree */
+					spec = 1;
+					obType = icxOT_CIE_2012_10;
 				} else if (strcmp(na, "1955_2") == 0) {		/* Stiles and Burch 1955 2 degree */
 					spec = 1;
-					observ = icxOT_Stiles_Burch_2;
+					obType = icxOT_Stiles_Burch_2;
 				} else if (strcmp(na, "1978_2") == 0) {		/* Judd and Voss 1978 2 degree */
 					spec = 1;
-					observ = icxOT_Judd_Voss_2;
+					obType = icxOT_Judd_Voss_2;
 				} else if (strcmp(na, "shaw") == 0) {		/* Shaw and Fairchilds 1997 2 degree */
 					spec = 1;
-					observ = icxOT_Shaw_Fairchild_2;
-				} else
-					usage();
+					obType = icxOT_Shaw_Fairchild_2;
+				} else {	/* Assume it's a filename */
+					obType = icxOT_custom;
+					if (read_cmf(custObserver, na) != 0)
+						usage();
+				}
 			}
 
 			/* Gamut limit profile for first file */
@@ -697,7 +707,7 @@ int main(int argc, char *argv[])
 			icxIllumeType l_tillum = tillum;
 			xspect *l_tillump = tillump;
 			icxIllumeType l_illum = illum;
-			icxObserverType l_observ = observ;
+			icxObserverType l_observ = obType;
 
 			if ((ii = cgf->find_kword(cgf, 0, "SPECTRAL_BANDS")) < 0)
 				error ("Input file doesn't contain keyword SPECTRAL_BANDS");
@@ -750,7 +760,7 @@ int main(int argc, char *argv[])
 				l_observ = icxOT_CIE_1931_2;
 
 			if ((sp2cie = new_xsp2cie(l_illum, l_illum == icxIT_none ? NULL : &cust_illum,
-			                          l_observ, NULL, icSigXYZData, icxClamp)) == NULL)
+			                          l_observ, custObserver, icSigXYZData, icxClamp)) == NULL)
 				error("Creation of spectral conversion object failed");
 
 			if (l_fwacomp) {
@@ -939,8 +949,8 @@ int main(int argc, char *argv[])
 	/* Use location to match */
 	if (useloc) {
 		for (i = 0; i < cg[0].npat; i++) {
-			if (cg[0].pat[0].loc == '\000'
-			 || cg[1].pat[0].loc == '\000')
+			if (cg[0].pat[0].loc[0] == '\000'
+			 || cg[1].pat[0].loc[0] == '\000')
 				error("Need both files to have SAMPLE_LOC field to match on location");
 
 			for (j = 0; j < cg[1].npat; j++) {

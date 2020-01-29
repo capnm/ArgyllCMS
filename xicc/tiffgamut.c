@@ -98,6 +98,10 @@ void usage(void) {
 	fprintf(stderr,"         g:glare       Flare light %% of ambient (default %d)\n",XICC_DEFAULT_GLARE);
 	fprintf(stderr,"         g:X:Y:Z       Flare color as XYZ (default media white, Abs: D50)\n");
 	fprintf(stderr,"         g:x:y         Flare color as x, y\n");
+	fprintf(stderr,"         h:hkscale     Helmholtz-Kohlrausch effect scale factor (default 1.0)\n");
+	fprintf(stderr,"         m:mtaf        Mid-tone partial adaptation factor (default 0.0)\n");
+	fprintf(stderr,"         m:X:Y:Z       Mid-tone Adaptation white as XYZ (default D50)\n");
+	fprintf(stderr,"         m:x:y         Mid-tone Adaptation white as x, y\n");
     fprintf(stderr," -x pcent      Expand/compress gamut cylindrically by percent\n");
 	fprintf(stderr," -O outputfile Override the default output filename.\n");
 	exit(1);
@@ -355,6 +359,9 @@ main(int argc, char *argv[]) {
 	double vc_g = -1.0;			/* Glare % overide */
 	double vc_gXYZ[3] = {-1.0, -1.0, -1.0};	/* Glare color override in XYZ */
 	double vc_gxy[2] = {-1.0, -1.0};		/* Glare color override in x,y */
+	double vc_hkscale = -1.0;			/* HK scaling factor */
+	double vc_mtaf = -1.0;				/* Mid tone partial adapation factor from Wxyz to Wxyz2 */ 
+	double vc_Wxyz2[3] = {-1.0, -1.0, -1.0};	/* Adapted white override in XYZ */
 	double expand = 1.0;		/* Expand gamut cylindrically by ratio */
 	icxLuBase *luo = NULL;					/* Generic lookup object */
 	icColorSpaceSignature ins = icSigLabData, outs;	/* Type of input and output spaces */
@@ -550,6 +557,20 @@ main(int argc, char *argv[]) {
 						vc_g = x;
 					} else
 						usage();
+				} else if (na[0] == 'h' || na[0] == 'H') {
+					if (na[1] != ':')
+						usage();
+					vc_hkscale = atof(na+2);
+				} else if (na[0] == 'm' || na[0] == 'M') {
+					double x, y, z;
+					if (sscanf(na+1,":%lf:%lf:%lf",&x,&y,&z) == 3) {
+						vc_Wxyz2[0] = x; vc_Wxyz2[1] = y; vc_Wxyz2[2] = z;
+					} else if (sscanf(na+1,":%lf:%lf",&x,&y) == 2) {
+						vc_Wxyz2[0] = x; vc_Wxyz2[1] = y; vc_Wxyz2[2] = -1;
+					} else if (sscanf(na+1,":%lf",&x) == 1) {
+						vc_mtaf = x;
+					} else
+						usage();
 				} else
 					usage();
 			}
@@ -708,6 +729,23 @@ main(int argc, char *argv[]) {
 			vc.Gxyz[0] = x/y * vc.Gxyz[1];
 			vc.Gxyz[2] = z/y * vc.Gxyz[1];
 		}
+		if (vc_hkscale >= 0.0)
+			vc.hkscale = vc_hkscale;
+		if (vc_mtaf >= 0.0)
+			vc.mtaf = vc_mtaf;
+		if (vc_Wxyz2[0] >= 0.0 && vc_Wxyz2[1] > 0.0 && vc_Wxyz2[2] >= 0.0) {
+			/* Normalise XYZ */
+			vc.Wxyz2[0] = vc_Wxyz2[0]/vc_Wxyz2[1] * vc.Wxyz2[1];
+			vc.Wxyz2[2] = vc_Wxyz2[2]/vc_Wxyz2[1] * vc.Wxyz2[1];
+		}
+		if (vc_Wxyz2[0] >= 0.0 && vc_Wxyz2[1] >= 0.0 && vc_Wxyz2[2] < 0.0) {
+			/* Convert Yxy to XYZ */
+			double x = vc_Wxyz2[0];
+			double y = vc_Wxyz2[1];	/* If Y == 1.0, then X+Y+Z = 1/y */
+			double z = 1.0 - x - y;
+			vc.Wxyz2[0] = x/y * vc.Wxyz2[1];
+			vc.Wxyz2[2] = z/y * vc.Wxyz2[1];
+		}
 	
 		/* Get a expanded color conversion object */
 		if ((luo = xicco->get_luobj(xicco, ICX_CLIP_NEAREST
@@ -768,12 +806,29 @@ main(int argc, char *argv[]) {
 			vc.Gxyz[0] = x/y * vc.Gxyz[1];
 			vc.Gxyz[2] = z/y * vc.Gxyz[1];
 		}
+		if (vc_hkscale >= 0.0)
+			vc.hkscale = vc_hkscale;
+		if (vc_mtaf >= 0.0)
+			vc.mtaf = vc_mtaf;
+		if (vc_Wxyz2[0] >= 0.0 && vc_Wxyz2[1] > 0.0 && vc_Wxyz2[2] >= 0.0) {
+			/* Normalise XYZ */
+			vc.Wxyz2[0] = vc_Wxyz2[0]/vc_Wxyz2[1] * vc.Wxyz2[1];
+			vc.Wxyz2[2] = vc_Wxyz2[2]/vc_Wxyz2[1] * vc.Wxyz2[1];
+		}
+		if (vc_Wxyz2[0] >= 0.0 && vc_Wxyz2[1] >= 0.0 && vc_Wxyz2[2] < 0.0) {
+			/* Convert Yxy to XYZ */
+			double x = vc_Wxyz2[0];
+			double y = vc_Wxyz2[1];	/* If Y == 1.0, then X+Y+Z = 1/y */
+			double z = 1.0 - x - y;
+			vc.Wxyz2[0] = x/y * vc.Wxyz2[1];
+			vc.Wxyz2[2] = z/y * vc.Wxyz2[1];
+		}
 	
 		if ((cam = new_icxcam(cam_default)) == NULL)
 			error("new_icxcam failed");
 
 		cam->set_view(cam, vc.Ev, vc.Wxyz, vc.La, vc.Yb, vc.Lv, vc.Yf, vc.Yg, vc.Gxyz,
-		              XICC_USE_HK, vc.hkscale);
+		              XICC_USE_HK, vc.hkscale, vc.mtaf, vc.Wxyz2);
 	}
 
 	/* Establish the PCS range if we are filtering */

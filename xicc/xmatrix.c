@@ -317,7 +317,8 @@ int                   dir			/* 0 = fwd, 1 = bwd */
 			xicc_enum_viewcond(xicp, &p->vc, -1, NULL, 0, NULL);	/* Use a default */
 		p->cam = new_icxcam(cam_default);
 		p->cam->set_view(p->cam, p->vc.Ev, p->vc.Wxyz, p->vc.La, p->vc.Yb, p->vc.Lv,
-		                 p->vc.Yf, p->vc.Yg, p->vc.Gxyz, XICC_USE_HK, p->vc.hkscale);
+		                 p->vc.Yf, p->vc.Yg, p->vc.Gxyz, XICC_USE_HK, p->vc.hkscale,
+		                 p->vc.mtaf, p->vc.Wxyz2);
 	} else {
 		p->cam = NULL;
 	}
@@ -1339,7 +1340,7 @@ double             smooth			/* Curve smoothing, nominally 1.0 */
 	/* ------------------------------- */
 
 	/* Choose a white and black point */
-	if (flags & (ICX_SET_WHITE | ICX_SET_BLACK)) {
+	if (flags & (ICX_SET_WHITE | ICX_SET_BLACK)) { 
 
 		if (flags & ICX_VERBOSE)
 			printf("Find white & black points\n");
@@ -1518,6 +1519,14 @@ double             smooth			/* Curve smoothing, nominally 1.0 */
 	} else {
 		icmSetUnity3x3(fromAbs);
 		icmSetUnity3x3(toAbs);
+		icmCpy3(wp, icmD50_ary3);
+	}
+
+	/* Force do nothing/Absolute white point */
+	if ((flags & ICX_SET_WHITE_ABS) == ICX_SET_WHITE_ABS) {
+		icmSetUnity3x3(fromAbs);
+		icmSetUnity3x3(toAbs);
+		icmCpy3(wp, icmD50_ary3);
 	}
 
 	/* Create copy of input points with output converted to white relative */
@@ -1599,7 +1608,8 @@ printf(" set black %d w = %f\n", nodp,rpoints[nodp].w);
 	/* but we need to adjust the device to relative conversion */
 	/* to make device white map exactly to D50, without touching */
 	/* the overall absolute behaviour. */
-	if (p->flags & ICX_SET_WHITE) {
+	if ((p->flags & ICX_SET_WHITE) != 0
+	 && (p->flags & ICX_SET_WHITE_ABS) != ICX_SET_WHITE_ABS) {
 		double aw[3];				/* aprox rel. white */
 		icmXYZNumber _wp;			/* Uncorrected dw maps to _wp */ 
 		double cmat[3][3];			/* Model correction matrix */

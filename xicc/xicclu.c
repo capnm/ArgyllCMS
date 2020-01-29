@@ -38,11 +38,20 @@
 #include "plot.h"
 #include "ui.h"
 
-#undef SPTEST				/* Test rspl gamut surface code */
+#undef SPTEST				/* [und] Test (flawed) rspl gamut surface code */
 
 #define USE_NEARCLIP		/* [def] Our usual expectation */
-#define USE_FASTNNSETP		/* [def] Make it more responsive */
-#define XRES 128			/* Plotting resolution */
+#define USE_FASTNNSETP		/* [def] Make it more responsive, but not same alg. */
+							/* NOTE camclip & merglut are runtime options! */
+#define XRES 128			/* [128] Plotting resolution */
+
+#ifndef USE_NEARCLIP
+# pragma message("!!!!!!!!!!!! USE_NEARCLIP turned off  !!!!!!!!!")
+#endif
+
+#ifndef USE_FASTNNSETP
+# pragma message("!!!!!!!!!!!! USE_FASTNNSETP turned off  !!!!!!!!!")
+#endif
 
 void usage(char *diag) {
 	int i;
@@ -55,7 +64,7 @@ void usage(char *diag) {
 	fprintf(stderr," -g             Plot slice instead of looking colors up. (Default white to black)\n");
 	fprintf(stderr," -G s:L:a:b    	Override plot slice start with Lab or Jab co-ordinate \n");
 	fprintf(stderr," -G e:L:a:b    	Override plot slice end with Lab or Jab co-ordinate \n");
-	fprintf(stderr," -V             Use 'vcgt' calibration tag from profile\n");
+	fprintf(stderr," -V             Lookup or plot the 'vcgt' calibration tag from profile\n");
 	fprintf(stderr," -f function    f = forward, b = backwards, g = gamut, p = preview\n");
 	fprintf(stderr,"                if = inverted forward, ib = inverted backwards\n");
 	fprintf(stderr," -i intent      a = absolute, r = relative colorimetric\n");
@@ -121,6 +130,10 @@ void usage(char *diag) {
 	fprintf(stderr,"         g:glare       Flare light %% of ambient (default %d)\n",XICC_DEFAULT_GLARE);
 	fprintf(stderr,"         g:X:Y:Z       Flare color as XYZ (default media white, Abs: D50)\n");
 	fprintf(stderr,"         g:x:y         Flare color as x, y\n");
+	fprintf(stderr,"         h:hkscale     Helmholtz-Kohlrausch effect scale factor (default 1.0)\n");
+	fprintf(stderr,"         m:mtaf        Mid-tone partial adaptation factor (default 0.0)\n");
+	fprintf(stderr,"         m:X:Y:Z       Mid-tone Adaptation white as XYZ (default D50)\n");
+	fprintf(stderr,"         m:x:y         Mid-tone Adaptation white as x, y\n");
 	fprintf(stderr,"\n");
 	fprintf(stderr,"    The colors to be translated should be fed into standard in,\n");
 	fprintf(stderr,"    one input color per line, white space separated.\n");
@@ -153,10 +166,6 @@ void spioutf(void *cbntx, double *out, double *in) {
 
 #endif /* SPTEST */
 
-#ifndef USE_FASTNNSETP
-#pragma message("!!!!!!!!!!!! USE_FASTNNSETP turned off  !!!!!!!!!")
-#endif
-
 int
 main(int argc, char *argv[]) {
 	int fa, nfa, mfa;				/* argument we're looking at */
@@ -185,6 +194,9 @@ main(int argc, char *argv[]) {
 	double vc_g = -1.0;			/* Glare % overide */
 	double vc_gXYZ[3] = {-1.0, -1.0, -1.0};	/* Glare color override in XYZ */
 	double vc_gxy[2] = {-1.0, -1.0};		/* Glare color override in x,y */
+	double vc_hkscale = -1.0;			/* HK scaling factor */
+	double vc_mtaf = -1.0;		/* Mid tone partial adapation factor from Wxyz to Wxyz2 */ 
+	double vc_Wxyz2[3] = {-1.0, -1.0, -1.0};	/* Adapted white override in XYZ */
 	int verb = 1;
 	int actual = 0;
 	int slocwarn = 0;
@@ -678,6 +690,20 @@ main(int argc, char *argv[]) {
 						vc_g = x;
 					} else
 						usage("Unrecognised parameters after -cg");
+				} else if (na[0] == 'h' || na[0] == 'H') {
+					if (na[1] != ':')
+						usage("Unrecognised parameters after -ch");
+					vc_hkscale = atof(na+2);
+				} else if (na[0] == 'm' || na[0] == 'M') {
+					double x, y, z;
+					if (sscanf(na+1,":%lf:%lf:%lf",&x,&y,&z) == 3) {
+						vc_Wxyz2[0] = x; vc_Wxyz2[1] = y; vc_Wxyz2[2] = z;
+					} else if (sscanf(na+1,":%lf:%lf",&x,&y) == 2) {
+						vc_Wxyz2[0] = x; vc_Wxyz2[1] = y; vc_Wxyz2[2] = -1;
+					} else if (sscanf(na+1,":%lf",&x) == 1) {
+						vc_mtaf = x;
+					} else
+						usage("Unrecognised parameters after -cm");
 				} else
 					usage("Unrecognised parameters after -c");
 			}
@@ -875,6 +901,23 @@ main(int argc, char *argv[]) {
 			double z = 1.0 - x - y;
 			vc.Gxyz[0] = x/y * vc.Gxyz[1];
 			vc.Gxyz[2] = z/y * vc.Gxyz[1];
+		}
+		if (vc_hkscale >= 0.0)
+			vc.hkscale = vc_hkscale;
+		if (vc_mtaf >= 0.0)
+			vc.mtaf = vc_mtaf;
+		if (vc_Wxyz2[0] >= 0.0 && vc_Wxyz2[1] > 0.0 && vc_Wxyz2[2] >= 0.0) {
+			/* Normalise XYZ */
+			vc.Wxyz2[0] = vc_Wxyz2[0]/vc_Wxyz2[1] * vc.Wxyz2[1];
+			vc.Wxyz2[2] = vc_Wxyz2[2]/vc_Wxyz2[1] * vc.Wxyz2[1];
+		}
+		if (vc_Wxyz2[0] >= 0.0 && vc_Wxyz2[1] >= 0.0 && vc_Wxyz2[2] < 0.0) {
+			/* Convert Yxy to XYZ */
+			double x = vc_Wxyz2[0];
+			double y = vc_Wxyz2[1];	/* If Y == 1.0, then X+Y+Z = 1/y */
+			double z = 1.0 - x - y;
+			vc.Wxyz2[0] = x/y * vc.Wxyz2[1];
+			vc.Wxyz2[2] = z/y * vc.Wxyz2[1];
 		}
 //xicc_dump_viewcond(&vc);
 

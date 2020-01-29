@@ -55,11 +55,12 @@ typedef enum {
 
 	/* Category of device */
 	icomt_instrument     = 0x010000,		/* Color measurement instrument (default) */
-	icomt_3dlut          = 0x020000,		/* A 3D cLUT box */
-	icomt_vtpg           = 0x040000,		/* A video test patern generator box */
+	icomt_v3dlut         = 0x020000,		/* A Video 3D cLUT box */
+	icomt_vtpg           = 0x040000,		/* A Video test patern generator box */
 	icomt_printer        = 0x080000,		/* A printing device */
+	icomt_cmfm           = 0x100000,		/* A CMF Measuring device */
 
-	icomt_cat_any        = 0x0f0000,		/* Could be any device category */
+	icomt_cat_any        = 0x1f0000,		/* Could be any device category */
 	icomt_cat_mask       = 0xff0000,		/* Mask for device category */
 
 	/* Type of underlying communication port */
@@ -68,6 +69,7 @@ typedef enum {
 	icomt_usb            = 0x000002,		/* USB port */
 	icomt_hid            = 0x000004,		/* HID USB port */
 	icomt_bt             = 0x000008,		/* Bluetooth (non-serial) */
+//	icomt_net            = 0x000010,		/* Network Connected */
 
 	icomt_port_mask      = 0x0000ff,		/* Mask for port type */
 
@@ -82,7 +84,6 @@ typedef enum {
 	icomt_portattr_mask  = icomt_port_mask | icomt_attr_mask,
 
 	icomt_portattr_all   = icomt_portattr_mask	/* Scan for all port types */
-
 
 } icom_type;
 
@@ -145,9 +146,9 @@ typedef struct {
 /* - - - - - - - - - - - - - - - - - - - -  */
 
 /* Store information about a possible instrument communication path */
-/* (Note a path doesn't have a reference to icompaths or its' log) */
+/* (Note a path doesn't have a reference to icompaths or its log) */
 struct _icompath {
-	devType itype;				/* Type of device if known */
+	devType dtype;				/* Type of device if known */
 	char *name;					/* instance description */
 
 	icom_type dctype;			/* Device and com. type */
@@ -171,6 +172,7 @@ typedef enum {
 	dtix_3dlut,
 	dtix_vtpg,
 	dtix_printer,
+	dtix_cmfm,
 
 	dtix_number				/* Number of entries */
 } icom_dtix;
@@ -209,7 +211,7 @@ struct _icompaths {
 	/* Return the device path corresponding to the port number, or NULL if out of range */
 	icompath *(*get_path_sel)(
 		struct _icompaths *p, 
-		icom_type dctype,			/* Device type list */
+		icom_dtix dtix,				/* Device type list */
 		int  	       port);		/* Enumerated port number, 1..n */
 
 	/* Clear all the device paths */
@@ -220,7 +222,14 @@ struct _icompaths {
 
 	/* ====== internal implementation ======= */
 
+	/* Fast serial scan exclusion list - from ARGYLL_EXCLUDE_SERIAL_SCAN env. var. */
+	int exno;
+	char **exlist;
+
 #if defined(ENABLE_SERIAL) || defined(ENABLE_FAST_SERIAL)
+	/* Return nz if the serial port is on the fast serial scan exclusion list */
+	int (*fs_excluded)(struct _icompaths *p, struct _icompath *path);
+
 	/* Add a serial path to combined. path is copied. Return icom error */
 	int (*add_serial)(struct _icompaths *p, char *name, char *spath, icom_type dctype);
 #endif /* ENABLE_SERIAL */
@@ -228,11 +237,11 @@ struct _icompaths {
 #ifdef ENABLE_USB
 	/* Add a usb path to combined. usbd is taken, others are copied. Return icom error */
 	int (*add_usb)(struct _icompaths *p, char *name, unsigned int vid, unsigned int pid,
-	               int nep, struct usb_idevice *usbd, devType itype);
+	               int nep, struct usb_idevice *usbd, devType dtype);
 
 	/* Add an hid path to combined. hidd is taken, others are copied. Return icom error */
 	int (*add_hid)(struct _icompaths *p, char *name, unsigned int vid, unsigned int pid,
-	               int nep, struct hid_idevice *hidd, devType itype);
+	               int nep, struct hid_idevice *hidd, devType dtype);
 #endif /* ENABLE_USB */
 
 	/* Delete the last combined path */
@@ -279,7 +288,8 @@ typedef enum {
 	baud_38400   = 10,
 	baud_57600   = 11,
 	baud_115200  = 12,
-	baud_921600  = 13
+	baud_230400  = 13,
+	baud_921600  = 14
 } baud_rate;
 
 char *baud_rate_to_str(baud_rate br);
@@ -327,7 +337,7 @@ struct _icoms {
 
 	/* Copy of some of icompath contents: */
 	icom_type dctype;			/* Device cat. and com. type */
-	devType itype;				/* Type of device if known */
+	devType dtype;				/* Type of device if known */
 
 	char *name;					/* Device description */
 	

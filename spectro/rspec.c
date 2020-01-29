@@ -47,6 +47,7 @@
 #ifndef SALONEINSTLIB
 #  include "plot.h"
 #endif
+#include "cgats.h"
 #include "xspect.h"
 #include "insttypes.h"
 #include "conv.h"
@@ -928,7 +929,8 @@ int calf_open(calf *x, a1log *log, char *fname, int wr) {
 		sprintf(cal_name, "ArgyllCMS/%s", fname);
 	else
 		sprintf(cal_name, "ArgyllCMS/%s" SSEPS "color/%s", fname, fname);
-	if ((no_paths = xdg_bds(NULL, &cal_paths, xdg_cache, xdg_write, xdg_user, cal_name)) < 1) {
+	if ((no_paths = xdg_bds(NULL, &cal_paths, xdg_cache, xdg_write, xdg_user, xdg_none,
+		                                                                      cal_name)) < 1) {
 		a1logd(x->log,1,"calf_open: xdg_bds returned no paths\n");
 		return 1;
 	}
@@ -971,7 +973,8 @@ int calf_touch(a1log *log, char *fname) {
 	/* Locate the file name */
 	sprintf(cal_name, "ArgyllCMS/%s" SSEPS "color/%s", fname, fname);
 
-	if ((no_paths = xdg_bds(NULL, &cal_paths, xdg_cache, xdg_read, xdg_user, cal_name)) < 1) {
+	if ((no_paths = xdg_bds(NULL, &cal_paths, xdg_cache, xdg_read, xdg_user, xdg_none,
+		                                                                     cal_name)) < 1) {
 		a1logd(log,2,"calf_touch: xdg_bds failed to locate file'\n");
 		return 1;
 	}

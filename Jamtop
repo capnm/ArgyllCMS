@@ -39,6 +39,16 @@ USE_USB = true ;
 # enable dummy Demo Instrument (only if code is available)
 USE_DEMOINST = true ;
 
+# enable Video Test Patch Generator and 3DLUT device support 
+# (V2.0.0 and above)
+USE_VTPGLUT = false ;
+
+# enable Printer device support 
+USE_PRINTER = false ;
+
+# enable CMF Measurement device support
+USE_CMFM = false ;	
+
 # Use ArgyllCMS version of libusb (deprecated - don't use)
 USE_LIBUSB = false ;
 
@@ -110,11 +120,14 @@ if $(UNIX) {
 			}
 		}
 		if $(OS) = FREEBSD {
-			LINKFLAGS += -L$(LibWinD) -g -lrt -lX11 -lXext -lXxf86vm -lXinerama -lXrandr -lXau -lXdmcp -lXss  -lusb ;
+			LINKFLAGS += -g -lrt -lusb ;
+			GUILINKFLAGS += -L$(LibWinD) -g -lX11 -lXext -lXxf86vm -lXinerama -lXrandr -lXau -lXdmcp -lXss  ;
 		} else if $(OS) = OPENBSD {
-			LINKFLAGS += -L$(LibWinD) -g -lX11 -lXext -lXxf86vm -lXinerama -lXrandr -lXau -lXdmcp -lXss -L/usr/local/lib ;
+			LINKFLAGS += ;
+			GUILINKFLAGS += -L$(LibWinD) -g -lX11 -lXext -lXxf86vm -lXinerama -lXrandr -lXau -lXdmcp -lXss -L/usr/local/lib ;
 		} else {
-			LINKFLAGS += -L$(LibWinD) -ldl -lrt -lX11 -lXext -lXxf86vm -lXinerama -lXrandr -lXau -lXdmcp -lXss ;
+			LINKFLAGS += -ldl -lrt ;
+			GUILINKFLAGS += -L$(LibWinD) -lX11 -lXext -lXxf86vm -lXinerama -lXrandr -lXau -lXdmcp -lXss ;
 		}
 		# HDRS += $(LibWinH) ; 
 	}

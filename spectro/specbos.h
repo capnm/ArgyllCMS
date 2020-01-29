@@ -160,6 +160,9 @@ struct _specbos {
 	int doing_cal;				/* Flag - doing internal calibration measure */
 
 	/* Other state */
+	int noaverage;				/* Current setting of number of measurements to average */
+								/* 0 for default */
+
 	athread *th;                /* Diffuser position monitoring thread */
 	volatile int th_term;		/* nz to terminate thread */
 	volatile int th_termed;		/* nz when thread terminated */

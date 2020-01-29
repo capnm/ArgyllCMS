@@ -69,6 +69,7 @@ calvschar.html
 WideGamutColmters.html
 CrushedDisplyBlacks.html
 ArgyllCMS_arts_tag.html
+inoutreferred.html
 i1proDriver.html
 i1proDriver.xls
 i1proHiRes.html
@@ -81,6 +82,7 @@ Source.html
 average.html
 applycal.html
 cb2ti3.html
+ls2ti3.html
 cctiff.html
 cht_format.html
 dispwin.html
@@ -149,6 +151,7 @@ CMP_DT_003.jpg
 CMP_Digital_Target-4.jpg
 CMP_Digital_Target-7.jpg
 colorchecker.jpg
+Passport.jpg
 SpyderChecker.jpg
 SpyderChecker24.jpg
 LSDC.jpg
@@ -193,4 +196,6 @@ ccmxs/Spyder3_EIZO_S2243W_standard_1931.ccmx
 ccmxs/Spyder3_HP_LP2475w.ccmx
 ccmxs/Spyder3_NEC2690WUXi2.ccmx
 ccmxs/Spyder3_NEC_PA301W.ccmx
+ccsss.html
+ccsss/MacBookProRetina2016.ccss
 

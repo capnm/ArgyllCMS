@@ -53,6 +53,7 @@
 #include "sa_config.h"
 #include "numsup.h"
 #endif /* SALONEINSTLIB */
+#include "cgats.h"
 #include "xspect.h"
 #include "insttypes.h"
 #include "conv.h"
@@ -125,7 +126,7 @@ hcfr_flush(
 	int rv;
 
 	for (rv = ICOM_OK;;) {
-		rv = c->read(c, buf, MAX_MES_SIZE, NULL, '\000', 100000, 0.05);
+		rv = c->read(c, buf, MAX_MES_SIZE, NULL, NULL, 100000, 0.05);
 		if (rv != ICOM_OK)
 			break;				/* Expect timeout with nothing to read */
 	}
@@ -933,7 +934,7 @@ hcfr_get_set_opt(inst *pp, inst_opt_type m, ...) {
 }
 
 /* Constructor */
-extern hcfr *new_hcfr(icoms *icom, instType itype) {
+extern hcfr *new_hcfr(icoms *icom, instType dtype) {
 	hcfr *p;
 	if ((p = (hcfr *)calloc(sizeof(hcfr),1)) == NULL) {
 		a1loge(icom->log, 1, "new_hcfr: malloc failed!\n");
@@ -957,7 +958,7 @@ extern hcfr *new_hcfr(icoms *icom, instType itype) {
 	p->del              = hcfr_del;
 
 	p->icom = icom;
-	p->itype = itype;
+	p->dtype = dtype;
 
 	icmSetUnity3x3(p->ccmat);	/* Set the colorimeter correction matrix to do nothing */
 	p->dtech = disptech_unknown;

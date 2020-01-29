@@ -32,6 +32,7 @@
 #else
 #include "numsup.h"
 #endif
+#include "cgats.h"
 #include "xspect.h"
 #include "ui.h"
 

@@ -45,7 +45,10 @@ struct _cam02ref {
 		double Yf,		/* Flare as a fraction of the reference white (range 0.0 .. 1.0) */
 		double Yg,		/* Glare as a fraction of the adapting/surround (range 0.0 .. 1.0) */
 		double Gxyz[3],	/* The Glare white coordinates (typically the Ambient color) */
-		int hk			/* Flag, NZ to use Helmholtz-Kohlraush effect */
+		int hk,			/* Flag, NZ to use Helmholtz-Kohlraush effect */
+		double hkscale,	/* HK effect scaling factor */
+		double mtaf,	/* Mid tone partial adapation factor from Wxyz to Wxyz2, <= 0.0 if none */
+		double Wxyz2[3] /* Mid tone Adapted White XYZ (Y range 0.0 .. 1.0) */
 	);
 
 	/* Conversions */
@@ -125,7 +128,7 @@ double Lv		/* Luminence of white in the Viewing/Scene/Image field (cd/m^2) */
 static void cam02ref_free(cam02ref *s);
 static int cam02ref_set_view(cam02ref *s, ViewingCondition Ev, double Wxyz[3],
                 double Yb, double La, double Lv, double Yf, double Yg, double Gxyz[3],
-                int hk, double hkscale);
+                int hk, double hkscale, double mtaf, double Wxyz2[3]);
 static int cam02ref_XYZ_to_cam(cam02ref *s, double *Jab, double *xyz);
 static int cam02ref_cam_to_XYZ(cam02ref *s, double XYZ[3], double Jab[3]);
 
@@ -164,7 +167,9 @@ double Yf,		/* Flare as a fraction of the reference white (Y range 0.0 .. 1.0) *
 double Yg,		/* Glare as a fraction of the adapting/surround (Y range 0.0 .. 1.0) */
 double Gxyz[3],	/* The Glare white coordinates (typically the Ambient color) */
 int hk,			/* Flag, NZ to use Helmholtz-Kohlraush effect */
-double hkscale		/* HK effect scaling factor */
+double hkscale,	/* HK effect scaling factor */
+double mtaf,	/* Mid tone partial adapation factor from Wxyz to Wxyz2, <= 0.0 if none */
+double Wxyz2[3] /* Mid tone Adapted White XYZ (Y range 0.0 .. 1.0) */
 ) {
 	double tt;
 

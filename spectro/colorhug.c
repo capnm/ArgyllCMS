@@ -33,6 +33,7 @@
 #include "sa_config.h"
 #include "numsup.h"
 #endif /* SALONEINSTLIB */
+#include "cgats.h"
 #include "xspect.h"
 #include "insttypes.h"
 #include "conv.h"
@@ -1197,7 +1198,7 @@ colorhug_get_set_opt(inst *pp, inst_opt_type m, ...) {
 }
 
 /* Constructor */
-extern colorhug *new_colorhug(icoms *icom, instType itype) {
+extern colorhug *new_colorhug(icoms *icom, instType dtype) {
 	colorhug *p;
 	int i;
 
@@ -1223,9 +1224,9 @@ extern colorhug *new_colorhug(icoms *icom, instType itype) {
 	p->del               = colorhug_del;
 
 	p->icom = icom;
-	p->itype = itype;
+	p->dtype = dtype;
 
-	if (itype == instColorHug2)
+	if (dtype == instColorHug2)
 		p->stype = ch_two;
 
 	icmSetUnity3x3(p->ccmat);

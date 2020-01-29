@@ -20,6 +20,7 @@
 
 #include <stdio.h>
 #include <math.h>
+#include "cgats.h"
 #include "xspect.h"
 #include "numlib.h"
 #include "plot.h"
@@ -49,8 +50,8 @@ static int do_spec(char *name, xspect *sp) {
 
 	printf("\n");
 
-	/* Compute XYZ of illuminant */
-	if (icx_ill_sp2XYZ(xyz, icxOT_CIE_1931_2, NULL, icxIT_custom, 0, sp) != 0) 
+	/* Compute normalise XYZ of illuminant */
+	if (icx_ill_sp2XYZ(xyz, icxOT_CIE_1931_2, NULL, icxIT_custom, 0, sp, 0) != 0) 
 		error ("icx_sp_temp2XYZ returned error");
 
 	icmXYZ2Yxy(Yxy, xyz);

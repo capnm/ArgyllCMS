@@ -34,6 +34,8 @@ LINKLIBS = ../xicc/libxcolorants ../spectro/libconv ../xicc/libxicc ../spectro/l
            $(TIFFLIB) $(JPEGLIB) $(PNGLIB) $(ZLIB) $(LibWin) ;
 
 
+LINKFLAGS += $(GUILINKFLAGS) ;
+
 #target generator
 Main targen : targen.c ofps.c ifarp.c simplat.c simdlat.c prand.c ;
 

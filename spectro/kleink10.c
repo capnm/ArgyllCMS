@@ -54,6 +54,7 @@
 #include "sa_config.h"
 #include "numsup.h"
 #endif /* !SALONEINSTLIB */
+#include "cgats.h"
 #include "xspect.h"
 #include "insttypes.h"
 #include "conv.h"
@@ -354,7 +355,7 @@ k10_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 	baud_rate brt[] = { baud_9600, baud_nc };
 	unsigned int etime;
 	unsigned int i;
-	instType itype = pp->itype;
+	instType dtype = pp->dtype;
 	int se;
 	char *cp;
 
@@ -1486,8 +1487,8 @@ static inst_code k10_imp_measure_refresh(
 
 	/* Locate the smallest values and maximum time */
 	maxt = -1e6;
-	minv = minv = minv = 1e20;
-	maxv = maxv = maxv = -11e20;
+	minv = 1e20;
+	maxv = -11e20;
 	for (i = nfsamps-1; i >= 0; i--) {
 		if (samp[i] < minv)
 			minv = samp[i]; 
@@ -2842,7 +2843,7 @@ k10_get_set_opt(inst *pp, inst_opt_type m, ...) {
 }
 
 /* Constructor */
-extern kleink10 *new_kleink10(icoms *icom, instType itype) {
+extern kleink10 *new_kleink10(icoms *icom, instType dtype) {
 	kleink10 *p;
 	if ((p = (kleink10 *)calloc(sizeof(kleink10),1)) == NULL) {
 		a1loge(icom->log, 1, "new_kleink10: malloc failed!\n");
@@ -2871,7 +2872,7 @@ extern kleink10 *new_kleink10(icoms *icom, instType itype) {
 	p->del               = k10_del;
 
 	p->icom = icom;
-	p->itype = itype;
+	p->dtype = dtype;
 	p->dtech = disptech_unknown;
 
 	amutex_init(p->lock);

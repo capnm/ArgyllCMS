@@ -413,6 +413,7 @@ static jc_error jcnf_delete_key(
 	if ((ix+1) < p->nkeys) {
 		memmove(p->keys+ix, p->keys+ix+1,sizeof(jc_key *) * p->nkeys-ix-1);
 	}
+	free(p->keys[p->nkeys-1]);
 	p->nkeys--;
 	p->modified = 1;
 
@@ -607,6 +608,7 @@ static int jcnf_yajl_start_map(void *ctx) {
     return 1;
 }
 
+/* Callback from yajl */
 static int jcnf_yajl_map_key(void *ctx, const unsigned char * stringVal,
                      size_t stringLen) {
 	jcnf *p = (jcnf *)ctx;
@@ -650,6 +652,8 @@ static int jcnf_yajl_end_map(void *ctx) {
 		/* End of map without start of map */
 		return 0;
 	}
+	if (p->recds[p->nrecd-1].key != NULL)
+		free(p->recds[p->nrecd-1].key);
 	p->nrecd--;
 
 #ifdef NEVER

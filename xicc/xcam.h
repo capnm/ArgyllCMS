@@ -52,7 +52,10 @@ struct _icxcam {
 		double Yg,		/* Glare as a fraction of the adapting/surround (range 0.0 .. 1.0) */
 		double Gxyz[3],	/* The Glare white coordinates (typically the Ambient color) */
 		int hk,			/* Flag, NZ to use Helmholtz-Kohlraush effect */
-		double hkscale	/* HK effect scaling factor */
+		double hkscale,	/* HK effect scaling factor */
+
+		double mtaf,	/* Mid tone partial adapation factor from Wxyz to Wxyz2, <= 0.0 if none */
+		double Wxyz2[3] /* Mid tone Adapted White XYZ (Y range 0.0 .. 1.0) */
 	);
 
 	/* Conversions */

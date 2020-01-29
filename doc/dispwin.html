@@ -52,6 +52,11 @@ Verbose
 
 
 
+
+
+
+
+
         mode<br>
       </span></font><font size="-1"><span style="font-family:
         monospace;">&nbsp;</span><a style="font-family: monospace;"
@@ -66,6 +71,11 @@ Verbose
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 and
 optionally
+
+
+
+
+
 
 
 
@@ -103,9 +113,19 @@ X11]
 
 
 
+
+
+
+
+
         Choose the display from the following list (default 1)<br>
       </span></font><span style="font-family: monospace;">&nbsp;<a
         href="#dweb">-dweb[:port]</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
 
 
 
@@ -129,6 +149,11 @@ X11]
 
 
 
+
+
+
+
+
     </tt><tt></tt><tt>Display via n'th ChromeCast (default 1, ? for
       list)</tt><br style="font-family: monospace;">
     <font size="-1"><span style="font-family: monospace;"></span><span
@@ -138,6 +163,11 @@ X11]
       <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 ho,vi:
 0.0
+
+
+
+
+
 
 
 
@@ -175,8 +205,18 @@ ss:
 
 
 
+
+
+
+
+
         = half, 1.0 = normal, 2.0 = double etc.<br>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
 
 
 
@@ -211,10 +251,20 @@ whole
 
 
 
+
+
+
+
+
         screen with black background</span></font><br>
     <font size="-1"><span style="font-family: monospace;">&nbsp;</span></font><font
       size="-1"><span style="font-family: monospace;"><a href="#E">-E</a>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
 
 
 
@@ -259,12 +309,22 @@ just
 
 
 
+
+
+
+
+
         video LUT loading &amp; Beeps<br>
       </span></font><font size="-1"><span style="font-family:
         monospace;">&nbsp;<a href="#n">-n</a>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Test
 native
+
+
+
+
+
 
 
 
@@ -301,12 +361,22 @@ the
 
 
 
+
+
+
+
+
         currently loaded Video LUT to 'filename'<br>
       </span></font><font size="-1"><span style="font-family:
         monospace;">&nbsp;<a href="#c">-c</a>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Load
 a
+
+
+
+
+
 
 
 
@@ -346,6 +416,11 @@ that
 
 
 
+
+
+
+
+
         calfile/profile cal. is currently loaded in LUT<br>
       </span></font><font size="-1"><span style="font-family:
         monospace;">&nbsp;<a href="#I">-I</a>
@@ -366,11 +441,21 @@ that
 
 
 
+
+
+
+
+
       </span></font><font size="-1"><span style="font-family:
-        monospace;">Install profile for display and use it's calibration<br>
+        monospace;">Install profile for display and use its calibration<br>
       </span></font><font size="-1"><span style="font-family:
         monospace;">&nbsp;<a href="#U">-U</a>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
 
 
 
@@ -408,10 +493,20 @@ the
 
 
 
+
+
+
+
+
         install/uninstall scope for OS X [nlu] or Vista [lu]<br>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 d
 is
+
+
+
+
+
 
 
 
@@ -449,11 +544,21 @@ is
 
 
 
+
+
+
+
+
       </span></font><font size="-1"><span style="font-family:
         monospace;">Load installed profiles cal. into Video LUT<br>
       </span></font><font size="-1"><span style="font-family:
         monospace;">&nbsp;<a href="#X">-<font size="-1">X</font></a>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
 
 
 
@@ -493,6 +598,11 @@ debug
 
 
 
+
+
+
+
+
         diagnostics to stderr</span></font><font size="-1"><span
         style="font-family: monospace;"></span></font><font size="-1"><span
         style="font-family: monospace;"></span><span style="font-family:
@@ -503,6 +613,11 @@ debug
         style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Load
 display
+
+
+
+
+
 
 
 
@@ -572,9 +687,30 @@ display
     256 entries per color component, so the Visual generally needs to be
     24 bits, 8 bits per color component.<br>
     <br>
+    More modern X11 systems support the XRANDR extension, which handles
+    multiple displays much more gracefully, but note that there are
+    limitations in profiling and calibrating Mirrored or Cloned
+    Displays. Mirrored displays share the same frame buffer space
+    (Separate CRTC's with overlapping pixel locations) but can have
+    different calibration curves, while Cloned displays share both frame
+    buffer space and calibration curves (A single CRTC feeding multiple
+    Outputs). <b>dispwin</b> will show different display selections for
+    each output, but calibration or application of color management may
+    only be correct for the last set display (i.e. if frame buffer space
+    overlaps, or there is only a single CRTC to hold calibration curves,
+    and a single _ICC_PROFILE_xxx root atom holding the profile, if the
+    application is using the Xinerama convention for obtaining a
+    profile, rather than the Xrandr per Output property _ICC_PROFILE
+    convention.) <br>
+    <br>
     <a name="dnm"></a><span style="font-weight: bold;">-d n[,m]</span>Because
 of
 the
+
+
+
+
+
 
 
 
@@ -645,6 +781,11 @@ the
     but should be accurate within ± 1 bit. You may have to modify any
     firewall to permit port 8081 to be accessed on your machine if it
     falls back to the Default receiver (see <a href="Installing.html">installation
+
+
+
+
+
 
       instructions</a> for your platform).<br>
     <br>
@@ -745,22 +886,32 @@ the
     profile specified as the final argument will be installed as the
     default operating system profile for the chosen display, and the
     display calibration will be set to the calibration tag ('vcgt' tag,
-    if any) in that profile.. On MSWindows and OS X this means that the
+    if any) in that profile. On MSWindows and OS X this means that the
     profile will be copied to the appropriate color profile directory
-    and registered with the operating system. For Linux X11 systems, the
-    profile will be installed using the <a href="ucmm.html">ucmm</a>
-    convention, and the X11 _ICC_PROFILE property in the root window,
-    and also the the XrandR 1.2 X11 _ICC_PROFILE output property on
-    systems that are running XrandR 1.2 or later. The latter is
-    following this <a
+    and registered with the operating system. <br>
+    <br>
+    For Linux X11 systems, the profile will be installed using&nbsp;<span style="white-space: pre;"> using </span>the
+
+
+
+
+    <a href="ucmm.html">ucmm</a> convention by default, and this
+    associates the display hardware identification (EDID) of the
+    selected display, with the profile. The X11 _ICC_PROFILE property
+    will be set in the root window, and also the the XrandR 1.2 X11
+    _ICC_PROFILE output property on systems that are running XrandR 1.2
+    or later. The use of atoms is following this <a
       href="http://www.burtonini.com/computing/x-icc-profiles-spec-0.2.html">convention</a>
     for allowing applications to locate the display profile for a
     particular X11 display, and expands it to accomodate XrandR 1.2.
     Note that for X11 systems, the properties are not persistent, and
     will need to be loaded each time the X11 server is started (see the
-    <a href="#L">-L</a> flag). To make sure that the profile calbration
-    'vcgt' tag gets loaded into the Graphics Card at system start,
-    please read the guide <a href="dispprofloc.html">here</a>.<br>
+    <a href="#L">-L</a> flag).<br>
+    <br>
+    If the <b>ARGYLL_USE_COLORD</b> environment variable is set (ie.
+    set it to "yes"), then on Gnome systems running <b>colord</b><span style="white-space: pre;">, dispwin will attempt to store and retrieve display ICC profiles using<br>colord.<br><br></span>
+    To make sure that the profile calbration 'vcgt' tag gets loaded into
+    the Graphics Card at system start, please read the guide <a href="dispprofloc.html">here</a>.<br>
     <br>
     <a name="U"></a><span style="font-weight: bold;">-U</span>: The ICC
     profile specified as the final argument will be un-installed as the
@@ -770,15 +921,12 @@ the
     <a name="S"></a><span style="font-weight: bold;">-S</span> d: Some
     systems have more than one profile scope that an installed profile
     will apply to, and this parameter allows overriding the default user
-    scope. On OS X, there is a choice of three scopes: <span
-      style="font-weight: bold;">n</span>: for network scope, if people
+    scope. On OS X, there is a choice of three scopes: <span style="font-weight: bold;">n</span>: for network scope, if people
     are sharing profiles over a network, <span style="font-weight:
       bold;">l</span>: local system scope, which installs the profile
-    for all users of a system, and the default <span
-      style="font-weight: bold;">u</span>, which covers just the user
+    for all users of a system, and the default <span style="font-weight: bold;">u</span>, which covers just the user
     installing the profile. On Linux or Microsoft Vista, just the local
-    system <span style="font-weight: bold;">l</span> and user <span
-      style="font-weight: bold;">u</span> scope are available. Note that
+    system <span style="font-weight: bold;">l</span> and user <span style="font-weight: bold;">u</span> scope are available. Note that
     you may need to run dispwin with elevated privileges(sudo) to be
     able to successfully use network or local system scope. This option
     also applies to uninstalling a profile. Note that to install a user
@@ -799,8 +947,7 @@ the
     in monitors that may require loading a matching ICC profile (ie.
     such as re-configuring, plugging in a different monitor etc.)&nbsp;
     This only works if XRandR 1.2 is available on the server. By default
-    dispwin runs silently, and will not terminate. If the <span
-      style="font-weight: bold;">-v</span> option is given, it will emit
+    dispwin runs silently, and will not terminate. If the <span style="font-weight: bold;">-v</span> option is given, it will emit
     messages to stdout to show what it is doing. When it is first
     invoked, it will load the installed profiles of all the screens of
     the given X11 server.<br>
@@ -811,17 +958,14 @@ the
     tracking down why an operation fails.<br>
     <br>
     <a name="p1"></a> The final optional parameter on the command line
-    is the name of an ICC profile that contains a Video LUT <span
-      style="font-weight: bold;">vcgt</span> tag, or an Argyll <a
-      href="cal_format.html">.cal</a> format display calibration. If
+    is the name of an ICC profile that contains a Video LUT <span style="font-weight: bold;">vcgt</span> tag, or an Argyll <a href="cal_format.html">.cal</a> format display calibration. If
     this parameter is provided, then the selected display will be loaded
     with the given calibration. If the <span style="font-weight: bold;">-V</span>
     flag was given, then it is verified that this calibration is the
     currently loaded one.&nbsp; This may be useful in initializing a
     system to the current calibration on system startup, although a
     better way may be to install the profile (<span style="font-weight:
-      bold;">-I</span> option), and then just use <span
-      style="font-weight: bold;">-L</span>. Note that the vcgt tag
+      bold;">-I</span> option), and then just use <span style="font-weight: bold;">-L</span>. Note that the vcgt tag
     interpretation within Argyll is consistent with that of the
     originators of the tag. Other ICC profile vcgt implementations may
     not be so consistent.<br>
@@ -842,5 +986,6 @@ the
     <br>
     <br>
     <br>
-  </body>
-</html>
+  
+
+</body></html>

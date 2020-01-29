@@ -51,6 +51,12 @@ typedef enum {
 	xdg_local			/* Local System wide context */
 } xdg_scope;
 
+/* Optional flags */
+typedef enum {
+	xdg_none        = 0x0000,		/* No options */
+	xdg_all_matches = 0x0001		/* Return all matching files */
+} xdg_options;
+
 /* An error code */
 typedef enum {
 	xdg_ok = 0,
@@ -96,6 +102,7 @@ int xdg_bds(
 	xdg_storage_type st,	/* Specify the storage type */
 	xdg_op_type op,			/* Operation type */
 	xdg_scope sc,			/* Scope if write */
+	xdg_options opt,        /* Options flags */
 	char *spath				/* Sub-path and file name or file pattern */
 );
 

@@ -22,9 +22,6 @@ if $(UNIX) && $(OS) != MACOSX {
   ObjectHdrs plot : $(LibWinH) ;
 }
 
-# Individual stand alone test of plot library
-MainVariant plot : plot.c : : STANDALONE_TEST : ../h ../numlib ../spectro : : ../spectro/libconv.lib ../numlib/libnum.lib ../numlib/libui.lib ;
-
 # VRML plot library
 Library libvrml : vrml.c : : : ../h ../icc ../cgats ../numlib ../gamut ;
 
@@ -37,6 +34,10 @@ if [ GLOB $(PATH) : xxd xxd.exe ] {
 	GenFileNNDnc x3dom.css.h : xxd -i "<" [ NormPaths x3dom.css ] ">" [ NormPaths x3dom.css.h ] ;
 	GenFileNNDnc x3dom.js.h : xxd -i "<" [ NormPaths x3dom.js ] ">" [ NormPaths x3dom.js.h ] ;
 }
+
+# Individual stand alone test of plot library
+LINKFLAGS += $(GUILINKFLAGS) ;
+MainVariant plot : plot.c : : STANDALONE_TEST : ../h ../numlib ../spectro : : ../spectro/libconv.lib ../numlib/libnum.lib ../numlib/libui.lib ;
 
 #MainsFromSources ttt.c : : : ../numlib ;
 #Main ttt : ttt.c : : : ../numlib : : ../numlib/libnum libplot : ;

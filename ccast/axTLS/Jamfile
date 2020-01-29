@@ -13,7 +13,7 @@ if $(NT) {
 	}
 }
 
-# tiff library
+# axTLS library
 LIBSRCS = 
 	aes.c
 	asn1.c

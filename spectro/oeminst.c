@@ -30,6 +30,7 @@
 #include "conv.h"
 #include "aglob.h"
 #include "oemarch.h"
+#include "cgats.h"
 #include "xspect.h"
 #include "disptechs.h"
 #include "ccmx.h"
@@ -260,7 +261,8 @@ main(int argc, char *argv[]) {
 			int npaths = 0;
 
 			/* Get destination path. This may drop uid/gid if we are su */
-			if ((npaths = xdg_bds(NULL, &paths, xdg_data, xdg_write, scope, install_name)) < 1) {
+			if ((npaths = xdg_bds(NULL, &paths, xdg_data, xdg_write, scope, xdg_none,
+				                                                            install_name)) < 1) {
 				error("Failed to find/create XDG_DATA path '%s'",install_name);
 			}
 			if (install)

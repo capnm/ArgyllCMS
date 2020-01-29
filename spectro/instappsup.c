@@ -27,6 +27,7 @@
 #include "sa_config.h"
 #endif /* !SALONEINSTLIB */
 #include "numsup.h"
+#include "cgats.h"
 #include "xspect.h"
 #include "conv.h"
 #include "insttypes.h"
@@ -504,7 +505,7 @@ inst2_capability inst_show_disptype_options(FILE *fp, char *oline, icompaths *ic
 					strcat(extra, "]");
 				}
 
-				fprintf(fp, "%s%s: %s%s\n",buf, inst_sname(it->itype), sels[j].desc, extra);
+				fprintf(fp, "%s%s: %s%s\n",buf, inst_sname(it->dtype), sels[j].desc, extra);
 
 				if (j == 0) {
 					for (m = 0; m < pstart; m++)

@@ -407,7 +407,10 @@ main(void) {
 			tFlair[c],	/* Flare as a fraction of the reference white (Y range 0.0 .. 1.0) */
 			0.00,		/* Glare as a fraction of the ambient (Y range 0.0 .. 1.0) */
 			twhite[c],	/* The Flare color coordinates (typically the Ambient color) */
-			USE_HK		/* use Helmholtz-Kohlraush flag */ 
+			USE_HK,		/* use Helmholtz-Kohlraush flag */ 
+			1.0,
+			0.0,
+			NULL
 		);
 		cam->set_view(
 			cam,
@@ -419,7 +422,10 @@ main(void) {
 			tFlair[c],	/* Flare as a fraction of the reference white (Y range 0.0 .. 1.0) */
 			0.00,		/* Glare as a fraction of the ambient (Y range 0.0 .. 1.0) */
 			twhite[c],	/* The Flare color coordinates (typically the Ambient color) */
-			USE_HK		/* use Helmholtz-Kohlraush flag */ 
+			USE_HK,		/* use Helmholtz-Kohlraush flag */ 
+			1.0,
+			0.0,
+			NULL
 		);
 		camr->nldlimit = cam->nldlimit;
 		camr->jlimit = cam->jlimit;
@@ -563,7 +569,9 @@ main(void) {
 			0.00,		/* Glare as a fraction of the ambient (Y range 0.0 .. 1.0) */
 			sp_white[c],/* The Glare color coordinates (typically the Ambient color) */
 			USE_HK,		/* use Helmholtz-Kohlraush flag */ 
-			1.0			/* Normal Helmholtz-Kohlraush scale */
+			1.0,		/* Normal Helmholtz-Kohlraush scale */
+			0.0,		/* No mid-tone hack */
+			NULL
 		);
 
 		cam->set_view(
@@ -577,7 +585,9 @@ main(void) {
 			0.00,		/* Glare as a fraction of the ambient (Y range 0.0 .. 1.0) */
 			sp_white[c],/* The Glare color coordinates (typically the Ambient color) */
 			USE_HK,		/* use Helmholtz-Kohlraush flag */ 
-			1.0			/* Normal Helmholtz-Kohlraush scale */
+			1.0,		/* Normal Helmholtz-Kohlraush scale */
+			0.0,		/* No mid-tone hack */
+			NULL
 		);
 
 		camr->nldlimit = cam->nldlimit;
@@ -719,7 +729,9 @@ main(void) {
 			0.00,		/* Glare as a fraction of the ambient (Y range 0.0 .. 1.0) */
 			white[c],	/* The Glare color coordinates (typically the Ambient color) */
 			USE_HK,		/* use Helmholtz-Kohlraush flag */ 
-			1.0			/* Normal Helmholtz-Kohlraush scale */
+			1.0,		/* Normal Helmholtz-Kohlraush scale */
+			0.0,		/* No mid-tone hack */
+			NULL
 		);
 		
 		cam->set_view(
@@ -733,7 +745,9 @@ main(void) {
 			0.00,		/* Glare as a fraction of the ambient (Y range 0.0 .. 1.0) */
 			white[c],	/* The Glare color coordinates (typically the Ambient color) */
 			USE_HK,		/* use Helmholtz-Kohlraush flag */ 
-			1.0			/* Normal Helmholtz-Kohlraush scale */
+			1.0,		/* Normal Helmholtz-Kohlraush scale */
+			0.0,		/* No mid-tone hack */
+			NULL
 		);
 		
 		/* Make reference return error where it's going to disagree with implementation */
@@ -955,8 +969,10 @@ main(void) {
 				0.0,		/* Glare as a fraction of the ambient (Y range 0.0 .. 1.0) */
 				white[c],	/* The Glare color coordinates (typically the Ambient color) */
 				USE_HK,		/* use Helmholtz-Kohlraush flag */ 
-				1.0			/* Normal Helmholtz-Kohlraush scale */
-			);
+				1.0,		/* Normal Helmholtz-Kohlraush scale */
+				0.0,		/* No mid-tone hack */
+				NULL
+				);
 		
 #ifdef INVTEST1
 			/* Test case */
@@ -1138,8 +1154,10 @@ main(void) {
 				0.0,		/* Glare as a fraction of the ambient (Y range 0.0 .. 1.0) */
 				white[c],	/* The Glare color coordinates (typically the Ambient color) */
 				USE_HK,		/* use Helmholtz-Kohlraush flag */ 
-				1.0			/* Normal Helmholtz-Kohlraush scale */
-			);
+				1.0,		/* Normal Helmholtz-Kohlraush scale */
+				0.0,		/* No mid-tone hack */
+				NULL
+				);
 		
 #ifdef TESTINV1
 			/* Double sample test case */

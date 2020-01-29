@@ -51,6 +51,7 @@
 #include "sa_config.h"
 #include "numsup.h"
 #endif /* !SALONEINSTLIB */
+#include "cgats.h"
 #include "xspect.h"
 #include "insttypes.h"
 #include "conv.h"
@@ -896,7 +897,7 @@ dtp51_get_set_opt(inst *pp, inst_opt_type m, ...) {
 }
 
 /* Constructor */
-extern dtp51 *new_dtp51(icoms *icom, instType itype) {
+extern dtp51 *new_dtp51(icoms *icom, instType dtype) {
 	dtp51 *p;
 	if ((p = (dtp51 *)calloc(sizeof(dtp51),1)) == NULL) {
 		a1loge(icom->log, 1, "new_dtp51: malloc failed!\n");
@@ -918,7 +919,7 @@ extern dtp51 *new_dtp51(icoms *icom, instType itype) {
 	p->del          	= dtp51_del;
 
 	p->icom = icom;
-	p->itype = itype;
+	p->dtype = dtype;
 
 	p->native_calstd = xcalstd_xrdi;		/* Not alterable */
 

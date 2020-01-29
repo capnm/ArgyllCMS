@@ -42,6 +42,7 @@
 #ifndef SALONEINSTLIB
 #  include "plot.h"
 #endif
+#include "cgats.h"
 #include "xspect.h"
 #include "insttypes.h"
 #include "conv.h"

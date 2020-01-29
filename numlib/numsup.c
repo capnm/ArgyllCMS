@@ -483,17 +483,34 @@ a1log *del_a1log(a1log *log) {
 	return NULL;
 }
 
+/* Set the debug level. */
+void a1log_debug(a1log *log, int level) {
+	if (log != NULL) {
+		log->debug = level;
+	}
+}
+
+/* Set the vebosity level. */
+void a1log_verb(a1log *log, int level) {
+	if (log != NULL) {
+		log->verb = level;
+	}
+}
+
 /* Set the tag. Note that the tage string is NOT copied, just referenced */
 void a1log_tag(a1log *log, char *tag) {
-	log->tag = tag;
+	if (log != NULL) {
+		log->tag = tag;
+	}
 }
 
 /* Log a verbose message if level >= verb */
 void a1logv(a1log *log, int level, char *fmt, ...) {
+
 	if (log != NULL) {
 		if (log->verb >= level) {
 			va_list args;
-	
+
 			A1LOG_LOCK(log, 0);
 			va_start(args, fmt);
 			log->logv(log->cntx, log, fmt, args);
@@ -511,7 +528,7 @@ void a1logd(a1log *log, int level, char *fmt, ...) {
 	
 			A1LOG_LOCK(log, 1);
 			va_start(args, fmt);
-			log->loge(log->cntx, log, fmt, args);
+			log->logd(log->cntx, log, fmt, args);
 			va_end(args);
 			A1LOG_UNLOCK(log);
 		}
@@ -601,6 +618,8 @@ void a1logue(a1log *log) {
 void adump_bytes(a1log *log, char *pfx, unsigned char *buf, int base, int len) {
 	int i, j, ii;
 	char oline[200] = { '\000' }, *bp = oline;
+	if (pfx == NULL)
+		pfx = "";
 	for (i = j = 0; i < len; i++) {
 		if ((i % 16) == 0)
 			bp += sprintf(bp,"%s%04x:",pfx,base+i);
@@ -827,7 +846,7 @@ void osx_userinitiated_start() {
 	}
 
 	/* Create a reason string */
-	str = objc_msgSend(objc_getClass("NSString"), sel_getUid("alloc"));
+	str = objc_msgSend((id)objc_getClass("NSString"), sel_getUid("alloc"));
 	str = objc_msgSend(str, sel_getUid("initWithUTF8String:"), "ArgyllCMS");
 			
 	/* Start activity that tells App Nap to mind its own business. */
@@ -842,8 +861,9 @@ void osx_userinitiated_end() {
 		if (osx_userinitiated_cnt == 0 && osx_userinitiated_activity != nil) {
 			a1logd(g_log, 7, "OS X - User Initiated Activity end");
 			objc_msgSend(
-			             objc_msgSend(objc_getClass("NSProcessInfo"), sel_getUid("processInfo")), 
-			             sel_getUid("endActivity:"), osx_userinitiated_activity);
+			             objc_msgSend((id)objc_getClass("NSProcessInfo"),
+			             sel_getUid("processInfo")), sel_getUid("endActivity:"),
+			             osx_userinitiated_activity);
 			osx_userinitiated_activity = nil;
 		}
 	}
@@ -885,7 +905,7 @@ void osx_latencycritical_start() {
 	}
 
 	/* Create a reason string */
-	str = objc_msgSend(objc_getClass("NSString"), sel_getUid("alloc"));
+	str = objc_msgSend((id)objc_getClass("NSString"), sel_getUid("alloc"));
 	str = objc_msgSend(str, sel_getUid("initWithUTF8String:"), "Measuring Color");
 			
 	/* Start activity that tells App Nap to mind its own business. */
@@ -900,8 +920,9 @@ void osx_latencycritical_end() {
 		if (osx_latencycritical_cnt == 0 && osx_latencycritical_activity != nil) {
 			a1logd(g_log, 7, "OS X - Latency Critical Activity end");
 			objc_msgSend(
-			             objc_msgSend(objc_getClass("NSProcessInfo"), sel_getUid("processInfo")), 
-			             sel_getUid("endActivity:"), osx_latencycritical_activity);
+			             objc_msgSend((id)objc_getClass("NSProcessInfo"),
+			             sel_getUid("processInfo")), sel_getUid("endActivity:"),
+			             osx_latencycritical_activity);
 			osx_latencycritical_activity = nil;
 		}
 	}
@@ -957,7 +978,7 @@ int nh		/* Highest index */
 }
 
 /* --------------------- */
-/* 2D Double vector malloc/free */
+/* 2D Double matrix malloc/free */
 double **dmatrix(
 int nrl,	/* Row low index */
 int nrh,	/* Row high index */
@@ -1179,7 +1200,7 @@ int nch
 }
 
 /* --------------------- */
-/* 2D vector copy */
+/* matrix copy */
 void copy_dmatrix(
 double **dst,
 double **src,
@@ -1713,6 +1734,19 @@ void matrix_trans(double **d, double **s, int nr,  int nc) {
 	}
 }
 
+/* Transpose a 0 base symetrical matrix in place */
+void sym_matrix_trans(double **m, int n) {
+	int i, j;
+
+	for (i = 0; i < n; i++) {
+		for (j = i+1; j < n; j++) {
+			double tt = m[j][i]; 
+			m[j][i] = m[i][j];
+			m[i][j] = tt;
+		}
+	}
+}
+
 /* Multiply two 0 based matricies */
 /* Return nz on matching error */
 int matrix_mult(
@@ -1746,20 +1780,260 @@ int matrix_mult(
 	return 0;
 }
 
-/* Diagnostic - print to g_log debug */
-void matrix_print(char *c, double **a, int nr,  int nc) {
+/* Matrix multiply transpose of s1 by s2 */
+/* 0 based matricies,  */
+/* This is usefull for using results of lu_invert() */
+int matrix_trans_mult(
+	double **d,  int nr,  int nc,
+	double **ts1, int nr1, int nc1,
+	double **s2, int nr2, int nc2
+) {
+	int i, j, k;
+
+	/* s1 and s2 must mesh */
+	if (nr1 != nr2)
+		return 1;
+
+	/* Output rows = s1 rows */
+	if (nr != nc1)
+		return 2;
+
+	/* Output colums = s2 columns */
+	if (nc != nc2)
+		return 2;
+
+	for (i = 0; i < nc1; i++) {
+		for (j = 0; j < nc2; j++) { 
+			d[i][j] = 0.0;  
+			for (k = 0; k < nr1; k++) {
+				d[i][j] += ts1[k][i] * s2[k][j];
+			}
+		}
+	}
+
+	return 0;
+}
+
+/* Multiply a 0 based matrix by a vector */
+/* d may be same as v */
+int matrix_vect_mult(
+	double *d, int nd,
+	double **m, int nr, int nc,
+	double *v, int nv
+) {
 	int i, j;
-	a1logd(g_log, 0, "%s, %d x %d\n",c,nr,nc);
+	double *_v = v, vv[20];
+
+	if (d == v) {
+		if (nv <= 20) {
+			_v = vv;
+		} else {
+			_v = dvector(0, nv-1);
+		}
+		for (j = 0; j < nv; j++)
+			_v[j]  = v[j];
+	}
+
+	/* Input vector must match matrix columns */
+	if (nv != nc)
+		return 1;
+
+	/* Output vector must match matrix rows */
+	if (nd != nr)
+		return 1;
+
+	for (i = 0; i < nd; i++) {
+		d[i] = 0.0;  
+		for (j = 0; j < nv; j++)
+			d[i] += m[i][j] * _v[j];
+	}
+
+	if (_v != v && _v != vv)
+		free_dvector(_v, 0, nv-1);
+
+	return 0;
+}
+
+
+/* Set zero based dvector */
+void vect_set(double *d, double v, int len) {
+	int i;
+	for (i = 0; i < len; i++)
+		d[i] = v;
+}
+
+/* Copy zero based dvector */
+void vect_cpy(double *d, double *s, int len) {
+	int i;
+	for (i = 0; i < len; i++)
+		d[i] = s[i];
+}
+
+
+/* Negate and copy a vector, d = -v */
+/* d may be same as v */
+void vect_neg(double *d, double *s, int len) {
+	int i;
+	for (i = 0; i < len; i++)
+		d[i] = -s[i];
+}
+
+/* Add two vectors */
+/* d may be same as v */
+void vect_add(
+	double *d,
+	double *v, int len
+) {
+	int i;
+
+	for (i = 0; i < len; i++)
+		d[i] += v[i];
+}
+
+/* Subtract two vectors, d -= v */
+/* d may be same as v */
+void vect_sub(
+	double *d, double *v, int len
+) {
+	int i;
+	for (i = 0; i < len; i++)
+		d[i] -= v[i];
+}
+
+
+/* - - - - - - - - - - - - - - - - - - - - - - */
+
+/* Print double matrix to g_log debug */
+/* id identifies matrix */
+/* pfx used at start of each line */
+/* Assumed indexed from 0 */
+void adump_dmatrix(a1log *log, char *id, char *pfx, double **a, int nr,  int nc) {
+	int i, j;
+	a1logd(g_log, 0, "%s%s[%d][%d]\n",pfx,id,nr,nc);
 
 	for (j = 0; j < nr; j++) {
-		a1logd(g_log, 0, " ");
-		for (i = 0; i < nc; i++) {
-			a1logd(g_log, 0, " %.2f",a[j][i]);
-		}
+		a1logd(g_log, 0, "%s ",pfx);
+		for (i = 0; i < nc; i++)
+			a1logd(g_log, 0, "%f%s",a[j][i], i < (nc-1) ? ", " : "");
 		a1logd(g_log, 0, "\n");
 	}
 }
 
+/* Print float matrix to g_log debug */
+/* id identifies matrix */
+/* pfx used at start of each line */
+/* Assumed indexed from 0 */
+void adump_fmatrix(a1log *log, char *id, char *pfx, float **a, int nr,  int nc) {
+	int i, j;
+	a1logd(g_log, 0, "%s%s[%d][%d]\n",pfx,id,nr,nc);
+
+	for (j = 0; j < nr; j++) {
+		a1logd(g_log, 0, "%s ",pfx);
+		for (i = 0; i < nc; i++)
+			a1logd(g_log, 0, "%f%s",a[j][i], i < (nc-1) ? ", " : "");
+		a1logd(g_log, 0, "\n");
+	}
+}
+
+/* Print int matrix to g_log debug */
+/* id identifies matrix */
+/* pfx used at start of each line */
+/* Assumed indexed from 0 */
+void adump_imatrix(a1log *log, char *id, char *pfx, int **a, int nr,  int nc) {
+	int i, j;
+	a1logd(g_log, 0, "%s%s[%d][%d]\n",pfx,id,nr,nc);
+
+	for (j = 0; j < nr; j++) {
+		a1logd(g_log, 0, "%s ",pfx);
+		for (i = 0; i < nc; i++)
+			a1logd(g_log, 0, "%d%s",a[j][i], i < (nc-1) ? ", " : "");
+		a1logd(g_log, 0, "\n");
+	}
+}
+
+/* Print short matrix to g_log debug */
+/* id identifies matrix */
+/* pfx used at start of each line */
+/* Assumed indexed from 0 */
+void adump_smatrix(a1log *log, char *id, char *pfx, short **a, int nr,  int nc) {
+	int i, j;
+	a1logd(g_log, 0, "%s%s[%d][%d]\n",pfx,id,nr,nc);
+
+	for (j = 0; j < nr; j++) {
+		a1logd(g_log, 0, "%s ",pfx);
+		for (i = 0; i < nc; i++)
+			a1logd(g_log, 0, "%d%s",a[j][i], i < (nc-1) ? ", " : "");
+		a1logd(g_log, 0, "\n");
+	}
+}
+
+/* Print double vector to g_log debug */
+/* id identifies vector */
+/* pfx used at start of each line */
+/* Assumed indexed from 0 */
+void adump_dvector(a1log *log, char *id, char *pfx, double *a, int nc) {
+	int i;
+	a1logd(g_log, 0, "%s%s[%d]\n",pfx,id,nc);
+	a1logd(g_log, 0, "%s ",pfx);
+	for (i = 0; i < nc; i++)
+		a1logd(g_log, 0, "%f%s",a[i], i < (nc-1) ? ", " : "");
+	a1logd(g_log, 0, "\n");
+}
+
+/* Print float vector to g_log debug */
+/* id identifies vector */
+/* pfx used at start of each line */
+/* Assumed indexed from 0 */
+void adump_fvector(a1log *log, char *id, char *pfx, float *a, int nc) {
+	int i;
+	a1logd(g_log, 0, "%s%s[%d]\n",pfx,id,nc);
+	a1logd(g_log, 0, "%s ",pfx);
+	for (i = 0; i < nc; i++)
+		a1logd(g_log, 0, "%f%s",a[i], i < (nc-1) ? ", " : "");
+	a1logd(g_log, 0, "\n");
+}
+
+/* Print int vector to g_log debug */
+/* id identifies vector */
+/* pfx used at start of each line */
+/* Assumed indexed from 0 */
+void adump_ivector(a1log *log, char *id, char *pfx, int *a, int nc) {
+	int i;
+	a1logd(g_log, 0, "%s%s[%d]\n",pfx,id,nc);
+	a1logd(g_log, 0, "%s ",pfx);
+	for (i = 0; i < nc; i++)
+		a1logd(g_log, 0, "%d%s",a[i], i < (nc-1) ? ", " : "");
+	a1logd(g_log, 0, "\n");
+}
+
+/* Print short vector to g_log debug */
+/* id identifies vector */
+/* pfx used at start of each line */
+/* Assumed indexed from 0 */
+void adump_svector(a1log *log, char *id, char *pfx, short *a, int nc) {
+	int i;
+	a1logd(g_log, 0, "%s%s[%d]\n",pfx,id,nc);
+	a1logd(g_log, 0, "%s ",pfx);
+	for (i = 0; i < nc; i++)
+		a1logd(g_log, 0, "%d%s",a[i], i < (nc-1) ? ", " : "");
+	a1logd(g_log, 0, "\n");
+}
+
+/* Print C double matrix to g_log debug */
+/* id identifies matrix */
+/* pfx used at start of each line */
+/* Assumed indexed from 0 */
+void adump_C_dmatrix(a1log *log, char *id, char *pfx, double *a, int nr, int nc) {
+	int i, j;
+	a1logd(g_log, 0, "%s%s[%d][%d]\n",pfx,id,nr,nc);
+
+	for (j = 0; j < nr; j++, a += nc) {
+		a1logd(g_log, 0, "%s ",pfx);
+		for (i = 0; i < nc; i++)
+			a1logd(g_log, 0, "%f%s",a[i], i < (nc-1) ? ", " : "");
+		a1logd(g_log, 0, "\n");
+	}
+}
 
 /*******************************************/
 /* Platform independent IEE754 conversions */
@@ -2286,10 +2560,12 @@ void msec_sleep(unsigned int msec) {
 }
 
 
-#if defined(__APPLE__) && !defined(CLOCK_MONOTONIC)
+#if defined(__APPLE__) /* && !defined(CLOCK_MONOTONIC) */
 
 #include <mach/mach_time.h>
 
+/* Return the current time in msec */
+/* since the first invokation of msec_time() */
 unsigned int msec_time() {
     mach_timebase_info_data_t timebase;
     static uint64_t startup = 0;
@@ -2400,6 +2676,9 @@ char *debPiv(int di, int *p) {
 	int e;
 	char *bp;
 
+	if (p == NULL)
+		return "(null)";
+
 	if (++ix >= 5)
 		ix = 0;
 	bp = buf[ix];
@@ -2418,10 +2697,13 @@ char *debPiv(int di, int *p) {
 /* Print a double color vector to a string. */
 /* Returned static buffer is re-used every 5 calls. */
 char *debPdv(int di, double *p) {
-	static char buf[5][DEB_MAX_CHAN * 16];
+	static char buf[5][DEB_MAX_CHAN * 100];
 	static int ix = 0;
 	int e;
 	char *bp;
+
+	if (p == NULL)
+		return "(null)";
 
 	if (++ix >= 5)
 		ix = 0;
@@ -2441,10 +2723,13 @@ char *debPdv(int di, double *p) {
 /* Print a float color vector to a string. */
 /* Returned static buffer is re-used every 5 calls. */
 char *debPfv(int di, float *p) {
-	static char buf[5][DEB_MAX_CHAN * 16];
+	static char buf[5][DEB_MAX_CHAN * 100];
 	static int ix = 0;
 	int e;
 	char *bp;
+
+	if (p == NULL)
+		return "(null)";
 
 	if (++ix >= 5)
 		ix = 0;

@@ -1359,10 +1359,12 @@ typedef struct {
 		/* the source image gamut, and map to points outside the */
 		/* destination gamut) */
 
-		/* See how much to bend the black - compute the color difference */
+		/* See how much to bend the black - compute the color difference. */
 		/* We start out in the direction of dr_be_bp at white, and at */
-		/* the end we bend towards the overall bp dr_cs_bp */
+		/* the end we bend towards the overall bp dr_cs_bp. */
 		/* (brad will be 0 for non gmm_bendBP because dr_be_bp dr_cs_bp */
+		/* Smaller brad = tighter, more obvious bend, but less black */
+		/* hue leaking into neutrals. */
 		for (brad = 0.0, i = 1; i < 3; i++) {
 			double tt = dr_be_bp[i] - dr_cs_bp[i];
 			brad += tt * tt;
@@ -1419,7 +1421,7 @@ typedef struct {
 				ty = t * t * (3.0 - 2.0 * t);	/* spline blend value */
 				t = (1.0 - t) * ty + t * t;		/* spline at t == 0, linear at t == 1 */
 
-				wt *= (1.0 + t * brad);	/* Increase weigting with the bend */
+				wt *= (1.0 + t * brad);	/* Increase weighting with the bend */
 
 			} else {
 				t = 0.0;	/* stick to straight, it will be close anyway. */

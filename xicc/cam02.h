@@ -143,7 +143,10 @@ struct _cam02 {
 		double Gxyz[3],	/* The Glare white coordinates (ie. the Ambient color) */
 						/* If <= 0 will Wxyz will be used. */
 		int hk,			/* Flag, NZ to use Helmholtz-Kohlrausch effect */
-		double hkscale	/* HK effect scaling factor */
+		double hkscale,	/* HK effect scaling factor */
+
+		double mtaf,	/* Mid tone partial adapation factor from Wxyz to Wxyz2, <= 0.0 if none */
+		double Wxyz2[3] /* Mid tone Adapted White XYZ (Y range 0.0 .. 1.0) */
 	);
 
 	/* Conversions. Return nz on error */
@@ -160,6 +163,10 @@ struct _cam02 {
 	double Yf;		/* Flare as a fraction of the reference white (Y range 0.0 .. 1.0) */
 	double Yg;		/* Glare as a fraction of the adapting/surround (Y range 0.0 .. 1.0) */
 	double Gxyz[3];	/* The Glare white coordinates (typically the Ambient color) */
+
+	/* Partial mid-tone adapation hack parameters */
+	double Wxyz2[3];/* Mid tone Adapted White XYZ (Y range 0.0 .. 1.0) */
+	double mtaf;	/* Mid tone blend factor between Wxyz and Wxyz2 */
 
 	/* Internal parameters */
 	double  C;		/* Surround Impact */
@@ -193,6 +200,16 @@ struct _cam02 {
 	double nluxval;		/* Non-linearity value at upper crossover to linear */
 	double nluxslope;	/* Non-linearity slope at upper crossover to linear */
 	double lA;			/* JLIMIT Limited A */
+
+	/* Partial mid-tone adapation hack pre-computed values */
+	int pmta_en;		/* NZ if enabled */
+	double mtap;		/* Mid tone blend rate (power) between Wxyz and Wxyz2 */
+	double rgbW2[3];	/* Mid etone sharpened cone response white values */
+	double Drgb2[3];	/* Mid tone chromatic transformation value */
+	double rgbcW2[3];	/* Mid tone chromatically transformed white value */
+	double rgbpW2[3];	/* Mid tone hunt-Pointer-Estevez cone response space white */
+	double cc2[3][3];	/* Mide tone forward cone and chromatic transform */
+	double icc2[3][3];	/* Mide tone reverse cone and chromatic transform */
 
 	/* Option flags, code not always enabled */
 	int hk;				/* Use Helmholtz-Kohlrausch effect */

@@ -263,7 +263,10 @@ void xdg_free(char **paths, int nopaths) {
 /* type of storage and access required. Return 0 if there is an error. */
 /* The files are always unique (ie. the first match to a given filename */
 /* in the possible XDG list of directories is returned, and files with */
-/* the same name in other XDG directories are ignored) */
+/* the same name in other XDG directories are ignored), unless the */
+/* xdg_all_matches flag is set. */
+/* If xdg_read, then first user then local scope are searched. */
+/* If xdf_write, then only the specified scope is used. */
 /* Wildcards should not be used for xdg_write. */
 /* The list should be free'd using xdg_free() after use. */
 /* XDG environment variables and the subpath are assumed to be using */
@@ -279,6 +282,7 @@ int xdg_bds(
 	xdg_storage_type st,	/* Specify the storage type */
 	xdg_op_type op,			/* Operation type */
 	xdg_scope sc,			/* Scope if write */
+	xdg_options opt,		/* Options flags */
 	char *pfname			/* Sub-path and file name(s) */
 ) {
 	char *path = NULL;		/* Directory paths to search, separated by ':' or ';' */
@@ -315,7 +319,7 @@ int xdg_bds(
 					return 0;
 				}
 #ifdef NT
-			} else if (getenv("HOME") == NULL && (xdg = getenv("APPDATA")) != NULL) {
+			} else if (login_HOME() == NULL && (xdg = getenv("APPDATA")) != NULL) {
 				if ((path = cappend(path, xdg)) == NULL) {
 					if (er != NULL) *er = xdg_alloc;
 					a1loge(g_log, 1, "xdg_bds: malloc failed\n"); 
@@ -323,7 +327,7 @@ int xdg_bds(
 				}
 #endif
 			} else {
-				if ((home = getenv("HOME")) == NULL
+				if ((home = login_HOME()) == NULL
 #ifdef NT
 				  && (home = getenv("APPDATA")) == NULL
 #endif
@@ -339,7 +343,7 @@ int xdg_bds(
 					return 0;
 				}
 #ifdef NT
-				if (getenv("HOME") != NULL)
+				if (login_HOME() != NULL)
 					path = dappend(path, ".local/share");
 #else
 #ifdef UNIX_APPLE
@@ -363,7 +367,7 @@ int xdg_bds(
 					return 0;
 				}
 #ifdef NT
-			} else if (getenv("HOME") == NULL && (xdg = getenv("APPDATA")) != NULL) {
+			} else if (login_HOME() == NULL && (xdg = getenv("APPDATA")) != NULL) {
 				if ((path = cappend(path, xdg)) == NULL) {
 					if (er != NULL) *er = xdg_alloc;
 					a1loge(g_log, 1, "xdg_bds: malloc failed\n"); 
@@ -371,7 +375,7 @@ int xdg_bds(
 				}
 #endif
 			} else {
-				if ((home = getenv("HOME")) == NULL
+				if ((home = login_HOME()) == NULL
 #ifdef NT
 				  && (home = getenv("APPDATA")) == NULL
 #endif
@@ -387,7 +391,7 @@ int xdg_bds(
 					return 0;
 				}
 #ifdef NT
-				if (getenv("HOME") != NULL)
+				if (login_HOME() != NULL)
 					path = dappend(path, ".config");
 #else
 #ifdef UNIX_APPLE
@@ -411,7 +415,7 @@ int xdg_bds(
 					return 0;
 				}
 #ifdef NT
-			} else if (getenv("HOME") == NULL && (xdg = getenv("APPDATA")) != NULL) {
+			} else if (login_HOME() == NULL && (xdg = getenv("APPDATA")) != NULL) {
 				if ((path = cappend(path, xdg)) == NULL) {
 					if (er != NULL) *er = xdg_alloc;
 					a1loge(g_log, 1, "xdg_bds: malloc failed\n"); 
@@ -424,7 +428,7 @@ int xdg_bds(
 				}
 #endif
 			} else {
-				if ((home = getenv("HOME")) == NULL
+				if ((home = login_HOME()) == NULL
 #ifdef NT
 				  && (home = getenv("APPDATA")) == NULL
 #endif
@@ -440,7 +444,7 @@ int xdg_bds(
 					return 0;
 				}
 #ifdef NT
-				if (getenv("HOME") != NULL)
+				if (login_HOME() != NULL)
 					path = dappend(path, ".cache");
 				else
 					path = dappend(path, "Cache");
@@ -662,18 +666,20 @@ int xdg_bds(
 						}
 						DBG((DBGA,"Found match with '%s'\n",fpath))
 
-						/* Check that this one hasn't already been found */
-						/* in a different search directory */
-						for (i = 0; i < npaths; i++) {
-							if (strcmp(fpath + rlen, fnames[i]) == 0) {
-								/* Already been found earlier - ignore it */
-								break;
+						if (opt != xdg_all_matches) {
+							/* Check that this one hasn't already been found */
+							/* in a different search directory */
+							for (i = 0; i < npaths; i++) {
+								if (strcmp(fpath + rlen, fnames[i]) == 0) {
+									/* Already been found earlier - ignore it */
+									break;
+								}
 							}
-						}
-						if (i < npaths) {
-							free(fpath);
-							DBG((DBGA,"Ignoring it because it's already in list\n"))
-							continue;		/* Ignore it */
+							if (i < npaths) {
+								free(fpath);
+								DBG((DBGA,"Ignoring it because it's already in list\n"))
+								continue;		/* Ignore it */
+							}
 						}
 
 						/* Found a file, so append it to the list */
@@ -969,7 +975,7 @@ static int runtest(
 	}
 
 	printf("\nTesting Variable %s\n",env);
-	if ((nopaths = xdg_bds(&er, &paths, st, xdg_write, sc, pfname)) == 0) {
+	if ((nopaths = xdg_bds(&er, &paths, st, xdg_write, sc, xdg_none, pfname)) == 0) {
 		printf("Write test failed with %s\n",xdg_errstr(er));
 		return 1;
 	}
@@ -996,7 +1002,7 @@ static int runtest(
 	}
 	xdg_free(paths, nopaths);
 
-	if ((nopaths = xdg_bds(&er, &paths, st, xdg_read, sc, pfname)) < 1) {
+	if ((nopaths = xdg_bds(&er, &paths, st, xdg_read, sc, xdg_none, pfname)) < 1) {
 		printf("Read test failed with %s\n",xdg_errstr(er));
 		return 1;
 	}

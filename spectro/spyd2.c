@@ -95,6 +95,7 @@
 #include "sa_config.h"
 #include "numsup.h"
 #endif /* SALONEINSTLIB */
+#include "cgats.h"
 #include "xspect.h"
 #include "insttypes.h"
 #include "conv.h"
@@ -2677,7 +2678,7 @@ spyd2_download_pld(
 	int i;
 	int id;
 
-	if (p->itype == instSpyder1)
+	if (p->dtype == instSpyder1)
 		id = 0;
 	else
 		id = 1;
@@ -2748,7 +2749,7 @@ spyd4_load_cal(spyd2 *p) {
 
 
 	for (;;) {		/* So we can break */
-		if ((no_paths = xdg_bds(NULL, &bin_paths, xdg_data, xdg_read, xdg_user,
+		if ((no_paths = xdg_bds(NULL, &bin_paths, xdg_data, xdg_read, xdg_user, xdg_none,
 			            "ArgyllCMS/spyd4cal.bin" XDG_FUDGE "color/spyd4cal.bin"
 			)) < 1)
 			break;
@@ -2884,15 +2885,15 @@ spyd2_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 	/* it needs icomuf_resetep_before_read to work at all, and */
 	/* gets retries anyway. So we use the libusb-win32 driver for it. */
 #if defined(NT)
-	if (p->itype == instSpyder3) {
+	if (p->dtype == instSpyder3) {
 		usbflags |= icomuf_resetep_before_read;		/* The spyder USB is buggy ? */
 	}
 #endif
 
 	/* On OS X the Spyder 2 can't close properly */
 #if defined(UNIX_APPLE)			/* OS X*/
-	if (p->itype == instSpyder1
-	 || p->itype == instSpyder2) {
+	if (p->dtype == instSpyder1
+	 || p->dtype == instSpyder2) {
 		usbflags |= icomuf_reset_before_close;		/* The spyder 2 USB is buggy ? */
 	}
 #endif
@@ -2901,8 +2902,8 @@ spyd2_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 #if defined(UNIX_X11)		/* Linux*/
 	/* On Linux the Spyder 2 doesn't work reliably unless each */
 	/* read is preceeded by a reset endpoint. */
-	if (p->itype == instSpyder1
-	 || p->itype == instSpyder2) {
+	if (p->dtype == instSpyder1
+	 || p->dtype == instSpyder2) {
 		usbflags |= icomuf_resetep_before_read;		/* The spyder USB is buggy ? */
 	}
 #endif
@@ -2937,11 +2938,11 @@ spyd2_init_inst(inst *pp) {
 	if (p->gotcoms == 0) /* Must establish coms before calling init */
 		return spyd2_interp_code((inst *)p, SPYD2_NO_COMS);
 
-	if (p->itype != instSpyder1
-	 && p->itype != instSpyder2
-	 && p->itype != instSpyder3
-	 && p->itype != instSpyder4
-	 && p->itype != instSpyder5)
+	if (p->dtype != instSpyder1
+	 && p->dtype != instSpyder2
+	 && p->dtype != instSpyder3
+	 && p->dtype != instSpyder4
+	 && p->dtype != instSpyder5)
 		return spyd2_interp_code((inst *)p, SPYD2_UNKNOWN_MODEL);
 
 	p->refrate = DEFRRATE;
@@ -2950,9 +2951,9 @@ spyd2_init_inst(inst *pp) {
 	p->prevrawinv = 0;				/* prevraw is valid */
 
 	/* For Spyder 1 & 2, reset the hardware and wait for it to become ready. */
-	if (p->itype != instSpyder3
-	 && p->itype != instSpyder4
-	 && p->itype != instSpyder5) {
+	if (p->dtype != instSpyder3
+	 && p->dtype != instSpyder4
+	 && p->dtype != instSpyder5) {
 
 		/* Reset the instrument */
 		if ((ev = spyd2_reset(p)) != inst_ok)
@@ -3038,7 +3039,7 @@ spyd2_init_inst(inst *pp) {
 	a1logv(p->log, 1, "Instrument Type:   %s\n"
 		              "Serial Number:     %s\n"
 		              "Hardware version:  0x%02x%02x\n"
-	                  ,inst_name(p->itype) ,p->serno ,p->hwver,p->fbits);
+	                  ,inst_name(p->dtype) ,p->serno ,p->hwver,p->fbits);
 
 	return inst_ok;
 }
@@ -3504,9 +3505,9 @@ inst3_capability *pcap3) {
 	/* We don't seem to have a way of detecting the lack */
 	/* of ambinent capability, short of doing a read */
 	/* and noticing the result is zero. */
-	if (p->itype == instSpyder3
-	 || p->itype == instSpyder4
-	 || p->itype == instSpyder5) {
+	if (p->dtype == instSpyder3
+	 || p->dtype == instSpyder4
+	 || p->dtype == instSpyder5) {
 		cap1 |= inst_mode_emis_ambient;
 	}
 
@@ -3518,9 +3519,9 @@ inst3_capability *pcap3) {
 	     |  inst2_emis_refr_meas
 	        ;
 
-	if (p->itype == instSpyder3
-	 || p->itype == instSpyder4
-	 || p->itype == instSpyder5) {
+	if (p->dtype == instSpyder3
+	 || p->dtype == instSpyder4
+	 || p->dtype == instSpyder5) {
 		cap2 |= inst2_disptype;
 		cap2 |= inst2_has_leds;
 		cap2 |= inst2_ambient_mono;
@@ -3528,8 +3529,8 @@ inst3_capability *pcap3) {
 		cap2 |= inst2_disptype;
 	}
 
-	if (p->itype == instSpyder4
-	 || p->itype == instSpyder5)
+	if (p->dtype == instSpyder4
+	 || p->dtype == instSpyder5)
 		cap2 |= inst2_ccss;		/* Spyder4 & 5 has spectral sensivities */
 
 	if (pcap1 != NULL)
@@ -3747,8 +3748,8 @@ static inst_disptypesel spyd4_disptypesel[8] = {
 
 static void set_base_disptype_list(spyd2 *p) {
 	/* set the base display type list */
-	if (p->itype == instSpyder4
-	 || p->itype == instSpyder5) {
+	if (p->dtype == instSpyder4
+	 || p->dtype == instSpyder5) {
 		if (spyd4_nocals <= 1) {
 			p->_dtlist = spyd4_disptypesel_1;
 		} else {							/* spyd4_nocals == 6 or 7, Spyder 4 or 5. */
@@ -3757,7 +3758,7 @@ static void set_base_disptype_list(spyd2 *p) {
 			/* So use the spyder 4 list */
 			p->_dtlist = spyd4_disptypesel;
 		}
-	} else if (p->itype == instSpyder3) {
+	} else if (p->dtype == instSpyder3) {
 		p->_dtlist = spyd3_disptypesel;
 	} else {
 		p->_dtlist = spyd2_disptypesel;
@@ -4079,7 +4080,7 @@ spyd2_get_set_opt(inst *pp, inst_opt_type m, ...) {
 }
 
 /* Constructor */
-extern spyd2 *new_spyd2(icoms *icom, instType itype) {
+extern spyd2 *new_spyd2(icoms *icom, instType dtype) {
 	spyd2 *p;
 	if ((p = (spyd2 *)calloc(sizeof(spyd2),1)) == NULL) {
 		a1loge(icom->log, 1, "new_spyd2: malloc failed!\n");
@@ -4109,11 +4110,11 @@ extern spyd2 *new_spyd2(icoms *icom, instType itype) {
 	p->del               = spyd2_del;
 
 	p->icom = icom;
-	p->itype = itype;
+	p->dtype = dtype;
 
 	/* Load manufacturers Spyder4 calibrations */
-	if (itype == instSpyder4
-	 || itype == instSpyder5) {
+	if (dtype == instSpyder4
+	 || dtype == instSpyder5) {
 		int rv;
 		p->hwver = 7;		/* Set preliminary version */
 		if ((rv = spyd4_load_cal(p)) != SPYD2_OK)
@@ -4121,11 +4122,11 @@ extern spyd2 *new_spyd2(icoms *icom, instType itype) {
 		if (spyd4_nocals < 1)
 			a1logd(p->log, 1, "Spyder4 choice of calibrations not available\n");
 	}
-	if (itype == instSpyder3) {
+	if (dtype == instSpyder3) {
 		p->hwver = 4;		/* Set preliminary version */
 	}
-	if (itype == instSpyder1		// ????
-	 || itype == instSpyder2) {
+	if (dtype == instSpyder1		// ????
+	 || dtype == instSpyder2) {
 		p->hwver = 3;		/* Set preliminary version */
 	}
 
@@ -4164,7 +4165,8 @@ int setup_spyd2(int id) {
 			else
 				p1 = "ArgyllCMS/spyd2PLD.bin" XDG_FUDGE "color/spyd2PLD.bin";
 
-			if ((no_paths = xdg_bds(NULL, &bin_paths, xdg_data, xdg_read, xdg_user, p1)) < 1) {
+			if ((no_paths = xdg_bds(NULL, &bin_paths, xdg_data, xdg_read, xdg_user, xdg_none,
+				                                                                    p1)) < 1) {
 				a1logd(g_log, 1, "setup_spyd2: failed to find PLD file on path '%s'\n",p1);
 				break;
 			}

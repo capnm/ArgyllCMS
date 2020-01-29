@@ -21,9 +21,14 @@
 /*
 
 	This probably needs re-writing, since (I think) it doesn't take gamut
-	self intersection into account. Outline would be:
+	self intersection into account. The rspl/rec.c code works more
+	reliably, but doesn't cope with concavities that cross the line
+	to the focal point. So can this "surface following" code be
+	adapted to solve this type of problem ?
 
-	Have a spactial cache structure that contains list of potentialy
+	Outline would be:
+
+	Have a spatial cache structure that contains list of potentialy
 	intersecting triangles for any point. Create this incrementally.
 	Each triangle can be replaced by a list of fragment triangles
 	sharing the same plane.
@@ -61,6 +66,9 @@
 	Each intersection adds new nodes, and splits a triangle into
 	about 8 smaller triangles. Trick is to avoid slivers and
 	numerical issues with triangles.
+
+	Alternative would be to not split triangles, but just track
+	the line of intersection ?
 */
 	
 
@@ -72,6 +80,7 @@
 	Add ink limit support. This be done by breaking
 	a cell into a fixed geometry of smaller simplexes
 	by dividing the cell into two on each axis.
+	(rspl/rev.c has code for this ??)
 
 	Need to then add scan that detects areas to prune,
 	that then ties in with rev code to mark such

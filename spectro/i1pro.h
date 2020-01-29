@@ -45,7 +45,7 @@
 struct _i1pro {
 	INST_OBJ_BASE
 
-	int       dtype;			/* Device type: 0 = ?? */	
+	int       idtype;			/* Device type: 0 = ?? */	
 
 	/* *** i1pro private data **** */
 	inst_mode  cap;				/* Instrument mode capability */

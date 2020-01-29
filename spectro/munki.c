@@ -49,6 +49,7 @@
 #include "sa_config.h"
 #include "numsup.h"
 #endif /* SALONEINSTLIB */
+#include "cgats.h"
 #include "xspect.h"
 #include "insttypes.h"
 #include "conv.h"
@@ -1012,7 +1013,7 @@ munki_del(inst *pp) {
 }
 
 /* Constructor */
-extern munki *new_munki(icoms *icom, instType itype) {
+extern munki *new_munki(icoms *icom, instType dtype) {
 	munki *p;
 	int rv;
 	if ((p = (munki *)calloc(sizeof(munki),1)) == NULL) {
@@ -1043,7 +1044,7 @@ extern munki *new_munki(icoms *icom, instType itype) {
 	p->del               = munki_del;
 
 	p->icom = icom;
-	p->itype = itype;
+	p->dtype = dtype;
 
 	/* Preliminary capabilities */
 	munki_determine_capabilities(p);

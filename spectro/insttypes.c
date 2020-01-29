@@ -26,6 +26,7 @@
 #include "sa_config.h"
 #endif /* !SALONEINSTLIB */
 #include "numsup.h"
+#include "cgats.h"
 #include "xspect.h"
 #include "insttypes.h"
 #include "conv.h"
@@ -39,8 +40,8 @@
 
 /* Given a device type, return the corrsponding */
 /* category */
-extern icom_type inst_category(instType itype) {
-	switch (itype) {
+extern icom_type dev_category(devType dtype) {
+	switch (dtype) {
 
 	/* Color measurement instruments */
 	case instDTP22:
@@ -80,19 +81,26 @@ extern icom_type inst_category(instType itype) {
 
 		return icomt_instrument;
 
+#ifdef ENABLE_VTPGLUT
 	/* 3D cLUT box */
+	case devRadiance:
+		return icomt_v3dlut | icomt_vtpg;
+	case devPrisma:
+		return icomt_v3dlut;
 
 	/* Video test patern generator box */
 
-	/* Printers */
-	case devEpsonR1800:
-		return icomt_printer;
+#endif
+
+
 
 	case instFakeDisp:
 		return icomt_unknown;		// ???
 
-	}
 
+	case devUnknown:
+		return icomt_unknown;		// ???
+	}
 	return icomt_cat_any;
 }
 
@@ -165,6 +173,16 @@ char *inst_sname(instType itype) {
 			return "ColorHug";
 		case instColorHug2:
 			return "ColorHug2";
+
+
+#ifdef ENABLE_VTPGLUT
+		case devRadiance:
+			return "Radiance";
+		case devPrisma:
+			return "Prisma";
+#endif
+
+
 
 		default:
 			break;
@@ -241,6 +259,16 @@ char *inst_name(instType itype) {
 			return "Hughski ColorHug";
 		case instColorHug2:
 			return "Hughski ColorHug2";
+
+
+#ifdef ENABLE_VTPGLUT
+		case devRadiance:
+			return "Lumagen Radiance";
+		case devPrisma:
+			return "Q, Inc Prisma";
+#endif
+
+
 
 		default:
 			break;
@@ -337,6 +365,16 @@ instType inst_enum(char *name) {
 		return instColorHug2;
 
 
+#ifdef ENABLE_VTPGLUT
+	if (strcmp(name, "Lumagen Radiance") == 0)
+		return devRadiance;
+
+	if (strcmp(name, "Q, Inc Prisma") == 0)
+		return devPrisma;
+#endif
+
+
+
 	return instUnknown;
 }
 
@@ -371,6 +409,8 @@ int nep) {					/* Number of end points */
 			return instI1Disp3;
 	  	if (idProduct == 0x6003)	/* ColorMinki Smile (aka. ColorMunki Display Lite) */
 			return instSmile;
+		if (idProduct == 0x6008)	/* ColorMunki i1Studio */
+			return instColorMunki;
 		if (idProduct == 0xD020)	/* DTP20 */
 			return instDTP20;
 		if (idProduct == 0xD092)	/* DTP92Q */
@@ -424,6 +464,8 @@ int nep) {					/* Number of end points */
 		return instColorHug2;
 	}
 	/* Add other instruments here */
+
+
 
 
 
@@ -535,5 +577,41 @@ int inst_illuminant(xspect *sp, instType itype) {
 	}
 	return 1;
 }
+
+/* ============================================================= */
+/* XRGA support */
+
+/* Return a string for the xcalstd enum */
+char *xcalstd2str(xcalstd std) {
+	switch(std) {
+		case xcalstd_native:
+			return "NATIVE";
+		case xcalstd_xrdi:
+			return "XRDI";
+		case xcalstd_gmdi:
+			return "GMDI";
+		case xcalstd_xrga:
+			return "XRGA";
+		default:
+			break;
+	}
+	return "None";
+}
+
+/* Parse a string to xcalstd, */
+/* return xcalstd_none if not recognized */
+xcalstd str2xcalstd(char *str) {
+	if (strcmp(str, "NATIVE") == 0)
+		return xcalstd_native;
+	if (strcmp(str, "XRDI") == 0)
+		return xcalstd_xrdi;
+	if (strcmp(str, "GMDI") == 0)
+		return xcalstd_gmdi;
+	if (strcmp(str, "XRGA") == 0)
+		return xcalstd_xrga;
+
+	return xcalstd_none;
+}
+
 
 

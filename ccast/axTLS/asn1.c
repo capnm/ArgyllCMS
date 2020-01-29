@@ -201,6 +201,40 @@ int asn1_get_private_key(const uint8_t *buf, int len, RSA_CTX **rsa_ctx)
 }
 
 /**
+ * Read the modulus and public exponent of an RSA certificate.
+ */
+int asn1_get_public_key(const uint8_t *cert, int *offset, RSA_CTX **rsa_ctx)
+{
+    int ret = X509_NOT_OK, mod_len, pub_len;
+    uint8_t *modulus = NULL, *pub_exp = NULL;
+	int len;
+
+	/* Hmm. Not checking that the two ints are within the squence ... */
+    if ((len = asn1_next_obj(cert, offset, ASN1_SEQUENCE)) < 0)
+        goto end_pub_key;
+
+    if ((mod_len = asn1_get_int(cert, offset, &modulus)) <= 0) {
+		ret = X509_INVALID_PUB_KEY;
+        goto end_pub_key;
+	}
+    if ((pub_len = asn1_get_int(cert, offset, &pub_exp)) <= 0) {
+	    free(modulus);
+		ret = X509_INVALID_PUB_KEY;
+        goto end_pub_key;
+	}
+
+    RSA_pub_key_new(rsa_ctx, modulus, mod_len, pub_exp, pub_len);
+
+    free(modulus);
+    free(pub_exp);
+
+    ret = X509_OK;
+
+end_pub_key:
+    return ret;
+}
+
+/**
  * Get the time of a certificate. Ignore hours/minutes/seconds.
  */
 static int asn1_get_utc_time(const uint8_t *buf, int *offset, time_t *t)

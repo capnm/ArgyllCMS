@@ -108,7 +108,7 @@
 	which would probably be regarded as important.
 
 	To measure spread, independent voronoi tessellations of
-	these sub dimensions would be neededi, and they could be
+	these sub dimensions would be needed, and they could be
 	used partly driver optimization (??).
 
 	For 1D device channels this wouldn't be so hard to
@@ -1718,8 +1718,8 @@ static unsigned int comp_cmask(ofps *s, int *nix) {
 	/* the resulting location to be the same of within this. */
 	for (e = 0; e <= di; e++) {
 		int ix = nix[e];
-		if (ix < 0 && ix >= -s->nbp) {	/* If fake surface node */
-			smask |= 1 << -ix-1;
+		if (ix < 0 && ix >= (-s->nbp)) {	/* If fake surface node */
+			smask |= 1 << (-ix-1);
 		} else if (ix >= 0) {			/* If real node */
 			cmask &= s->n[ix]->pmask;
 		}
@@ -1752,7 +1752,7 @@ static void det_vtx_gsurf(ofps *s, vtx *vx) {
 	for (e = 0; e <= di; e++) {
 		int ix = vx->nix[e];
 		if (ix < 0 && ix >= -s->nbp) {	/* If fake surface node */
-			smask |= 1 << -ix-1;
+			smask |= 1 << (-ix-1);
 		} else if (ix >= 0) {
 			vx->cmask &= s->n[ix]->pmask;
 		}

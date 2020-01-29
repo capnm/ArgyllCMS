@@ -135,6 +135,7 @@ cgatsAlloc *al			/* memory allocator */
 	p->add_other  = add_other;
 	p->get_oi     = get_oi;
 	p->add_kword  = add_kword;
+	p->add_kword_at = add_kword_at;
 	p->add_field  = add_field;
 	p->add_set    = add_set;
 	p->add_setarr = add_setarr;

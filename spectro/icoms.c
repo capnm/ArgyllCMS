@@ -35,11 +35,15 @@
 #include "sa_config.h"
 #endif
 #include "numsup.h"
+#include "cgats.h"
 #include "xspect.h"
 #include "insttypes.h"
 #include "conv.h"
 #include "icoms.h"
 
+
+icom_type dev_category(instType itype);
+int serial_get_paths(icompaths *p, icom_type mask);
 
 /* ----------------------------------------------------- */
 
@@ -118,24 +122,32 @@ static icompath *icompaths_get_path(
 /* Return the device path corresponding to the port number, or NULL if out of range */
 static icompath *icompaths_get_path_sel(
 	icompaths *p, 
-	icom_type dctype,	/* Device type list */
+	icom_dtix dtix,	/* Device type list */
 	int port			/* Enumerated port number, 1..n */
 ) {
 	/* Check it is an enumeration */
-	if (dctype != dtix_combined
-	 && dctype != dtix_inst
-	 && dctype != dtix_3dlut
-	 && dctype != dtix_vtpg
-	 && dctype != dtix_printer)
+	if (dtix != dtix_combined
+	 && dtix != dtix_inst
+	 && dtix != dtix_3dlut
+	 && dtix != dtix_vtpg
+	 && dtix != dtix_printer
+	 && dtix != dtix_cmfm) {
+//printf("~1 unrec index\n");
 		return NULL;
+	}
 
-	if (dctype == dtix_inst)
+	if (dtix == dtix_inst) {
+//printf("~1 inst\n");
 		return icompaths_get_path(p, port);
+	}
 	
-	if (port <= 0 || port > p->ndpaths[dctype])
+	if (port <= 0 || port > p->ndpaths[dtix]) {
+//printf("~1 port %d out of range %d - %d\n", port,0, p->ndpaths[dtix]);
 		return NULL;
+	}
 
-	return p->dpaths[dctype][port-1];
+//printf("~1 OK index for port %d\n",port);
+	return p->dpaths[dtix][port-1];
 }
 
 /* Clear a single device paths list */
@@ -172,6 +184,7 @@ static void icompaths_clear_all(icompaths *p) {
 	icompaths_clear(p, dtix_3dlut);
 	icompaths_clear(p, dtix_vtpg);
 	icompaths_clear(p, dtix_printer);
+	icompaths_clear(p, dtix_cmfm);
 	icompaths_clear(p, dtix_combined);
 }
 
@@ -183,7 +196,7 @@ static int icompaths_add_path(icompaths *p, int ix, icompath *xp) {
 	if (xp == NULL)
 		ix = dtix_combined;
 	if (p->dpaths[ix] == NULL) {
-		if ((p->dpaths[ix] = (icompath **)calloc(sizeof(icompath *), 1 + 1)) == NULL) {
+		if ((p->dpaths[ix] = (icompath **)calloc(1 + 1, sizeof(icompath *))) == NULL) {
 			a1loge(p->log, ICOM_SYS, "icompaths: calloc failed!\n");
 			return ICOM_SYS;
 		}
@@ -198,7 +211,7 @@ static int icompaths_add_path(icompaths *p, int ix, icompath *xp) {
 		p->dpaths[ix][p->ndpaths[ix]+1] = NULL;
 	}
 	if (xp == NULL) {
-		if ((xp = calloc(sizeof(icompath), 1)) == NULL) {
+		if ((xp = calloc(1, sizeof(icompath))) == NULL) {
 			a1loge(p->log, ICOM_SYS, "icompaths: malloc failed!\n");
 			return ICOM_SYS;
 		}
@@ -227,7 +240,7 @@ int icompaths_make_dslists(icompaths *p) {
 			if ((rv = icompaths_add_path(p, dtix_inst, xp)) != ICOM_OK)
 				return rv;
 		}
-		if (xp->dctype & icomt_3dlut) {
+		if (xp->dctype & icomt_v3dlut) {
 			if ((rv = icompaths_add_path(p, dtix_3dlut, xp)) != ICOM_OK)
 				return rv;
 		}
@@ -237,6 +250,10 @@ int icompaths_make_dslists(icompaths *p) {
 		}
 		if (xp->dctype & icomt_printer) {
 			if ((rv = icompaths_add_path(p, dtix_printer, xp)) != ICOM_OK)
+				return rv;
+		}
+		if (xp->dctype & icomt_cmfm) {
+			if ((rv = icompaths_add_path(p, dtix_cmfm, xp)) != ICOM_OK)
 				return rv;
 		}
 	}
@@ -289,9 +306,9 @@ int icompaths_set_serial_itype(icompath *p, devType itype) {
 	char pname[400], *cp;
 
 	/* Convert device type to category */
-	p->dctype = (p->dctype & ~icomt_cat_mask) | inst_category(itype);
+	p->dctype = (p->dctype & ~icomt_cat_mask) | dev_category(itype);
 
-	p->itype = itype;
+	p->dtype = itype;
 
 	/* Strip any existing description in brackets */
 	if ((cp = strchr(p->name, '(')) != NULL && cp > p->name)
@@ -330,13 +347,13 @@ int icompath_set_usb(a1log *log, icompath *p, char *name, unsigned int vid, unsi
 	a1logd(g_log, 8, "icompath_set_usb '%s' got dctype 0x%x\n",p->name,p->dctype);
 
 	p->dctype |= icomt_usb;
-	p->dctype = (p->dctype & ~icomt_cat_mask) | inst_category(itype);
+	p->dctype = (p->dctype & ~icomt_cat_mask) | dev_category(itype);
 
 	p->nep = nep;
 	p->vid = vid;
 	p->pid = pid;
 	p->usbd = usbd;
-	p->itype = itype;
+	p->dtype = itype;
 
 	a1logd(g_log, 8, "icompath_set_usb '%s' returning dctype 0x%x\n",p->name,p->dctype);
 
@@ -375,7 +392,7 @@ static int icompaths_add_hid(icompaths *p, char *name, unsigned int vid, unsigne
 	a1logd(g_log, 8, "icompaths_add_hid '%s' got dctype 0x%x\n",xp->name,xp->dctype);
 
 	xp->dctype |= icomt_hid;
-	xp->dctype = (xp->dctype & ~icomt_cat_mask) | inst_category(itype);
+	xp->dctype = (xp->dctype & ~icomt_cat_mask) | dev_category(itype);
 	
 	if ((xp->name = strdup(name)) == NULL) {
 		a1loge(p->log, ICOM_SYS, "icompaths: strdup failed!\n");
@@ -386,7 +403,7 @@ static int icompaths_add_hid(icompaths *p, char *name, unsigned int vid, unsigne
 	xp->vid = vid;
 	xp->pid = pid;
 	xp->hidd = hidd;
-	xp->itype = itype;
+	xp->dtype = itype;
 
 	a1logd(g_log, 8, "icompath_set_usb '%s' returning dctype 0x%x\n",xp->name,xp->dctype);
 
@@ -398,20 +415,26 @@ static void icompaths_del(icompaths *p) {
 	if (p != NULL) {
 		icompaths_clear_all(p);
 	
+		if (p->exlist != NULL) {
+			int i;
+			for (i = 0; i < p->exno; i++) {
+				if (p->exlist[i] != NULL)
+					free(p->exlist[i]);
+			}
+			free(p->exlist);
+		}
 		p->log = del_a1log(p->log);		/* Unreference it and set to NULL */
 		free(p);
 	}
 }
 
 /* Create and return a list of available serial ports or USB devices for this system. */
-/* We look at the registry key "HKEY_LOCAL_MACHINE\HARDWARE\DEVICEMAP\SERIALCOMM" */
-/* to determine serial ports, and use libusb to discover USB devices. */
-/* return icom error */
+/* Return icom error */
 int icompaths_refresh_paths_sel(icompaths *p, icom_type mask) {
 	int rv, usbend = 0;
 	int i, j;
 
-	a1logd(p->log, 7, "icoms_refresh_paths: called with mask = %d\n",mask);
+	a1logd(p->log, 7, "icoms_refresh_paths: called with mask = 0x%x\n",mask);
 
 	/* Clear any existing device paths */
 	p->clear(p);
@@ -451,9 +474,9 @@ int icompaths_refresh_paths_sel(icompaths *p, icom_type mask) {
 
 		for (i = usbend; i < (np-1); i++) {
 			for (j = i+1; j < np; j++) {
-				if ((pl[i]->itype == instUnknown && pl[j]->itype != instUnknown)
-				 || (((pl[i]->itype == instUnknown && pl[j]->itype == instUnknown)
-				   || (pl[i]->itype != instUnknown && pl[j]->itype != instUnknown))
+				if ((pl[i]->dtype == instUnknown && pl[j]->dtype != instUnknown)
+				 || (((pl[i]->dtype == instUnknown && pl[j]->dtype == instUnknown)
+				   || (pl[i]->dtype != instUnknown && pl[j]->dtype != instUnknown))
 				  && strcmp(pl[i]->name, pl[j]->name) > 0)) {
 					icompath *tt = pl[i];
 					pl[i] = pl[j];
@@ -501,12 +524,91 @@ int icompaths_refresh_paths(icompaths *p) {
 	return icompaths_refresh_paths_sel(p, icomt_instrument | icomt_portattr_all);
 }
 
+static int create_fserexcl(icompaths *p) {
+	char *envv;
+
+	p->exno = 0;
+
+	/* Get the exclusion list */
+	if ((envv = getenv("ARGYLL_EXCLUDE_SERIAL_SCAN")) != NULL) {
+		char *cp, *pcp;
+
+		/* Count the number of strings */
+		for (cp = envv;; cp++) {
+			if (*cp == ';'
+			 || *cp == ','
+			 || *cp == '\000')
+				p->exno++;
+			if (*cp == '\000')
+				break;
+		}
+
+		if ((p->exlist = (char **)calloc(p->exno, sizeof(char *))) == NULL) {
+			a1logd(p->log, 1, "create_fserexcl: calloc failed!\n");
+			return 1;
+        }
+
+		/* Copy strings to array */
+		p->exno = 0;
+		for (pcp = cp = envv;; cp++) {
+			if (*cp == ';'
+			 || *cp == ','
+			 || *cp == '\000') {
+				
+				if (cp - pcp > 0) {
+					if ((p->exlist[p->exno] = (char *)calloc(cp - pcp +1, sizeof(char))) == NULL) {
+						a1logd(p->log, 1, "create_fserexcl: calloc failed!\n");
+						return 1;
+					}
+					memmove(p->exlist[p->exno], pcp, cp - pcp);
+					p->exlist[p->exno][cp - pcp] = '\000';
+					p->exno++;
+				}
+				pcp = cp + 1;
+			}
+			if (*cp == '\000')
+				break;
+		}
+
+#ifdef NEVER
+		printf("Exclusion list len %d =\n",p->exno);
+		for (i = 0; i < p->exno; i++) 
+			printf(" '%s'\n",p->exlist[i]);
+#endif
+	}
+	return 0;
+}
+
+/* Return nz if the given path is on the fast serial scan */
+/* exclusion list */
+static int icompaths_fs_excluded(icompaths *p, icompath *path) {
+	
+	a1logd(p->log, 5, "fs_excluded check '%s'\n",path->spath);
+
+#if defined(ENABLE_SERIAL) || defined(ENABLE_FAST_SERIAL)
+	if (p->exlist != NULL) {
+		int i;
+
+		for (i = 0; i < p->exno; i++) {
+			if (strcmp(p->exlist[i], path->spath) == 0) {
+				a1logd(p->log, 5, "excluding '%s' from fast scan\n",path->spath);
+				return 1;
+			}
+		}
+	}
+#endif
+	return 0;
+}
+
 /* Allocate an icom paths and set it to the list of available devices */
 /* that match the icom_type mask. */ 
 /* Return NULL on error */
 icompaths *new_icompaths_sel(a1log *log, icom_type mask) {
 	icompaths *p;
-	if ((p = (icompaths *)calloc(sizeof(icompaths), 1)) == NULL) {
+
+	a1logd(log, 3, "new_icompath: called with mask 0x%x\n",mask);
+
+	if ((p = (icompaths *)calloc(1, sizeof(icompaths))) == NULL) {
 		a1loge(log, ICOM_SYS, "new_icompath: calloc failed!\n");
 		return NULL;
 	}
@@ -521,7 +623,9 @@ icompaths *new_icompaths_sel(a1log *log, icom_type mask) {
 	p->del           = icompaths_del;
 
 	/* ====== internal implementation ======= */
+
 #if defined(ENABLE_SERIAL) || defined(ENABLE_FAST_SERIAL)
+	p->fs_excluded   = icompaths_fs_excluded;
 	p->add_serial    = icompaths_add_serial;
 #endif /* ENABLE_SERIAL */
 #ifdef ENABLE_USB
@@ -531,6 +635,9 @@ icompaths *new_icompaths_sel(a1log *log, icom_type mask) {
 	p->del_last_path = icompaths_del_last_path;
 	p->get_last_path = icompaths_get_last_path;
 	/* ====================================== */
+
+	/* Get list of fast scan exclusion devices */
+	create_fserexcl(p);
 
 	if (icompaths_refresh_paths_sel(p, mask)) {
 		a1loge(log, ICOM_SYS, "new_icompaths: icompaths_refresh_paths failed!\n");
@@ -581,7 +688,7 @@ static int icom_copy_path_to_icom(icoms *p, icompath *pp) {
 		return rv;
 #endif
 	p->dctype = pp->dctype;
-	p->itype = pp->itype;
+	p->dtype = pp->dtype;
 
 	a1logd(g_log, 8, "icom_copy_path_to_icom '%s' returning dctype 0x%x\n",p->name,p->dctype);
 
@@ -671,14 +778,20 @@ int frbw			/* nz to Flush Read Before Write */
 
 	/* Return error if coms */
 	if (rv != ICOM_OK) {
-		a1logd(p->log, 8, "icoms_write_read: failed - returning 0x%x\n",rv);
+		if (rv & ICOM_TO) 
+			a1logd(p->log, 8, "icoms_write_read: write T.O. %f sec. returning 0x%x\n",tout, rv);
+		else
+			a1logd(p->log, 8, "icoms_write_read: write failed - returning 0x%x\n",rv);
 		return rv;
 	}
 
 	/* Read response */
 	rv = p->read(p, rbuf, bsize, bread, tc, ntc, tout);
 	
-	a1logd(p->log, 8, "icoms_write_read: returning 0x%x\n",rv);
+	if (rv & ICOM_TO) 
+		a1logd(p->log, 8, "icoms_write_read: read T.O. %f sec. returning 0x%x\n",tout, rv);
+	else
+		a1logd(p->log, 8, "icoms_write_read: read returning 0x%x\n",rv);
 
 	return rv;
 }
@@ -739,9 +852,9 @@ icoms *new_icoms(
 ) {
 	icoms *p;
 
-	a1logd(log, 2, "new_icoms '%s' itype '%s' dctype 0x%x\n",ipath->name,inst_sname(ipath->itype),ipath->dctype);
+	a1logd(log, 2, "new_icoms '%s' itype '%s' dctype 0x%x\n",ipath->name,inst_sname(ipath->dtype),ipath->dctype);
 
-	if ((p = (icoms *)calloc(sizeof(icoms), 1)) == NULL) {
+	if ((p = (icoms *)calloc(1, sizeof(icoms))) == NULL) {
 		a1loge(log, ICOM_SYS, "new_icoms: calloc failed!\n");
 		return NULL;
 	}
@@ -750,7 +863,7 @@ icoms *new_icoms(
 		a1loge(log, ICOM_SYS, "new_icoms: strdup failed!\n");
 		return NULL;
 	}
-	p->itype = ipath->itype;
+	p->dtype = ipath->dtype;
 
 	/* Copy ipath info to this icoms */
 	if (icom_copy_path_to_icom(p, ipath)) {
@@ -857,6 +970,8 @@ char *baud_rate_to_str(baud_rate br) {
 			return "57600";
 		case baud_115200:
 			return "115200";
+		case baud_230400:
+			return "230400";
 		case baud_921600:
 			return "921600";
 	}

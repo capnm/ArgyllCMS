@@ -75,7 +75,7 @@
         handled when calibration is being used<br>
       </a></h4>
     <h4> <a href="#LP1">Linking Profiles</a></h4>
-    <p>&nbsp;&nbsp;&nbsp; <b><a href="#LP2">Image dependent gamut
+    <p>&nbsp;&nbsp;&nbsp; <b><a href="#LP3">Image dependent gamut
           mapping using device links</a></b><br>
     </p>
     <p>&nbsp;&nbsp;&nbsp; <b><a href="#LP2">Soft Proofing Link</a></b><br>
@@ -187,6 +187,12 @@
 
 
 
+
+
+
+
+
+
       and profiling a display that doesn't have VideoLUT access</a>.<br>
     <br>
     <h3><a name="PM1b"></a>Adjusting and Calibrating Displays</h3>
@@ -209,6 +215,12 @@
     your display is currently set up. (you may have to run this as <span
       style="text-decoration: underline; color: rgb(204, 51, 204);">dispcal
 -yl
+
+
+
+
+
+
 
 
 
@@ -668,6 +680,12 @@
 
 
 
+
+
+
+
+
+
     (<span style="font-weight: bold;">-Iw</span>) changes by doing on
     the fly calibrations during the measurements. Instrument black level
     drift and display white level drift can be combined (<span
@@ -744,6 +762,12 @@
 
 
 
+
+
+
+
+
+
       Correction Matrix</a>. These are specific to a particular
     Colorimeter and Display make and model combination, although a
     matrix for a different but similar type of display may give better
@@ -751,6 +775,16 @@
       style="font-weight: bold;">ccmx</span> files is <a
       href="ccmxs.html">here</a>.<br>
     <br>
+    Another, more general approach to correcting Colorimeters is to
+    store the spectral sensitivities for each individual instrument in
+    the instrument itself, and then combine that with spectral samples
+    for a particular display type to compute a specific instrument +
+    display correction matrix on the fly (i.e. the i1d3 * Spyder 4 &amp;
+    5 instruments). The display spectral samples can be stored in a <a
+      href="File_Formats.html#.ccss">Colorimeter Correction Spectral
+      Sample</a> file. A list of contributed <span style="font-weight:
+      bold;">ccss</span> files is <a href="ccsss.html">here</a>.<span
+      style="font-weight: bold;"></span><br>
     <h4><a name="PM7"></a>Calibrating and profiling a display that
       doesn't have VideoLUT access.</h4>
     <p>In some situation there is no access to a displays VideoLUT
@@ -825,7 +859,7 @@
       href="cctiff.html#p1">DisplayA.icm</a> <a href="cctiff.html#p2">DisplayA.cal</a>
     <a href="cctiff.html#p3">infile.jpg</a> <a href="cctiff.html#p4">outfile.jpg</a><br>
     <span style="font-weight: bold;"></span><br>
-    <hr size="2" width="100%">
+    <hr width="100%" size="2">
     <h3><a name="PS1"></a>Profiling Scanners and other input devices
       such as cameras<br>
     </h3>
@@ -918,11 +952,23 @@
 
 
 
+
+
+
+
+
+
       SG</a> charts:<br>
     <br>
     <img src="DC.jpg" alt="GretagMacbeth ColorChecker DC chart"
       width="200" height="122"> <img alt="ColorChecker SG" src="SG.jpg"
       style="width: 174px; height: 122px;"><br>
+    <br>
+    A chart provided for camera profiling is the X-Rite <a
+      href="http://xritephoto.com/colorchecker-passport-photo">ColorCheckerPassport</a>:<br>
+    <br>
+    <img alt="ColorChecker Passport" src="Passport.jpg" width="166"
+      height="122"><br>
     <br>
     The GretagMacbeth Eye-One Pro Scan Target 1.4 can also be used:<br>
     <br>
@@ -930,6 +976,12 @@
       2px solid ; width: 200px; height: 140px;"><br>
     <br>
     Also supported is the <a href="http://www.hutchcolor.com/hct.htm">HutchColor
+
+
+
+
+
+
 
 
 
@@ -1074,6 +1126,12 @@
 
 
 
+
+
+
+
+
+
       Imaging DCPro Target</a>:<br>
     <br>
     <img style="width: 153px; height: 122px;" alt="LaserSoft DCPro
@@ -1150,8 +1208,20 @@
 
 
 
+
+
+
+
+
+
       201</a>:&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; <a
 href="http://www.qpcard.com/en_b2c/color-reference-cards/instant-camera-raw-profiling-with-qpcard-202.html">QPcard
+
+
+
+
+
+
 
 
 
@@ -1350,6 +1420,12 @@ href="http://www.xrite.com/documents/apps/public/digital_colorchecker_sg_l_a_b.t
 
 
 
+
+
+
+
+
+
         header</a>, and appending <a href="SG_footer.txt">this footer</a>,
       making sure there are no blank lines inserted in the process. Name
       the resulting file <b>ColorCheckerSG.cie</b>.<br>
@@ -1369,6 +1445,13 @@ href="http://www.xrite.com/documents/apps/public/digital_colorchecker_sg_l_a_b.t
       ColorCheckerSG.txt ColorCheckerSG<br>
       &nbsp;&nbsp;&nbsp;&nbsp; <a href="spec2cie.html">spec2cie</a>
       ColorCheckerSG.ti3 ColorCheckerSG.cie<br>
+      <br>
+      For the full ColortChecker Passport chart, the <b>ref/ColorCheckerPassport.cht</b>
+      file should be used, or if just the 24 patches corresponding to
+      the original ColorChecker are in the shot, the <b>ref/ColorCheckerHalfPassport.cht</b>
+      should be used. A user has kindly provided their measured values
+      for this chart, and they are available in <b>ref/ColorCheckerPassport.cie</b>
+      and <b>ref/ColorCheckerHalfPassport.cie</b> respectively.<br>
       <br>
       For the Eye-One Pro Scan Target 1.4 chart, the <span
         style="font-weight: bold;"><span style="font-weight: bold;">ref/</span>i1_RGB_Scan_1.4.cht</span>
@@ -1430,6 +1513,12 @@ href="http://www.xrite.com/documents/apps/public/digital_colorchecker_sg_l_a_b.t
 
 
 
+
+
+
+
+
+
       </span>file made from measuring a sample chart is also available.
       Alternately you could create your own reference file by
       transcribing the <a
@@ -1450,6 +1539,12 @@ href="http://www.xrite.com/documents/apps/public/digital_colorchecker_sg_l_a_b.t
     For any other type of chart, a chart recognition template file will
     need to be created (this is beyond the scope of the current
     documentation, although see&nbsp; the <a href="cht_format.html">.cht_format
+
+
+
+
+
+
 
 
 
@@ -1553,10 +1648,11 @@ href="http://www.xrite.com/documents/apps/public/digital_colorchecker_sg_l_a_b.t
     linearly additive in behaviour.<br>
     <br>
     If the purpose of the input profile is to use it as a substitute for
-    a colorimeter, then the <b>-u</b> flag should be used to avoid
-    clipping values above the white point. Unless the shaper/matrix type
-    profile is a very good fit, it is probably advisable to use a LUT
-    type profile in this situation.<br>
+    a colorimeter, then the <b>-ua</b> flag should be used to force
+    Absolute Colorimetric intent, and avoid clipping colors above the
+    test chart white point. Unless the shaper/matrix type profile is a
+    very good fit, it is probably advisable to use a LUT type profile in
+    this situation.<br>
     <br>
     To create a matrix/shaper profile, the following suffices:<br>
     <br>
@@ -1576,7 +1672,7 @@ href="http://www.xrite.com/documents/apps/public/digital_colorchecker_sg_l_a_b.t
     <br>
     <a href="colprof.html">colprof</a> <a href="colprof.html#v">-v</a>
     <a href="colprof.html#E">-D"Scanner A"</a> <a href="colprof.html#q">-qm</a>
-    <a href="colprof.html#a">-ax</a> <a href="colprof.html#u">-u</a> <a
+    <a href="colprof.html#a">-ax</a> <a href="colprof.html#u">-ua</a> <a
       href="colprof.html#p1">scanner</a><br>
     <br>
     Make sure you check the delta E report at the end of the profile
@@ -1602,7 +1698,7 @@ href="http://www.xrite.com/documents/apps/public/digital_colorchecker_sg_l_a_b.t
       href="colprof.html#p1">scanner</a><br>
     <br>
     <br>
-    <hr size="2" width="100%">
+    <hr width="100%" size="2">
     <h3><a name="PP1"></a>Profiling Printers<br>
     </h3>
     The overall process is to create a set of device measurement target
@@ -1902,12 +1998,18 @@ href="http://www.xrite.com/documents/apps/public/digital_colorchecker_sg_l_a_b.t
     component images, if the scanner or camera is capable of doing so;
     not setting white or black points, using a fixed exposure etc.). It
     is generally advisable to create a LUT type input profile, and use
-    the <a href="http://www.argyllcms.com/doc/colprof.html#u">-u</a>
+    the <a href="http://www.argyllcms.com/doc/colprof.html#ua">-ua</a>
     flag to avoid clipping scanned value whiter than the input
     calibration chart.<br>
     <br>
     Scan or photograph your printer chart (or charts) on the scanner or
     camera previously profiled. <big><span style="font-weight: bold;">The
+
+
+
+
+
+
 
 
 
@@ -2055,6 +2157,16 @@ href="http://www.xrite.com/documents/apps/public/digital_colorchecker_sg_l_a_b.t
     the most different gamuts, and hence need the most gamut mapping to
     convert from one colorspace to the other.<br>
     <br>
+    <b>Note</b> that specifying a very large gamut colorspace as the
+    source gamut (i.e. <b>ProPhoto</b> etc.) is probably <u><b>NOT</b></u>
+    what you want to do, since unless the source images have a similar
+    very large gamut to that of the colorspace, they will end up getting
+    over compressed and come out looking dull. Instead use a source
+    profile that has a gamut more representative of the images gamut, <b>or</b>
+    you should provide a gamut using the the <a href="colprof.html#g">-g
+
+      parameter</a>. <br>
+    <br>
     If you are creating a profile for a specific purpose, intending to
     link it to a specific input profile, then you will get the best
     results by specifying that source profile as the source gamut.<br>
@@ -2063,6 +2175,12 @@ href="http://www.xrite.com/documents/apps/public/digital_colorchecker_sg_l_a_b.t
     going to be used with a "smart" CMM (e.g. <a href="collink.html">collink</a>
     <a href="collink.html#g">-g</a> or <a href="collink.html#G">-G</a>),
 then
+
+
+
+
+
+
 
 
 
@@ -2211,6 +2329,12 @@ then
     profile (using <a href="colprof.html#q">-ql</a> <a
       href="colprof.html#b">-b</a> <a href="colprof.html#ni">-no</a>, <a
       href="colprof.html#no">-ni</a> and no <a href="colprof.html#S">-S</a>),
+
+
+
+
+
+
 
 
 
@@ -2743,6 +2867,12 @@ chart,
 
 
 
+
+
+
+
+
+
     and/or to have it included in .ti3 file.<br>
     &nbsp;&nbsp;&nbsp; <a href="cctiff.html#p2">cctiff</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 To
@@ -2753,6 +2883,12 @@ and
 calibration
 to
 an
+
+
+
+
+
+
 
 
 
@@ -2879,6 +3015,12 @@ an
 
 
 
+
+
+
+
+
+
     To incorporate calibration into an ICC profile.<br>
     &nbsp;&nbsp;&nbsp; <a href="chartread.html#I">chartread</a>&nbsp;&nbsp;
 To
@@ -2889,6 +3031,12 @@ assumed
 when
 reading
 a
+
+
+
+
+
+
 
 
 
@@ -3039,7 +3187,7 @@ a
     represent such a physical quantity.<br>
     <br>
     <br>
-    <hr size="2" width="100%">
+    <hr width="100%" size="2">
     <h3><a name="LP1"></a>Linking Profiles</h3>
     Two device profiles can be linked together to create a device link
     profile, than encapsulates a particular device to device transform.
@@ -3217,7 +3365,7 @@ a
       href="collink.html#d">-dmt</a> options, then either leave them out
     or substitute values that do match your environment.<br>
     &nbsp;
-    <hr size="2" width="100%"><br>
+    <hr width="100%" size="2"><br>
     <h3><a name="TR1"></a>Transforming colorspaces of raster files</h3>
     Although a device profile or device link profile may be useful with
     other programs and systems, Argyll provides the tool <a
@@ -3255,7 +3403,7 @@ a
     <a href="cctiff.html#p3">infile.jpg</a> <a href="cctiff.html#p4">outfile.jpg</a><br>
     <br>
     <br>
-    <hr size="2" width="100%"><br>
+    <hr width="100%" size="2"><br>
     <h3><a name="TV1"></a>Creating Video Calibration 3DLuts</h3>
     Video calibration typically involves trying to make your actual
     display device emulate an ideal video display, one which matches
@@ -3289,6 +3437,12 @@ a
     encoding range setting will operate. This can give some quality
     benefits due to MadVR's use of dithering. To display patches using
     MadVR rather than Argyll, start madTPG and then use the option "<b>-d
+
+
+
+
+
+
 
 
 
@@ -3365,6 +3519,12 @@ a
 
 
 
+
+
+
+
+
+
         interactive adjustment mode can be used to set the white point.
         Note that while adjusting the neutral axis for neutrality may
         help, the Device Link will override the transfer curve
@@ -3387,6 +3547,12 @@ a
         taken, then the resulting calibration file should be provided to
         dispread as the <a href="dispcal.html#k">-k parameter</a> or <a
           href="dispcal.html#K">-K parameter</a>.&nbsp; See also below <b>Choice
+
+
+
+
+
+
 
 
 
@@ -3485,7 +3651,7 @@ a
     that the Video card has automatically or manually been configured to
     scale full range RGB values to Video levels for the TV. If the
     latter is not possible, then use the -E options on dispcal and
-    dispread. (See <b>Signal encoding</b> bellow for more details on
+    dispread. (See <b>Signal encoding</b> below for more details on
     this). It may also improve the accuracy of the display profile if
     you use the <a href="dispread.html#Z">dispread -Z</a> option to
     quantize the test values to the precision of the display
@@ -3901,9 +4067,21 @@ a
 
 
 
+
+
+
+
+
+
         TV.cal </tt>EBU3213_PAL.icm TV.icm SD_PAL.icm</tt><tt><br>
     </tt><tt> </tt><tt><br>
     </tt><tt> &nbsp;&nbsp;&nbsp; collink -v -3m -et -Et -Ib -b -G -ir </tt><tt><tt>-H
+
+
+
+
+
+
 
 
 
@@ -3970,9 +4148,21 @@ a
 
 
 
+
+
+
+
+
+
         TV.cal </tt>EBU3213_PAL.icm TV.icm SD_PAL.icm</tt><tt><br>
     </tt><tt> </tt><tt><br>
     </tt><tt> &nbsp;&nbsp;&nbsp; collink -v -3m -et -Et -Ib -b -G -ir </tt><tt><tt>-a
+
+
+
+
+
+
 
 
 
@@ -4018,7 +4208,7 @@ a
     the graphics card VideoLUTs in some other fashion.<tt><br>
       <br>
     </tt>
-    <hr size="2" width="100%"><br>
+    <hr width="100%" size="2"><br>
     <h3><a name="TV2"></a>Verifying Video Calibration</h3>
     <p>Often it is desirable to verify the results of a video
       calibration and profile, and the following gives an outline of how
@@ -4060,7 +4250,7 @@ a
       options included "-I b:0.2:2.15" then the equivalent fakeread
       option "-b 0.2:2.15:TV.icm" should be used, etc.<br>
     </p>
-    <hr size="2" width="20%">
+    <hr width="20%" size="2">
     <p>A sanity check we can make at this point is to see what the
       expected result of the profiling &amp; calibration will be, by
       simulating the reproduction of this test set:<br>
@@ -4104,7 +4294,7 @@ a
         checkA.ti3<br>
         <br>
       </tt></p>
-    <hr size="2" width="20%">
+    <hr width="20%" size="2">
     <p>You can explicitly compare the gamuts of your video space and
       your display using the gamut tools:<br>
     </p>
@@ -4119,7 +4309,7 @@ a
       you should use iccgamut <b>-ir</b> instead of <b>-ia</b>, so as
       to align the white points.<br>
     </p>
-    <hr size="2" width="20%">
+    <hr width="20%" size="2">
     <p>The main verification check is to actually measure the display
       response and compare it against the reference. Make sure the
       display is setup as you would for video playback and then use

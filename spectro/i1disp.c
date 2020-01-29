@@ -47,6 +47,7 @@
 #include "sa_config.h"
 #include "numsup.h"
 #endif /* !SALONEINSTLIB */
+#include "cgats.h"
 #include "xspect.h"
 #include "insttypes.h"
 #include "conv.h"
@@ -276,7 +277,7 @@ i1disp_rdreg_byte(
 	int rsize;
 	inst_code ev;
 
-	if (p->dtype == 0) {
+	if (p->btype == 0) {
 		if (addr < 0 || addr > 127)
 			return i1disp_interp_code((inst *)p, I1DISP_BAD_REG_ADDRESS);
 	} else {
@@ -484,7 +485,7 @@ i1disp_rdexreg_bytes(
 	int ooff, rsize;
 	inst_code ev;
 
-	if (p->dtype != 2)		/* Only ColorMunki Smile ? */
+	if (p->btype != 2)		/* Only ColorMunki Smile ? */
 		return i1disp_interp_code((inst *)p, I1DISP_WRONG_DEVICE);
 
 	if (addr < 0 || addr > 0x0200) 
@@ -649,7 +650,7 @@ i1d1_take_measurement(
 	if (p->inited == 0)
 		return i1disp_interp_code((inst *)p, I1DISP_NOT_INITED);
 
-	if (p->dtype != 0)
+	if (p->btype != 0)
 		return i1disp_interp_code((inst *)p, I1DISP_WRONG_DEVICE);
 
 	/* Do an initial measurement with minimum edge count of 1 */
@@ -858,13 +859,13 @@ i1d2_take_measurement(
 	if (p->inited == 0)
 		return i1disp_interp_code((inst *)p, I1DISP_NOT_INITED);
 
-	if (p->dtype == 0)
+	if (p->btype == 0)
 		return i1disp_interp_code((inst *)p, I1DISP_WRONG_DEVICE);
 
 	a1logd(p->log, 3, "i1d2_take_measurement called with refreshm = %d\n",refreshm);
 
 	/* Do refresh period measurement */
-	if (p->dtype == 1 && refreshm && p->rrset == 0) {
+	if (p->btype == 1 && refreshm && p->rrset == 0) {
 		if ((ev = i1disp_do_fcal_setit(p)) != inst_ok)
 			return ev;
 
@@ -1040,13 +1041,13 @@ i1d2_take_measurement(
 	if (p->inited == 0)
 		return i1disp_interp_code((inst *)p, I1DISP_NOT_INITED);
 
-	if (p->dtype == 0)
+	if (p->btype == 0)
 		return i1disp_interp_code((inst *)p, I1DISP_WRONG_DEVICE);
 
 	a1logd(p->log, 3, "i1d2_take_measurement called with refreshm = %d\n",refreshm);
 
 	/* Do refresh period measurement */
-	if (p->dtype == 1 && refreshm && p->rrset == 0) {
+	if (p->btype == 1 && refreshm && p->rrset == 0) {
 		if ((ev = i1disp_do_fcal_setit(p)) != inst_ok)
 			return ev;
 
@@ -1238,7 +1239,7 @@ i1disp_take_XYZ_measurement(
 	inst_code ev;
 	double *mat;		/* Pointer to matrix */
 
-	if (p->dtype == 0) {		/* i1 disp 1 */
+	if (p->btype == 0) {		/* i1 disp 1 */
 		if ((ev = i1d1_take_measurement(p, 0, rgb)) != inst_ok)
 			return ev;
 	} else {				/* i1 disp 2 or ColorMunki Smile */
@@ -1289,7 +1290,7 @@ i1disp_do_black_cal(
 	double rgb1[3], rgb2[3];	/* RGB Readings */
 	inst_code ev;
 
-	if (p->dtype != 0)
+	if (p->btype != 0)
 		return i1disp_interp_code((inst *)p, I1DISP_CANT_BLACK_CALIB);
 
 	/* Do a couple of readings without subtracting the black */
@@ -1331,7 +1332,7 @@ i1disp_read_refrate(
 
 	a1logd(p->log, 3, "Frequency calibration called\n");
 
-	if (p->dtype != 1)
+	if (p->btype != 1)
 		return inst_unsupported;
 
 	if (ref_rate != NULL)
@@ -1376,7 +1377,7 @@ i1disp_do_fcal_setit(
 
 	a1logd(p->log, 3, "Frequency calibration called\n");
 
-	if (p->dtype != 1)
+	if (p->btype != 1)
 		return i1disp_interp_code((inst *)p, I1DISP_CANT_MEASP_CALIB);
 
 	if ((ev = i1disp_read_refrate((inst *)p, &p->refrate)) != inst_ok
@@ -1410,7 +1411,7 @@ i1disp_check_unlock(
 
 	struct {
 		unsigned char code[4];
-		i1d2_dtype stype;
+		i1d2_stype stype;
 	} codes[] = {
 		{ { 'G','r','M','b' },     i1d2_norm },		/* "GrMb" i1 Display */
 		{ { 'L','i','t','e' },     i1d2_lite },		/* "Lite" i1 Display LT */
@@ -1429,7 +1430,7 @@ i1disp_check_unlock(
 		{ { 0x0e,0x0e,0x0e,0x0e }, i1d2_norm },		/* */
 		{ { 0x11,0x02,0xde,0xf0 }, i1d2_norm },		/* Barco Chroma 5 ? */
 //		{ { 0xff,0xff,0xff,0xff }, i1d2_norm },		/* Chroma 5 isn't locked ? */
-		{ { ' ',' ',' ',' ' }, -1 }
+		{ { ' ',' ',' ',' ' }, i1d2_unkn }
 	}; 
 
 	a1logd(p->log, 3, "i1disp: about to check response and unlock instrument if needed\n");
@@ -1444,7 +1445,7 @@ i1disp_check_unlock(
 
 		/* Try each code in turn */
 		for (i = 0; ;i++) {
-			if (codes[i].stype == -1) {
+			if (codes[i].stype == i1d2_unkn) {
 				a1logd(p->log, 3, "Failed to find correct unlock code\n");
 				return i1disp_interp_code((inst *)p, I1DISP_UNKNOWN_MODEL);
 			}
@@ -1489,37 +1490,37 @@ i1disp_check_unlock(
 
 	/* Barco Chroma 5 with ver = 5.01 vv = '5' */
 	if (ver >= 4.0 && ver < 5.1 && vv == '5') {
-		p->dtype = 0;			/* Sequel Chroma 4 ?? */
+		p->btype = 0;			/* Sequel Chroma 4 ?? */
 		p->stype = i1d1_chroma4;	/* Treat like an Eye-One Display 1 */
 
 	/* Sequel Chroma 4 with vv == 0xff ???? */
 	/* Sencore ColorPro III with ver = 5.01 and vv = 0xff */
 	} else if (ver >= 4.0 && ver < 5.1 && vv == 0xff) {
-		p->dtype = 0;			/* Eye-One Display 1 */
+		p->btype = 0;			/* Eye-One Display 1 */
 		p->stype = i1d1_sencoreIII; 
 
 	/* Sencore ColorPro IV with ver = 5.01 and vv = 'L' */
 	} else if (ver >= 4.0 && ver < 5.1 && vv == 'L') {
-		p->dtype = 0;			/* Eye-One Display 1 */
+		p->btype = 0;			/* Eye-One Display 1 */
 		p->stype = i1d1_sencoreIV;	/* Treat like an Eye-One Display 1 */
 
 	/* Sencore ColorPro V with ver = 5.01 and vv = 'B' */
 	} else if (ver >= 4.0 && ver < 5.1 && vv == 'B') {
-		p->dtype = 0;			/* Eye-One Display 1 */
+		p->btype = 0;			/* Eye-One Display 1 */
 		p->stype = i1d1_sencoreV;	/* Treat like an Eye-One Display 1 */
 
 	} else if (ver >= 5.1 && ver <= 5.3 && vv == 'L') {
-		p->dtype = 0;			/* Eye-One Display 1 */
+		p->btype = 0;			/* Eye-One Display 1 */
 
 	} else if (ver >= 6.0 && ver <= 6.29 && vv == 'L') {
-		p->dtype = 1;			/* Eye-One Display 2 */
+		p->btype = 1;			/* Eye-One Display 2 */
 
 	} else if (ver >= 6.0 && ver <= 6.29
 		&& (vv = 0xff || vv == 'M')) {		// Faulty Smile's have vv = 0xff
 		/* ColorMunki Create ? */
 		/* ColorMunki Smile */
-		if (p->dtype == 0)		/* Not sure if this is set by Create */
-			p->dtype = 1;
+		if (p->btype == 0)		/* Not sure if this is set by Create */
+			p->btype = 1;
 		
 	} else {
 		/* Reject any version or model we don't know about */
@@ -1642,7 +1643,7 @@ i1disp_read_all_regs(
 	p->serno[0] = '\000';
 
 	/* Read extra registers */
-	if (p->dtype == 1) {
+	if (p->btype == 1) {
 
 #ifdef NEVER	/* Not used, so don't bother */
 		for (i = 0; i < 3; i++) {
@@ -1668,7 +1669,7 @@ i1disp_read_all_regs(
 
 	/* ColorMunki Smile extra information */
 	/* (Colormunki Create too ????) */ 
-	} else  if (p->dtype == 2) {
+	} else  if (p->btype == 2) {
 		int i, v;
 
 		/* Smile doesn't have ambient - reg144 seems to contain LCD cal type, */
@@ -1813,12 +1814,12 @@ i1disp_init_inst(inst *pp) {
 	if (p->log->debug >= 3) {
 
 		/* Dump all the register space */
-		if (p->dtype < 2) {
+		if (p->btype < 2) {
 			unsigned char buf[0x200];
 			int i, len;
 	
 			len = 128;
-			if (p->dtype != 0)
+			if (p->btype != 0)
 				len = 160;
 	
 			for (i = 0; i < len; i++) {
@@ -1985,11 +1986,11 @@ static inst_code i1disp_get_n_a_cals(inst *pp, inst_cal_type *pn_cals, inst_cal_
 	inst_cal_type n_cals = inst_calt_none;
 	inst_cal_type a_cals = inst_calt_none;
 		
-	if (p->dtype == 0) {	/* Eye-One Display 1 */
+	if (p->btype == 0) {	/* Eye-One Display 1 */
 	   a_cals |= inst_calt_emis_offset;
 	}
 
-	if (p->dtype == 1 && p->refrmode != 0) {
+	if (p->btype == 1 && p->refrmode != 0) {
 		if (p->rrset == 0)
 			n_cals |= inst_calt_ref_freq;
 		a_cals |= inst_calt_ref_freq;
@@ -2015,7 +2016,7 @@ inst_code i1disp_calibrate(
 inst *pp,
 inst_cal_type *calt,	/* Calibration type to do/remaining */
 inst_cal_cond *calc,	/* Current condition/desired condition */
-inst_calc_id_type *idtype,	/* Condition identifier type */
+inst_calc_id_type *btype,	/* Condition identifier type */
 char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 ) {
 	i1disp *p = (i1disp *)pp;
@@ -2027,7 +2028,7 @@ char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 	if (!p->inited)
 		return inst_no_init;
 
-	*idtype = inst_calc_id_none;
+	*btype = inst_calc_id_none;
 	id[0] = '\000';
 
 	if ((ev = i1disp_get_n_a_cals((inst *)p, &needed, &available)) != inst_ok)
@@ -2056,7 +2057,7 @@ char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 	}
 
 	/* Do the appropriate calibration */
-	if (p->dtype == 0) {		/* Eye-One Display 1 */
+	if (p->btype == 0) {		/* Eye-One Display 1 */
 		if (*calt & inst_calt_emis_offset) {
 
 			if ((*calc & inst_calc_cond_mask) != inst_calc_man_ref_dark) {
@@ -2284,7 +2285,7 @@ inst3_capability *pcap3) {
 
 	/* i1D2 has refresh display & ambient capability */
 	/* but i1D1 & ColorMunki Smile don't */
-	if (p->dtype == 1) {
+	if (p->btype == 1) {
 		cap1 |= inst_mode_emis_ambient
 	         |  inst_mode_emis_refresh_ovd
 	         |  inst_mode_emis_norefresh_ovd
@@ -2322,7 +2323,7 @@ static inst_code i1disp_check_mode(inst *pp, inst_mode m) {
 
 	/* Only display emission mode supported */
 	if (!IMODETST(m, inst_mode_emis_spot)
-	 && !(p->dtype == 1 && IMODETST(m, inst_mode_emis_ambient))) {
+	 && !(p->btype == 1 && IMODETST(m, inst_mode_emis_ambient))) {
 		return inst_unsupported;
 	}
 
@@ -2410,7 +2411,7 @@ static inst_disptypesel smile_disptypesel[3] = {
 
 static void set_base_disptype_list(i1disp *p) {
 	/* set the base display type list */
-	if (p->itype == instSmile) {
+	if (p->dtype == instSmile) {
 		p->_dtlist = smile_disptypesel;
 	} else {
 		p->_dtlist = i1disp_disptypesel;
@@ -2632,7 +2633,7 @@ i1disp_get_set_opt(inst *pp, inst_opt_type m, ...) {
 }
 
 /* Constructor */
-extern i1disp *new_i1disp(icoms *icom, instType itype) {
+extern i1disp *new_i1disp(icoms *icom, instType dtype) {
 	i1disp *p;
 
 
@@ -2663,13 +2664,13 @@ extern i1disp *new_i1disp(icoms *icom, instType itype) {
 	p->del               = i1disp_del;
 
 	p->icom = icom;
-	p->itype = itype;
+	p->dtype = dtype;
 
-	if (p->itype == instI1Disp2)
-		p->dtype = 1;			/* i1Display2 */
+	if (p->dtype == instI1Disp2)
+		p->btype = 1;			/* i1Display2 */
 
-	else if (p->itype == instSmile) {
-		p->dtype = 2;			/* Smile */
+	else if (p->btype == instSmile) {
+		p->btype = 2;			/* Smile */
 	}
 
 	icmSetUnity3x3(p->ccmat);	/* Set the colorimeter correction matrix to do nothing */

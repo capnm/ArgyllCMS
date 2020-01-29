@@ -39,6 +39,8 @@ LINKLIBS = libxicc ../spectro/libinsttypes ../gamut/libgamut ../rspl/librspl
            ../numlib/libnum ../numlib/libui
            $(TIFFLIB) $(JPEGLIB) ; 
 
+LINKFLAGS += $(GUILINKFLAGS) ;
+
 # Not created yet
 #Main xicctest : xicctest.c ;
 
@@ -145,9 +147,13 @@ if [ GLOB [ NormPaths . ] : cam16.c ]  {
 	Main cam16vecplot : cam16vecplot.c cam16.c ;
 }
 
+#Main Lpttune : Lpttune.c ;
+
 if $(BUILD_JUNK) {
 
 	LINKLIBS += ../render/librender ;
+
+	Main Lpttune : Lpttune.c ;
 
 	Main illlocus : illlocus.c ;
 	Main illlocus2 : illlocus2.c ;

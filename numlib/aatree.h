@@ -4,6 +4,8 @@
 /*
   Andersson binary balanced tree library
 
+  Log n performance on insert/erase
+
   > Created (Julienne Walker): September 10, 2005
 
   This code is in the public domain. Anyone may
@@ -33,6 +35,7 @@ typedef struct aat_atree aat_atree_t;
 typedef struct aat_atrav aat_atrav_t;
 
 /* User-defined item handling */
+/* Return -1, 0, +1 */
 typedef int   (*cmp_f) ( const void *p1, const void *p2 );
 
 /* Andersson tree functions */

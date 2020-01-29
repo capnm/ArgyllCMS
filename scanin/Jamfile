@@ -26,6 +26,8 @@ InstallFile $(DESTDIR)$(PREFIX)/$(REFSUBDIR) : $(Samples) ;
 # Chart recognition library
 Library libscanrd : scanrd.c : : : ../numlib ;
 
+LINKFLAGS += $(GUILINKFLAGS) ;
+
 # IT8 chart reader - sucks in tiff file and spits out cgats file
 Main scanin : scanin.c ;
 # ObjectHdrs scanin : ../h ../cgats ../numlib ../icc ../rspl ../gamut ../xicc $(TIFFINC) ;

@@ -87,7 +87,8 @@ typedef enum {
 	i1d3_nec_ssp    = 3, 	/* NEC SpectraSensor Pro */
 	i1d3_quato_sh3  = 4, 	/* Quato Silver Haze 3 */
 	i1d3_hp_dreamc  = 5, 	/* HP DreameColor */
-	i1d3_sc_c6      = 6 	/* SpectraCal C6 */
+	i1d3_sc_c6      = 6, 	/* SpectraCal C6 */
+	i1d3_wacom_dc   = 7 	/* Wacom DC */
 } i1d3_dtype;
 
 /* Measurement mode */
@@ -108,7 +109,7 @@ struct _i1d3 {
 	inst_opt_type trig;			/* Reading trigger mode */
 
 	/* Information and EEPROM values */
-	i1d3_dtype dtype;			/* Base type of instrument, ie i1d3_disppro or i1d3_munkdisp */
+	i1d3_dtype btype;			/* Base type of instrument, ie i1d3_disppro or i1d3_munkdisp */
 	i1d3_dtype stype;			/* Sub type of instrument, ie. any of i1d3_dtype. */
 								/* (Only accurate if it needed unlocking). */
 	int status;					/* 0 if status is ok (not sure what this is) */

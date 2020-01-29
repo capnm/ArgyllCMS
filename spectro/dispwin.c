@@ -17,6 +17,15 @@
 
 /* TTBD
  *
+ * Should add support for XRandR 1.5 MST support, so that a Monitor driven
+ * by multiple CRTCs gets treated as a single item. (How does Xinerama emulation
+ * handle this though ?) - i.e. might have to duplicate profile atoms,
+ * set both VideoLUTs when one is set, deal with EDID/ucmm confusion etc.
+ * Note that XRandR Xinerama emulation changes with v1.5 and MST. 
+ *
+ * Should look at MSWin & OS X uninstall profile function, and see if
+ * requirement of supplying profile name can be removed (just like X11 case).
+ *
  * Should probably check the display attributes (like visual depth)
  * and complain if we aren't using 24 bit color or better. 
  *
@@ -56,7 +65,7 @@
 #include "numlib.h"
 #include "cgats.h"
 #include "conv.h"
-#include "xicc.h"
+# include "xicc.h"
 #include "disptechs.h"
 #include "dispwin.h"
 #include "ui.h"
@@ -66,6 +75,9 @@
 #ifdef NT
 # include "madvrwin.h"
 #endif
+#include "insttypes.h"
+#include "inst.h"
+#include "icoms.h"
 #if defined(UNIX_X11)
 # include <dlfcn.h>
 # if defined(USE_UCMM)
@@ -92,6 +104,7 @@
  */
 
 #include <Foundation/Foundation.h>
+#include <CoreFoundation/CoreFoundation.h>
 
 #include <AppKit/AppKit.h>
 
@@ -153,8 +166,9 @@ CFUUIDRef CGDisplayCreateUUIDFromDisplayID (uint32_t displayID);
 #endif
 
 
-/* ----------------------------------------------- */
-/* Dealing with locating displays */
+/* ===================================================================== */
+/* Display enumeration code */
+/* ===================================================================== */
 
 int callback_ddebug = 0;	/* Diagnostic global for get_displays() and get_a_display() */  
 							/* and events */
@@ -597,11 +611,16 @@ disppath **get_displays() {
 	}
 
 #if RANDR_MAJOR == 1 && RANDR_MINOR >= 2 && !defined(DISABLE_RANDR)
-	/* Use Xrandr 1.2 if it's available, and if it's not disabled */
+	/* Use Xrandr 1.2 if it's available, and if it's not disabled. */
 	if (getenv("ARGYLL_IGNORE_XRANDR1_2") == NULL
 	 && XRRQueryExtension(mydisplay, &evb, &erb) != 0
 	 && XRRQueryVersion(mydisplay, &majv, &minv)
 	 && majv == 1 && minv >= 2) {
+		static void *xrr_found = NULL;	/* .so handle */
+		static XRRScreenResources *(*_XRRGetScreenResourcesCurrent)
+				                  (Display *dpy, Window window) = NULL;
+		static RROutput (*_XRRGetOutputPrimary)(Display *dpy, Window window) = NULL;
+		int defsix;			/* Default Screen index */
 
 		if (XSetErrorHandler(null_error_handler) == 0) {
 			debugrr("get_displays failed on XSetErrorHandler\n");
@@ -610,20 +629,38 @@ disppath **get_displays() {
 			return NULL;
 		}
 
+		/* Get functions available in Xrandr V1.3 */
+		if (minv >= 3 && xrr_found == NULL) {
+			if ((xrr_found = dlopen("libXrandr.so", RTLD_LAZY)) != NULL) {
+				_XRRGetScreenResourcesCurrent = dlsym(xrr_found, "XRRGetScreenResourcesCurrent");
+				_XRRGetOutputPrimary = dlsym(xrr_found, "XRRGetOutputPrimary");
+			}
+		}
+
+		/* Hmm. Do Xrandr systems alway have only one Screen, */
+		/* just like Xinerama ? */
 		dcount = ScreenCount(mydisplay);
 
-		/* Go through all the screens */
-		for (i = 0; i < dcount; i++) {
-			static void *xrr_found = NULL;	/* .so handle */
-			static XRRScreenResources *(*_XRRGetScreenResourcesCurrent)
-					                  (Display *dpy, Window window) = NULL;
-			XRRScreenResources *scrnres;
-			int jj;		/* Screen index */
+		debugrr2((errout,"get_displays using %d XRandR Screens\n",dcount));
 
-			if (minv >= 3 && xrr_found == NULL) {
-				if ((xrr_found = dlopen("libXrandr.so", RTLD_LAZY)) != NULL)
-					_XRRGetScreenResourcesCurrent = dlsym(xrr_found, "XRRGetScreenResourcesCurrent");
-			}
+		/* Not sure what to do with this. */
+		/* Should we go through X11 screens with this first ? */
+		/* (How does Xrandr translate Screen 1..n to Xinerama ?????) */
+		defsix = DefaultScreen(mydisplay);
+
+		/* In order to be in sync with an application using Xinerama, */
+		/* we need to generate our screen indexes in the same */
+		/* order as Xinerama. */
+
+		/* Go through all the X11 screens */
+		for (i = 0; i < dcount; i++) {
+			XRRScreenResources *scrnres;
+			int has_primary = 0;
+			int pix = -1;				/* CRTC index containing primary */
+			int pop = -1;				/* Output index containing primary */
+			int jj;						/* Xinerama screen ix */
+			int xj;						/* working crtc index */
+			int xk;						/* working output index */
 
 			if (minv >= 3 && _XRRGetScreenResourcesCurrent != NULL) { 
 				scrnres = _XRRGetScreenResourcesCurrent(mydisplay, RootWindow(mydisplay,i));
@@ -637,70 +674,150 @@ disppath **get_displays() {
 				free_disppaths(disps);
 				return NULL;
 			}
+			/* We have to scan through CRTC's & outputs in the same order */
+			/* as the XRANDR XInerama implementation in the X server. */
+			/* This is a little tricky, as we need to do the primary output, */
+			/* first, while keeping the rest in order. */
 
-			/* Look at all the screens outputs */
-			for (jj = j = 0; j < scrnres->noutput; j++) {
-				XRROutputInfo *outi = NULL;
-				XRRCrtcInfo *crtci = NULL;
-	
-				if ((outi = XRRGetOutputInfo(mydisplay, scrnres, scrnres->outputs[j])) == NULL) {
-					debugrr("XRRGetOutputInfo failed\n");
-					XRRFreeScreenResources(scrnres);
-					XCloseDisplay(mydisplay);
-					free_disppaths(disps);
-					return NULL;
+			/* Locate the crtc index that contains the primary (if any) */
+			if (minv >= 3 && _XRRGetOutputPrimary != NULL) { 
+				XID primary;				/* Primary output ID */
+
+				primary = _XRRGetOutputPrimary(mydisplay, RootWindow(mydisplay,i));
+				debugrr2((errout,"XRRGetOutputPrimary returned XID %x\n",primary));
+
+				if (primary != None) {
+					for (j = 0; j < scrnres->ncrtc; j++) {
+						XRRCrtcInfo *crtci = NULL;
+		
+						if ((crtci = XRRGetCrtcInfo(mydisplay, scrnres, scrnres->crtcs[j])) == NULL)
+							continue;
+		
+						if (crtci->mode == None || crtci->noutput == 0) {
+							XRRFreeCrtcInfo(crtci);
+							continue;
+						}
+		
+						for (k = 0; k < crtci->noutput; k++) {
+							if (crtci->outputs[k] == primary) {
+								pix = j;
+								pop = k;
+							}
+						}
+						XRRFreeCrtcInfo(crtci);
+					}
+					if (pix < 0) {		/* Didn't locate primary */
+						debugrr2((errout,"Couldn't locate primary CRTC!\n"));
+					} else {
+						debugrr2((errout,"Primary is at CRTC %d Output %d\n",pix,pop));
+						has_primary = 1;
+					}
 				}
-	
-				if (outi->connection == RR_Disconnected ||
-					outi->crtc == None) {
-					XRRFreeOutputInfo(outi);
+			}
+
+			/* Look through all the Screens CRTC's */
+			for (jj = xj = j = 0; j < scrnres->ncrtc; j++, xj++) {
+				char *pp;
+				XRRCrtcInfo *crtci = NULL;
+				XRROutputInfo *outi0 = NULL;
+
+				if (has_primary) {
+					if (j == 0)
+						xj = pix;			/* Start with crtc containing primary */
+
+					else if (xj == pix)		/* We've up to primary that we've alread done */	
+						xj++;				/* Skip it */
+				}
+
+				if ((crtci = XRRGetCrtcInfo(mydisplay, scrnres, scrnres->crtcs[xj])) == NULL) {
+					debugrr2((errout,"XRRGetCrtcInfo of Screen %d CRTC %d failed\n",i,xj));
+					if (has_primary && j == 0)
+						xj = -1;			/* Start at beginning */
 					continue;
 				}
 
-				/* Check that the VideoLUT's are accessible */
-				{
-					XRRCrtcGamma *crtcgam = NULL;
-			
-					debugrr("Checking XRandR 1.2 VideoLUT access\n");
-					if ((crtcgam = XRRGetCrtcGamma(mydisplay, outi->crtc)) == NULL
-					 || crtcgam->size == 0) {
-						fprintf(stderr,"XRandR 1.2 is faulty - falling back to older extensions\n");
+				debugrr2((errout,"XRRGetCrtcInfo of Screen %d CRTC %d has %d Outputs %s Mode\n",i,xj,crtci->noutput,crtci->mode == None ? "No" : "Valid"));
+
+				if (crtci->mode == None || crtci->noutput == 0) {
+					debugrr2((errout,"CRTC skipped as it has no mode or no outputs\n",i,xj,crtci->noutput));
+					XRRFreeCrtcInfo(crtci);
+					if (has_primary && j == 0)
+						xj = -1;			/* Start at beginning */
+					continue;
+				}
+
+				/* This CRTC will now be counted as an Xinerama screen */
+				/* For each output of Crtc */
+				for (xk = k = 0; k < crtci->noutput; k++, xk++) {
+					XRROutputInfo *outi = NULL;
+
+					if (has_primary && xj == pix) {
+						if (k == 0)
+							xk = pop;			/* Start with primary output */
+						else if (xk == pop)		/* We've up to primary that we've alread done */	
+							xk++;				/* Skip it */
+					}
+
+					if ((outi = XRRGetOutputInfo(mydisplay, scrnres, crtci->outputs[xk])) == NULL) {
+						debugrr2((errout,"XRRGetOutputInfo failed for Screen %d CRTC %d Output %d\n",i,xj,xk));
+						goto next_output;
+					}
+					if (k == 0)					/* Save this so we can label any clones */
+						outi0 = outi;
+		
+					if (outi->connection == RR_Disconnected) { 
+						debugrr2((errout,"Screen %d CRTC %d Output %d is disconnected\n",i,xj,xk));
+						goto next_output;
+					}
+
+					/* Check that the VideoLUT's are accessible */
+					{
+						XRRCrtcGamma *crtcgam = NULL;
+				
+						debugrr("Checking XRandR 1.2 VideoLUT access\n");
+						if ((crtcgam = XRRGetCrtcGamma(mydisplay, scrnres->crtcs[xj])) == NULL
+						 || crtcgam->size == 0) {
+							fprintf(stderr,"XRRGetCrtcGamma failed - falling back to older extensions\n");
+							if (crtcgam != NULL)
+								XRRFreeGamma(crtcgam);
+							if (outi != NULL && outi != outi0)
+								XRRFreeOutputInfo(outi);
+							if (outi0 != NULL)
+								XRRFreeOutputInfo(outi0);
+							XRRFreeCrtcInfo(crtci);
+							XRRFreeScreenResources(scrnres);
+							free_disppaths(disps);
+							disps = NULL;
+							goto done_xrandr;
+						}
 						if (crtcgam != NULL)
 							XRRFreeGamma(crtcgam);
-						free_disppaths(disps);
-						disps = NULL;
-						j = scrnres->noutput;
-						i = dcount;
-						XRRFreeOutputInfo(outi);
-						continue;				/* Abort XRandR 1.2 */
 					}
-					if (crtcgam != NULL)
-						XRRFreeGamma(crtcgam);
-				}
 #ifdef NEVER
-				{
-					Atom *oprops;
-					int noprop;
+					{
+						Atom *oprops;
+						int noprop;
 
-					/* Get a list of the properties of the output */
-					oprops = XRRListOutputProperties(mydisplay, scrnres->outputs[j], &noprop);
+						/* Get a list of the properties of the output */
+						oprops = XRRListOutputProperties(mydisplay, crtci->outputs[xk], &noprop);
 
-					printf("num props = %d\n", noprop);
-					for (k = 0; k < noprop; k++) {
-						printf("%d: atom 0x%x, name = '%s'\n", k, oprops[k], XGetAtomName(mydisplay, oprops[k]));
+						printf("num props = %d\n", noprop);
+						for (k = 0; k < noprop; k++) {
+							printf("%d: atom 0x%x, name = '%s'\n", k, oprops[k], XGetAtomName(mydisplay, oprops[k]));
+						}
 					}
-				}
 #endif /* NEVER */
 
-				if ((crtci = XRRGetCrtcInfo(mydisplay, scrnres, outi->crtc)) != NULL) {
-					char *pp;
-
 					/* Add the output to the list */
+					debugrr2((errout,"Adding Screen %d CRTC %d Output %d\n",i,xj,xk));
 					if (disps == NULL) {
 						if ((disps = (disppath **)calloc(sizeof(disppath *), 1 + 1)) == NULL) {
 							debugrr("get_displays failed on malloc\n");
 							XRRFreeCrtcInfo(crtci);
-							XRRFreeOutputInfo(outi);
+							if (outi != NULL && outi != outi0)
+								XRRFreeOutputInfo(outi);
+							if (outi0 != NULL)
+								XRRFreeOutputInfo(outi0);
 							XRRFreeScreenResources(scrnres);
 							XCloseDisplay(mydisplay);
 							return NULL;
@@ -710,7 +827,10 @@ disppath **get_displays() {
 						                     sizeof(disppath *) * (ndisps + 2))) == NULL) {
 							debugrr("get_displays failed on malloc\n");
 							XRRFreeCrtcInfo(crtci);
-							XRRFreeOutputInfo(outi);
+							if (outi != NULL && outi != outi0)
+								XRRFreeOutputInfo(outi);
+							if (outi0 != NULL)
+								XRRFreeOutputInfo(outi0);
 							XRRFreeScreenResources(scrnres);
 							XCloseDisplay(mydisplay);
 							return NULL;
@@ -721,44 +841,49 @@ disppath **get_displays() {
 					if ((disps[ndisps] = calloc(sizeof(disppath),1)) == NULL) {
 						debugrr("get_displays failed on malloc\n");
 						XRRFreeCrtcInfo(crtci);
-						XRRFreeOutputInfo(outi);
+						if (outi != NULL && outi != outi0)
+							XRRFreeOutputInfo(outi);
+						if (outi0 != NULL)
+							XRRFreeOutputInfo(outi0);
 						XRRFreeScreenResources(scrnres);
 						XCloseDisplay(mydisplay);
 						free_disppaths(disps);
 						return NULL;
 					}
 
-					disps[ndisps]->screen = i;
-					disps[ndisps]->uscreen = i;
-					disps[ndisps]->rscreen = i;
+					disps[ndisps]->screen = i;				/* X11 (virtual) Screen */
+					disps[ndisps]->uscreen = jj;			/* Xinerama/Xrandr screen */
+					disps[ndisps]->rscreen = jj;
 					disps[ndisps]->sx = crtci->x;
 					disps[ndisps]->sy = crtci->y;
 					disps[ndisps]->sw = crtci->width;
 					disps[ndisps]->sh = crtci->height;
-					disps[ndisps]->crtc = outi->crtc;				/* XID of crtc */
-					disps[ndisps]->output = scrnres->outputs[j];	/* XID of output */		
+					disps[ndisps]->crtc = scrnres->crtcs[xj];		/* XID of CRTC */
+					disps[ndisps]->output = crtci->outputs[xk];		/* XID of output */		
 
-					sprintf(desc1,"Screen %d, Output %s",ndisps+1,outi->name);
+					sprintf(desc1,"Monitor %d, Output %s",ndisps+1,outi->name);
 					sprintf(desc2,"%s at %d, %d, width %d, height %d",desc1,
 				        disps[ndisps]->sx, disps[ndisps]->sy, disps[ndisps]->sw, disps[ndisps]->sh);
 
-					/* See if it is a clone */
-					for (k = 0; k < ndisps; k++) {
-						if (disps[k]->crtc == disps[ndisps]->crtc) {
-							sprintf(desc1, "[ Clone of %d ]",k+1);
-							strcat(desc2, desc1);
-						}
+					/* If it is a clone */
+					if (k > 0 & outi0 != NULL) {
+						sprintf(desc1, "[ Clone of %s ]",outi0->name);
+						strcat(desc2, desc1);
 					}
+
 					if ((disps[ndisps]->description = strdup(desc2)) == NULL) {
 						debugrr("get_displays failed on malloc\n");
 						XRRFreeCrtcInfo(crtci);
-						XRRFreeOutputInfo(outi);
+						if (outi != NULL && outi != outi0)
+							XRRFreeOutputInfo(outi);
+						if (outi0 != NULL)
+							XRRFreeOutputInfo(outi0);
 						XRRFreeScreenResources(scrnres);
 						XCloseDisplay(mydisplay);
 						free_disppaths(disps);
 						return NULL;
 					}
-	
+
 					/* Form the display name */
 					if ((pp = strrchr(dnbuf, ':')) != NULL) {
 						if ((pp = strchr(pp, '.')) != NULL) {
@@ -768,26 +893,28 @@ disppath **get_displays() {
 					if ((disps[ndisps]->name = strdup(dnbuf)) == NULL) {
 						debugrr("get_displays failed on malloc\n");
 						XRRFreeCrtcInfo(crtci);
-						XRRFreeOutputInfo(outi);
+						if (outi != NULL && outi != outi0)
+							XRRFreeOutputInfo(outi);
+						if (outi0 != NULL)
+							XRRFreeOutputInfo(outi0);
 						XRRFreeScreenResources(scrnres);
 						XCloseDisplay(mydisplay);
 						free_disppaths(disps);
 						return NULL;
 					}
 					debugrr2((errout, "Display %d name = '%s'\n",ndisps,disps[ndisps]->name));
-	
+
 					/* Create the X11 root atom of the default screen */
-					/* that may contain the associated ICC profile */
-					/* (The _%d variant will probably break with non-Xrandr */
-					/* aware software if Xrandr is configured to have more than */
-					/* a single virtual screen.) */
+					/* that may contain the associated ICC profile. */
 					if (jj == 0)
 						strcpy(desc1, "_ICC_PROFILE");
 					else
-						sprintf(desc1, "_ICC_PROFILE_%d",jj);
+						sprintf(desc1, "_ICC_PROFILE_%d",disps[ndisps]->uscreen);
 
 					if ((disps[ndisps]->icc_atom = XInternAtom(mydisplay, desc1, False)) == None)
 						error("Unable to intern atom '%s'",desc1);
+
+					debugrr2((errout,"Root atom '%s'\n",desc1));
 
 					/* Create the atom of the output that may contain the associated ICC profile */
 					if ((disps[ndisps]->icc_out_atom = XInternAtom(mydisplay, "_ICC_PROFILE", False)) == None)
@@ -810,19 +937,22 @@ disppath **get_displays() {
 						for (ii = 0; keys[ii][0] != '\000'; ii++) {
 							/* Get the atom for the EDID data */
 							if ((edid_atom = XInternAtom(mydisplay, keys[ii], True)) == None) {
-								debugrr2((errout, "Unable to intern atom '%s'\n",keys[ii]));
+								// debugrr2((errout, "Unable to intern atom '%s'\n",keys[ii]));
 								/* Try the next key */
-							} else {
 
-								/* Get the EDID_DATA */
-								if (XRRGetOutputProperty(mydisplay, scrnres->outputs[j], edid_atom,
+							/* Get the EDID_DATA */
+							} else {
+								if (XRRGetOutputProperty(mydisplay, crtci->outputs[xk], edid_atom,
 								            0, 0x7ffffff, False, False, XA_INTEGER, 
    		                            &ret_type, &ret_format, &ret_len, &ret_togo, &atomv) == Success
 							            && (ret_len == 128 || ret_len == 256)) {
 									if ((disps[ndisps]->edid = malloc(sizeof(unsigned char) * ret_len)) == NULL) {
 										debugrr("get_displays failed on malloc\n");
 										XRRFreeCrtcInfo(crtci);
-										XRRFreeOutputInfo(outi);
+										if (outi != NULL && outi != outi0)
+											XRRFreeOutputInfo(outi);
+										if (outi0 != NULL)
+											XRRFreeOutputInfo(outi0);
 										XRRFreeScreenResources(scrnres);
 										XCloseDisplay(mydisplay);
 										free_disppaths(disps);
@@ -840,22 +970,30 @@ disppath **get_displays() {
 						if (keys[ii][0] == '\000')
 							debugrr2((errout, "Failed to get EDID for display\n"));
 					}
-		
-					jj++;			/* Next enabled index */
 					ndisps++;		/* Now it's number of displays */
-					XRRFreeCrtcInfo(crtci);
+
+				  next_output:;
+					if (outi != NULL && outi != outi0)
+						XRRFreeOutputInfo(outi);
+					if (has_primary && xj == pix && k == 0)
+						xk = -1;			/* Go to first output */
 				}
-				XRRFreeOutputInfo(outi);
+			  next_screen:;
+				if (outi0 != NULL)
+					XRRFreeOutputInfo(outi0);
+				XRRFreeCrtcInfo(crtci);
+				jj++;			/* Next Xinerama screen index */
+				if (has_primary && j == 0)
+					xj = -1;			/* Go to first screen */
 			}
 			XRRFreeScreenResources(scrnres);
 		}
+      done_xrandr:;
 		XSetErrorHandler(NULL);
-		defsix = DefaultScreen(mydisplay);
 	}
 #endif /* randr >= V 1.2 */
 
 	if (disps == NULL) {	/* Use Older style identification */
-		debugrr("get_displays checking for Xinerama\n");
 
 		if (XSetErrorHandler(null_error_handler) == 0) {
 			debugrr("get_displays failed on XSetErrorHandler\n");
@@ -863,7 +1001,8 @@ disppath **get_displays() {
 			return NULL;
 		}
 
-		if (XineramaQueryExtension(mydisplay, &evb, &erb) != 0
+		if (getenv("ARGYLL_IGNORE_XINERAMA") == NULL
+		 && XineramaQueryExtension(mydisplay, &evb, &erb) != 0
 		 && XineramaIsActive(mydisplay)) {
 
 			xai = XineramaQueryScreens(mydisplay, &dcount);
@@ -873,10 +1012,10 @@ disppath **get_displays() {
 				XCloseDisplay(mydisplay);
 				return NULL;
 			}
-			defsix = 0;
+			debugrr2((errout,"get_displays using %d Xinerama Screens\n",dcount));
 		} else {
 			dcount = ScreenCount(mydisplay);
-			defsix = DefaultScreen(mydisplay);
+			debugrr2((errout,"get_displays using %d X11 Screens\n",dcount));
 		}
 
 		/* Allocate our list */
@@ -903,7 +1042,10 @@ disppath **get_displays() {
 			/* Form the display name */
 			if ((pp = strrchr(dnbuf, ':')) != NULL) {
 				if ((pp = strchr(pp, '.')) != NULL) {
-					sprintf(pp,".%d",i);
+					if (xai != NULL)					/* Xinerama */
+						sprintf(pp,".%d",0);
+					else
+						sprintf(pp,".%d",i);
 				}
 			}
 			if ((disps[i]->name = strdup(dnbuf)) == NULL) {
@@ -915,14 +1057,15 @@ disppath **get_displays() {
 	
 			debugrr2((errout, "Display %d name = '%s'\n",i,disps[i]->name));
 			if (xai != NULL) {					/* Xinerama */
-				disps[i]->screen = 0;			/* We are asuming Xinerame creates a single virtual screen */
-				disps[i]->uscreen = i;			/* We are assuming xinerama lists screens in the same order */
+				/* xai[i].screen_number should be == i */
+				disps[i]->screen = 0;			/* Assume Xinerame creates a single virtual X11 screen */
+				disps[i]->uscreen = i;			/* Underlying Xinerma screen */
 				disps[i]->rscreen = i;
 				disps[i]->sx = xai[i].x_org;
 				disps[i]->sy = xai[i].y_org;
 				disps[i]->sw = xai[i].width;
 				disps[i]->sh = xai[i].height;
-			} else {
+			} else {							/* Plain X11 Screens */
 				disps[i]->screen = i;
 				disps[i]->uscreen = i;
 				disps[i]->rscreen = i;
@@ -992,9 +1135,9 @@ disppath **get_displays() {
 				 && monitor.model != NULL && monitor.model[0] != '\000')
 					sprintf(desc1, "%s",monitor.model);
 				else
-					sprintf(desc1,"Screen %d",i+1);
+					sprintf(desc1,"Monitor %d",i+1);
 			} else
-				sprintf(desc1,"Screen %d",i+1);
+				sprintf(desc1,"Monitor %d",i+1);
 
 			sprintf(desc2,"%s at %d, %d, width %d, height %d",desc1,
 		        disps[i]->sx, disps[i]->sy, disps[i]->sw, disps[i]->sh);
@@ -1006,14 +1149,15 @@ disppath **get_displays() {
 			}
 		}
 		XSetErrorHandler(NULL);
-	}
 
-	/* Put the screen given by the display name at the top */
-	{
-		disppath *tdispp;
-		tdispp = disps[defsix];
-		disps[defsix] = disps[0];
-		disps[0] = tdispp;
+		/* Put the default Screen the top of the list */
+		if (xai == NULL) {
+			int defsix = DefaultScreen(mydisplay);
+			disppath *tdispp;
+			tdispp = disps[defsix];
+			disps[defsix] = disps[0];
+			disps[0] = tdispp;
+		}
 	}
 
 	if (xai != NULL)
@@ -1087,6 +1231,8 @@ disppath *get_a_display(int ix) {
 	disppath **paths, *rv = NULL;
 	int i;
 
+	debugrr2((errout, "get_a_display called with ix %d\n",ix));
+
 	if ((paths = get_displays()) == NULL)
 		return NULL;
 
@@ -1095,8 +1241,9 @@ disppath *get_a_display(int ix) {
 			free_disppaths(paths);
 			return NULL;
 		}
-		if (i == ix)
+		if (i == ix) {
 			break;
+		}
 	}
 	if ((rv = malloc(sizeof(disppath))) == NULL) {
 		debugrr("get_a_display failed malloc\n");
@@ -1129,6 +1276,8 @@ disppath *get_a_display(int ix) {
 		memmove(rv->edid, paths[i]->edid, rv->edid_len );
 	}
 #endif
+	debugrr2((errout, " Selected ix %d '%s' %s'\n",i,rv->name,rv->description));
+
 	free_disppaths(paths);
 	return rv;
 }
@@ -1147,7 +1296,9 @@ void free_a_disppath(disppath *path) {
 	}
 }
 
-/* ----------------------------------------------- */
+/* ===================================================================== */
+/* RAMDAC access code */
+/* ===================================================================== */
 
 /* For VideoLUT/RAMDAC use, we assume that the frame buffer */
 /* may map through some intermediate hardware or lookup */
@@ -1465,7 +1616,7 @@ static char *iprof_path(p_scope scope, char *fname) {
 		dirname = COLORSYNC_DIR_LOCAL;
 	else {
 		dirname = COLORSYNC_DIR_USER;
-		if ((home = getenv("HOME")) == NULL){ 
+		if ((home = login_HOME()) == NULL){ 
 			return NULL;
 		}
 	}
@@ -2273,7 +2424,10 @@ void dispwin_del_ramdac(ramdac *r) {
 	free(r);
 }
 
-/* ----------------------------------------------- */
+/* ===================================================================== */
+/* Profile install code */
+/* ===================================================================== */
+
 /* Useful function for X11 profile atom settings */
 
 #if defined(UNIX_X11)
@@ -2283,7 +2437,10 @@ static int set_X11_atom(dispwin *p, char *fname) {
 	unsigned long psize, bread;
 	unsigned char *atomv;
 
-	debugr("Setting _ICC_PROFILE property\n");
+	if (p->myuscreen == 0)
+		debugr("Setting _ICC_PROFILE property\n");
+	else
+		debugr2((errout,"Setting _ICC_PROFILE_%d property\n",p->myuscreen));
 
 	/* Read in the ICC profile, then set the X11 atom value */
 #if !defined(O_CREAT) && !defined(_O_CREAT)
@@ -2323,11 +2480,13 @@ static int set_X11_atom(dispwin *p, char *fname) {
 	
 	fclose(fp);
 
-	XChangeProperty(p->mydisplay, RootWindow(p->mydisplay, 0), p->icc_atom,
+	if (p->icc_atom != None) {
+		XChangeProperty(p->mydisplay, RootWindow(p->mydisplay, 0), p->icc_atom,
 	                XA_CARDINAL, 8, PropModeReplace, atomv, psize);
+	}
 
 #if RANDR_MAJOR == 1 && RANDR_MINOR >= 2 && !defined(DISABLE_RANDR)
-	if (p->icc_out_atom != 0) {
+	if (p->icc_out_atom != None) {
 		/* If Xrandr 1.2, set property on output */
 		/* This seems to fail on some servers. Ignore the error ? */
 		if (XSetErrorHandler(null_error_handler) == 0) {
@@ -2351,7 +2510,8 @@ static int set_X11_atom(dispwin *p, char *fname) {
 }
 #endif  /* UNXI X11 */
 
-/* ----------------------------------------------- */
+/* ---------------------------------------------- */
+
 /* See if colord is available */
 
 #if defined(UNIX_X11) && defined(USE_UCMM)
@@ -2373,7 +2533,8 @@ int dispwin_checkfor_colord() {
 
 	cd_found = NULL;
 
-	if ((cd_found = dlopen("libcolordcompat.so", RTLD_LAZY)) != NULL) {
+	if (getenv("ARGYLL_USE_COLORD") != NULL
+	 && (cd_found = dlopen("libcolordcompat.so", RTLD_LAZY)) != NULL) {
 
 		cd_edid_install_profile = dlsym(cd_found, "cd_edid_install_profile");
 		cd_edid_remove_profile = dlsym(cd_found, "cd_edid_remove_profile");
@@ -2392,7 +2553,6 @@ int dispwin_checkfor_colord() {
 }
 
 #endif
-
 
 
 /* ----------------------------------------------- */
@@ -2630,7 +2790,7 @@ int dispwin_install_profile(dispwin *p, char *fname, ramdac *r, p_scope scope) {
 
 		return 0;
 	}
-#else	/* 10.6 and prior */
+#else	/* OS X 10.6 and prior */
 		// Switch to using iprof_path() to simplify ?
 	{
 		CMError ev;
@@ -2766,8 +2926,9 @@ int dispwin_install_profile(dispwin *p, char *fname, ramdac *r, p_scope scope) {
 
 /* Un-Install a display profile */
 /* Return nz if failed, */
-/* 1 if not sucessfully deleted */
+/* 1 if not successfully deleted */
 /* 2 if profile not found */
+/* NT and OS X need fname, *NIX does not. */
 int dispwin_uninstall_profile(dispwin *p, char *fname, p_scope scope) {
 	debugr2((errout,"dispwin_uninstall_profile '%s'\n", fname));
 #ifdef NT
@@ -2883,7 +3044,7 @@ int dispwin_uninstall_profile(dispwin *p, char *fname, p_scope scope) {
 			}
 			debug2((errout,"Set euid %d and egid %d\n",uid,gid));
 		}
-	/* If setting local system proile and not effective root, but sudo */
+	/* If setting local system profile and not effective root, but sudo */
 	} else if (scope != p_scope_user && getuid() == 0 && geteuid() != 0) {
 		if (getenv("SUDO_UID") != NULL
 		 && getenv("SUDO_GID") != NULL) {
@@ -3029,14 +3190,15 @@ int dispwin_uninstall_profile(dispwin *p, char *fname, p_scope scope) {
 		if (cd_found)
 			ev = cd_edid_remove_profile(p->edid, p->edid_len, fname);
 		else
-			ev = ucmm_uninstall_monitor_profile(sc, p->edid, p->edid_len, p->name, fname);
+			ev = ucmm_uninstall_monitor_profile(sc, p->edid, p->edid_len, p->name);
 
 		if (ev != ucmm_ok) {
 			debugr2((errout,"Installing profile '%s' failed with error %d '%s'\n",fname,ev,ucmm_error_string(ev)));
 			return 1;
 		} 
 
-		XDeleteProperty(p->mydisplay, RootWindow(p->mydisplay, 0), p->icc_atom);
+		if (p->icc_atom != None)
+			XDeleteProperty(p->mydisplay, RootWindow(p->mydisplay, 0), p->icc_atom);
 
 #if RANDR_MAJOR == 1 && RANDR_MINOR >= 2 && !defined(DISABLE_RANDR)
 		/* If Xrandr 1.2, set property on output */
@@ -3254,6 +3416,7 @@ icmFile *dispwin_get_profile(dispwin *p, char *name, int mxlen) {
 				debugr2((errout,"Setting X11 atom to profile '%s' failed",profile));
 				/* Hmm. We ignore this error */
 			}
+			free(profile);
 			return rd_fp;
 		} 
 		if (ev != ucmm_no_profile) {
@@ -3291,9 +3454,14 @@ icmFile *dispwin_get_profile(dispwin *p, char *name, int mxlen) {
 #endif /* randr >= V 1.2 */
 
 		if (atomv == NULL) {
+			if (p->icc_atom == None) {
+				debugr("Second or subsequent Output doesn't have ICC_PROFILE property\n");
+				return NULL;
+			}
+
 			if (p->myuscreen != 0)
 				sprintf(aname, "_ICC_PROFILE_%d",p->myuscreen);
-	
+		
 			/* Get the ICC profile property */
 			if (XGetWindowProperty(p->mydisplay, RootWindow(p->mydisplay, 0), p->icc_atom,
 			            0, 0x7ffffff, False, XA_CARDINAL, 
@@ -3336,7 +3504,7 @@ icmFile *dispwin_get_profile(dispwin *p, char *name, int mxlen) {
 	return NULL;
 }
 
-/* ----------------------------------------------- */
+/* ===================================================================== */
 
 /* Restore the display state and free ramdacs */
 static void restore_display(dispwin *p) {
@@ -3416,6 +3584,8 @@ static void dispwin_sighandler(int arg) {
 	static amutex_static(lock);
 	dispwin *pp, *np;
 
+	debugrr("dispwin_sighandler called\n");
+
 	/* Make sure we don't re-enter */
 	if (amutex_trylock(lock)) {
 		return;
@@ -3483,7 +3653,10 @@ static void dispwin_uninstall_signal_handlers(dispwin *p) {
 	p->next = NULL;
 }
 
-/* ----------------------------------------------- */
+/* ===================================================================== */
+/* Test patch window code */
+/* ===================================================================== */
+
 /* Test patch window specific declarations */
 
 #ifdef UNIX_APPLE
@@ -3531,6 +3704,7 @@ unsigned char emptyCursor[43] = {
  * the mouse enters the window. This needs the main thread 
  * to be dedicated to running the event loop, so would involve
  * some trickiness after main() in every program.
+ * - we have done this with numlib/ui.c, so this is possible.
  */
 - (void)resetCursorRects {
 	[super resetCursorRects];
@@ -3671,8 +3845,7 @@ static void create_my_win(void *cntx) {
 
 	/* Moves the window to the front of the screen list within its level, */
 	/* and show the window (i.e. make it "key") */
-	/* Trigger warning on OS X 10.11 El Capitan ? */
-	/* (Doesn't happen using 1.6.3 which ran everything in the main thread.) */
+	/* Trigger warning on OS X 10.11 El Capitan if not run in the main thread. */
 	[cx->window makeKeyAndOrderFront: nil];
 
 	/* Use a null color transform to ensure device values */
@@ -3720,17 +3893,23 @@ static void create_my_win(void *cntx) {
 #endif /* >= 10.6 */
 
 #if __MAC_OS_X_VERSION_MAX_ALLOWED >= 1040
-	/* >= 10.6+ device colors don't work on secondary display, need null transform. */
-	/*  < 10.6 null transform doesn't work. */
+	/* >= 10.6+ device colors don't work on secondary displays and need a null transform. */
+	/*  < 10.6 null transform doesn't work, but isn't needed. */
 
-	if (Gestalt(gestaltSystemVersionMajor,  &MacMajVers) == noErr
+	if (
+#ifdef NEVER
+	    Gestalt(gestaltSystemVersionMajor,  &MacMajVers) == noErr
 	 && Gestalt(gestaltSystemVersionMinor,  &MacMinVers) == noErr
 	 && Gestalt(gestaltSystemVersionBugFix, &MacBFVers) == noErr
 	 && MacMajVers >= 10 && MacMinVers >= 6
+#else
+	   floor(kCFCoreFoundationVersionNumber) >= kCFCoreFoundationVersionNumber10_6
+#endif
+
 	 && cx->nscs == NULL) {
 		warning("Unable to create null color transform - test colors may be wrong!");
 	}
-#endif
+#endif /* >= 1040 */
 
 	cx->err = 0;
 }
@@ -3750,7 +3929,7 @@ double r, double g, double b	/* Color values 0.0 - 1.0 */
 	double kr, kf;
 	int update_delay = 0;
 
-	debugr("dispwin_set_color called\n");
+	debugrr2((errout, "dispwin_set_color called on disp '%s'\n",p->name));
 
 	if (p->nowin) {
 		return 1;
@@ -3941,8 +4120,15 @@ double r, double g, double b	/* Color values 0.0 - 1.0 */
 	/* Stop the system going to sleep */
     UpdateSystemActivity(OverallAct);
 
+/*
+	replacement ?
+	IOPMAssertionID assertionID; 
+	IOPMAssertionDeclareUserActivity(CFSTR(""), kIOPMUserActiveLocal, &assertionID);
+*/
+
 	/* Make sure our window is brought to the front at least once, */
 	/* but not every time, in case the user wants to kill the application. */
+	/* is orderFrontRegardless a replacement ?? */
 	if (p->btf == 0){
 		OSStatus stat;
 		ProcessSerialNumber cpsn;
@@ -4748,6 +4934,11 @@ int ddebug						/* >0 to print debug statements to stderr */
 		dispwin_del(p);
 		return NULL;
 	}
+	if ((p->description = strdup(disp->description)) == NULL) {
+		debugr2((errout,"new_dispwin: Malloc failed\n"));
+		dispwin_del(p);
+		return NULL;
+	}
 	p->ddid = disp->ddid;		/* Display we're working on */
 
 #if __MAC_OS_X_VERSION_MAX_ALLOWED >= 1060
@@ -4816,7 +5007,7 @@ int ddebug						/* >0 to print debug statements to stderr */
 
 		if (p->rdepth != p->ndepth) {
 			if (!p->warned) {
-				warning("new_dispwin: Frame buffer depth %d doesn't matcv VideoLUT %d",p->rdepth, p->ndepth);
+				warning("new_dispwin: Frame buffer depth %d doesn't match VideoLUT %d",p->rdepth, p->ndepth);
 				p->warned = 1;
 			}
 		}
@@ -4975,16 +5166,21 @@ int ddebug						/* >0 to print debug statements to stderr */
 
 		/* open the display */
 		p->mydisplay = XOpenDisplay(bname);
-		if(!p->mydisplay) {
-			debugr2((errout,"new_dispwin: Unable to open display '%s'\n",bname));
+		if (!p->mydisplay) {
+			debugrr2((errout,"new_dispwin: Unable to open display '%s'\n",bname));
 			dispwin_del(p);
 			free(bname);
 			return NULL;
 		}
+		debugrr2((errout,"new_dispwin: Opened display '%s' OK\n",bname));
 		free(bname);
-		debugr("new_dispwin: Opened display OK\n");
 
 		if ((p->name = strdup(disp->name)) == NULL) {
+			debugr2((errout,"new_dispwin: Malloc failed\n"));
+			dispwin_del(p);
+			return NULL;
+		}
+		if ((p->description = strdup(disp->description)) == NULL) {
 			debugr2((errout,"new_dispwin: Malloc failed\n"));
 			dispwin_del(p);
 			return NULL;
@@ -5181,7 +5377,7 @@ int ddebug						/* >0 to print debug statements to stderr */
 			}
 		}
 
-		debugr2((errout,"new_dispwin: %s fdepth %d, rdepth %d, ndepth %d, edepth %d, r/g/b shifts %d %d %d\n", vinfo->class != TrueColor ? "TreuColor" : "DirectColor", p->fdepth,p->rdepth,p->ndepth,p->edepth, p->shift[0], p->shift[1], p->shift[2]));
+		debugrr2((errout,"new_dispwin: %s fdepth %d, rdepth %d, ndepth %d, edepth %d, r/g/b shifts %d %d %d\n", vinfo->class != TrueColor ? "TreuColor" : "DirectColor", p->fdepth,p->rdepth,p->ndepth,p->edepth, p->shift[0], p->shift[1], p->shift[2]));
 
 		if (nowin == 0) {			/* Create a window */
 			unsigned long attrmask = 0;
@@ -5227,6 +5423,8 @@ int ddebug						/* >0 to print debug statements to stderr */
 			}
 			p->ww = wi;
 			p->wh = he;
+
+			debugrr2((errout,"new_dispwin: at %d, %d size %d, %d\n",p->tx,p->ty,p->ww,p->wh));
 
 			/* Setup Size Hints */
 			mysizehints.flags = PPosition | USSize;
@@ -5630,7 +5828,7 @@ int ddebug						/* >0 to print debug statements to stderr */
 		p->native = native &= ~2;
 	}
 
-	debugr("new_dispwin: return sucessfully\n");
+	debugr("new_dispwin: return successfully\n");
 	return p;
 }
 
@@ -5887,7 +6085,8 @@ static int gcc_bug_fix(int i) {
 #include "numlib.h"
 
 /* Flag = 0x0000 = default */
-/* Flag & 0x0001 = list ChromCast's */
+/* Flag & 0x0001 = list ChromeCast's */
+/* Flag & 0x0002 = list VTPG's's */
 static void usage(int flag, char *diag, ...) {
 	disppath **dp;
 	fprintf(stderr,"Test display patch window, Set Video LUTs, Install profiles, Version %s\n",ARGYLL_VERSION_STR);
@@ -5923,13 +6122,13 @@ static void usage(int flag, char *diag, ...) {
 	free_disppaths(dp);
 	fprintf(stderr," -dweb[:port]         Display via web server at port (default 8080)\n");
 	fprintf(stderr," -dcc[:n]             Display via n'th ChromeCast (default 1, ? for list)\n");
-	if (flag & 0x001) {
+	if (flag & 0x0001) {
 		ccast_id **ids;
 		if ((ids = get_ccids()) == NULL) {
-			fprintf(stderr,"    ** Error discovering ChromCasts **\n");
+			fprintf(stderr,"    ** Error discovering ChromeCasts **\n");
 		} else {
 			if (ids[0] == NULL)
-				fprintf(stderr,"    ** No ChromCasts found **\n");
+				fprintf(stderr,"    ** No ChromeCasts found **\n");
 			else {
 				int i;
 				for (i = 0; ids[i] != NULL; i++)
@@ -5942,8 +6141,28 @@ static void usage(int flag, char *diag, ...) {
 	fprintf(stderr," -dmadvr              Display via MadVR Video Renderer\n");
 #endif
 
+#ifdef ENABLE_VTPGLUT
+	fprintf(stderr," -dvtpg[:n]           Display via n'th Video Test Patch Generator (default 1, ? for list)\n");
+	if (flag & 0x0002) {
+		icompaths *icmps;
+		if ((icmps = new_icompaths_sel(g_log, icomt_vtpg | icomt_portattr_all)) != NULL) {
+			icompath **paths;
+			if ((paths = icmps->dpaths[dtix_vtpg]) != NULL) {
+				int i;
+				for (i = 0; ; i++) {
+					if (paths[i] == NULL)
+						break;
+					fprintf(stderr,"    %d = '%s'\n",i+1,paths[i]->name);
+				}
+			} else
+				fprintf(stderr,"    ** No VTPG's found **\n");
+		}
+	}
+#endif
+
 	fprintf(stderr," -P ho,vo,ss[,vs]     Position test window and scale it\n");
 	fprintf(stderr," -F                   Fill whole screen with black background\n");
+	fprintf(stderr," -E                   Video encode output as (16-235)/255 \"TV\" levels\n");
 	fprintf(stderr," -i                   Run forever with random values\n");
 	fprintf(stderr," -G filename          Display RGB colors from CGATS (ie .ti1) file\n");
 	fprintf(stderr," -C r.rr,g.gg,b.bb    Add this RGB color to list to be displayed\n");
@@ -5954,7 +6173,7 @@ static void usage(int flag, char *diag, ...) {
 	fprintf(stderr," -s filename          Save the currently loaded Video LUT to 'filename'\n");
 	fprintf(stderr," -c                   Load a linear display calibration\n");
 	fprintf(stderr," -V                   Verify that calfile/profile cal. is currently loaded in LUT\n");
-	fprintf(stderr," -I                   Install profile for display and use it's calibration\n");
+	fprintf(stderr," -I                   Install profile for display and use its calibration\n");
 	fprintf(stderr," -U                   Un-install profile for display\n");
 	fprintf(stderr," -S d                 Specify the install/uninstall scope for OS X [nlu] or X11/Vista [lu]\n");
 	fprintf(stderr,"                      d is one of: n = network, l = local system, u = user (default)\n");
@@ -5980,6 +6199,9 @@ main(int argc, char *argv[]) {
 	int ccdisp = 0;			 	/* NZ for ChromeCast, == list index */
 #ifdef NT
 	int madvrdisp = 0;			/* NZ for MadVR display */
+#endif
+#ifdef ENABLE_VTPGLUT
+	int vtpgdisp = 0;			 /* NZ for Video Test Pattern Generator, == list index */
 #endif
 	disppath *disp = NULL;		/* Display being used */
 	double hpatscale = 1.0, vpatscale = 1.0;	/* scale factor for test patch size */
@@ -6073,7 +6295,7 @@ main(int argc, char *argv[]) {
 
 						ccdisp = atoi(na+3);
 						if (ccdisp <= 0)
-							usage(0,"ChromCast number must be in range 1..N");
+							usage(0,"ChromeCast number must be in range 1..N");
 					}
 					fa = nfa;
 #ifdef NT
@@ -6082,6 +6304,20 @@ main(int argc, char *argv[]) {
 					madvrdisp = 1;
 					fa = nfa;
 #endif
+#ifdef ENABLE_VTPGLUT
+				} else if (strncmp(na,"vtpg",4) == 0
+				 || strncmp(na,"VTPG",4) == 0) {
+					vtpgdisp = 1;
+					if (na[4] == ':') {
+						if (na[3] < '0' || na[3] > '9')
+							usage(0x0002,"Available VTPG's");
+
+						vtpgdisp = atoi(na+3);
+						if (vtpgdisp <= 0)
+							usage(0,"VTPG number must be in range 1..N");
+					}
+					fa = nfa;
+#endif /* ENABLE_VTPGLUT */
 				} else {
 #if defined(UNIX_X11)
 					int ix, iv;
@@ -6259,8 +6495,13 @@ main(int argc, char *argv[]) {
 #endif
 
 	/* Bomb on bad combinations (not all are being detected) */
-	if (installprofile && calname[0] == '\000')
-		error("Can't install or uninstall a displays profile without profile argument");
+	if (installprofile == 1 && calname[0] == '\000')
+		error("Can't install a displays profile without profile argument");
+
+#if !defined(UNIX)
+	if (installprofile == 2 && calname[0] == '\000')
+		error("Can't uninstall a displays profile without profile argument");
+#endif
 
 	if (verify && calname[0] == '\000' && loadprofile == 0)
 		error("No calibration/profile provided to verify against");
@@ -6285,17 +6526,17 @@ main(int argc, char *argv[]) {
 	} else if (ccdisp != 0) {
 		ccast_id **ids;
 		if ((ids = get_ccids()) == NULL) {
-			printf("Error - discovering ChromCasts failed\n");
+			printf("Error - discovering ChromeCasts failed\n");
 			return -1;
 		}
 		if (ids[0] == NULL) {
-			printf("Error - there are no ChromCasts to use\n");
+			printf("Error - there are no ChromeCasts to use\n");
 			return -1;
 		}
 		for (i = 0; ids[i] != NULL; i++)
 			;
 		if (ccdisp < 1 || ccdisp > i) {
-			printf("Error - chosen ChromCasts (%d) is outside list (1..%d)\n",ccdisp,i);
+			printf("Error - chosen ChromeCasts (%d) is outside list (1..%d)\n",ccdisp,i);
 			return -1;
 		}
 		
@@ -6427,10 +6668,10 @@ main(int argc, char *argv[]) {
 			if (rv == 2)
 				warning("Profile '%s' not found to uninstall!",calname);
 			else
-				error("Error trying to uninstall profile '%s'!",calname);
+				error("Error trying to uninstall profile for display '%s'!",dw->description);
 		}
 		if (verb) {
-			printf("Un-Installed '%s'\n",calname);
+			printf("Un-Installed profile for display '%s'\n",dw->description);
 		}
 	}
 
@@ -6582,25 +6823,28 @@ main(int argc, char *argv[]) {
 					dw->r->v[j][i] = val + w * (cal[j][ix+1] - val);
 				}
 			}
-			/* If the calibration was created with a restricted range video encoding, */
-			/* ensure that the installed calibration applies this encoding. */
-			if (out_tvenc) {
-				for (i = 0; i < dw->r->nent; i++) {
-					for (j = 0; j < 3; j++) {
-						dw->r->v[j][i] = (dw->r->v[j][i] * (235.0-16.0) + 16.0)/255.0;
-
-						/* For video encoding the extra bits of precision are created by bit */
-						/* shifting rather than scaling, so we need to scale the fp value to */
-						/* account for this. */
-						if (dw->edepth > 8)
-							dw->r->v[j][i] = (dw->r->v[j][i] * 255 * (1 << (dw->edepth - 8)))
-				                       /((1 << dw->edepth) - 1.0); 	
-					}
-				}
-			}
-
 			debug("Got cal file calibration\n");
 		}
+
+		/* If the calibration was created with a restricted range video encoding, */
+		/* ensure that the installed calibration applies this encoding. */
+		if (out_tvenc) {
+			if (verb)
+				printf("Using output TV encoding range of (16-235)/255\n");
+			for (i = 0; i < dw->r->nent; i++) {
+				for (j = 0; j < 3; j++) {
+					dw->r->v[j][i] = (dw->r->v[j][i] * (235.0-16.0) + 16.0)/255.0;
+
+					/* For video encoding the extra bits of precision are created by bit */
+					/* shifting rather than scaling, so we need to scale the fp value to */
+					/* account for this. */
+					if (dw->edepth > 8)
+						dw->r->v[j][i] = (dw->r->v[j][i] * 255 * (1 << (dw->edepth - 8)))
+			                       /((1 << dw->edepth) - 1.0); 	
+				}
+			}
+		}
+
 		if (ccg != NULL)
 			ccg->del(ccg);
 		if (icco != NULL)

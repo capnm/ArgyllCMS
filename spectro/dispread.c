@@ -53,8 +53,8 @@
 #include "copyright.h"
 #include "aconfig.h"
 #include "numlib.h"
-#include "xspect.h"
 #include "cgats.h"
+#include "xspect.h"
 #include "insttypes.h"
 #include "conv.h"
 #include "icoms.h"
@@ -98,7 +98,7 @@ static int gcc_bug_fix(int i) {
 */
 
 /* Flag = 0x0000 = default */
-/* Flag & 0x0001 = list ChromCast's */
+/* Flag & 0x0001 = list ChromeCast's */
 void usage(int flag, char *diag, ...) {
 	int i;
 	disppath **dp;
@@ -141,10 +141,10 @@ void usage(int flag, char *diag, ...) {
 	if (flag & 0x001) {
 		ccast_id **ids;
 		if ((ids = get_ccids()) == NULL) {
-			fprintf(stderr,"    ** Error discovering ChromCasts **\n");
+			fprintf(stderr,"    ** Error discovering ChromeCasts **\n");
 		} else {
 			if (ids[0] == NULL)
-				fprintf(stderr,"    ** No ChromCasts found **\n");
+				fprintf(stderr,"    ** No ChromeCasts found **\n");
 			else {
 				int i;
 				for (i = 0; ids[i] != NULL; i++)
@@ -165,8 +165,8 @@ void usage(int flag, char *diag, ...) {
 			for (i = 0; ; i++) {
 				if (paths[i] == NULL)
 					break;
-				if ((paths[i]->itype == instSpyder1 && setup_spyd2(0) == 0)
-				 || (paths[i]->itype == instSpyder2 && setup_spyd2(1) == 0))
+				if ((paths[i]->dtype == instSpyder1 && setup_spyd2(0) == 0)
+				 || (paths[i]->dtype == instSpyder2 && setup_spyd2(1) == 0))
 					fprintf(stderr,"    %d = '%s' !! Disabled - no firmware !!\n",i+1,paths[i]->name);
 				else
 					fprintf(stderr,"    %d = '%s'\n",i+1,paths[i]->name);
@@ -201,7 +201,7 @@ void usage(int flag, char *diag, ...) {
 	if (cap2 & inst2_ccss) {
 		fprintf(stderr," -X file.ccss         Use Colorimeter Calibration Spectral Samples for calibration\n");
 		fprintf(stderr," -Q observ            Choose CIE Observer for spectrometer or CCSS colorimeter data:\n");
-		fprintf(stderr,"                      1931_2 (def), 1964_10, S&B 1955_2, shaw, J&V 1978_2, 1964_10c\n");
+		fprintf(stderr,"                      1931_2 (def), 1964_10, 2012_2, 2012_10, S&B 1955_2, shaw, J&V 1978_2, 1964_10c or file.cmf\n");
 	}
 	fprintf(stderr," -I b|w               Drift compensation, Black: -Ib, White: -Iw, Both: -Ibw\n");
 	fprintf(stderr," -Y R:rate            Override measured refresh rate with rate Hz\n");
@@ -252,6 +252,7 @@ int main(int argc, char *argv[]) {
 	ccss *ccs = NULL;					/* Colorimeter Calibration Spectral Samples */
 	int spec = 0;						/* Don't save spectral information */
 	icxObserverType obType = icxOT_default;
+	xspect custObserver[3];				/* If obType = icxOT_custom */
 	int webdisp = 0;					/* NZ for web display, == port number */
 	int ccdisp = 0;			 			/* NZ for ChromeCast, == list index */
 	ccast_id **ccids = NULL;
@@ -356,7 +357,7 @@ int main(int argc, char *argv[]) {
 
 						ccdisp = atoi(na+3);
 						if (ccdisp <= 0)
-							usage(0,"ChromCast number must be in range 1..N");
+							usage(0,"ChromeCast number must be in range 1..N");
 					}
 					fa = nfa;
 #ifdef NT
@@ -531,6 +532,10 @@ int main(int argc, char *argv[]) {
 					obType = icxOT_CIE_1931_2;
 				} else if (strcmp(na, "1964_10") == 0) {	/* Classic 10 degree */
 					obType = icxOT_CIE_1964_10;
+				} else if (strcmp(na, "2012_2") == 0) {		/* Latest 2 degree */
+					obType = icxOT_CIE_2012_2;
+				} else if (strcmp(na, "2012_10") == 0) {	/* Latest 10 degree */
+					obType = icxOT_CIE_2012_10;
 				} else if (strcmp(na, "1964_10c") == 0) {	/* 10 degree corrected */
 					obType = icxOT_CIE_1964_10c;
 				} else if (strcmp(na, "1955_2") == 0) {		/* Stiles and Burch 1955 2 degree */
@@ -539,9 +544,11 @@ int main(int argc, char *argv[]) {
 					obType = icxOT_Judd_Voss_2;
 				} else if (strcmp(na, "shaw") == 0) {		/* Shaw and Fairchilds 1997 2 degree */
 					obType = icxOT_Shaw_Fairchild_2;
-				} else
-					usage(0,"-Q parameter '%s' not recognised",na);
-
+				} else {	/* Assume it's a filename */
+					obType = icxOT_custom;
+					if (read_cmf(custObserver, na) != 0)
+						usage(0,"Failed to read custom observer CMF from -Q file '%s'",na);
+				}
 
 			/* Change color callout */
 			} else if (argv[fa][1] == 'C') {
@@ -683,13 +690,13 @@ int main(int argc, char *argv[]) {
 	/* If we've requested ChromeCast, look it up */
 	if (ccdisp) {
 		if ((ccids = get_ccids()) == NULL)
-			error("discovering ChromCasts failed");
+			error("discovering ChromeCasts failed");
 		if (ccids[0] == NULL)
-			error("There are no ChromCasts to use\n");
+			error("There are no ChromeCasts to use\n");
 		for (i = 0; ccids[i] != NULL; i++)
 			;
 		if (ccdisp < 1 || ccdisp > i)
-			error("Chosen ChromCasts (%d) is outside list (1..%d)\n",ccdisp,i);
+			error("Chosen ChromeCasts (%d) is outside list (1..%d)\n",ccdisp,i);
 		ccid = ccids[ccdisp-1];
 	}
 
@@ -924,7 +931,7 @@ int main(int argc, char *argv[]) {
 	                     cmx != NULL ? cmx->cc_cbid : 0,
 	                     cmx != NULL ? cmx->matrix : NULL,
 	                     ccs != NULL ? ccs->samples : NULL, ccs != NULL ? ccs->no_samp : 0,
-		                 spec, obType, NULL, bdrift, wdrift,
+		                 spec, obType, custObserver, bdrift, wdrift,
 		                 "fake" ICC_FILE_EXT, g_log)) == NULL)
 		error("new_disprd failed with '%s'\n",disprd_err(errc));
 
@@ -1083,7 +1090,7 @@ int main(int argc, char *argv[]) {
 		ocg->add_kword(ocg, 0, "NORMALIZED_TO_Y_100","NO", NULL);
 
 	/* Write out the calibration if we have it */
-	if (cal != NULL && cal[0][0] >= 0.0) {
+	if (cal[0][0] >= 0.0) {
 		ocg->add_other(ocg, "CAL"); 		/* our special type is Calibration file */
 		ocg->add_table(ocg, tt_other, 1);	/* Add another table for RAMDAC values */
 		ocg->add_kword(ocg, 1, "DESCRIPTOR", "Argyll Device Calibration State",NULL);

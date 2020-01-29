@@ -17,6 +17,12 @@
  * see the License4.txt file in this directory for licensing details.
  */
 
+/*
+	TTBD:
+
+	Should skip UTF-8 BOM (0xef 0xbb 0xbf)
+
+*/
 
 #define _PARS_C_				/* Turn on implimentation code */
 

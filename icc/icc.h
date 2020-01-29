@@ -33,7 +33,7 @@
 #define ICCLIB_VERSION 0x020021
 #define ICCLIB_VERSION_STR "2.21"
 
-#undef ENABLE_V4		/* V4 is not fully implemented */
+#undef ENABLE_V4		/* [und] V4 is not fully implemented, but enables parsing */
 
 /*
  *  Note XYZ scaling to 1.0, not 100.0
@@ -359,6 +359,9 @@ typedef int icmSig;	/* Otherwise un-enumerated 4 byte signature */
 
 /* A monochrome CIE Y space */
 #define icmSigYData ((icColorSpaceSignature) icmMakeTag('Y',' ',' ',' '))
+
+/* A modern take on Lab */
+#define icmSigLptData ((icColorSpaceSignature) icmMakeTag('L','p','t',' '))
 
 
 /* Pseudo Color Space Signatures - just used within icclib */
@@ -1778,12 +1781,22 @@ extern ICCLIB_API unsigned int icmCSSig2chanNames( icColorSpaceSignature sig, ch
 #define icmSet3(d_ary, s_val) ((d_ary)[0] = (s_val), (d_ary)[1] = (s_val), \
                               (d_ary)[2] = (s_val))
 
+/* Copy a 2 vector */
+#define icmCpy2(d_ary, s_ary) ((d_ary)[0] = (s_ary)[0], (d_ary)[1] = (s_ary)[1])
+
 /* Copy a 3 vector */
 #define icmCpy3(d_ary, s_ary) ((d_ary)[0] = (s_ary)[0], (d_ary)[1] = (s_ary)[1], \
                               (d_ary)[2] = (s_ary)[2])
 
+/* Copy a 4 vector */
+#define icmCpy4(d_ary, s_ary) ((d_ary)[0] = (s_ary)[0], (d_ary)[1] = (s_ary)[1], \
+                              (d_ary)[2] = (s_ary)[2], (d_ary)[3] = (s_ary)[3])
+
 /* Clamp a 3 vector to be +ve */
 void icmClamp3(double out[3], double in[3]);
+
+/* Invert a 3 vector */
+void icmInv3(double out[3], double in[3]);
 
 /* Add two 3 vectors */
 void icmAdd3(double out[3], double in1[3], double in2[3]);
@@ -1805,6 +1818,9 @@ void icmMul3(double out[3], double in1[3], double in2[3]);
 
 #define ICMMUL3(o, i, j) ((o)[0] = (i)[0] * (j)[0], (o)[1] = (i)[1] * (j)[1], (o)[2] = (i)[2] * (j)[2])
 
+/* Take values to power */
+void icmPow3(double out[3], double in[3], double p);
+
 /* Take absolute of a 3 vector */
 void icmAbs3(double out[3], double in[3]);
 
@@ -1815,6 +1831,8 @@ double icmDot3(double in1[3], double in2[3]);
 
 /* Compute the cross product of two 3D vectors, out = in1 x in2 */
 void icmCross3(double out[3], double in1[3], double in2[3]);
+
+#define icmNorm2(i) sqrt((i)[0] * (i)[0] + (i)[1] * (i)[1])
 
 /* Compute the norm squared (length squared) of a 3 vector */
 double icmNorm3sq(double in[3]);
@@ -1831,14 +1849,28 @@ void icmScale3(double out[3], double in[3], double rat);
 
 #define ICMSCALE3(o, i, j) ((o)[0] = (i)[0] * (j), (o)[1] = (i)[1] * (j), (o)[2] = (i)[2] * (j))
 
+/* Scale a 3 vector by the given ratio and add it */
+void icmScaleAdd3(double out[3], double in2[3], double in1[3], double rat);
+
 /* Compute a blend between in0 and in1 */
 void icmBlend3(double out[3], double in0[3], double in1[3], double bf);
 
 /* Clip a vector to the range 0.0 .. 1.0 */
 void icmClip3(double out[3], double in[3]);
 
+/* Clip a vector to the range 0.0 .. 1.0 */
+/* and return nz if clipping occured */
+int icmClip3sig(double out[3], double in[3]);
+
+/* Clip a vector to the range 0.0 .. 1.0 */
+/* and return any clipping margine */
+double icmClip3marg(double out[3], double in[3]);
+
 /* Normalise a 3 vector to the given length. Return nz if not normalisable */
 int icmNormalize3(double out[3], double in[3], double len);
+
+/* Compute the norm (length) of of a vector defined by two points */
+double icmNorm22(double in1[2], double in0[2]);
 
 /* Compute the norm squared (length squared) of a vector defined by two points */
 double icmNorm33sq(double in1[3], double in0[3]);
@@ -1854,6 +1886,8 @@ void icmScale33(double out[3], double in1[3], double in0[3], double rat);
 /* Return nz if not normalisable */
 int icmNormalize33(double out[3], double in1[3], double in0[3], double len);
 
+/* Set a 3x3 matrix to a value */
+void icmSetVal3x3(double mat[3][3], double val);
 
 /* Set a 3x3 matrix to unity */
 void icmSetUnity3x3(double mat[3][3]);
@@ -1861,16 +1895,15 @@ void icmSetUnity3x3(double mat[3][3]);
 /* Copy a 3x3 transform matrix */
 void icmCpy3x3(double out[3][3], double mat[3][3]);
 
+/* Add a 3x3 transform matrix to another */
+void icmAdd3x3(double dst[3][3], double src1[3][3], double src2[3][3]);
+
 /* Scale each element of a 3x3 transform matrix */
 void icmScale3x3(double dst[3][3], double src[3][3], double scale);
 
 /* Multiply 3 vector by 3x3 transform matrix */
 /* Organization is mat[out][in] */
 void icmMulBy3x3(double out[3], double mat[3][3], double in[3]);
-
-/* Add one 3x3 to another */
-/* dst = src1 + src2 */
-void icmAdd3x3(double dst[3][3], double src1[3][3], double src2[3][3]);
 
 /* Tensor product. Multiply two 3 vectors to form a 3x3 matrix */
 /* src1[] forms the colums, and src2[] forms the rows in the result */
@@ -1937,6 +1970,44 @@ double icmPlaneDist3(double eq[4], double p[3]);
 
 /* - - - - - - - - - - - - - - - - - - - - - - - */
 
+/* Multiply 4 vector by 4x4 transform matrix */
+/* Organization is mat[out][in] */
+void icmMulBy4x4(double out[4], double mat[4][4], double in[4]);
+
+/* Transpose a 4x4 matrix */
+void icmTranspose4x4(double out[4][4], double in[4][4]);
+
+/* Clip a vector to the range 0.0 .. 1.0 */
+/* and return any clipping margine */
+double icmClip4marg(double out[4], double in[4]);
+
+/* - - - - - - - - - - - - - - - - - - - - - - - */
+
+/* Multiply 5 vector by 5x5 transform matrix */
+/* Organization is mat[out][in] */
+void icmMulBy5x5(double out[5], double mat[5][5], double in[5]);
+
+/* Transpose a 5x5 matrix */
+void icmTranspose5x5(double out[5][5], double in[5][5]);
+
+/* Clip a vector to the range 0.0 .. 1.0 */
+/* and return any clipping margine */
+double icmClip5marg(double out[5], double in[5]);
+
+
+/* Multiply 6 vector by 6x6 transform matrix */
+/* Organization is mat[out][in] */
+void icmMulBy6x6(double out[6], double mat[6][6], double in[6]);
+
+/* Transpose a 6x6 matrix */
+void icmTranspose6x6(double out[6][6], double in[6][6]);
+
+/* Clip a vector to the range 0.0 .. 1.0 */
+/* and return any clipping margine */
+double icmClip6marg(double out[6], double in[6]);
+
+/* - - - - - - - - - - - - - - - - - - - - - - - */
+
 /* Given 2 2D points, compute a plane equation. */
 /* The normal will be right handed given the order of the points */
 /* The plane equation will be the 2 normal components and the constant. */
@@ -1947,9 +2018,29 @@ int icmPlaneEqn2(double eq[3], double p0[2], double p1[2]);
 /* distance from the plane */
 double icmPlaneDist2(double eq[3], double p[2]);
 
+/* Return the closest point on an implicit line to a point. */
+/* Also return the absolute distance */
+double icmImpLinePointClosest2(double cp[2], double eq[3], double pp[2]);
+
+/* Return the point of intersection of two implicit lines . */
+/* Return nz if there is no intersection (lines are parallel) */
+int icmImpLineIntersect2(double res[2], double eq1[3], double eq2[3]);
+
+
+/* Compute the closest point on a line to a point. */
+/* Return closest point and parameter value if not NULL. */
+/* Return nz if the line length is zero */
+int icmLinePointClosest2(double cp[2], double *pa,
+                       double la0[2], double la1[2], double pp[2]);
+
 /* Given two infinite 2D lines define by two pairs of points, compute the intersection. */
 /* Return nz if there is no intersection (lines are parallel) */
 int icmLineIntersect2(double res[2], double p1[2], double p2[2], double p3[2], double p4[2]);
+
+/* Given two finite 2D lines define by 4 points, compute their paramaterized intersection. */
+/* aprm may be NULL */
+/* Return nz if there is no intersection (lines are parallel or do not cross in length) */
+int icmParmLineIntersect2(double ares[2], double aprm[2], double p1[2], double p2[2], double p3[2], double p4[2]);
 
 /* Multiply 2 array by 2x2 transform matrix */
 void icmMulBy2x2(double out[2], double mat[2][2], double in[2]);
@@ -1983,17 +2074,31 @@ extern ICCLIB_API void icmXYZ2Lab(icmXYZNumber *w, double *out, double *in);
 /* Perceptual Lab to CIE XYZ */
 extern ICCLIB_API void icmLab2XYZ(icmXYZNumber *w, double *out, double *in);
 
-/* LCh to Lab */
+/* CIE XYZ to perceptual Lpt */
+extern ICCLIB_API void icmXYZ2Lpt(icmXYZNumber *w, double *out, double *in);
+
+/* Perceptual Lpt to CIE XYZ */
+extern ICCLIB_API void icmLpt2XYZ(icmXYZNumber *w, double *out, double *in);
+
+/* LCh to Lab (general) */
 extern ICCLIB_API void icmLCh2Lab(double *out, double *in);
 
-/* Lab to LCh */
+/* Lab to LCh (general) */
 extern ICCLIB_API void icmLab2LCh(double *out, double *in);
+
 
 /* XYZ to Yxy */
 extern ICCLIB_API void icmXYZ2Yxy(double *out, double *in);
 
 /* Yxy to XYZ */
 extern ICCLIB_API void icmYxy2XYZ(double *out, double *in);
+
+/* XYZ to xy */
+extern ICCLIB_API void icmXYZ2xy(double *out, double *in);
+
+/* Y & xy to XYZ */
+extern ICCLIB_API void icmY_xy2XYZ(double *out, double *xy, double Y);
+
 
 /* CIE XYZ to perceptual Luv */
 extern ICCLIB_API void icmXYZ2Luv(icmXYZNumber *w, double *out, double *in);
@@ -2003,11 +2108,15 @@ extern ICCLIB_API void icmLuv2XYZ(icmXYZNumber *w, double *out, double *in);
 
 
 /* CIE XYZ to perceptual CIE 1976 UCS diagram Yu'v'*/
-/* (Yu'v' is a better chromaticity space than Yxy) */
+/* (Yu'v' is a better linear chromaticity space than Yxy) */
 extern ICCLIB_API void icmXYZ21976UCS(double *out, double *in);
 
 /* Perceptual CIE 1976 UCS diagram Yu'v' to CIE XYZ */
 extern ICCLIB_API void icm1976UCS2XYZ(double *out, double *in);
+
+/* CIE XYZ to perceptual CIE 1976 UCS diagram u'v'*/
+/* (u'v' is a better linear chromaticity space than xy) */
+extern ICCLIB_API void icmXYZ21976UCSuv(double *out, double *in);
 
 
 /* CIE XYZ to perceptual CIE 1960 UCS */
@@ -2072,8 +2181,17 @@ extern ICCLIB_API double icmLabDE(double *in0, double *in1);
 /* Return the normal Delta E squared, given two Lab values */
 extern ICCLIB_API double icmLabDEsq(double *in0, double *in1);
 
+/* Return the normal Delta E squared given two XYZ values */
+extern ICCLIB_API double icmXYZLabDEsq(icmXYZNumber *w, double *in0, double *in1);
+
 /* Return the normal Delta E given two XYZ values */
 extern ICCLIB_API double icmXYZLabDE(icmXYZNumber *w, double *in0, double *in1);
+
+/* Return the normal Delta E squared given two XYZ values */
+extern ICCLIB_API double icmXYZLptDEsq(icmXYZNumber *w, double *in0, double *in1);
+
+/* Return the normal Delta E given two XYZ values */
+extern ICCLIB_API double icmXYZLptDE(icmXYZNumber *w, double *in0, double *in1);
 
 
 /* Return the CIE94 Delta E color difference measure for two Lab values */
@@ -2247,6 +2365,13 @@ double icmDICOM_fwd(double jnd);
 /* L 0.05 .. 3993.404 cd/m^2 to JND index value 1..1023 */
 double icmDICOM_bwd(double L);
 
+
+/* ---------------------------------------------------------- */
+/* Some utility functions */
+
+/* Convert an angle in radians into chromatic RGB values */
+/* in a simple geometric fashion with 0 = Red */
+void icmRad2RGB(double rgb[3], double ang);
 
 /* ---------------------------------------------------------- */
 /* Print an int vector to a string. */

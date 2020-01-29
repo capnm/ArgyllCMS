@@ -1031,7 +1031,7 @@ static void do_test(
 		if (verb) printf("Measured noise average deviation = %f%%\n",tnoise * 100.0); 
 
 		/* Fit to scattered data */
-		if (verb) printf("Fitting the scattered data, smooth = %f, avgdev = %f\n",smooth,avgdev != NULL ? avgdev[0] : 0.0);
+		if (verb) printf("Fitting the scattered data, smooth = %f, avgdev = %f\n",smooth, avgdev[0]);
 		avgdev[0] = 0.25 * noise;
 		rss->fit_rspl(rss,
 		           flags,				/* Non-mon and clip flags */

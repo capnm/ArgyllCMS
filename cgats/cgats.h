@@ -132,6 +132,9 @@ struct _cgats {
 	int (*add_kword)(struct _cgats *p, int table, const char *ksym, const char *kdata, const char *kcom);
 						/* Add a new keyword/value pair + optional comment to the table */
 						/* Return index of new keyword, or -1, errc & err on error */
+	int (*add_kword_at)(struct _cgats *p, int table, int pos, const char *ksym,
+	                                      const char *kdata, const char *kcom);
+						/* Replace or append a new keyword/value pair + optional comment */
 	int (*add_field)(struct _cgats *p, int table, const char *fsym, data_type ftype);
 						/* Add a new field to the table */
 						/* Return index of new field, or -1, -2, errc and err on error */

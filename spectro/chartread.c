@@ -265,6 +265,7 @@ int disbidi,		/* Disable automatic bi-directional strip recognition */
 int highres,		/* Use high res spectral mode */
 char *ccxxname,		/* Colorimeter Correction/Colorimeter Calibration name */
 icxObserverType obType,	/* ccss observer */
+xspect custObserver[3],	/* If obType = icxOT_custom */
 double scan_tol,	/* Modify patch consistency tolerance */
 int pbypatch,		/* Patch by patch measurement */
 int xtern,			/* Use external (user supplied) values rather than instument read */
@@ -468,7 +469,7 @@ a1log *log			/* verb, debug & error log */
 						it->del(it);
 						return -1;
 					}
-					if ((rv = it->get_set_opt(it, inst_opt_set_ccss_obs, obType, NULL)) != inst_ok) {
+					if ((rv = it->get_set_opt(it, inst_opt_set_ccss_obs, obType, custObserver)) != inst_ok) {
 						printf("\nSetting CCSS observer failed with error :'%s' (%s)\n",
 					     	       it->inst_interp_error(it, rv), it->interp_error(it, rv));
 						cs->del(cs);
@@ -489,7 +490,7 @@ a1log *log			/* verb, debug & error log */
 
 			/* If non-standard observer wasn't set by a CCSS file above */
 			if (obType != icxOT_default && (cap2 & inst2_ccss) && ccssset == 0) {
-				if ((rv = it->get_set_opt(it, inst_opt_set_ccss_obs, obType, NULL)) != inst_ok) {
+				if ((rv = it->get_set_opt(it, inst_opt_set_ccss_obs, obType, custObserver)) != inst_ok) {
 					printf("\nSetting CCSS observer failed with error :'%s' (%s)\n",
 				     	       it->inst_interp_error(it, rv), it->interp_error(it, rv));
 					it->del(it);
@@ -552,12 +553,10 @@ a1log *log			/* verb, debug & error log */
 					rmode = 0;
 				}
 			} else if (displ) {
-printf("~1 using displ mode\n");
 				/* We assume a display mode will always be spot by spot */
 				mode = inst_mode_emis_spot;
 				rmode = 0;
 			} else if (emis) {
-printf("~1 using emis mode\n");
 				if (pbypatch
 				 && it->check_mode(it, inst_mode_emis_spot) == inst_ok) {
 					mode = inst_mode_emis_spot;
@@ -1466,7 +1465,7 @@ printf("~1 using emis mode\n");
 
 					/* DTP51 has a nasty habit of misaligning test squares by +/- 1 */
 					/* See if this might have happened */
-					if (it->itype == instDTP51) {
+					if (it->dtype == instDTP51) {
 						loff = -1;
 						hoff = 1;
 					}
@@ -2155,9 +2154,9 @@ usage() {
 		fprintf(stderr," -X file.ccss    Use Colorimeter Calibration Spectral Samples for calibration\n");
 		fprintf(stderr," -Q observ       Choose CIE Observer for CCSS instrument:\n");
 #ifdef SALONEINSTLIB
-		fprintf(stderr,"                 1931_2 (def), 1964_10\n");
+		fprintf(stderr,"                  1931_2 (def), 1964_10, 2012_2, 2012_10\n");
 #else /* !SALONEINSTLIB */
-		fprintf(stderr,"                 1931_2 (def), 1964_10, S&B 1955_2, shaw, J&V 1978_2\n");
+		fprintf(stderr,"                  1931_2 (def), 1964_10, 2012_2, 2012_10, S&B 1955_2, shaw, J&V 1978_2 or file.cmf\n");
 #endif /* !SALONEINSTLIB */
 	}
 	fprintf(stderr," -T ratio        Modify strip patch consistency tolerance by ratio\n");
@@ -2208,6 +2207,7 @@ int main(int argc, char *argv[]) {
 	int doplot = 0;					/* Plot spectral of patch by patch */
 	char ccxxname[MAXNAMEL+1] = "\000";  /* Colorimeter Correction/Colorimeter Calibration name */
 	icxObserverType obType = icxOT_default;		/* ccss observer */
+	xspect custObserver[3];			/* If obType = icxOT_custom */
 	static char inname[MAXNAMEL+1] = { 0 };	/* Input cgats file base name */
 	static char outname[MAXNAMEL+1] = { 0 };	/* Output cgats file base name */
 	cgats *icg;					/* input cgats structure */
@@ -2300,6 +2300,10 @@ int main(int argc, char *argv[]) {
 					obType = icxOT_CIE_1931_2;
 				} else if (strcmp(na, "1964_10") == 0) {	/* Classic 10 degree */
 					obType = icxOT_CIE_1964_10;
+				} else if (strcmp(na, "2012_2") == 0) {		/* Latest 2 degree */
+					obType = icxOT_CIE_2012_2;
+				} else if (strcmp(na, "2012_10") == 0) {	/* Latest 10 degree */
+					obType = icxOT_CIE_2012_10;
 #ifndef SALONEINSTLIB
 				} else if (strcmp(na, "1955_2") == 0) {		/* Stiles and Burch 1955 2 degree */
 					obType = icxOT_Stiles_Burch_2;
@@ -2308,8 +2312,11 @@ int main(int argc, char *argv[]) {
 				} else if (strcmp(na, "shaw") == 0) {		/* Shaw and Fairchilds 1997 2 degree */
 					obType = icxOT_Shaw_Fairchild_2;
 #endif /* !SALONEINSTLIB */
-				} else
-					usage();
+				} else {	/* Assume it's a filename */
+					obType = icxOT_custom;
+					if (read_cmf(custObserver, na) != 0)
+						usage();
+				}
 			}
 
 			/* Scan tolerance ratio */
@@ -2992,7 +2999,7 @@ int main(int argc, char *argv[]) {
 	if (read_strips(itype, scols, &atype, npat, totpa, stipa, pis, paix,
 	                saix, ixord, rstart, rand, hex, ipath, fc, plen, glen, tlen,
 	                trans, emis, displ, dtype, fe, scalstd, &ucalstd, nocal, disbidi, highres,
-		            ccxxname, obType,
+		            ccxxname, obType, custObserver,
 	                scan_tol, pbypatch, xtern, spectral, uvmode, accurate_expd,
 	                emit_warnings, doplot, g_log) == 0) {
 		/* And save the result */
@@ -3008,6 +3015,13 @@ int main(int argc, char *argv[]) {
 		/* X-Rite calibration standard (If reflective mode) */
 		if (displ == 0 && trans == 0 && ucalstd != xcalstd_none) 
 			ocg->add_kword(ocg, 0, "DEVCALSTD",xcalstd2str(ucalstd), NULL);
+
+		if (fe == inst_opt_filter_pol)
+			ocg->add_kword(ocg, 0, "INSTRUMENT_FILTER", "POLARIZED", NULL);
+		else if (fe == inst_opt_filter_D65)
+			ocg->add_kword(ocg, 0, "INSTRUMENT_FILTER", "D65", NULL);
+		else if (fe == inst_opt_filter_UVCut)
+			ocg->add_kword(ocg, 0, "INSTRUMENT_FILTER", "UVCUT", NULL);
 
 		/* Count patches actually read */
 		for (nrpat = i = 0; i < npat; i++) {

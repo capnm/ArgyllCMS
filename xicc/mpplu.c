@@ -40,7 +40,7 @@ void usage(void) {
 	fprintf(stderr," -i illum   Choose illuminant for print/transparency spectral data:\n");
 	fprintf(stderr,"            A, C, D50 (def.), D50M2, D65, F5, F8, F10 or file.sp\n");
 	fprintf(stderr," -o observ  Choose CIE Observer for spectral data:\n");
-	fprintf(stderr,"            1931_2 (def), 1964_10, S&B 1955_2, shaw, J&V 1978_2\n");
+	fprintf(stderr,"            1931_2 (def), 1964_10, 2012_2, 2012_10, S&B 1955_2, shaw, J&V 1978_2 or file.cmf\n");
 	fprintf(stderr," -u         Use Fluorescent Whitening Agent compensation\n");
 	fprintf(stderr," -g         Create gamut output\n");
 	fprintf(stderr," -w         Create gamut %s as well\n",vrml_format());
@@ -86,7 +86,8 @@ main(int argc, char *argv[]) {
 	int fwacomp = 0;		/* FWA compensation */
 	icxIllumeType illum = icxIT_default;	/* Spectral defaults */
 	xspect cust_illum;		/* Custom illumination spectrum */
-	icxObserverType observ = icxOT_default;
+	icxObserverType obType = icxOT_default;
+	xspect custObserver[3];	/* If obType = icxOT_custom */
 	char buf[200];
 	double in[MAX_CHAN], out[MAX_CHAN];
 	int rv = 0;
@@ -237,21 +238,30 @@ main(int argc, char *argv[]) {
 				if (na == NULL) usage();
 				if (strcmp(na, "1931_2") == 0) {			/* Classic 2 degree */
 					spec = 1;
-					observ = icxOT_CIE_1931_2;
+					obType = icxOT_CIE_1931_2;
 				} else if (strcmp(na, "1964_10") == 0) {	/* Classic 10 degree */
 					spec = 1;
-					observ = icxOT_CIE_1964_10;
+					obType = icxOT_CIE_1964_10;
+				} else if (strcmp(na, "2012_2") == 0) {		/* Latest 2 degree */
+					spec = 1;
+					obType = icxOT_CIE_2012_2;
+				} else if (strcmp(na, "2012_10") == 0) {	/* Latest 10 degree */
+					spec = 1;
+					obType = icxOT_CIE_2012_10;
 				} else if (strcmp(na, "1955_2") == 0) {		/* Stiles and Burch 1955 2 degree */
 					spec = 1;
-					observ = icxOT_Stiles_Burch_2;
+					obType = icxOT_Stiles_Burch_2;
 				} else if (strcmp(na, "1978_2") == 0) {		/* Judd and Voss 1978 2 degree */
 					spec = 1;
-					observ = icxOT_Judd_Voss_2;
+					obType = icxOT_Judd_Voss_2;
 				} else if (strcmp(na, "shaw") == 0) {		/* Shaw and Fairchilds 1997 2 degree */
 					spec = 1;
-					observ = icxOT_Shaw_Fairchild_2;
-				} else
-					usage();
+					obType = icxOT_Shaw_Fairchild_2;
+				} else {	/* Assume it's a filename */
+					obType = icxOT_custom;
+					if (read_cmf(custObserver, na) != 0)
+						usage();
+				}
 			}
 
 			/* Fluerescent Whitner compensation */
@@ -330,7 +340,7 @@ main(int argc, char *argv[]) {
 	}
 
 	/* Select CIE return value details */
-	if ((rv = mppo->set_ilob(mppo, illum, &cust_illum, observ, NULL, pcss, fwacomp)) != 0) {
+	if ((rv = mppo->set_ilob(mppo, illum, &cust_illum, obType, custObserver, pcss, fwacomp)) != 0) {
 		if (rv == 1)
 			error("Spectral profile needed for custom illuminant, observer or FWA");
 		error("Error setting illuminant, observer, or FWA");

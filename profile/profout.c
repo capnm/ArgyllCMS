@@ -684,7 +684,8 @@ make_output_icc(
 	icxIllumeType illum,	/* CIE calc. illuminant spectrum, and FWA inst. */
 							/* illuminant if tillum not set. */
 	xspect *cust_illum,		/* Custom CIE illumination spectrum if illum == icxIT_custom */
-	icxObserverType observ,	/* CIE calc. observer */
+	icxObserverType obType,	/* CIE calc. observer */
+	xspect custObserver[3],	/* If obType = icxOT_custom */
 	int fwacomp,			/* FWA compensation requested */
 	double smooth,			/* RSPL smoothing factor, -ve if raw */
 	double avgdev,			/* reading Average Deviation as a proportion of the input range */
@@ -1711,7 +1712,6 @@ make_output_icc(
 				if (isdisp) {
 					if (isLab) {
 						icmLab2XYZ(&icmD50, tpat[i].v, tpat[i].v);
-						isLab = 0;
 					} else if (isdnormed) {
 						tpat[i].v[0] /= 100.0;		/* Normalise XYZ to range 0.0 - 1.0 */
 						tpat[i].v[1] /= 100.0;
@@ -1737,6 +1737,8 @@ make_output_icc(
 					}
 				}
 			}
+			if (isdisp)		/* Converted to XYZ for display */
+				isLab = 0;
 
 		} else { 		/* Using spectral data */
 			int ii;
@@ -1790,13 +1792,13 @@ make_output_icc(
 			if (!isdisp && illum != icxIT_D50) {
 				ill_wp = _ill_wp;
 	
-				/* Compute XYZ of illuminant */
-				if (icx_ill_sp2XYZ(ill_wp, observ, NULL, illum, 0.0, cust_illum) != 0) 
+				/* Compute normalised XYZ of illuminant */
+				if (icx_ill_sp2XYZ(ill_wp, obType, custObserver, illum, 0.0, cust_illum, 0) != 0) 
 					error("icx_ill_sp2XYZ returned error");
 			}
 
 			/* Create a spectral conversion object */
-			if ((sp2cie = new_xsp2cie(illum, cust_illum, observ, NULL,
+			if ((sp2cie = new_xsp2cie(illum, cust_illum, obType, custObserver,
 			                          wantLab ? icSigLabData : icSigXYZData, icxClamp)) == NULL)
 				error("Creation of spectral conversion object failed");
 
@@ -2019,7 +2021,7 @@ make_output_icc(
 
 #ifdef IGNORE_DISP_ZEROS
 	/* If a display has a very good black, and the instrument is not sensitive */
-	/* enough to properly measur the near black values and returns 0.0, */
+	/* enough to properly measure the near black values and returns 0.0, */
 	/* then the resulting profile will tend to incorrectly boost the */
 	/* dark shadows. A heuristic to counteract this problem is to */
 	/* ignore any readings that have any value <= 0.0 except */
@@ -2204,7 +2206,7 @@ make_output_icc(
 				if (v->Yg >= 0.0)
 					vc->Yg = v->Yg;
 				if (v->Gxyz[0] >= 0.0 && v->Gxyz[1] > 0.0 && v->Gxyz[2] >= 0.0) {
-					/* Normalise XYZ to current media white */
+					/* Normalise XYZ */
 					vc->Gxyz[0] = v->Gxyz[0]/v->Gxyz[1] * vc->Gxyz[1];
 					vc->Gxyz[2] = v->Gxyz[2]/v->Gxyz[1] * vc->Gxyz[1];
 				}
@@ -2218,6 +2220,21 @@ make_output_icc(
 				}
 				if (v->hkscale >= 0.0)
 					vc->hkscale = v->hkscale;
+				if (v->mtaf >= 0.0)
+					vc->mtaf = v->mtaf;
+				if (v->Wxyz2[0] >= 0.0 && v->Wxyz2[1] > 0.0 && v->Wxyz2[2] >= 0.0) {
+					/* Normalise XYZ */
+					vc->Wxyz2[0] = v->Wxyz2[0]/v->Wxyz2[1] * vc->Wxyz2[1];
+					vc->Wxyz2[2] = v->Wxyz2[2]/v->Wxyz2[1] * vc->Wxyz2[1];
+				}
+				if (v->Wxyz2[0] >= 0.0 && v->Wxyz2[1] >= 0.0 && v->Wxyz2[2] < 0.0) {
+					/* Convert Yxy to XYZ */
+					double x = v->Wxyz2[0];
+					double y = v->Wxyz2[1];	/* If Y == 1.0, then X+Y+Z = 1/y */
+					double z = 1.0 - x - y;
+					vc->Wxyz2[0] = x/y * vc->Wxyz2[1];
+					vc->Wxyz2[2] = z/y * vc->Wxyz2[1];
+				}
 			}
 
 			/* Get a suitable forward conversion object to invert. */
@@ -2540,7 +2557,8 @@ make_output_icc(
 								cx.icam = new_icxcam(cam_default);
 								cx.icam->set_view(cx.icam, ivc.Ev, ivc.Wxyz, ivc.La, ivc.Yb, ivc.Lv,
 								                           ivc.Yf, ivc.Yg, ivc.Gxyz,
-								                           XICC_USE_HK, ivc.hkscale);
+								                           XICC_USE_HK, ivc.hkscale,
+								                           ivc.mtaf, ivc.Wxyz2);
 							}
 
 							/* Create a dumy source gamut, used by new_gammap to create */

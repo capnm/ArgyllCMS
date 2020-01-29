@@ -62,7 +62,8 @@ void make_output_icc(
 	icxIllumeType illum,	/* CIE calc. illuminant spectrum, and FWA inst. */
 							/* illuminant if tillum not set. */
 	xspect *cust_illum,		/* Custom CIE illumination spectrum if illum == icxIT_custom */
-	icxObserverType observ,	/* CIE calc. observer */
+	icxObserverType obType,	/* CIE calc. observer */
+	xspect custObserver[3],	/* If obType = icxOT_custom */
 	int fwacomp,			/* FWA compensation requested */
 	double smooth,			/* RSPL smoothing factor, -ve if raw */
 	double avgdev,			/* reading Average Deviation as a proportion of the input range */
@@ -108,7 +109,8 @@ void make_input_icc(
 	int spec,				/* Use spectral data flag */
 	icxIllumeType illum,	/* Spectral illuminant */
 	xspect *cust_illum,		/* Possible custom illumination */
-	icxObserverType observ,	/* Spectral observer */
+	icxObserverType obType,	/* Spectral observer */
+	xspect custObserver[3],	/* If obType = icxOT_custom */
 	double smooth,			/* RSPL smoothing factor, -ve if raw */
 	double avgdev,			/* reading Average Deviation as a proportion of the input range */
 	profxinf *xpi			/* Optional Profile creation extra data */

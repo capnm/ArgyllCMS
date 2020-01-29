@@ -42,18 +42,34 @@
 
 #undef SLOPE_SANITY_CHECK		/* exermental */
 #undef ABSTOL					/* Make tollerance absolute */
-#undef DEBUG					/* Some debugging printfs (not comprehensive) */
+								/* Some debugging printfs (not comprehensive): */
+#undef PDEBUG					/* Powell debug */
+#undef CDEBUG					/* Conjgrad debug */
+#undef LDEBUG					/* Line min debug */
 
-#ifdef DEBUG
-#undef DBG
-#define DBG(xxx) printf xxx ;
+#if defined(PDEBUG)
+# undef PDBG
+# define PDBG(xxx) printf xxx ;
 #else
-#undef DBG
-#define DBG(xxx) 
+# undef PDBG
+# define PDBG(xxx) 
 #endif
 
-static double linmin(double p[], double xi[], int n, double ftol,
-	double (*func)(void *fdata, double tp[]), void *fdata);
+#if defined(CDEBUG)
+# undef CDBG
+# define CDBG(xxx) printf xxx ;
+#else
+# undef CDBG
+# define CDBG(xxx) 
+#endif
+
+#if defined(LDEBUG)
+# undef LDBG
+# define LDBG(xxx) printf xxx ;
+#else
+# undef LDBG
+# define LDBG(xxx) 
+#endif
 
 /* Standard interface for powell function */
 /* return 0 on sucess, 1 on failure due to excessive itterions */
@@ -120,7 +136,7 @@ void *pdata				/* Opaque data needed by prog() */
 		/* Loop over all directions in the set */
 		for (i = 0; i < di; i++) {
 
-			DBG(("Looping over direction %d\n",i))
+			PDBG(("Looping over direction %d\n",i))
 
 			for (j = 0; j < di; j++)	/* Extract this direction to make search vector */
 				svec[j] = dmtx[j][i];
@@ -161,10 +177,10 @@ void *pdata				/* Opaque data needed by prog() */
 		/* reached a suitable tollerance, then finish */
 		if (iter > 1 && curdel <= stopth) {
 //printf("~1 ### stopping on itter %d because curdel %f <= stopth %f\n",iter, curdel,stopth);
-			DBG(("Reached stop tollerance because curdel %f <= stopth %f\n",curdel,stopth))
+			PDBG(("Reached stop tollerance because curdel %f <= stopth %f\n",curdel,stopth))
 			break;
 		}
-		DBG(("Not stopping because curdel %f > stopth %f\n",curdel,stopth))
+		PDBG(("Not stopping because curdel %f > stopth %f\n",curdel,stopth))
 
 //printf("~1 ### recomputing direction\n");
 		for (i = 0; i < di; i++) {
@@ -212,7 +228,7 @@ void *pdata				/* Opaque data needed by prog() */
 	if (iter < maxit)
 		return 0;
 
-	DBG(("powell: returning 1 due to excessive itterations\n"))
+	PDBG(("powell: returning 1 due to excessive itterations\n"))
 	return 1;		/* Failed due to execessive itterations */
 }
 
@@ -225,7 +241,7 @@ void *pdata				/* Opaque data needed by prog() */
 int conjgrad(
 double *rv,				/* If not NULL, return the residual error */
 int di,					/* Dimentionality */
-double cp[],			/* Initial starting point */
+double cp[],			/* Initial starting point and return value */
 double s[],				/* Size of initial search area */
 #ifdef ABSTOL
 double ftol,			/* Absolute tollerance of error change to stop on */
@@ -257,7 +273,7 @@ void *pdata				/* Opaque data needed by prog() */
 	if (prog != NULL)		/* Report initial progress */
 		prog(pdata, pc);
 
-	/* Initial function evaluation */
+	/* Initial gradient function evaluation */
 	retv = (*dfunc)(fdata, svec, cp);
 
 	/* svec[] seems to be large after this. */
@@ -272,21 +288,22 @@ void *pdata				/* Opaque data needed by prog() */
 	else
 		svec_sca = 1.0/svec_sca;
 
-//printf("~1 ### initial dir = %f %f\n", svec[0],svec[1]);
-//printf("~1 ### initial retv = %f\n",retv);
+	CDBG((" initial dir = %s\n", debPdv(di,svec)));
+	CDBG((" initial retv = %f\n",retv));
+
 	/* Initial vector setup */
 	for (i = 0; i < di; i++) {
 		gvec[i] = hvec[i] = -svec[i];			/* Inverse gradient */
 		svec[i] = s[i] * -svec[i] * svec_sca;	/* Scale the search vector */
 	}
-//printf("~1 ### svec = %f %f\n", svec[0],svec[1]);
+	CDBG(("Initial svec = %s\n", debPdv(di,svec)));
 
 	/* Itterate untill we converge on a solution, or give up. */
 	for (iter = 1; iter < maxit; iter++) {
 		double gamden, gamnum, gam;
 		double pretv;			/* Previous function return value */
 
-		DBG(("conjrad: about to do linmin\n"))
+		CDBG(("conjrad: about to do linmin\n"))
 		pretv = retv;
 		retv = linmin(cp, svec, di, ftol, func, fdata);
 
@@ -296,7 +313,7 @@ void *pdata				/* Opaque data needed by prog() */
 		stopth = ftol * 0.5 * (fabs(pretv) + fabs(retv) + DBL_EPSILON);		// Old code
 #endif
 		curdel = fabs(pretv - retv);
-//printf("~1 ### this retv = %f, pretv = %f, curdel = %f\n",retv,pretv,curdel);
+		CDBG((" this retv = %f, pretv = %f, curdel = %f\n",retv,pretv,curdel));
 		if (startdel < 0.0) {
 			startdel = curdel;
 		} else {
@@ -312,31 +329,30 @@ void *pdata				/* Opaque data needed by prog() */
 		/* If we have had at least one change of direction and */
 		/* reached a suitable tollerance, then finish */
 		if (iter > 1 && curdel <= stopth) {
-//printf("~1 ### stopping on itter %d because curdel %f <= stopth %f\n",iter, curdel,stopth);
+			CDBG((" stopping on itter %d because curdel %f <= stopth %f\n",iter, curdel,stopth));
 			break;
 		}
-//printf("~1 ### Not stopping on itter %d because curdel %f > stopth %f\n",iter, curdel,stopth);
+		CDBG((" not stopping on itter %d because curdel %f > stopth %f\n",iter, curdel,stopth));
 
-		DBG(("conjrad: recomputing direction\n"))
-//printf("~1 ### recomputing direction\n");
+		CDBG(("conjrad: recomputing direction\n"))
 		(*dfunc)(fdata, svec, cp);		/* (Don't use retv as it wrecks stop test) */
+		CDBG((" pderiv = %s\n", debPdv(di,svec)));
 
-//printf("~1 ### pderiv = %f %f\n", svec[0],svec[1]);
 		/* Compute gamma */
 		for (gamnum = gamden = 0.0, i = 0; i < di; i++) {
 			gamnum += svec[i] * (gvec[i] + svec[i]);
 			gamden += gvec[i] * gvec[i];
 		}
 
-//printf("~1 ### gamnum = %f, gamden = %f\n", gamnum,gamden);
+		CDBG((" gamnum = %f, gamden = %f\n", gamnum,gamden));
 		if (gamden == 0.0) {		/* Gradient is exactly zero */
-			DBG(("conjrad: gradient is exactly zero\n"))
+			CDBG(("conjrad: gradient is exactly zero\n"))
 			break;
 		}
 
 		gam = gamnum/gamden;
-		DBG(("conjrad: gamma = %f = %f/%f\n",gam,gamnum,gamden))
-//printf("~1 ### gvec[] = %f %f, gamma = %f, hvec = %f %f\n", gvec[0],gvec[1],gam,hvec[0],hvec[1]);
+		CDBG(("conjrad: gamma = %f = %f/%f\n",gam,gamnum,gamden));
+		CDBG((" gvec[] = %s, hvec = %s\n", debPdv(di,gvec),debPdv(di,hvec)));
 
 		/* Adjust seach direction */
 		for (i = 0; i < di; i++) {
@@ -357,8 +373,7 @@ void *pdata				/* Opaque data needed by prog() */
 			svec_sca = 1.0/svec_sca;
 		for (i = 0; i < di; i++)
 			svec[i] = svec[i] * s[i] * svec_sca;
-//printf("~1 ### svec = %f %f\n", svec[0],svec[1]);
-
+		CDBG((" svec = %s\n", debPdv(di,svec)));
 	}
 	/* Free up all the temporary vectors and matrix */
 	free_dvector(hvec,0,di-1);
@@ -371,7 +386,7 @@ void *pdata				/* Opaque data needed by prog() */
 	if (rv != NULL)
 		*rv = retv;
 
-//printf("~1 ### done\n");
+	CDBG((" conjgrad returning = %f\n", retv));
 
 	if (iter < maxit)
 		return 0;
@@ -386,7 +401,7 @@ void *pdata				/* Opaque data needed by prog() */
 
 /* Line bracketing and minimisation routine. */
 /* Return value at minimum. */
-static double linmin(
+double linmin(
 double cp[],		/* Start point, and returned value */
 double xi[],		/* Search vector */
 int di,				/* Dimensionality */
@@ -411,7 +426,7 @@ void *fdata)		/* Opaque data for func() */
 	/* -------------------------- */
 	/* First bracket the solution */
 
-	DBG(("linmin: Bracketing solution\n"))
+	LDBG(("linmin: Bracketing solution\n"))
 
 	/* The line is measured as startpoint + offset * search vector. */
 	/* (Search isn't symetric, but it seems to depend on cp being */
@@ -427,7 +442,7 @@ void *fdata)		/* Opaque data for func() */
 		xt[i] = cp[i] + xx * xi[i];
 	xf = (*func)(fdata, xt);
 
-	DBG(("linmin: Initial points a:%f:%f -> b:%f:%f\n",ax,af,xx,xf))
+	LDBG(("linmin: Initial points a:%f:%f -> b:%f:%f\n",ax,af,xx,xf))
 
 	/* Fix it so that we are decreasing from point a -> x */
 	if (xf > af) {
@@ -435,21 +450,21 @@ void *fdata)		/* Opaque data for func() */
 		tt = ax; ax = xx; xx = tt;
 		tt = af; af = xf; xf = tt;
 	}
-	DBG(("linmin: Ordered Initial points a:%f:%f -> b:%f:%f\n",ax,af,xx,xf))
+	LDBG(("linmin: Ordered Initial points a:%f:%f -> b:%f:%f\n",ax,af,xx,xf))
 
 	bx = xx + POWELL_GOLD * (xx-ax);	/* Guess b beyond a -> x */
 	for (i = 0; i < di; i++)
 		xt[i] = cp[i] + bx * xi[i];
 	bf = (*func)(fdata, xt);
 
-	DBG(("linmin: Initial bracket a:%f:%f x:%f:%f b:%f:%f\n",ax,af,xx,xf,bx,bf))
+	LDBG(("linmin: Initial bracket a:%f:%f x:%f:%f b:%f:%f\n",ax,af,xx,xf,bx,bf))
 
 #ifdef SLOPE_SANITY_CHECK
 	/* If we're not seeing a slope indicitive of progress */
 	/* of order ftol, give up straight away */
 	if (2000.0 * fabs(xf - bf) <= ftol * (fabs(xf) + fabs(bf))
 	 && 2000.0 * fabs(af - xf) <= ftol * (fabs(af) + fabs(xf))) {
-		DBG(("linmin: giving up because slope is too shallow\n"))
+		LDBG(("linmin: giving up because slope is too shallow\n"))
 		if (xt != XT)
 			free_dvector(xt,0,di-1);
 
@@ -470,9 +485,9 @@ void *fdata)		/* Opaque data for func() */
 		double ulim, ux, uf;
 		double tt, r, q;
 
-//		DBG(("linmin: Not bracketed a:%f:%f x:%f%f b:%f:%f\n",ax,af,xx,xf,bx,bf))
-		DBG(("linmin: Not bracketed because xf %f > bf %f\n",xf, bf))
-		DBG(("        ax = %f, xx = %f, bx = %f\n",ax,xx,bx))
+//		LDBG(("linmin: Not bracketed a:%f:%f x:%f%f b:%f:%f\n",ax,af,xx,xf,bx,bf))
+		LDBG(("linmin: Not bracketed because xf %f > bf %f\n",xf, bf))
+		LDBG(("        ax = %f, xx = %f, bx = %f\n",ax,xx,bx))
 
 		/* Compute ux by parabolic interpolation from a, x & b */
 		q = (xx - bx) * (xf - af);
@@ -544,7 +559,7 @@ void *fdata)		/* Opaque data for func() */
 		bx = ux; bf = uf;
 //printf("~1 move along to the right (a<-x, x<-b, b-<u)\n");
 	}
-	DBG(("linmin: Got bracket a:%f:%f x:%f:%f b:%f:%f\n",ax,af,xx,xf,bx,bf))
+	LDBG(("linmin: Got bracket a:%f:%f x:%f:%f b:%f:%f\n",ax,af,xx,xf,bx,bf))
 	/* Got bracketed minimum between a -> x -> b */
 //printf("~1 got bracketed minimum at %f (%f), %f (%f), %f (%f)\n",ax,af,xx,xf,bx,bf);
 
@@ -581,12 +596,12 @@ void *fdata)		/* Opaque data for func() */
 #endif
 			double tol2 = 2.0 * tol1;
 
-			DBG(("linmin: Got bracket a:%f:%f x:%f:%f b:%f:%f\n",ax,af,xx,xf,bx,bf))
+			LDBG(("linmin: Got bracket a:%f:%f x:%f:%f b:%f:%f\n",ax,af,xx,xf,bx,bf))
 
 			/* See if we're done */
 //printf("~1 linmin check %f <= %f\n",fabs(xx - mx), tol2 - 0.5 * (bx - ax));
 			if (fabs(xx - mx) <= (tol2 - 0.5 * (bx - ax))) {
-				DBG(("linmin: We're done because %f <= %f\n",fabs(xx - mx), tol2 - 0.5 * (bx - ax)))
+				LDBG(("linmin: We're done because %f <= %f\n",fabs(xx - mx), tol2 - 0.5 * (bx - ax)))
 				break;
 			}
 
@@ -603,13 +618,13 @@ void *fdata)		/* Opaque data for func() */
 				te = e;				/* Save previous e value */
 				e = de;				/* Previous steps distance moved */
 
-				DBG(("linmin: Trial parabolic fit\n" ))
+				LDBG(("linmin: Trial parabolic fit\n" ))
 
 				if (fabs(p) >= fabs(0.5 * q * te) || p <= q * (ax-xx) || p >= q * (bx-xx)) {
 					/* Give up on the parabolic fit, and use the golden section search */
 					e = ((xx >= mx) ? ax-xx : bx-xx);	/* Override previous distance moved */
 					de = POWELL_CGOLD * e;
-					DBG(("linmin: Moving to golden section search\n" ))
+					LDBG(("linmin: Moving to golden section search\n" ))
 				} else {	/* Use parabolic fit */
 					de = p/q;			/* Change in xb */
 					ux = xx + de;		/* Trial point according to parabolic fit */
@@ -619,24 +634,24 @@ void *fdata)		/* Opaque data for func() */
 						else
 							de = -tol1;
 					}
-					DBG(("linmin: Using parabolic fit\n" ))
+					LDBG(("linmin: Using parabolic fit\n" ))
 				}
 			} else {	/* Keep using the golden section search */
 				e = ((xx >= mx) ? ax-xx : bx-xx);	/* Override previous distance moved */
 				de = POWELL_CGOLD * e;
-				DBG(("linmin: Continuing golden section search\n" ))
+				LDBG(("linmin: Continuing golden section search\n" ))
 			}
 
 			if (fabs(de) >= tol1) {		/* If de moves as much as tol1 would */
 				ux = xx + de;			/* use it */
-				DBG(("linmin: ux = %f = xx %f + de %f\n",ux,xx,de))
+				LDBG(("linmin: ux = %f = xx %f + de %f\n",ux,xx,de))
 			} else {					/* else move by tol1 in direction de */
 				if (de > 0.0) {
 					ux = xx + tol1;
-					DBG(("linmin: ux = %f = xx %f + tol1 %f\n",ux,xx,tol1))
+					LDBG(("linmin: ux = %f = xx %f + tol1 %f\n",ux,xx,tol1))
 				} else {
 					ux = xx - tol1;
-					DBG(("linmin: ux = %f = xx %f - tol1 %f\n",ux,xx,tol1))
+					LDBG(("linmin: ux = %f = xx %f - tol1 %f\n",ux,xx,tol1))
 				}
 			}
 
@@ -646,6 +661,7 @@ void *fdata)		/* Opaque data for func() */
 			uf = (*func)(fdata, xt);
 
 			if (uf <= xf) {					/* Found new best solution */
+				LDBG(("linmin: found new best solution at %f val %f\n",ux,uf))
 				if (ux >= xx) {	
 					ax = xx; af = xf;		/* New lower bracket */
 				} else {
@@ -654,8 +670,9 @@ void *fdata)		/* Opaque data for func() */
 				vx = wx; vf = wf;			/* New previous 2nd best solution */
 				wx = xx; wf = xf;			/* New 2nd best solution from previous best */
 				xx = ux; xf = uf;			/* New best solution from latest */
-				DBG(("linmin: found new best solution\n"))
 			} else {						/* Found a worse solution */
+				LDBG(("linmin: found new worse solution at %f val %f\n",ux,uf))
+				LDBG(("linmin:             current best at %f val %f\n",xx,xf))
 				if (ux < xx) {
 					ax = ux; af = uf;		/* New lower bracket */
 				} else {
@@ -667,13 +684,13 @@ void *fdata)		/* Opaque data for func() */
 				} else if (uf <= vf || vx == xx || vx == wx) {	/* New 3rd best, or equal 1st & 2nd */
 					vx = ux; vf = uf;		/* New previous 2nd best from latest */
 				}
-				DBG(("linmin: found new worse solution\n"))
 			}
 		}
 		/* !!! should do something if iter > POWELL_MAXIT !!!! */
 		/* Solution is at xx, xf */
 
 		/* Compute solution vector */
+		LDBG(("linmin: computing soln from best at %f val %f\n",xx,xf))
 		for (i = 0; i < di; i++) 
 			cp[i] += xx * xi[i];
 	}

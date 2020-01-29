@@ -59,6 +59,8 @@
 
 
 
+
+
     "<span style="font-weight: bold;">DISPLAY</span>",&nbsp; <span
       style="font-weight: bold;">"INPUT"</span> or <span
       style="font-weight: bold;">"EMISINPUT"</span>.<br>
@@ -87,6 +89,8 @@
     have a <span style="font-weight: bold;">LUMINANCE_XYZ_CDM2</span>
     keyword that contains the absolute XYZ value of white in candelas
     per meter squared, e.g. <span style="font-weight: bold;">"112.334770
+
+
 
 
 
@@ -154,7 +158,15 @@
     keyword that must have a value of "<span style="font-weight: bold;">NO</span>"
     or "<span style="font-weight: bold;">YES</span>", to indicate
     whether the instrument was used in a display refresh mode during
-    measurement. <br>
+    measurement.<br>
+    <br>
+    There may be a <b>DEVCALSTD</b> keyword that must have a value of <b>"XRDI"</b>
+    or <b>"GMDI"</b> or <b>"XRGA"</b>, to indicate which X-Rite
+    calibration standard the data has been measured.<br>
+    <br>
+    There may be a <b>INSTRUMENT_FILTER</b> keyword that must have a
+    value of <b>"POLARIZED"</b> or <b>"D65"</b> or <b>"UVCUT"</b> to
+    indicate whay if any filter was present during measurement.<br>
     <br>
     There may be keywords with associated values <span
       style="font-weight: bold;">SINGLE_DIM_STEPS</span>, <span
@@ -184,8 +196,12 @@ Cyan
 
 
 
+
+
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -201,9 +217,13 @@ Cyan
 
 
 
+
+
     Y<br>
     &nbsp;&nbsp;&nbsp; Black &nbsp;&nbsp;
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -217,9 +237,13 @@ Cyan
 
 
 
+
+
     O<br>
     &nbsp;&nbsp;&nbsp; Red
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -233,9 +257,13 @@ Cyan
 
 
 
+
+
     G<br>
     &nbsp;&nbsp;&nbsp; Blue &nbsp;&nbsp; &nbsp;&nbsp;
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -252,9 +280,13 @@ Cyan
 
 
 
+
+
     c<br>
     &nbsp;&nbsp;&nbsp; Light
     Magenta&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -268,9 +300,13 @@ Cyan
 
 
 
+
+
     y<br>
     &nbsp;&nbsp;&nbsp; Light
     Black&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 

@@ -51,6 +51,7 @@
 #include "numsup.h"
 #endif /* SALONEINSTLIB */
 #include "xdg_bds.h"
+#include "cgats.h"
 #include "xspect.h"
 #include "conv.h"
 #include "aglob.h"

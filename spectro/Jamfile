@@ -11,6 +11,11 @@ if $(OS) = MACOSX {
 	ObjectCcFlags dispwin_dispwin : -ObjC ;
 }
 
+if $(USE_CMFM) = true {
+	echo "CMF Measurement device support is enabled" ;
+	DEFINES += ENABLE_CMFM ;
+}
+
 if [ GLOB [ NormPaths . ] : fastserio.c ]  {
 #	echo "!!!!!!!!! fastserio.c is enabled !!!!!!!!!" ;
 #	DEFINES += ENABLE_FTDI ;
@@ -127,6 +132,24 @@ if $(USE_DEMOINST) = true && [ GLOB [ NormPaths . ] : demoinst.c ] {
 	INST_SRCS += demoinst.c ;
 }
 
+if $(USE_VTPGLUT) = true && [ GLOB [ NormPaths . ] : vtpglut.c ] {
+	echo "Compiling Video Test Pattern Generator and 3DLUT support" ;
+	DEFINES += ENABLE_VTPGLUT ;
+	INST_SRCS += vtpglut.c ;
+}
+
+if $(USE_PRINTERS) = true && [ GLOB [ NormPaths . ] : printers.c ] {
+	echo "Compiling Printer support" ;
+	DEFINES += ENABLE_DEMOINST ;
+	INST_SRCS += printers.c ;
+}
+
+if $(USE_CMFM) = true && [ GLOB [ NormPaths . ] : colvis.c ] {
+	echo "Compiling ColVis support" ;
+	DEFINES += ENABLE_CMFM ;
+	INST_SRCS += colvis.c ;
+}
+
 Library libinst : inst.c insttypes.c icoms.c disptechs.c rspec.c xrga.c $(INST_SRCS) ;
 
 # Display access library 
@@ -138,7 +161,8 @@ Library libdisp : dispsup.c dispwin.c webwin.c ccwin.c
 # applications need to know about different instrument or display types, but not access them. */
 # (Note we're working around a bug in Jam caused by objects shared between libraries)
 Object insttypes2 : insttypes.c ;
-LibraryFromObjects libinsttypes : insttypes2 ;
+Object xrga2 : xrga.c ;
+LibraryFromObjects libinsttypes : insttypes2 xrga2 ;
 
 Object disptechs2 : disptechs.c ;
 LibraryFromObjects libdisptechs : disptechs2 ;
@@ -171,6 +195,8 @@ if $(LIBUSB_IS_DLL) = true {
 	LINKLIBS += $(LIBUSBDIR)/$(LIBUSB) ;
 }
 
+LINKFLAGS += $(GUILINKFLAGS) ;
+
 # General target reader program
 Main chartread : chartread.c ../target/alphix.c : : : ../target : : ;
 
@@ -180,10 +206,8 @@ Main illumread : illumread.c : : : ../target : : ;
 # Printed target spot reader utility
 Main spotread : spotread.c : : : : : ;
 
-# Test code
-if $(HOME) = "d:\\usr\\graeme" && $(PWD) = "/src/argyll/spectro" {
-	Main setoem : setoem.c : : : : : ../numlib/libui ;
-}
+echo "HOME = " $(HOME) ;
+echo "PWD = " $(PWD) ;
 
 # CCMX and CCSStool
 Main ccxxmake : ccxxmake.c : : : : : libdisp ;

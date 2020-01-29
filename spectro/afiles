@@ -111,6 +111,9 @@ usbio_lx.c
 usbio_bsd.c
 hidio.h
 hidio.c
+vtpglut.h
+vtpglut.c
+vtpgluttypes.h
 pollem.h
 pollem.c
 dispwin.c

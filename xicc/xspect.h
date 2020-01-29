@@ -71,6 +71,13 @@ typedef struct {
 
 /* Some helpful macro's: */
 
+/* Set the spectrums parameters */
+#define XSPECT_SET_INFO(PDST, N, SHORT, LONG, NORM) \
+ (PDST)->spec_n = (N),								\
+ (PDST)->spec_wl_short = (SHORT),					\
+ (PDST)->spec_wl_long = (LONG),						\
+ (PDST)->norm = (NORM)
+
 /* Copy everything except the spectral values */
 #define XSPECT_COPY_INFO(PDST, PSRC) 						\
  (PDST)->spec_n = (PSRC)->spec_n,							\
@@ -102,13 +109,32 @@ typedef struct {
 #define XSPECT_XIX(PXSP, WL) \
 ((int)floor(XSPECT_XDIX(PXSP, WL) + 0.5))
 
+/* Given the address of an xspect, compute the wavelegth interval */
+#define XSPECT_WLI(PXSP) \
+((((PXSP)->spec_wl_long) - ((PXSP)->spec_wl_short))/(((PXSP)->spec_n)-1.0))
+
 #ifndef SALONEINSTLIB
 
 /* Single spectrum utility functions. Return NZ if error */
 int write_xspect(char *fname, inst_meas_type mt, xspect *s);
 int read_xspect(xspect *sp, inst_meas_type *mt, char *fname);
 
+/* Two step write & read spectrum, to be able to write & read extra kewords values */
+
+/* Prepare to write spectrum, and return cgats */
+int write_xspect_1(cgats **ocgp, inst_meas_type mt, xspect *s);
+
+/* Complete writing spectrum */
+int write_xspect_2(cgats *ocg, char *fname);
+
+/* Read spectrum and return cgats as well */
+int read_xspect_1(cgats **picg, xspect *sp, inst_meas_type *mt, char *fname);
+
+/* Complete reading spectrum */
+int read_xspect_2(cgats *icg);
+
 /* CMF utility functions. Return NZ if error */
+/* (See cmf/pcmf.h for write/read pcmf) */
 int write_cmf(char *fname, xspect cmf[3]);
 int read_cmf(xspect cmf[3], char *fname);
 
@@ -121,6 +147,13 @@ int write_nxspect(char *fname, inst_meas_type mt, xspect *sp, int nspec, int typ
 int read_nxspect(xspect *sp, inst_meas_type *mt,
 	             char *fname, int *nret, int off, int nspec, int type);
 
+/* Two step write & read n spectrum, to be able to write & read extra kewords values */
+int write_nxspect_1(cgats **pocg, inst_meas_type mt, xspect *sp, int nspec, int type);
+int write_nxspect_2(cgats *ocg, char *fname);
+int read_nxspect_1(cgats **picg, xspect *sp, inst_meas_type *mt, char *fname,
+                 int *nret, int off, int nspec, int type);
+int read_nxspect_2(cgats *icg);
+
 #endif /* !SALONEINSTLIB*/
 
 /* Get interpolated value at wavelenth (not normalised) */
@@ -129,9 +162,15 @@ double value_xspect(xspect *sp, double wl);
 /* De-normalize and set normalisation factor to 1.0 */
 void xspect_denorm(xspect *sp);
 
+/* Scale the spectral values (don't alter norm) */
+void xspect_scale(xspect *sp, double scale);
+
 #ifndef SALONEINSTLIB
 /* Convert from one xspect type to another */
 void xspect2xspect(xspect *dst, xspect *targ, xspect *src);
+
+/* Dump a spectra to stdout */
+void xspect_dump(xspect *sp);
 
 /* Plot up to 3 spectra */
 void xspect_plot_w(xspect *sp1, xspect *sp2, xspect *sp3, int wait);
@@ -139,8 +178,14 @@ void xspect_plot_w(xspect *sp1, xspect *sp2, xspect *sp3, int wait);
 /* Plot up to 3 spectra & wait for key */
 void xspect_plot(xspect *sp1, xspect *sp2, xspect *sp3);
 
-/* Plot up to 10 spectra */
+/* Plot up to 10 spectra in an array */
 void xspect_plot10(xspect *sp, int n);
+
+/* Plot up to 10 spectra pointed to by an array & wait for key */
+void xspect_plot10p(xspect *sp[10], int n);
+
+/* Plot up to 10 spectra pointed to by an array */
+void xspect_plot10p_w(xspect *sp[10], int n, int wait);
 
 #endif /* !SALONEINSTLIB*/
 
@@ -194,12 +239,14 @@ typedef enum {
     icxOT_custom			= 2,	/* Custom observer type weighting */
     icxOT_CIE_1931_2		= 3,	/* Standard CIE 1931 2 degree */
     icxOT_CIE_1964_10		= 4,	/* Standard CIE 1964 10 degree */
+    icxOT_CIE_2012_2		= 5,	/* Proposed Standard CIE 2012 2 degree */
+    icxOT_CIE_2012_10		= 6,	/* Proposed Standard CIE 2012 10 degree */
 #ifndef SALONEINSTLIB
-    icxOT_Stiles_Burch_2	= 5,	/* Stiles & Burch 1955 2 degree */
-    icxOT_Judd_Voss_2		= 6,	/* Judd & Voss 1978 2 degree */
-    icxOT_CIE_1964_10c		= 7,	/* Standard CIE 1964 10 degree, 2 degree compatible */
-    icxOT_Shaw_Fairchild_2	= 8,	/* Shaw & Fairchild 1997 2 degree */
-    icxOT_EBU_2012	        = 9		/* EBU standard camera curves 2012 */
+    icxOT_Stiles_Burch_2	= 7,	/* Stiles & Burch 1955 2 degree */
+    icxOT_Judd_Voss_2		= 8,	/* Judd & Voss 1978 2 degree */
+    icxOT_CIE_1964_10c		= 9,	/* Standard CIE 1964 10 degree, 2 degree compatible */
+    icxOT_Shaw_Fairchild_2	= 10,	/* Shaw & Fairchild 1997 2 degree */
+    icxOT_EBU_2012	        = 11	/* EBU standard camera curves 2012 */
 #endif /* !SALONEINSTLIB*/
 } icxObserverType;
 
@@ -223,7 +270,7 @@ struct _xsp2cie {
 	xspect illuminant;			/* Lookup conversion/observer illuminant */
 	int isemis;					/* nz if we are doing an emission conversion */
 	xspect observer[3];
-	int doLab;					/* Return D50 Lab result */
+	int doLab;					/* 1 == Return D50 Lab result, 2 == D50 Lpt */
 	icxClamping clamp;			/* Clamp XYZ and Lab to be +ve */
 
 	/* Integration range and steps - set to observer range and 1nm by default.  */
@@ -255,6 +302,17 @@ struct _xsp2cie {
 	                      double shortwl,	/* Starting nm */
 	                      double longwl		/* Ending nm */
 	                     );
+
+	/* Convert spectrum from photometric to radiometric. */
+	/* Note that the input spectrum normalisation value is used. */
+	/* Emissive spectral values are assumed to be in mW/nm, and sampled */
+	/* rather than integrated if they are not at 1nm spacing. */
+	void (*photo2rad)(struct _xsp2cie *p, 	/* this */
+					 double *rout,		/* Return total lumens */
+					 double *pout,		/* Return total mW */
+					 xspect *sout,		/* Return input spectrum converted to lm/nm */
+					 xspect *in			/* Spectrum to be converted */
+				  	);
 
 	/* Convert (and possibly fwa correct) reflectance spectrum */
 	/* Note that the input spectrum normalisation value is used. */
@@ -344,6 +402,7 @@ xsp2cie *new_xsp2cie(
 	icxObserverType obType,			/* Observer */
 	xspect        custObserver[3],	/* Custom observer if obType == icxOT_custom */
 	icColorSpaceSignature  rcs,		/* Return color space, icSigXYZData or D50 icSigLabData */
+									/* or D50 icmSigLptData */
 									/* ** Must be icSigXYZData if SALONEINSTLIB ** */
 	icxClamping clamp				/* NZ to clamp XYZ/Lab to be +ve */
 );
@@ -445,7 +504,10 @@ icxObserverType obType,	/* Observer */
 xspect custObserver[3],	/* Optional custom observer */
 icxIllumeType ilType,	/* Type of illuminant */
 double temp,			/* Input temperature in degrees K */
-xspect *custIllum);		/* Optional custom illuminant */
+xspect *custIllum,		/* Optional custom illuminant */
+int abs					/* If nz return absolute value in cd/m^2 or Lux */
+						/* else return Y = 1 normalised value */
+);
 
 /* Given a choice of temperature dependent illuminant (icxIT_[O]Dtemp or icxIT_[O]Ptemp), */
 /* return the closest correlated color temperature to the given spectrum or XYZ. */

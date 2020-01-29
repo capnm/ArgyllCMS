@@ -30,6 +30,8 @@ Library libprof : profin.c profout.c ;
 LINKLIBS = ../rspl/librspl ../icc/libicc ../cgats/libcgats ../numlib/libnum ../plot/libplot
            ../plot/libvrml ../numlib/libui ;
 
+LINKFLAGS += $(GUILINKFLAGS) ;
+
 # Simple profile generator
 Main simpprof : simpprof.c ;
 

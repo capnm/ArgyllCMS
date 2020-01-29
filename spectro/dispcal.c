@@ -151,6 +151,8 @@
 #undef CHECK_MODEL			/* Do readings to check the accuracy of our model */
 #undef SHOW_WINDOW_ONFAKE	/* Display a test window up for a fake device */
 
+#undef DEBUG_MEAS_RES		/* Debug just VideoLUT resolution code */
+
 /* Invoke with -dfake for testing with a fake device. */
 /* Will use a fake.icm/.icc profile if present, or a built in fake */
 /* device behaviour if not. */
@@ -178,17 +180,18 @@
 #define RDAC_SMOOTH 0.3		/* RAMDAC curve fitting smoothness */
 #define MEAS_RES			/* Measure the RAMNDAC entry size */ 
 
-#ifdef DEBUG_PLOT
+#if defined(DEBUG_PLOT) || defined(DEBUG) || defined(DEBUG_MEAS_RES)
 #include "plot.h"
 #endif
 
 #if defined(DEBUG)
-
-#define DBG(xxx) fprintf xxx ;
-#define dbgo stderr
+# define DBG(xxx) fprintf xxx ;
+# define DEBUG_MEAS_RES
 #else
-#define DBG(xxx) 
+# define DBG(xxx) 
 #endif	/* DEBUG */
+
+#define dbgo stderr
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 /* Sample points used in initial device model optimisation */
@@ -1242,6 +1245,7 @@ static double comp_ct(
 	int plank,		/* NZ if Plankian locus, 0 if Daylight locus */
 	int dovct,		/* NZ if visual match, 0 if traditional correlation */
 	icxObserverType obType,		/* If not default, set a custom observer */
+	xspect custObserver[3],		/* If obType = icxOT_custom */
 	double xyz[3]	/* Color to match */
 ) {
 	double ct_xyz[3];		/* XYZ on locus */
@@ -1254,7 +1258,7 @@ static double comp_ct(
 		obType = icxOT_CIE_1931_2;
 
 	if ((ct = icx_XYZ2ill_ct(ct_xyz, plank != 0 ? icxIT_Ptemp : icxIT_Dtemp,
-	                         obType, NULL, xyz, NULL, dovct)) < 0)
+	                         obType, custObserver, xyz, NULL, dovct)) < 0)
 		error("Got bad color temperature conversion\n");
 
 	if (de != NULL) {
@@ -1317,7 +1321,7 @@ static int comp_ramdac_prec(
 		val[i] = (double)i;
 		meas[i] = ttt[i].XYZ[1];
 	}
-#ifdef DEBUG
+#ifdef DEBUG_MEAS_RES
 	fprintf(dbgo,"raw measurements:\n");
 	do_plot(val, meas, NULL, NULL, 17);
 #endif
@@ -1337,67 +1341,85 @@ static int comp_ramdac_prec(
 
 	/* Create score for each hypothesis */
 	scale = 1.0;
-	for (j = 0; j < 5; j++) {
+	for (j = 0; j < 5; j++) {		/* Res 8, 9, 10, 11, 12 bits */
 		int k;
-		int step = 1 << (4 - j);
+		int step = 1 << (4 - j);	/* Step 16, 8, 4, 2, 1 */
 		double v = 0.0;
 		double merr;
+		int off;
+		double oscore;		/* Offset score */
 
 		bits[j] = 8.0 + j;
+		score[j] = 1e38;
 
-		/* Create the target response */
-		for (i = 0; i < 17;) {
-			for (k = 0; k < step && (i+k) < 17; k++) {
-				targ[i + k] = v; 
+		/* Try possible offsets */
+		for (off = 0; off < step; off++) {
+			int ik = off;		/* Initial k */
+
+			/* Create the target response */
+			for (i = 0; i < 17;) {
+				int ii;			/* Actual count of loop */
+				for (ii = 0, k = ik; k < step && (i+k) < 17; k++, ii++) {
+					targ[i + ii] = v; 
 //printf("j %d: targ[%d] = %f\n",j,i+k,v);
+				}
+				v += step/16.0;
+				i += ii;
+				ik = 0;
 			}
-			v += step/16.0;
-			i += k;
-		}
 
-		/* Tweak it for typical display non-linearity */
-		min = 1e9, max = -1e9;
-		for (i = 0; i < 17; i++) {
-			targ[i] = pow((NVAL + targ[i]/16.0)/255.0, 2.2);
-			if (targ[i] < min)
-				min = targ[i];
-			if (targ[i] > max)
-				max = targ[i];
-		}
-		for (i = 0; i < 17; i++)
-			targ[i] = (targ[i] - min)/(max - min);
-		
-		/* Try and make fit a little better */
-		/* with a crude optimisation */
-		for (k = 0; k < 50; k++) {
-
-			merr = 0.0;
-			for (i = 0; i < 17; i++)
-				merr += targ[i] - meas[i];
-			merr /= 17.0;
-	
+			/* Tweak it for typical display non-linearity */
+			min = 1e9, max = -1e9;
 			for (i = 0; i < 17; i++) {
-				targ[i] *= (1.0 + 0.5 * merr);
-				targ[i] -= 0.5 * merr;
-//				targ[i] -= merr;
+				targ[i] = pow((NVAL + targ[i]/16.0)/255.0, 2.2);
+				if (targ[i] < min)
+					min = targ[i];
+				if (targ[i] > max)
+					max = targ[i];
 			}
-		}
+			for (i = 0; i < 17; i++)
+				targ[i] = (targ[i] - min)/(max - min);
+			
+			/* Try and make fit a little better */
+			/* with a crude optimisation */
+			for (k = 0; k < 50; k++) {
 
-		score[j] = 0.0;
-		for (i = 0; i < 17; i++) {
-			double tt = targ[i] - meas[i];
-			score[j] += tt * tt;
-		}
-		score[j] *= scale;
-		scale *= 1.1;
+				merr = 0.0;
+				for (i = 0; i < 17; i++)
+					merr += targ[i] - meas[i];
+				merr /= 17.0;
+		
+				for (i = 0; i < 17; i++) {
+					targ[i] *= (1.0 + 0.5 * merr);
+					targ[i] -= 0.5 * merr;
+//				targ[i] -= merr;
+				}
+			}
 
-#ifdef DEBUG
-		printf("%d bits score %f\n",8+j,score[j]);
-		do_plot(val, meas, targ, NULL, 17);
+			oscore = 0.0;
+			for (i = 0; i < 17; i++) {
+				double tt = targ[i] - meas[i];
+				tt *= tt;
+				oscore += tt;
+			}
+
+#ifdef DEBUG_MEAS_RES
+			printf("%d bits %d offset score %f\n",8+j,off,oscore);
+			do_plot(val, meas, targ, NULL, 17);
 #endif
+			/* keep best score from offsets */
+			if (oscore < score[j])
+				score[j] = oscore;
+		}
+
+		score[j] *= scale;
+		scale *= 1.7;			/* De-weight higher bit depth slightly */
+								/* Correct if overall graph is symetrical */
+								/* around minimum value ? */
+
 	}
 
-	/* Pick the best score */
+	/* Locate the best and second best scores */
 	bcor = bcor2 = 1e8;
 	bbits = 0;
 
@@ -1415,9 +1437,15 @@ static int comp_ramdac_prec(
 	/* Don't pick anything if it's not reasonably certain */
 	if (bcor2/bcor < 1.3
 	 || (bcor2/bcor < 2.1 && bcor > 0.15)
-	) rbits = 0;
+	) {
+#ifdef DEBUG_MEAS_RES
+		printf("bcor2/bcor < 1.3 %d\n",bcor2/bcor < 1.3);
+		printf("bcor2/bcor < 2.1 %d && bcor > 0.15 %d -> %d\n", bcor2/bcor < 2.1, bcor > 0.15, bcor2/bcor < 2.1 && bcor > 0.15);
+#endif
+		rbits = 0;
+	}
 
-#ifdef DEBUG
+#ifdef DEBUG_MEAS_RES
 	printf("Win score %f by cor %f, ratio %f\n",bcor, bcor2 - bcor, bcor2/bcor);
 	printf("Best %d, returning %d bits\n",bbits,rbits);
 	do_plot10(bits, score, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 5, 1);
@@ -1489,7 +1517,7 @@ double g_def_gamma = 2.4;
 */
 
 /* Flag = 0x0000 = default */
-/* Flag & 0x0001 = list ChromCast's */
+/* Flag & 0x0001 = list ChromeCast's */
 void usage(int flag, char *diag, ...) {
 	int i;
 	disppath **dp;
@@ -1532,10 +1560,10 @@ void usage(int flag, char *diag, ...) {
 	if (flag & 0x001) {
 		ccast_id **ids;
 		if ((ids = get_ccids()) == NULL) {
-			fprintf(stderr,"    ** Error discovering ChromCasts **\n");
+			fprintf(stderr,"    ** Error discovering ChromeCasts **\n");
 		} else {
 			if (ids[0] == NULL)
-				fprintf(stderr,"    ** No ChromCasts found **\n");
+				fprintf(stderr,"    ** No ChromeCasts found **\n");
 			else {
 				int i;
 				for (i = 0; ids[i] != NULL; i++)
@@ -1548,7 +1576,7 @@ void usage(int flag, char *diag, ...) {
 	fprintf(stderr," -dmadvr              Display via MadVR Video Renderer\n");
 #endif
 //	fprintf(stderr," -d fake              Use a fake display device for testing, fake%s if present\n",ICC_FILE_EXT);
-	fprintf(stderr," -c listno            Set communication port from the following list (default %d)\n",COMPORT);
+	fprintf(stderr," -c listno            Choose instrument from the following list (default %d)\n",COMPORT);
 	if ((icmps = new_icompaths(g_log)) != NULL) {
 		icompath **paths;
 		if ((paths = icmps->paths) != NULL) {
@@ -1556,8 +1584,8 @@ void usage(int flag, char *diag, ...) {
 			for (i = 0; ; i++) {
 				if (paths[i] == NULL)
 					break;
-				if ((paths[i]->itype == instSpyder1 && setup_spyd2(0) == 0)
-				 || (paths[i]->itype == instSpyder2 && setup_spyd2(1) == 0))
+				if ((paths[i]->dtype == instSpyder1 && setup_spyd2(0) == 0)
+				 || (paths[i]->dtype == instSpyder2 && setup_spyd2(1) == 0))
 					fprintf(stderr,"    %d = '%s' !! Disabled - no firmware !!\n",i+1,paths[i]->name);
 				else
 					fprintf(stderr,"    %d = '%s'\n",i+1,paths[i]->name);
@@ -1614,7 +1642,7 @@ void usage(int flag, char *diag, ...) {
 	if (cap2 & inst2_ccss) {
 		fprintf(stderr," -X file.ccss         Use Colorimeter Calibration Spectral Samples for calibration\n");
 		fprintf(stderr," -Q observ            Choose CIE Observer for spectrometer or CCSS colorimeter data:\n");
-		fprintf(stderr,"                      1931_2 (def), 1964_10, S&B 1955_2, shaw, J&V 1978_2, 1964_10c\n");
+		fprintf(stderr,"                      1931_2 (def), 1964_10, 2012_2, 2012_10, S&B 1955_2, shaw, J&V 1978_2, 1964_10c or file.cmf\n");
 	}
 	fprintf(stderr," -I b|w               Drift compensation, Black: -Ib, White: -Iw, Both: -Ibw\n");
 	fprintf(stderr," -Y R:rate            Override measured refresh rate with rate Hz\n");
@@ -1702,6 +1730,8 @@ int main(int argc, char *argv[]) {
 	ccss *ccs = NULL;					/* Colorimeter Calibration Spectral Samples */
 	int spec = 0;						/* Want spectral data from instrument */
 	icxObserverType obType = icxOT_default;
+	xspect custObserver[3];				/* If obType = icxOT_custom */
+	
 	disprd *dr = NULL;					/* Display patch read object */
 	csamp asgrey;						/* Main calibration loop test points */
 	double dispLum = 0.0;				/* Display luminence reading */
@@ -1733,12 +1763,18 @@ int main(int argc, char *argv[]) {
 		/* causes warning messages in 10.10. */
 
 		/* OS X 10.6+ uses a nominal gamma of 2.2 */
-		if (Gestalt(gestaltSystemVersionMajor,  &MacMajVers) == noErr
+		if (
+#ifdef NEVER
+		    Gestalt(gestaltSystemVersionMajor,  &MacMajVers) == noErr
 		 && Gestalt(gestaltSystemVersionMinor,  &MacMinVers) == noErr
-		 && Gestalt(gestaltSystemVersionBugFix, &MacBFVers) == noErr) {
-			if (MacMajVers >= 10 && MacMinVers >= 6) {
+		 && Gestalt(gestaltSystemVersionBugFix, &MacBFVers) == noErr
+		 && MacMajVers >= 10 && MacMinVers >= 6
+#else
+		   floor(kCFCoreFoundationVersionNumber) >= kCFCoreFoundationVersionNumber10_6
+#endif
+
+		) {
 				g_def_gamma = 2.4;
-			}
 		}
 #endif	/* >= 1040 */
 	}
@@ -1818,7 +1854,7 @@ int main(int argc, char *argv[]) {
 
 						ccdisp = atoi(na+3);
 						if (ccdisp <= 0)
-							usage(0,"ChromCast number must be in range 1..N");
+							usage(0,"ChromeCast number must be in range 1..N");
 					}
 					fa = nfa;
 #ifdef NT
@@ -1916,6 +1952,10 @@ int main(int argc, char *argv[]) {
 					obType = icxOT_CIE_1931_2;
 				} else if (strcmp(na, "1964_10") == 0) {	/* Classic 10 degree */
 					obType = icxOT_CIE_1964_10;
+				} else if (strcmp(na, "2012_2") == 0) {		/* Latest 2 degree */
+					obType = icxOT_CIE_2012_2;
+				} else if (strcmp(na, "2012_10") == 0) {	/* Latest 10 degree */
+					obType = icxOT_CIE_2012_10;
 				} else if (strcmp(na, "1964_10c") == 0) {	/* 10 degree corrected */
 					obType = icxOT_CIE_1964_10c;
 				} else if (strcmp(na, "1955_2") == 0) {		/* Stiles and Burch 1955 2 degree */
@@ -1924,8 +1964,11 @@ int main(int argc, char *argv[]) {
 					obType = icxOT_Judd_Voss_2;
 				} else if (strcmp(na, "shaw") == 0) {		/* Shaw and Fairchilds 1997 2 degree */
 					obType = icxOT_Shaw_Fairchild_2;
-				} else
-					usage(0,"-Q parameter '%s' not recognised",na);
+				} else {	/* Assume it's a filename */
+					obType = icxOT_custom;
+					if (read_cmf(custObserver, na) != 0)
+						usage(0,"Failed to read custom observer CMF from -Q file '%s'",na);
+				}
 
 			/* Change color callout */
 			} else if (argv[fa][1] == 'C') {
@@ -2288,13 +2331,13 @@ int main(int argc, char *argv[]) {
 	/* If we've requested ChromeCast, look it up */
 	if (ccdisp) {
 		if ((ccids = get_ccids()) == NULL)
-			error("discovering ChromCasts failed");
+			error("discovering ChromeCasts failed");
 		if (ccids[0] == NULL)
-			error("There are no ChromCasts to use\n");
+			error("There are no ChromeCasts to use\n");
 		for (i = 0; ccids[i] != NULL; i++)
 			;
 		if (ccdisp < 1 || ccdisp > i)
-			error("Chosen ChromCasts (%d) is outside list (1..%d)\n",ccdisp,i);
+			error("Chosen ChromeCasts (%d) is outside list (1..%d)\n",ccdisp,i);
 		ccid = ccids[ccdisp-1];
 	}
 
@@ -2353,7 +2396,7 @@ int main(int argc, char *argv[]) {
 	                     cmx != NULL ? cmx->cc_cbid : 0,
 	                     cmx != NULL ? cmx->matrix : NULL,
 	                     ccs != NULL ? ccs->samples : NULL, ccs != NULL ? ccs->no_samp : 0,
-	                     spec, obType, NULL, bdrift, wdrift,
+	                     spec, obType, custObserver, bdrift, wdrift,
 	                     "fake" ICC_FILE_EXT, g_log)) == NULL)
 		error("new_disprd() failed with '%s'\n",disprd_err(errc));
 
@@ -2409,10 +2452,10 @@ int main(int argc, char *argv[]) {
 		wp[0] = w[0]/(w[0] + w[1] + w[2]);
 		wp[1] = w[1]/(w[0] + w[1] + w[2]);
 
-		cct = comp_ct(&cct_de, NULL, 1, 0, obType, w);	/* Compute CCT */
-		cdt = comp_ct(&cdt_de, NULL, 0, 0, obType, w);	/* Compute CDT */
-		vct = comp_ct(&vct_de, NULL, 1, 1, obType, w);	/* Compute VCT */
-		vdt = comp_ct(&vdt_de, NULL, 0, 1, obType, w);	/* Compute VDT */
+		cct = comp_ct(&cct_de, NULL, 1, 0, obType, custObserver, w); /* Compute CCT */
+		cdt = comp_ct(&cdt_de, NULL, 0, 0, obType, custObserver, w); /* Compute CDT */
+		vct = comp_ct(&vct_de, NULL, 1, 1, obType, custObserver, w); /* Compute VCT */
+		vdt = comp_ct(&vdt_de, NULL, 0, 1, obType, custObserver, w); /* Compute VDT */
 
 		/* Compute advertised current gamma - use the gross curve shape for robustness */
 		cgamma = pop_gamma(tcols[0].XYZ[1], tcols[1].XYZ[1], tcols[2].XYZ[1]);
@@ -3193,9 +3236,9 @@ int main(int argc, char *argv[]) {
 				} else if (temp > 0.0) {		/* Daylight color temperature */
 					double XYZ[3];
 					if (planckian)
-						rv = icx_ill_sp2XYZ(XYZ, icxOT_default, NULL, icxIT_Ptemp, temp, NULL);
+						rv = icx_ill_sp2XYZ(XYZ, icxOT_default, NULL, icxIT_Ptemp, temp, NULL, 0);
 					else
-						rv = icx_ill_sp2XYZ(XYZ, icxOT_default, NULL, icxIT_Dtemp, temp, NULL);
+						rv = icx_ill_sp2XYZ(XYZ, icxOT_default, NULL, icxIT_Dtemp, temp, NULL, 0);
 					if (rv != 0)
 						error("Failed to compute XYZ of target color temperature %f\n",temp);
 					icmXYZ2Yxy(tYxy, XYZ);
@@ -3222,7 +3265,7 @@ int main(int argc, char *argv[]) {
 				} else {	/* Target is native white */
 					printf("\nAdjust R,G & B gain to desired white point. Press space when done.\n");
 					/* Compute the CT and delta E to white locus of target */
-					ct = comp_ct(&ct_de, NULL, planckian, dovct, obType, tcols[0].XYZ);
+					ct = comp_ct(&ct_de, NULL, planckian, dovct, obType, custObserver, tcols[0].XYZ);
 					printf("  Initial Br %.2f, x %.4f , y %.4f , %c%cT %4.0fK DE 2K %4.1f\n",
 					        tarw, tYxy[1],tYxy[2],
 				            dovct ? 'V' : 'C', planckian ? 'C' : 'D', ct,ct_de);
@@ -3264,7 +3307,7 @@ int main(int argc, char *argv[]) {
 
 					} else {	/* Target is native white */
 						double lxyz[3];	/* Locus XYZ */
-						ct = comp_ct(&ct_de, lxyz, planckian, dovct, obType, tcols[0].XYZ);
+						ct = comp_ct(&ct_de, lxyz, planckian, dovct, obType, custObserver, tcols[0].XYZ);
 
 						icmXYZ2Yxy(tYxy, lxyz);
 						/* lxyz is already normalised */
@@ -3476,9 +3519,9 @@ int main(int argc, char *argv[]) {
 				} else if (temp > 0.0) {		/* Daylight color temperature */
 					double XYZ[3];
 					if (planckian)
-						rv = icx_ill_sp2XYZ(XYZ, icxOT_default, NULL, icxIT_Ptemp, temp, NULL);
+						rv = icx_ill_sp2XYZ(XYZ, icxOT_default, NULL, icxIT_Ptemp, temp, NULL, 0);
 					else
-						rv = icx_ill_sp2XYZ(XYZ, icxOT_default, NULL, icxIT_Dtemp, temp, NULL);
+						rv = icx_ill_sp2XYZ(XYZ, icxOT_default, NULL, icxIT_Dtemp, temp, NULL, 0);
 					if (rv != 0)
 						error("Failed to compute XYZ of target color temperature %f\n",temp);
 					icmXYZ2Yxy(tYxy, XYZ);
@@ -3652,9 +3695,9 @@ int main(int argc, char *argv[]) {
 				} else if (temp > 0.0) {		/* Daylight color temperature */
 					double XYZ[3];
 					if (planckian)
-						rv = icx_ill_sp2XYZ(XYZ, icxOT_default, NULL, icxIT_Ptemp, temp, NULL);
+						rv = icx_ill_sp2XYZ(XYZ, icxOT_default, NULL, icxIT_Ptemp, temp, NULL, 0);
 					else
-						rv = icx_ill_sp2XYZ(XYZ, icxOT_default, NULL, icxIT_Dtemp, temp, NULL);
+						rv = icx_ill_sp2XYZ(XYZ, icxOT_default, NULL, icxIT_Dtemp, temp, NULL, 0);
 					if (rv != 0)
 						error("Failed to compute XYZ of target color temperature %f\n",temp);
 					icmXYZ2Yxy(tYxy, XYZ);
@@ -3695,7 +3738,7 @@ int main(int argc, char *argv[]) {
 				icmXYZ2Lab(&tXYZ, bLab, bLab);
 
 				/* And color temperature */
-				ct = comp_ct(&ct_de, NULL, planckian, dovct, obType, tcols[2].XYZ);
+				ct = comp_ct(&ct_de, NULL, planckian, dovct, obType, custObserver, tcols[2].XYZ);
 
 				printf("\n");
 
@@ -4187,9 +4230,9 @@ int main(int argc, char *argv[]) {
 
 		} else if (temp > 0.0) {		/* Daylight color temperature */
 			if (planckian)
-				rv = icx_ill_sp2XYZ(x.twh, icxOT_default, NULL, icxIT_Ptemp, temp, NULL);
+				rv = icx_ill_sp2XYZ(x.twh, icxOT_default, NULL, icxIT_Ptemp, temp, NULL, 0);
 			else
-				rv = icx_ill_sp2XYZ(x.twh, icxOT_default, NULL, icxIT_Dtemp, temp, NULL);
+				rv = icx_ill_sp2XYZ(x.twh, icxOT_default, NULL, icxIT_Dtemp, temp, NULL, 0);
 			if (rv != 0)
 				error("Failed to compute XYZ of target color temperature %f\n",temp);
 //printf("~1 Raw target from temp %f XYZ = %f %f %f\n",temp,x.twh[0],x.twh[1],x.twh[2]);
@@ -4360,7 +4403,7 @@ int main(int argc, char *argv[]) {
 					0.2,					/* Background relative to reference white */
 					80.0,					/* Display is 80 cd/m^2 */
 			        0.0, 0.01, x.nwh,		/* 0% flare and 1% glare same white point */
-					0, 1.0);
+					0, 1.0, 0.0, NULL);
 				break;
 
 			case gt_Rec709:
@@ -4371,7 +4414,7 @@ int main(int argc, char *argv[]) {
 					0.2,					/* Background relative to reference white */
 					1000.0/3.1415,			/* Luminance of white in the Image field (cd/m^2) */
 			        0.0, 0.01, x.nwh,		/* 0% flare and 1% glare same white point */
-					0, 1.0);
+					0, 1.0, 0.0, NULL);
 				break;
 
 			default:
@@ -4384,7 +4427,7 @@ int main(int argc, char *argv[]) {
 			0.2,				/* Background relative to reference white */
 			x.twh[1],			/* Target white level (cd/m^2) */
 	        0.0, 0.01, x.nwh,	/* 0% flare and 1% glare same white point */
-			0, 1.0);
+			0, 1.0, 0.0, NULL);
 
 		/* Compute the normalisation values */
 		x.svc->XYZ_to_cam(x.svc, Jab, x.nwh);		/* Relative white point */

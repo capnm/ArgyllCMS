@@ -97,6 +97,12 @@
 
 
 
+
+
+
+
+
+
       </span>mode manually will probably fail, because the character and
       return get split up.)<br>
     </div>
@@ -118,8 +124,20 @@
 
 
 
+
+
+
+
+
+
       </b>or <b>X3DOM</b>, which will result in <b>.wrl</b>, <b>.x3d</b>
       and <b>.x3d.html</b> files respectively. See <a href="3dformat">3d
+
+
+
+
+
+
 
 
 
@@ -173,6 +191,12 @@ a
 
 
 
+
+
+
+
+
+
       delay of 200 msec is allowed between changing a patch color in
       software, and that change appearing in the displayed color itself.
       For some instuments (ie. i1d3, i1pro, ColorMunki, Klein K10-A)
@@ -188,6 +212,12 @@ a
 
 
 environment
+
+
+
+
+
+
 
 
 
@@ -346,6 +376,12 @@ environment
                           style="font-weight: bold;"><span
                             style="font-weight: bold;"><span
                               style="font-weight: bold;"> </span></span></span></span></span></span></span></span></span></span></span></span>above
+
+
+
+
+
+
       for more details.)<span style="font-weight: bold;"><span
           style="font-weight: bold;"><span style="font-weight: bold;"><span
               style="font-weight: bold;"><span style="font-weight:
@@ -357,6 +393,12 @@ environment
                               style="font-weight: bold;"> <br>
                               <br>
                             </span></span></span></span></span></span></span></span></span></span></span></span>To
+
+
+
+
+
+
       allow for strict conformance to the ICC specification when using
       non-standard illuminants, setting the <span style="font-weight:
         bold;"><span style="font-weight: bold;"><span
@@ -368,12 +410,24 @@ environment
                           style="font-weight: bold;"><span
                             style="font-weight: bold;"><span
                               style="font-weight: bold;">ARGYLL_CREATE_OUTPUT_PROFILE_WITH_CHAD
+
+
+
+
+
+
                             </span></span></span></span></span></span></span></span></span></span></span></span>environment
+
+
+
+
+
+
       variable causes a non-D50 illuminant white point change to be
       hidden in the ChromaticAdapation Tag, and to still allow this to
       be useful in a proofing situation, ArgyllCMS will incorporate the
       effect of the ChromaticAdapation Tag when Absolute Colorimetric
-      Intent is chosen. Note that other CMM's may not do. For full
+      Intent is chosen. Note that other CMM's may not do so. For full
       conformance with ICC specifications, the <span
         style="font-weight: bold;"><span style="font-weight: bold;"><span
             style="font-weight: bold;"><span style="font-weight: bold;"><span
@@ -425,6 +479,29 @@ environment
       implementations.<br>
       <br>
     </div>
+    <br>
+    <span style="font-weight: bold;"><span style="font-weight: bold;"><span
+          style="font-weight: bold;"><span style="font-weight: bold;"><a
+              name="ARGYLL_IGNORE_XRANDR1_2"></a>ARGYLL_IGNORE_XINERAMA</span></span></span></span><br>
+    <span style="font-weight: bold;"><span style="font-weight: bold;"><span
+          style="font-weight: bold;"><span style="font-weight: bold;"><span
+              style="font-weight: bold;"><span style="font-weight:
+                bold;"><span style="font-weight: bold;"><br>
+                </span></span> </span> </span></span></span></span>
+    <div style="margin-left: 40px;">On an X11 system, if this is <span
+        style="font-weight: bold;"></span>set (ie. set it to "yes"),
+      then the presence of the XInerama extension will be ignored, and
+      default X11 Screen numbering will be used to access multiple
+      displays.</div>
+    <span style="font-weight: bold;"><span style="font-weight: bold;"><span
+          style="font-weight: bold;"><span style="font-weight: bold;"> </span></span></span><br>
+      <a name="ARGYLL_IGNORE_COLORD"></a>ARGYLL_USE_COLORD</span><br>
+    <blockquote><small><small>By default </small></small>ArgyllCMS
+      &gt;= V 1.9.4&nbsp; will use its native <a
+        href="file:///D:/src/argyll/doc/ucmm.html">ucmm</a> to store
+      display ICC profiles on Linux based systems, but if the&nbsp;<b>ARGYLL_USE_COLORD</b>
+      environment variable is set, it will attempt to use the Gnome <b>colord</b>
+      storage instead.<span style="font-weight: bold;"></span></blockquote>
     <span style="font-weight: bold;"><a
         name="ARGYLL_DISABLE_I1PRO2_DRIVER"></a>ARGYLL_DISABLE_I1PRO2_DRIVER<br>
       <br>
@@ -433,8 +510,18 @@ environment
       Eye-One Pro Rev E (aka Eye-One Pro 2) instrument features, but a
       Rev E can be operated in legacy mode if the environment variable
       ARGYLL_DISABLE_I1PRO2_DRIVER is set (ie. set it to "yes").<br>
+      <b><br>
+      </b><b> </b></div>
+    <b> </b><b><a name="ARGYLL_EXCLUDE_SERIAL_SCAN"></a>ARGYLL_EXCLUDE_SERIAL_SCAN</b><br>
+    <blockquote>Normally ArgyllCMS will try and identify any device on a
+      fast serial port (i.e. USB or BlueTooth based port). This may
+      disturb devices it doesn't know about, so the
+      ARGYLL_EXCLUDE_SERIAL_SCAN variable can be set to a semi-colon or
+      comma separated list of serial ports that should not be fast
+      scanned. Example:<br>
       <br>
-    </div>
+      "COM2;/dev/tty5" etc.<br>
+    </blockquote>
     <span style="font-weight: bold;"></span><span style="font-weight:
       bold;"><a name="ARGYLL_XRGA"></a>ARGYLL_XRGA</span><br>
     <blockquote>If the <span style="font-weight: bold;">ARGYLL_XRGA&nbsp;</span>
@@ -450,7 +537,23 @@ environment
       If not set (or set to some other string), then the native
       calibration will be used. Note that the values must be upper case.<br>
     </blockquote>
-    <span style="font-weight: bold;"><a name="XDG_CACHE_HOME"></a>XDG_CACHE_HOME<br>
+    <span style="font-weight: bold;"><a name="UNTWIST_GAMUT_SURFACE"></a>ARGYLL_UNTWIST_GAMUT_SURFACE<br>
+    </span>
+    <blockquote>Whenever a color device profile value is inverted (i.e.
+      in creating ICC B2A tables, or creating a device link using gamut
+      mapping mode), colors that are out of gamut after gamut mapping,
+      will be clipped to the gamut surface. If the device behavior is
+      poor (i.e. non-monotonic), the gamut surface representation used
+      for clipping may have "shadow" areas that result in non-smooth
+      jumps in clipped output. Setting the <span style="font-weight:
+        bold;">ARGYLL_UNTWIST_GAMUT_SURFACE</span> environment variable
+      to a non empty value will invoke an additional step in the gamut
+      surface creation routine, that attempts to minimize such shadowed
+      surface areas. This can improve the smoothness of clipped colors
+      for poorly behaved devices, but may make the output for some
+      devices worse. </blockquote>
+    <span style="font-weight: bold;"><br>
+      <a name="XDG_CACHE_HOME"></a>XDG_CACHE_HOME<br>
       <span style="font-weight: bold;"><br>
       </span></span>
     <div style="margin-left: 40px;">Argyll tries to follow the <a
@@ -461,6 +564,12 @@ href="http://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html">XD
 
 
 Base
+
+
+
+
+
+
 
 
 

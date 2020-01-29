@@ -29,13 +29,15 @@
 /* Device base object. */
 #define DEV_OBJ_BASE															\
 	a1log *log;			/* Pointer to debug & error logging class */			\
+	devType  dtype;		/* Device type determined by driver */					\
 	icoms *icom;		/* Device coms object */								\
-	instType  itype;	/* Device type determined by driver */					\
+	int gotcoms;		/* Coms established flag */                             \
+	int inited;			/* Device open and initialized flag */              	\
 
 /* The base object type */
 struct _dev {
 	DEV_OBJ_BASE
-	}; typedef struct _dev dev;
+}; typedef struct _dev dev;
 
 #define DEV_H
 #endif /* DEV_H */

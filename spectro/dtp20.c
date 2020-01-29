@@ -67,6 +67,7 @@
 #include "sa_config.h"
 #endif /* SALONEINSTLIB */
 #include "numsup.h"
+#include "cgats.h"
 #include "xspect.h"
 #include "insttypes.h"
 #include "conv.h"
@@ -1737,7 +1738,7 @@ inst_opt_type m,	/* Requested status type */
 }
 
 /* Constructor */
-extern dtp20 *new_dtp20(icoms *icom, instType itype) {
+extern dtp20 *new_dtp20(icoms *icom, instType dtype) {
 	dtp20 *p;
 	if ((p = (dtp20 *)calloc(sizeof(dtp20),1)) == NULL) {
 		a1loge(icom->log, 1, "new_dtp20: malloc failed!\n");
@@ -1761,7 +1762,7 @@ extern dtp20 *new_dtp20(icoms *icom, instType itype) {
 	p->del             = dtp20_del;
 
 	p->icom = icom;
-	p->itype = itype;
+	p->dtype = dtype;
 	p->cap = inst_mode_none;		/* Unknown until set */
 	p->mode = inst_mode_none;		/* Not in a known mode yet */
 

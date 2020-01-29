@@ -24,13 +24,15 @@
 
 /** General Limits **/
 
-#define MXDI 10			/* Maximum input dimensionality */
-#define MXDO 10			/* Maximum output dimensionality (Is not fully tested!!!) */
-#define LOG2MXDI 4		/* log2 MXDI */
-#define DEF2MXDI 16		/* Default allocation size for 2^di (di=4) */
-#define POW2MXDI 1024	/* 2 ^ MXDI */
-#define DEF3MXDI 81		/* Default allocation size for 3^di (di=4) */
-#define POW3MXDI 59049	/* 3 ^ MXDI */
+#define MXDI 10				/* Maximum input dimensionality */
+#define MXDO 10				/* Maximum output dimensionality (Is not fully tested!!!) */
+#define LOG2MXDI 4			/* log2 MXDI */
+#define DEF2MXDI 16			/* Default allocation size for 2^di (di=4) */
+#define POW2MXDI 1024		/* 2 ^ MXDI */
+#define DEF3MXDI 81			/* Default allocation size for 3^di (di=4) */
+#define POW3MXDI 59049		/* 3 ^ MXDI */
+#define HACOMPS ((POW3MXDI + 2 * MXDI + 1)/2) /* Maximum number of array components */
+							/* 295255 - not used ? */
 
 #if MXDI > MXDO		/* Maximum of either DI or DO */
 # define MXDIDO MXDI
@@ -38,14 +40,13 @@
 # define MXDIDO MXDO
 #endif
 
-/* RESTRICTED SIZE Limits, used for reverse, spline and scattered interpolation */
+/* RESTRICTED SIZE Limits, used for reverse and spline */
 
 #define MXRI 4			/* Maximum input dimensionality */
 #define MXRO 10			/* Maximum output dimensionality (Is not fully tested!!!) */
 #define LOG2MXRI 2		/* log2 MXRI */
 #define POW2MXRI 16		/* 2 ^ MXRI */
 #define POW3MXRI 81		/* 3 ^ MXRI */
-#define HACOMPS ((POW3MXRI + 2 * MXRI + 1)/2) /* Maximum number of array components */
 #define POW2MXRO 1024	/* 2 ^ MXRO */
 
 #if MXRI > MXRO		/* Maximum of either RI or RO */
@@ -93,9 +94,9 @@ typedef struct {
 
 /* Scattered data Per data point data (internal) */
 struct _rpnts {
-	double p[MXRI];		/* Data position [di] */
-	double v[MXRO];		/* Data value    [fdi] */
-	double k[MXRO];		/* Weight factor (nominally 1.0, less for lower confidence data point) */
+	double p[MXDI];		/* Data position [di] */
+	double v[MXDO];		/* Data value    [fdi] */
+	double k[MXDO];		/* Weight factor (nominally 1.0, less for lower confidence data point) */
 //	double fe;			/* Fit error in output pass (ausm) */
 }; typedef struct _rpnts rpnts;
 
@@ -114,7 +115,7 @@ typedef struct {
 typedef struct {
 	int niters;		/* Number of multigrid itterations needed */
 	int **ires; 	/* Resolution for each itteration and dimension */
-	void **mgtmps[MXRO]; /* Store pointers to re-usable mgtmp when incremental */
+	void **mgtmps[MXDO]; /* Store pointers to re-usable mgtmp when incremental */
 					/* (These don't seem to be used anymore. was incremental removed ?) */
 } it_info;
 
@@ -260,7 +261,7 @@ struct _rspl {
 #define RSPL_VERBOSE      0x8000	/* Turn on print progress messages */
 #define RSPL_NOVERBOSE    0x4000	/* Turn off print progress messages */
 
-	/* Initialise from scattered data. RESTRICTED SIZE */
+	/* Initialise from scattered data. */
 	/* Return non-zero if result is non-monotonic */
 	int
 	(*fit_rspl)(
@@ -282,7 +283,7 @@ struct _rspl {
 						/* gres[] entries per dimension. Used to scale smoothness criteria */
 	); 
 
-	/* Initialise from scattered data, with per point weighting. RESTRICTED SIZE */
+	/* Initialise from scattered data, with per point weighting. */
 	/* Return non-zero if result is non-monotonic */
 	int
 	(*fit_rspl_w)(
@@ -305,7 +306,7 @@ struct _rspl {
 	);
 
 	/* Initialise from scattered data, with per point individual out weighting. */
-	/* RESTRICTED SIZE Return non-zero if result is non-monotonic */
+	/* Return non-zero if result is non-monotonic */
 	int
 	(*fit_rspl_ww)(
 		struct _rspl *s,	/* this */
@@ -327,7 +328,6 @@ struct _rspl {
 	);
 
 	/* Initialise from scattered data, with weak default function. */
-	/* RESTRICTED SIZE */
 	/* Return non-zero if result is non-monotonic */
 	int
 	(*fit_rspl_df)(
@@ -353,7 +353,6 @@ struct _rspl {
 	);
 
 	/* Initialise from scattered data, with per point weighting and weak default function. */
-	/* RESTRICTED SIZE */
 	/* Return non-zero if result is non-monotonic */
 	int
 	(*fit_rspl_w_df)(

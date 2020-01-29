@@ -25,6 +25,8 @@ VERSION=`grep ARGYLL_VERSION_STR h/aconfig.h | head -1 | sed 's/# define ARGYLL_
 #
 #   OS X i386 10.7 [bash]           darwin11     x86_64-apple-darwin11    x86_64
 #
+#   OS X i386 10.11 [bash]          darwin16     x86_64-apple-darwin16    x86_64
+#
 #   Linux RH 4.0 [bash]             linux-gnu    i686-redhat-linux-gnu    i686
 #
 #   Linux Fedora 7.1 [bash]         linux-gnu    i386-redhat-linux-gnu    i386
@@ -97,7 +99,12 @@ else if [ X$OSTYPE = "Xdarwin8.0" ] ; then
 	USBBINFILES="binfiles.osx"
 	USETAR=true
 else if [ X$OSTYPE = "Xdarwin10.0" \
-       -o X$OSTYPE = "Xdarwin11" ] ; then
+       -o X$OSTYPE = "Xdarwin11"   \
+       -o X$OSTYPE = "Xdarwin12"   \
+       -o X$OSTYPE = "Xdarwin13"   \
+       -o X$OSTYPE = "Xdarwin14"   \
+       -o X$OSTYPE = "Xdarwin15"   \
+       -o X$OSTYPE = "Xdarwin16" ] ; then
 	if [ X$HOSTTYPE = "Xx86_64" ] ; then
 		echo "We're on OSX 10.6 x86_64!"
 		PACKAGE=Argyll_V${VERSION}_osx10.6_x86_64_bin.tgz

@@ -11,6 +11,8 @@ numsup.h
 powell.h
 powell.c
 tpowell.c
+varmet.h
+varmet.c
 dhsx.h
 dhsx.c
 tdhsx.c
@@ -30,5 +32,8 @@ sobol.h
 soboltest.c
 aatree.h
 aatree.c
+quadprog.h
+quadprog.c
+qptest.c
 ui.h
 ui.c

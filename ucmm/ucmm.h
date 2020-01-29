@@ -68,17 +68,13 @@ ucmm_error ucmm_install_monitor_profile(
 
 /* Un-install a profile for a given monitor. */
 /* Either EDID or display_name may be NULL, but not both. */
-/* The monitor is left with no profile association. If a profile */
-/* name is provided and matches the one that was associated with */
-/* the monitor, and has no other association, then it will be deleted */
-/* from the data directory. */
+/* The monitor is left with no profile association. */
 /* Return an error code */
 ucmm_error ucmm_uninstall_monitor_profile(
 	ucmm_scope scope,				/* Scope of instalation */
 	unsigned char *edid,	/* Primary device identifier, NULL if none. */
 	int edid_len,			/* Length of edid data */
-	char *display_name,		/* Fall back device association, */
-	char *profile			/* Base name of profile to be deleted, NULL if not to be deleted. */
+	char *display_name		/* Fall back device association, */
 );
 
 /* Get an associated monitor profile. */
@@ -91,6 +87,9 @@ ucmm_error ucmm_get_monitor_profile(
 	char *display_name,	/* Fall back device association, */
 	char **profile		/* Return path to profile. free() afterwards. */
 );
+
+/* Return an ASCII error message string interpretation of scope enum */
+char *ucmm_scope_string(ucmm_scope scope);
 
 /* Return an ASCII error message string interpretation of an error number */
 char *ucmm_error_string(ucmm_error erno);

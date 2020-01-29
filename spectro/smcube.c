@@ -73,6 +73,7 @@
 #include "numsup.h"
 #include "sa_conv.h"
 #endif /* !SALONEINSTLIB */
+#include "cgats.h"
 #include "xspect.h"
 #include "insttypes.h"
 #include "conv.h"
@@ -203,7 +204,7 @@ smcube_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 	baud_rate brt[] = { baud_38400, baud_nc };
 	unsigned int etime;
 	unsigned int i;
-	instType itype = pp->itype;
+	instType dtype = pp->dtype;
 	int se;
 
 	inst_code ev = inst_ok;
@@ -1133,7 +1134,7 @@ smcube_get_set_opt(inst *pp, inst_opt_type m, ...) {
 }
 
 /* Constructor */
-extern smcube *new_smcube(icoms *icom, instType itype) {
+extern smcube *new_smcube(icoms *icom, instType dtype) {
 	smcube *p;
 	if ((p = (smcube *)calloc(sizeof(smcube),1)) == NULL) {
 		a1loge(icom->log, 1, "new_smcube: malloc failed!\n");
@@ -1158,7 +1159,7 @@ extern smcube *new_smcube(icoms *icom, instType itype) {
 
 	p->icom = icom;
 	icom->icntx = (void *)p;	/* Allow us to get instrument from icom */
-	p->itype = itype;
+	p->dtype = dtype;
 
 	amutex_init(p->lock);
 

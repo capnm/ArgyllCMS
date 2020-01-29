@@ -31,6 +31,8 @@ Show
 
 
 
+
+
         CIE94 delta E values</span><br style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp;-k
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
@@ -39,6 +41,8 @@ Show
       <span style="font-family: monospace;">&nbsp;-w&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;&nbsp;
 create
+
+
 
 
 
@@ -56,10 +60,14 @@ Use
 
 
 
+
+
         X3DOM axes<br>
         &nbsp;-m&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Make
 X3DOM
+
+
 
 
 
@@ -76,11 +84,17 @@ vectors
 
 
 
+
+
         acording to delta E<br>
         &nbsp;-s&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
+
+
         Sort output by delta E<br>
         &nbsp;-h&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -102,11 +116,15 @@ Specify
 
 
 
+
+
         a device value to sort against</span><br style="font-family:
         monospace;">
       <span style="font-family: monospace;">&nbsp;-p&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;&nbsp;
 Sort
+
+
 
 
 
@@ -125,12 +143,16 @@ Sort
 
 
 
+
+
         M0, M1, M2, A, C, D50 (def.), D50M2, D65, F5, F8, F10 or
         file.sp]<br>
         &nbsp;-i illum&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Choose
         illuminant for computation of CIE XYZ from spectral data &amp;
         FWA:<br>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -151,11 +173,15 @@ Sort
 
 
 
+
+
         1931_2 </span></small><small><span style="font-family:
         monospace;">(def.)</span></small><small><span
-        style="font-family: monospace;">, 1964_10, S&amp;B 1955_2, shaw,
-        J&amp;V 1978_2</span></small><small><span style="font-family:
-        monospace;"><br>
+        style="font-family: monospace;">, 1964_10, </span></small><small><span
+        style="font-family: monospace;"><tt><small>2012_2, 2012_10, </small></tt>S&amp;B
+
+        1955_2, shaw, J&amp;V 1978_2</span></small><small><span
+        style="font-family: monospace;"> or file.cmf<br>
         &nbsp;-I intent&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; r = relative
         colorimetric, a = absolute (default)<br style="font-family:
           monospace;">
@@ -189,6 +215,8 @@ Sort
     test point on a line. The line consists of:<br>
     <b>[</b><i>Delta_E</i><b>]</b><i> Patch_no</i><b>:</b><i>&nbsp;
       Device values </i><b>-&gt;</b><i> Profile PCS values </i><b>should
+
+
       be</b><i> .ti3 PCS values</i><br>
     <br>
     The <b>-c</b> option causes the differences between the test values
@@ -286,12 +314,18 @@ Sort
     observer. The default.<br>
     &nbsp; <b>1964_10</b> selects the standard CIE 1964 10 degree
     observer.<br>
+    <b>&nbsp; 2012_2</b> selects the proposed CIE 2012 2 degree
+    observer.<br>
+    &nbsp; <b>2012_10</b> selects the proposed CIE 2012 10 degree
+    observer.<br>
     &nbsp; <b>1955_2</b> selects the Stiles and Birch 1955 2 degree
     observer<br>
     &nbsp; <b>1978_2 </b>selects the Judd and Voss 1978 2 degree
     observer<br>
     &nbsp; <b>shaw</b> selects the Shaw and Fairchild 1997 2 degree
     observer<br>
+    &nbsp; <i><b>file.cmf</b></i> selects an observer specified by the
+    given <a href="File_Formats.html#.cmf">.cmf</a> file.<br>
     <br>
     The same parameter value should be used as was used during the
     creation of the profile.<br>

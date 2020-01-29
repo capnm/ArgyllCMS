@@ -24,7 +24,47 @@
 	Do we need to worry about normalising display values to Y = 100, or marking
 	them not normalised ?
 
-	Should have an option to output .ti1 files instead of .ti3.
+	Should have an option to output .ti1 files instead of .ti3 ?
+
+	Should parse and support XRGA & Polarized tags.
+
+
+	~~
+
+	MEASUREMENT_SOURCE
+	iSis_INFO
+		Illumination=D50
+
+		ObserverAngle=2
+
+		Filter=Unknown
+		Filter=None
+		Filter=No
+		Filter=UVcut
+		Filter=D50
+
+		(???
+			Filter=Polarizer
+			Filter=D65
+		???)
+
+		MeasurementCondition=M1
+
+	ILLUMINATION_NAME   "D50"
+	OBSERVER_ANGLE  "2"
+	FILTER "UVcut"
+
+	ICCOLOR_CSV
+		MeasurementOptics=Remission
+
+	DEVCALSTD UNKNOWN
+	DEVCALSTD XRDI
+	DEVCALSTD GMDI
+	DEVCALSTD XRGA
+
+	Cxf:DevicePolarization
+	Cxf:DeviceFilter
+	SpectralPolFilter
 
  */
 
@@ -57,7 +97,8 @@ usage(char *mes) {
 /*	fprintf(stderr," -v            Verbose mode\n"); */
 	fprintf(stderr," -2            Create dummy .ti2 file as well\n");
 	fprintf(stderr," -l limit      set ink limit, 0 - 400%% (default max in file)\n");
-	fprintf(stderr," -d            Set type of device as Display, not Output\n");
+	fprintf(stderr," -d            Set type of device as Display, rather than Output\n");
+	fprintf(stderr," -D            Set type of device as Display and not normalized\n");
 	fprintf(stderr," -i            Set type of device as Input, not Output\n");
 	fprintf(stderr," -T            Transpose sample name Letters and Numbers\n");
 	fprintf(stderr," [devfile]     Input Device CMYK target file (typically file.txt)\n");
@@ -73,7 +114,7 @@ int main(int argc, char *argv[])
 	int fa,nfa;				/* current argument we're looking at */
 	int verb = 0;
 	int out2 = 0;			/* Create dumy .ti2 file output */
-	int disp = 0;			/* nz if this is a display device */
+	int disp = 0;			/* 1 if this is a display device, 2 if nor normalized */
 	int inp = 0;			/* nz if this is an input device */
 	int transpose = 0;		/* nz to transpose letters and numbers */
 	static char devname[MAXNAMEL+1] = { 0 };		/* Input CMYK/Device .txt file (may be null) */
@@ -96,7 +137,8 @@ int main(int argc, char *argv[])
 	time_t clk = time(0);
 	struct tm *tsp = localtime(&clk);
 	char *atm = asctime(tsp); /* Ascii time */
-	char *devcalstd = NULL;		/* X-Rite calibration standard if any */
+	xcalstd calstd = xcalstd_none;	/* X-Rite Calibration standard */
+	int isPolarize = 0;		/* nz if polarized measurement */
 	int islab = 0;			/* CIE is Lab rather than XYZ */
 	int specmin = 0, specmax = 0, specnum = 0;	/* Min and max spectral in nm, inclusive */
 	int npat = 0;			/* Number of patches */
@@ -143,6 +185,10 @@ int main(int argc, char *argv[])
 
 			else if (argv[fa][1] == 'd') {
 				disp = 1;
+				inp = 0;
+
+			} else if (argv[fa][1] == 'D') {
+				disp = 2;
 				inp = 0;
 
 			} else if (argv[fa][1] == 'i') {
@@ -217,11 +263,25 @@ int main(int argc, char *argv[])
 	if ((npat = cmy->t[0].nsets) <= 0)
 		error("No patches");
 
+	/* See if we can figure out polarization and xrga */
+	if ((ti = cmy->find_field(cmy, 0, "MEASUREMENT_SOURCE")) >= 0) {
+		if (strstr(cmy->t[0].kdata[ti], "Filter=Polarizer") != NULL)
+			isPolarize = 1;
+	}
+	if ((ti = cmy->find_field(cmy, 0, "FILTER")) >= 0) {
+		if (strstr(cmy->t[0].kdata[ti], "Polariz") != NULL)
+			isPolarize = 1;
+	}
+	if ((ti = cmy->find_field(cmy, 0, "DEVCALSTD")) >= 0) {
+		calstd = str2xcalstd(cmy->t[0].kdata[ti]);
+	}
+	
 	if ((f_id1 = cmy->find_field(cmy, 0, "SampleName")) < 0
 	 && (f_id1 = cmy->find_field(cmy, 0, "Sample_Name")) < 0
 	 && (f_id1 = cmy->find_field(cmy, 0, "SAMPLE_NAME")) < 0
-	 && (f_id1 = cmy->find_field(cmy, 0, "SAMPLE_ID")) < 0)
-		error("Input file '%s' doesn't contain field SampleName, Sample_Name, SAMPLE_NAME or SAMPLE_ID",devname);
+	 && (f_id1 = cmy->find_field(cmy, 0, "SAMPLE_ID")) < 0
+	 && (f_id1 = cmy->find_field(cmy, 0, "SampleID")) < 0)
+		error("Input file '%s' doesn't contain field SampleName, Sample_Name, SAMPLE_NAME, SAMPLE_ID or SampleID",devname);
 	if (cmy->t[0].ftype[f_id1] != nqcs_t
 	 && cmy->t[0].ftype[f_id1] != cs_t
 	 && cmy->t[0].ftype[f_id1] != i_t)
@@ -285,7 +345,8 @@ int main(int argc, char *argv[])
 	if (verb && ndchan > 0) printf("Read device values\n");
 
 	if (cmy->find_field(cmy, 0, "XYZ_X") >= 0
-	 || cmy->find_field(cmy, 0, "LAB_L") >= 0) {
+	 || cmy->find_field(cmy, 0, "LAB_L") >= 0
+	 || cmy->find_field(cmy, 0, "Lab_L") >= 0) {
 		/* We've got a new combined device+cie file as the first one. */
 		/* Shuffle it into ciename , and ciename into specname */
 
@@ -308,21 +369,33 @@ int main(int argc, char *argv[])
 	if (npat != ncie->t[0].nsets)
 		error("Number of patches between '%s' and '%s' doesn't match",devname,ciename);
 
+	/* See if we can figure out polarization and xrga */
+	if ((ti = ncie->find_field(ncie, 0, "MEASUREMENT_SOURCE")) >= 0) {
+		if (strstr(ncie->t[0].kdata[ti], "Filter=Polarizer") != NULL)
+			isPolarize = 1;
+	}
+	if ((ti = ncie->find_field(ncie, 0, "FILTER")) >= 0) {
+		if (strstr(ncie->t[0].kdata[ti], "Polariz") != NULL)
+			isPolarize = 1;
+	}
+	if ((ti = ncie->find_field(ncie, 0, "DEVCALSTD")) >= 0) {
+		calstd = str2xcalstd(ncie->t[0].kdata[ti]);
+	}
+
 	if ((f_id2 = ncie->find_field(ncie, 0, "SampleName")) < 0
 	 && (f_id2 = ncie->find_field(ncie, 0, "Sample_Name")) < 0
 	 && (f_id2 = ncie->find_field(ncie, 0, "SAMPLE_NAME")) < 0
-	 && (f_id2 = ncie->find_field(ncie, 0, "SAMPLE_ID")) < 0)
-		error("Input file '%s' doesn't contain field SampleName, Sample_Name, SAMPLE_NAME or SAMPLE_ID",ciename);
+	 && (f_id2 = ncie->find_field(ncie, 0, "SAMPLE_ID")) < 0
+	 && (f_id2 = ncie->find_field(ncie, 0, "SampleID")) < 0)
+		error("Input file '%s' doesn't contain field SampleName, Sample_Name, SAMPLE_NAME, SAMPLE_ID or SampleID",ciename);
 	if (ncie->t[0].ftype[f_id2] != nqcs_t
 	 && ncie->t[0].ftype[f_id2] != cs_t
-	 && cmy->t[0].ftype[f_id2] != i_t)
+	 && ncie->t[0].ftype[f_id2] != i_t)
 		error("Field SampleName (%s) from cie file '%s' is wrong type",ncie->t[0].fsym[f_id2],ciename);
 
-	if ((ti = ncie->find_kword(ncie, 0, "DEVCALSTD")) >= 0)
-		devcalstd = ncie->t[0].kdata[ti];
-
 	if (ncie->find_field(ncie, 0, "XYZ_X") < 0
-	 && ncie->find_field(ncie, 0, "LAB_L") < 0) {
+	 && ncie->find_field(ncie, 0, "LAB_L") < 0
+	 && ncie->find_field(ncie, 0, "Lab_L") < 0) {
 
 		/* Not a cie file. See if it's a spectral file */
 		if (ncie->find_field(ncie, 0, "nm500") < 0
@@ -330,7 +403,7 @@ int main(int argc, char *argv[])
 		 && ncie->find_field(ncie, 0, "SPECTRAL_NM_500") < 0
 		 && ncie->find_field(ncie, 0, "R_500") < 0
 		 && ncie->find_field(ncie, 0, "SPECTRAL_500") < 0)
-			error("Input file '%s' doesn't contain field XYZ_X or spectral",ciename);	/* Nope */
+			error("Input file '%s' doesn't contain field XYZ_X, LAB_L or spectral",ciename);	/* Nope */
 
 		/* We have a spectral file only. Fix things and drop through */
 		ncie->del(ncie);
@@ -339,9 +412,11 @@ int main(int argc, char *argv[])
 		ciename[0] = '\000';
 
 	} else {	/* Continue dealing with cie value file */
-		char *fields[2][3] = {
+		int fix = 0;
+		char *fields[3][3] = {
 			{ "XYZ_X", "XYZ_Y", "XYZ_Z" },
-			{ "LAB_L", "LAB_A", "LAB_B" }
+			{ "LAB_L", "LAB_A", "LAB_B" },
+			{ "Lab_L", "Lab_a", "Lab_b" }
 		};
 
 		if (ncie->find_field(ncie, 0, "nm500") >= 0
@@ -354,16 +429,22 @@ int main(int argc, char *argv[])
 			strcpy(specname, ciename);
 		}
 
-		if (ncie->find_field(ncie, 0, "LAB_L") >= 0)
+		if (ncie->find_field(ncie, 0, "LAB_L") >= 0) {
+			fix = 1;
 			islab = 1;
+		} else if (ncie->find_field(ncie, 0, "Lab_L") >= 0) {
+			fix = 2;
+			islab = 1;
+		}
 
 		for (i = 0; i < 3; i++) {
 
-			if ((f_cie[i] = ncie->find_field(ncie, 0, fields[islab][i])) < 0)
-				error("Input file '%s' doesn't contain field XYZ_Y",fields[islab][i], ciename);
+			if ((f_cie[i] = ncie->find_field(ncie, 0, fields[fix][i])) < 0
+			 && (f_cie[i] = ncie->find_field(ncie, 0, fields[fix+1][i])) < 0)
+				error("Input file '%s' doesn't contain field %s",ciename,fields[fix][i]);
 
 			if (ncie->t[0].ftype[f_cie[i]] != r_t)
-				error("Field %s from file '%s' is wrong type - expect float",fields[islab][i], ciename);
+				error("Field %s from file '%s' is wrong type - expect float",fields[fix][i], ciename);
 		}
 	
 		if (verb) printf("Found CIE values\n");
@@ -385,14 +466,28 @@ int main(int argc, char *argv[])
 		if (npat != spec->t[0].nsets)
 			error("Number of patches between '%s' and '%s' doesn't match",specname);
 
+		/* See if we can figure out polarization and xrga */
+		if ((ti = spec->find_field(spec, 0, "MEASUREMENT_SOURCE")) >= 0) {
+			if (strstr(spec->t[0].kdata[ti], "Filter=Polarizer") != NULL)
+				isPolarize = 1;
+		}
+		if ((ti = spec->find_field(spec, 0, "FILTER")) >= 0) {
+			if (strstr(spec->t[0].kdata[ti], "Polariz") != NULL)
+				isPolarize = 1;
+		}
+		if ((ti = spec->find_field(spec, 0, "DEVCALSTD")) >= 0) {
+			calstd = str2xcalstd(spec->t[0].kdata[ti]);
+		}
+	
 		if ((f_id3 = spec->find_field(spec, 0, "SampleName")) < 0
 		 && (f_id3 = spec->find_field(spec, 0, "Sample_Name")) < 0
 		 && (f_id3 = spec->find_field(spec, 0, "SAMPLE_NAME")) < 0
-		 && (f_id3 = spec->find_field(spec, 0, "SAMPLE_ID")) < 0)
-			error("Input file '%s' doesn't contain field SampleName, Sample_Name, SAMPLE_NAME or SAMPLE_ID",specname);
+		 && (f_id3 = spec->find_field(spec, 0, "SAMPLE_ID")) < 0
+		 && (f_id3 = spec->find_field(spec, 0, "SampleID")) < 0)
+			error("Input file '%s' doesn't contain field SampleName, Sample_Name, SAMPLE_NAME, SAMPLE_ID or SampleID",specname);
 		if (spec->t[0].ftype[f_id3] != nqcs_t
 		 && spec->t[0].ftype[f_id3] != cs_t
-		 && cmy->t[0].ftype[f_id3] != i_t)
+		 && spec->t[0].ftype[f_id3] != i_t)
 			error("Field SampleName (%s) from spec file '%s' is wrong type",spec->t[0].fsym[f_id3],specname);
 
 		/* Find the spectral readings nm range */
@@ -486,9 +581,12 @@ int main(int argc, char *argv[])
 	ocg->add_kword(ocg, 0, "ORIGINATOR", "Argyll target", NULL);
 	atm[strlen(atm)-1] = '\000';	/* Remove \n from end */
 	ocg->add_kword(ocg, 0, "CREATED",atm, NULL);
-	if (disp)
+	if (disp) {
 		ocg->add_kword(ocg, 0, "DEVICE_CLASS","DISPLAY", NULL);	/* What sort of device this is */
-	else if (inp)
+
+		if (disp == 2)
+			ocg->add_kword(ocg, 0, "NORMALIZED_TO_Y_100","NO", NULL);	/* What sort of device this is */
+	}else if (inp)
 		ocg->add_kword(ocg, 0, "DEVICE_CLASS","INPUT", NULL);	/* What sort of device this is */
 	else
 		ocg->add_kword(ocg, 0, "DEVICE_CLASS","OUTPUT", NULL);	/* What sort of device this is */
@@ -497,8 +595,11 @@ int main(int argc, char *argv[])
 	/* Assume this - could try reading from file INSTRUMENTATION "SpectroScan" ?? */
 	ocg->add_kword(ocg, 0, "TARGET_INSTRUMENT", inst_name(instSpectrolino) , NULL);
 
-	if (devcalstd != NULL)
-		ocg->add_kword(ocg, 0, "DEVCALSTD", devcalstd, NULL);
+	if (calstd != xcalstd_none)
+		ocg->add_kword(ocg, 0, "DEVCALSTD", xcalstd2str(calstd), NULL);
+
+	if (isPolarize)
+		ocg->add_kword(ocg, 0, "INSTRUMENT_FILTER", "POLARIZED", NULL);
 
 	/* Fields we want */
 	ocg->add_field(ocg, 0, "SAMPLE_ID", nqcs_t);

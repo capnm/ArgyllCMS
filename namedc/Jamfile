@@ -13,6 +13,8 @@ Library libnamedc : namedc.c ;
 LINKLIBS = ./libnamedc ../xicc/libxicc ../spectro/libconv ../icc/libicc ../cgats/libcgats
            ../plot/libplot ../numlib/libui ../numlib/libnum ../xml/libmxml ;
 
+LINKFLAGS += $(GUILINKFLAGS) ;
+
 # Individual stand alone test of namedc
 MainVariant namedc : namedc.c : : STANDALONE_TEST ;
 

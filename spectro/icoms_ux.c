@@ -1,5 +1,6 @@
 
 /* Unix icoms and serial I/O class */
+/* This is #includeed in icom.c */
 
 /* 
  * Argyll Color Correction System
@@ -49,7 +50,7 @@
 #endif /* UNIX_APPLE */
 
 
-instType fast_ser_inst_type(icoms *p, int tryhard, void *, void *); 
+devType fast_ser_dev_type(icoms *p, int tryhard, void *, void *); 
 
 /* Add paths to serial connected device. */
 /* Return an icom error */
@@ -142,12 +143,14 @@ int serial_get_paths(icompaths *p, icom_type mask) {
 				icoms *icom;
 				if ((path = p->get_last_path(p)) != NULL
 				 && (icom = new_icoms(path, p->log)) != NULL) {
-					instType itype = fast_ser_inst_type(icom, 0, NULL, NULL);
-					if (itype != instUnknown)
-						icompaths_set_serial_itype(path, itype);	/* And set category */
+					if (!p->fs_excluded(p, path)) {
+						instType itype = fast_ser_dev_type(icom, 0, NULL, NULL);
+						if (itype != instUnknown)
+							icompaths_set_serial_itype(path, itype);	/* And set category */
+					}
 					icom->del(icom);
 				}
-				a1logd(p->log, 8, "serial_get_paths: Identified '%s' dctype 0x%x\n",inst_sname(path->itype),path->dctype);
+				a1logd(p->log, 8, "serial_get_paths: Identified '%s' dctype 0x%x\n",inst_sname(path->dtype),path->dctype);
 			}
 		continue2:
             CFRelease(dfp);
@@ -258,7 +261,7 @@ int serial_get_paths(icompaths *p, icom_type mask) {
 			strcpy(dpath, dirn);
 			strcat(dpath, de->d_name);
 
-			/* See if the serial port is real */
+			/* See if the (not fast) serial port is real */
 			if (strncmp(de->d_name, "ttyUSB", 6) != 0
 			 && strncmp(de->d_name, "ttyHS", 5) != 0
 			 && strncmp(de->d_name, "rfcomm", 6) != 0) {
@@ -320,12 +323,14 @@ int serial_get_paths(icompaths *p, icom_type mask) {
 				icoms *icom;
 				if ((path = p->get_last_path(p)) != NULL
 				 && (icom = new_icoms(path, p->log)) != NULL) {
-					instType itype = fast_ser_inst_type(icom, 0, NULL, NULL);
-					if (itype != instUnknown)
-						icompaths_set_serial_itype(path, itype);	/* And set category */
+					if (!p->fs_excluded(p, path)) {
+						instType itype = fast_ser_dev_type(icom, 0, NULL, NULL);
+						if (itype != instUnknown)
+							icompaths_set_serial_itype(path, itype);	/* And set category */
+					}
 					icom->del(icom);
 				}
-				a1logd(p->log, 8, "serial_get_paths: Identified '%s' dctype 0x%x\n",inst_sname(path->itype),path->dctype);
+				a1logd(p->log, 8, "serial_get_paths: Identified '%s' dctype 0x%x\n",inst_sname(path->dtype),path->dctype);
 			}
 		}
 		closedir(dd);
@@ -361,6 +366,15 @@ void serial_close_port(icoms *p) {
 #endif 
 
 #if defined(UNIX_APPLE) || defined(__OpenBSD__)
+# ifndef B230400
+#  define B230400 230400
+# endif
+# ifndef B460800
+#  define B460800 460800
+# endif
+# ifndef B512000
+#  define B512000 512000
+# endif
 # ifndef B921600
 #  define B921600 921600
 # endif
@@ -393,10 +407,12 @@ int          delayms) {		/* Delay after open in msec */
 		              ,p->name ,fc ,baud_rate_to_str(baud) ,parity ,stop ,word, delayms);
 
 
+#ifdef NEVER		/* This is too slow on OS X */
 	if (p->is_open) { 	/* Close it and re-open it */
 		a1logd(p->log, 8, "icoms_set_ser_port: closing port\n");
 		p->close_port(p);
 	}
+#endif
 
 	if (p->port_type(p) == icomt_serial) {
 
@@ -418,13 +434,27 @@ int          delayms) {		/* Delay after open in msec */
 
 			a1logd(p->log, 8, "icoms_set_ser_port: about to open serial port '%s'\n",p->spath);
 
+			/* Hmm. Recent OS X to FTDI can take 1500 msec to open. Why ? */
+			/* O_NONBLOCK O_SYNC */
 			if ((p->fd = open(p->spath, O_RDWR | O_NOCTTY )) < 0) {
-				a1logd(p->log, 1, "icoms_set_ser_port: open port '%s' r/w failed with %d (%s)\n",p->spath,p->fd,strerror(errno));
+				a1logd(p->log, 1, "icoms_set_ser_port: open port '%s' r/w failed with %d (%s)\n",
+				       p->spath,p->fd,strerror(errno));
+				return ICOM_SYS;
+			}
 
 			if (delayms < 160)		/* Seems to need at least 80 msec for many drivers */
 				delayms = 160;
 
-			msec_sleep(delayms);	/* For Bluetooth */
+			msec_sleep(delayms);	/* For Bluetooth and other drivers */
+
+#ifdef NEVER
+            /* If we used O_NONBLOCK */
+            if (fcntl(p->fd, F_SETFL, 0) == -1) {
+                a1logd(p->log, 1, "icoms_set_ser_port: clearing O_NONBLOCK failed with %d (%s)\n",
+				       p->spath,p->fd,strerror(errno));
+                return ICOM_SYS;
+            }
+#endif
 
 #ifdef NEVER	/* See what supplementary groups we are a member of */
 		{
@@ -460,11 +490,6 @@ int          delayms) {		/* Delay after open in msec */
 			  fail:;
 		}
 #endif
-				return ICOM_SYS;
-			}
-
-			/* O_NONBLOCK O_SYNC */
-
 			p->is_open = 1;
 		}
 
@@ -621,6 +646,9 @@ int          delayms) {		/* Delay after open in msec */
 				break;
 			case baud_115200:
 				speed = B115200;
+				break;
+			case baud_230400:
+				speed = B230400;
 				break;
 			case baud_921600:
 				speed = B921600;

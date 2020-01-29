@@ -191,6 +191,8 @@ typedef struct {
 	double Gxyz[3];		/* The Glare white coordinates (ie the Ambient color) */
 						/* will be taken from Wxyz if Gxyz <= 0.0 */
 	double hkscale;		/* [1.0] HK scaling factor */
+	double mtaf;		/* [0.0] Mid tone partial adapation factor from Wxyz to Wxyz2 0.0 .. 1.0 */
+	double Wxyz2[3];	/* Mid tone Adapted White XYZ (Y range 0.0 .. 1.0) */
 	char *desc;			/* Possible description of this VC */
 } icxViewCond;
 
@@ -282,17 +284,18 @@ struct _xicc {
 #define ICX_SET_WHITE       0x00010000	/* find, set and make relative to the white point */
 #define ICX_SET_WHITE_US    0x00030000	/* find, set and make relative to the white point hue, */
 										/* but not scale to W L value, to avoid input clipping */
-#define ICX_SET_WHITE_C     0x00050000	/* find, set and make relative to the white point hue, */
+#define ICX_SET_WHITE_ABS   0x00050000	/* Set dummy D50 white point to force absolute intent.  */
+#define ICX_SET_WHITE_C     0x00090000	/* find, set and make relative to the white point hue, */
 										/* and clip any cLUT values over D50 to D50 */
-#define ICX_SET_BLACK       0x00080000	/* find and set the black point */
-#define ICX_WRITE_WBL       0x00100000	/* Matrix: write White, Black & Luminance tags */
-#define ICX_CLIP_WB         0x00200000	/* Clip white and black to be < 1 and > 0 respectively */
-#define ICX_CLIP_PRIMS      0x00400000	/* Clip matrix primaries to be > 0 */
-#define ICX_NO_IN_SHP_LUTS  0x00800000	/* Lut/Mtx: Don't create input (Device) shaper curves. */
-#define ICX_NO_IN_POS_LUTS  0x01000000	/* LuLut: Don't create input (Device) postion curves. */
-#define ICX_NO_OUT_LUTS     0x02000000	/* LuLut: Don't create output (PCS) curves. */
-//#define ICX_2PASSSMTH     0x04000000	/* If LuLut: Use Gaussian smoothing */
-//#define ICX_EXTRA_FIT     0x08000000	/* If LuLut: Counteract scat data point errors. */
+#define ICX_SET_BLACK       0x00100000	/* find and set the black point */
+#define ICX_WRITE_WBL       0x00200000	/* Matrix: write White, Black & Luminance tags */
+#define ICX_CLIP_WB         0x00400000	/* Clip white and black to be < 1 and > 0 respectively */
+#define ICX_CLIP_PRIMS      0x00800000	/* Clip matrix primaries to be > 0 */
+#define ICX_NO_IN_SHP_LUTS  0x01000000	/* Lut/Mtx: Don't create input (Device) shaper curves. */
+#define ICX_NO_IN_POS_LUTS  0x02000000	/* LuLut: Don't create input (Device) postion curves. */
+#define ICX_NO_OUT_LUTS     0x04000000	/* LuLut: Don't create output (PCS) curves. */
+//#define ICX_2PASSSMTH     0x08000000	/* If LuLut: Use Gaussian smoothing */
+//#define ICX_EXTRA_FIT     0x10000000	/* If LuLut: Counteract scat data point errors. */
 /* And  ICX_VERBOSE         			   Turn on verboseness during creation */
 	struct _icxLuBase * (*set_luobj) (struct _xicc *p,
 	                                  icmLookupFunc func,		/* Functionality to set */

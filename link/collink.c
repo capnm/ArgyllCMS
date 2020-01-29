@@ -35,11 +35,6 @@
 
 /* NOTES:
 
-	Video :- current WTW TV encoding is clipped, not passed through with extrapolation.
-	If the display does a per component clipping, then passing through is probably
-	a bad thing, and cliping is the right behaviour, and just pass
-	the sync level though.
-
 	Normally the device side per channel curves are copied from
 	the source profiles to the link profile on the assumption that
 	the raw linearisation they do is good, and should be maintained
@@ -152,13 +147,22 @@
 #define USE_APXLS			/* [Define] Use least squares approximation setting cLUT */
 #define USE_CAM_CLIP_OPT	/* [Define] Clip out of gamut in CAM space rather than XYZ or L*a*b* */
 #define ENKHACK				/* [Define] Enable K hack code */
+#undef PRESERVE_SYNC		/* [Undef] Preserve video encoded sync level values */ 		
 #undef WARN_CLUT_CLIPPING	/* [Undef] Print warning if setting clut clips */
 
 #undef DEBUG		/* [Und] Report values of each sample transformed */
-#undef DEBUGC 		/* [Und] ie "if (tt)" */		/* Debug condition */
+#undef DEBUGC  		/* [Und] ie "if (tt)" */		/* Debug condition. Look for DEBUGC */
 #undef DEBUG_ONE	/* [Unf] test a single value out. Look for DBGNO to set value. */
 #undef NEUTKDEBUG	/* [Unf] print info about neutral L -> K mapping */
 
+
+#ifndef USE_APXLS
+# pragma message("!!!!!!!!!!!! USE_APXLS turned off  !!!!!!!!!")
+#endif
+
+#ifndef USE_CAM_CLIP_OPT
+# pragma message("!!!!!!!!!!!! USE_CAM_CLIP_OPT turned off  !!!!!!!!!")
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -248,6 +252,10 @@ void usage(char *diag, ...) {
 	fprintf(stderr,"         g:glare       Flare light %% of ambient (default %d)\n",XICC_DEFAULT_GLARE);
 	fprintf(stderr,"         g:X:Y:Z       Flare color as XYZ (default media white, Abs: D50)\n");
 	fprintf(stderr,"         g:x:y         Flare color as x, y\n");
+	fprintf(stderr,"         h:hkscale     Helmholtz-Kohlrausch effect scale factor (default 1.0)\n");
+	fprintf(stderr,"         m:mtaf        Mid-tone partial adaptation factor (default 0.0)\n");
+	fprintf(stderr,"         m:X:Y:Z       Mid-tone Adaptation white as XYZ (default D50)\n");
+	fprintf(stderr,"         m:x:y         Mid-tone Adaptation white as x, y\n");
 	fprintf(stderr," -t tlimit       set source total ink limit, 0 - 400%% (estimate by default)\n");
 	fprintf(stderr," -T klimit       set source black ink limit, 0 - 100%% (estimate by default)\n");
 	fprintf(stderr," Inverse outprofile A2B Options:\n");
@@ -733,8 +741,10 @@ void devi_devip(void *cntx, double *out, double *in) {
 	double full[3];		/* Full value in clip direction (Video) */
 
 #ifdef DEBUGC
-//	if (in[0] == 1.0 && in[1] == 1.0 && in[2] == 1.0 && in[3])
-//		tt = 1;
+	if (fabs(in[0] - 0.098030) < 1e-3
+     && fabs(in[1] - 0.368630) < 1e-3
+	 && fabs(in[2] - 0.556860) < 1e-3)
+		tt = 1;
 #endif
 
 #ifdef DEBUG
@@ -758,7 +768,7 @@ void devi_devip(void *cntx, double *out, double *in) {
 
 #ifdef DEBUG
 		if (p->in.tvenc) {
-			DEBUGCND printf("After TVdecode:\n",icmPdv(p->in.chan, out));
+			DEBUGCND printf("After TVdecode: %s\n",icmPdv(p->in.chan, out));
 		}
 #endif
 		/* Input curve */
@@ -789,14 +799,14 @@ void devi_devip(void *cntx, double *out, double *in) {
 		if (rv >= 2)
 			error("icc lookup failed: %d, %s",p->in.c->errc,p->in.c->err);
 #ifdef DEBUG
-		DEBUGCND printf("After input curve:\n",icmPdv(p->in.chan, out));
+		DEBUGCND printf("After input curve: %s\n",icmPdv(p->in.chan, out));
 #endif
 	}
 
 	if (p->in.lcurve) { 		/* Apply Y to L* */
 		y2l_curve(out, out, p->in.lcurve == 2);
 #ifdef DEBUG
-		DEBUGCND printf("After Y -. L* curve:\n",icmPdv(p->in.chan, out));
+		DEBUGCND printf("After Y -. L* curve: %s\n",icmPdv(p->in.chan, out));
 #endif
 	}
 
@@ -852,8 +862,10 @@ void devip_devop(void *cntx, double *out, double *in) {
 
 #ifdef DEBUGC
 	tt = 0;
-//	if (in[0] == 58.0/64.0 && in[1] == 58.0/64.0 && in[2] == 58.0/64.0)
-	if (in[0] == 4.0/64.0 && in[1] == 4.0/64.0 && in[2] == 4.0/64.0)
+
+	if (fabs(in[0] - 0.164720) < 1e-3
+     && fabs(in[1] - 0.393636) < 1e-3
+	 && fabs(in[2] - 0.631392) < 1e-3)
 		tt = 1;
 #endif
 
@@ -1419,6 +1431,7 @@ void devip_devop(void *cntx, double *out, double *in) {
 				} else {	/* Use inverse A2B table */
 					int i;
 #ifdef USE_MERGE_CLUT_OPT
+# pragma message("!!!!!!!!!!!! USE_MERGE_CLUT_OPT turned on  !!!!!!!!!")
 					/* Because we have used the ICX_MERGE_CLUT flag, we don't need */
 					/* to call inv_out_abs() and inv_output() */
 #else
@@ -1535,7 +1548,10 @@ void devip_devop(void *cntx, double *out, double *in) {
 	
 					/* Clip or pass sync through */
 					if (out[i] < 0.0 || out[i] > 1.0		/* clip */
-					 || fabs(uci[i] - full[i]) < 1e-6)		/* or input is at sync level */
+#ifdef PRESERVE_SYNC
+					 || fabs(uci[i] - full[i]) < 1e-6		/* or input is at sync level */
+#endif
+					)
 						out[i] = full[i];
 				}
 			}
@@ -1551,7 +1567,10 @@ void devip_devop(void *cntx, double *out, double *in) {
 					out[i] = ifull + (out[i] - ifull) * (uci[i] - ifull)/(cin[i] - ifull);
 	
 					if (out[i] < 0.0 || out[i] > 1.0		/* clip */
-					 || fabs(uci[i] - full[i]) < 1e-6)		/* or input is at sync level */
+#ifdef PRESERVE_SYNC
+					 || fabs(uci[i] - full[i]) < 1e-6		/* or input is at sync level */
+#endif
+					)
 						out[i] = full[i];
 				}
 			}
@@ -1906,6 +1925,9 @@ main(int argc, char *argv[]) {
 	ivc.Yf = -1.0;
 	ivc.Yg = -1.0;
 	ivc.Gxyz[0] = -1.0; ivc.Gxyz[1] = -1.0; ivc.Gxyz[2] = -1.0;
+	ivc.hkscale = -1.0;
+	ivc.mtaf = -1.0;
+	ivc.Wxyz2[0] = -1.0; ivc.Wxyz2[1] = -1.0; ivc.Wxyz2[2] = -1.0;
 
 	ovc.Ev = -1;
 	ovc.Wxyz[0] = -1.0; ovc.Wxyz[1] = -1.0; ovc.Wxyz[2] = -1.0;
@@ -1915,6 +1937,9 @@ main(int argc, char *argv[]) {
 	ovc.Yf = -1.0;
 	ovc.Yg = -1.0;
 	ovc.Gxyz[0] = -1.0; ovc.Gxyz[1] = -1.0; ovc.Gxyz[2] = -1.0;
+	ovc.hkscale = -1.0;
+	ovc.mtaf = -1.0;
+	ovc.Wxyz2[0] = -1.0; ovc.Wxyz2[1] = -1.0; ovc.Wxyz2[2] = -1.0;
 
 	if (argc < 4)
 		usage("Too few arguments, got %d expect at least 3",argc-1);
@@ -2255,6 +2280,20 @@ main(int argc, char *argv[]) {
 						vc->Yg = x/100.0;
 					} else
 						usage("Viewing condition (-%cf) unrecognised flare '%s'",argv[fa][1],na+1);
+				} else if (na[0] == 'h' || na[0] == 'H') {
+					if (na[1] != ':')
+						usage("Viewing conditions (-%ch) missing ':'",argv[fa][1]);
+					vc->hkscale = atof(na+2);
+				} else if (na[0] == 'm' || na[0] == 'M') {
+					double x, y, z;
+					if (sscanf(na+1,":%lf:%lf:%lf",&x,&y,&z) == 3) {
+						vc->Wxyz2[0] = x; vc->Wxyz2[1] = y; vc->Wxyz2[2] = z;
+					} else if (sscanf(na+1,":%lf:%lf",&x,&y) == 2) {
+						vc->Wxyz2[0] = x; vc->Wxyz2[1] = y; vc->Wxyz2[2] = -1;
+					} else if (sscanf(na+1,":%lf",&x) == 1) {
+						vc->mtaf = x;
+					} else
+						usage("Viewing condition (-%cm) unrecognised flare '%s'",argv[fa][1],na+1);
 				} else
 					usage("Viewing condition (-%c) unrecognised sub flag '%c'",argv[fa][1],na[0]);
 				vcset = 1;			/* Viewing conditions were set by user */
@@ -3101,6 +3140,30 @@ main(int argc, char *argv[]) {
 			double z = 1.0 - x - y;
 			vc->Gxyz[0] = x/y * vc->Gxyz[1];
 			vc->Gxyz[2] = z/y * vc->Gxyz[1];
+			*set = 1;
+		}
+
+		if (v->hkscale >= 0.0) {
+			vc->hkscale = v->hkscale;
+			*set = 1;
+		}
+		if (v->mtaf >= 0.0) {
+			vc->mtaf = v->mtaf;
+			*set = 1;
+		}
+		if (v->Wxyz2[0] >= 0.0 && v->Wxyz2[1] > 0.0 && v->Wxyz2[2] >= 0.0) {
+			/* Normalise XYZ */
+			vc->Wxyz2[0] = v->Wxyz2[0]/v->Wxyz2[1] * vc->Wxyz2[1];
+			vc->Wxyz2[2] = v->Wxyz2[2]/v->Wxyz2[1] * vc->Wxyz2[1];
+			*set = 1;
+		}
+		if (v->Wxyz2[0] >= 0.0 && v->Wxyz2[1] >= 0.0 && v->Wxyz2[2] < 0.0) {
+			/* Convert Yxy to XYZ */
+			double x = v->Wxyz2[0];
+			double y = v->Wxyz2[1];	/* If Y == 1.0, then X+Y+Z = 1/y */
+			double z = 1.0 - x - y;
+			vc->Wxyz2[0] = x/y * vc->Wxyz2[1];
+			vc->Wxyz2[2] = z/y * vc->Wxyz2[1];
 			*set = 1;
 		}
 	}
@@ -4337,7 +4400,6 @@ main(int argc, char *argv[]) {
 			/* The eeColor hard wires 1.0 input to 1.0 output in its cLUT, */
 			/* so de-scale the cLUT to match this, and re-scale in the */
 			/* output 1D lut */
-
 			li.coscale[0] = li.coscale[1] = li.coscale[2] = 1.0;	/* Default - do nothing */
 			if (li.tdlut == 1) {		/* eeColor encoded input */
 				double inout[3] = { 1.0, 1.0, 1.0 };
@@ -4395,7 +4457,7 @@ main(int argc, char *argv[]) {
 			if (li.verb)
 				printf("Filling in Lut table\n");
 #ifdef DEBUG_ONE
-#define DBGNO 1		/* Up to 10 */
+#define DBGNO 2		/* Up to 10 */
 
 #ifndef NEVER
 			/* Test a single given rgb/cmyk -> cmyk value */
@@ -4403,10 +4465,18 @@ main(int argc, char *argv[]) {
 				double in[10][MAX_CHAN];
 				double out[MAX_CHAN];
 
-				in[0][0] = 125.0/255.0;
-				in[0][1] = 61.4/255.0;
-				in[0][2] = 28.42/255.0;
-				in[0][0] = 0.5;
+				in[0][0] = 0.09803;		// Bad
+				in[0][1] = 0.30588;
+				in[0][2] = 0.55686;
+
+				in[1][0] = 0.09803;		// Good
+				in[1][1] = 0.36863;
+				in[1][2] = 0.55686;
+
+//				in[0][0] = 125.0/255.0;
+//				in[0][1] = 61.4/255.0;
+//				in[0][2] = 28.42/255.0;
+//				in[0][0] = 0.5;
 
 //				in[0][0] = 0.2;
 //				in[0][1] = 0.2;
@@ -5104,8 +5174,9 @@ int write_MadVR_3DLut(clink *li, icc *icc, char *fname) {
 
 //printf("~1 %f %f %f -> %f %f %f\n", in[0], in[1], in[2], out[0], out[1], out[2]);
 
+#ifdef PRESERVE_SYNC
 			if (li->in.tvenc == 8 || li->in.tvenc == 9) {		/* xvYCC */
-				for (i = 1; i < 3; i++) {		/* Force 'sync' entry values on CbCr*/
+				for (i = 1; i < 3; i++) {		/* Force 'sync' entry values on CbCr */
 					if (gc[i] == 0) {
 						out[i] = 0.0;
 					} else if (gc[i] == 255) {
@@ -5113,6 +5184,7 @@ int write_MadVR_3DLut(clink *li, icc *icc, char *fname) {
 					}
 				}
 			}
+#endif
 
 			if (li->out.tvenc == 0) {		/* Full range 16 bits */
 				iout[0] = (int)(out[0] * 0xffff + 0.5);
@@ -5148,7 +5220,7 @@ int write_MadVR_3DLut(clink *li, icc *icc, char *fname) {
 	/* This can be used to ensure that the Graphics Card VideoLuts */
 	/* are correctly setup to match what the 3dLut is expecting. */
 
-	/* Note that the calibration is full range, never TV encoded output values */
+	/* Note that the calibration curves are full range, never TV encoded output values */
 
 	/* Format is (little endian):
 		4 byte magic number 'cal1'

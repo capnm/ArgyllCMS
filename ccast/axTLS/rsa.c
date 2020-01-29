@@ -188,6 +188,50 @@ int RSA_decrypt(const RSA_CTX *ctx, const uint8_t *in_data,
 }
 
 /**
+ * @brief Use PKCS1.5 for decryption.
+ * @param ctx [in] The context
+ * @param in_data [in] The data to encrypt
+ * @param out_data [out] The decrypted data.
+ * @return  The number of bytes that were originally encrypted. -1 on error.
+ */
+int RSA_decrypt2(const RSA_CTX *ctx, const uint8_t *in_data, uint8_t *out_data)
+{
+    const int byte_size = ctx->num_octets;
+    int i, size;
+    bigint *decrypted_bi, *dat_bi;
+    uint8_t *block = (uint8_t *)malloc(byte_size);
+
+    /* decrypt */
+    dat_bi = bi_import(ctx->bi_ctx, in_data, byte_size);
+
+    decrypted_bi = RSA_public(ctx, dat_bi);		/* Frees dat_bi and exponent ? */
+
+    /* convert to a normal block (frees decrypted_bi) */
+    bi_export(ctx->bi_ctx, decrypted_bi, block, byte_size);
+
+
+	/* We assume this is padded with "0001ff....ff00" */
+    i = 2;
+    while (block[i++] == 0xff && i < byte_size)
+		;
+
+	/* Skip last 0x00 */
+	if (i < byte_size && block[i] == 0x00)
+		i++;
+
+    size = byte_size - i;
+
+    /* get only the bit we want */
+    if (size > 0) {
+        memcpy(out_data, &block[i], size);
+	}
+
+    free(block); 
+
+    return size ? size : -1;
+}
+
+/**
  * Performs m = c^d mod n
  */
 bigint *RSA_private(const RSA_CTX *c, bigint *bi_msg)

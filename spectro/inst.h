@@ -43,6 +43,7 @@
    and agreed to support.
  */
 
+#include "dev.h"			/* Base device class */
 #include "insttypes.h"		/* libinst Includes this functionality */
 #include "disptechs.h"		/* libinst Includes this functionality */
 #include "icoms.h"			/* libinst Includes this functionality */
@@ -100,20 +101,6 @@ struct _ipatch {
 						/* Typicall limited to sampling rate of instrument. */
 
 }; typedef struct _ipatch ipatch;
-
-/* ------------------------------------------------------ */
-/* Gretag/X-Rite specific reflective measurement standard */
-
-typedef enum {
-	xcalstd_none = -2,		/* Not set */
-	xcalstd_native = -1,	/* No conversion */
-	xcalstd_xrdi = 0,		/* Historical X-Rite */
-	xcalstd_gmdi = 1,		/* Historical Gretag-Macbeth */
-	xcalstd_xrga = 2,		/* Current X-Rite */
-} xcalstd;
-
-/* Return a string for the xcalstd enum */
-char *xcalstd2str(xcalstd std);
 
 /* ---------------------------------------- */
 /* Instrument interface abstract base class */
@@ -301,7 +288,7 @@ typedef enum {
 /* Return a string with a symbolic encoding of the mode flags */
 void inst_mode_to_sym(char sym[MAX_INST_MODE_SYM_SZ], inst_mode mode);
 
-/* Return a set of mode flags that correspondf to the symbolic encoding */
+/* Return a set of mode flags that correspond to the symbolic encoding */
 /* Return nz if a symbol wasn't recognized */
 int sym_to_inst_mode(inst_mode *mode, const char *sym);
 
@@ -362,6 +349,9 @@ typedef enum {
 /* (Available capabilities may be mode dependent) */
 typedef enum {
 	inst3_none              = 0x00000000, /* No capabilities */
+
+	inst3_average           = 0x00000001  /* Can set to average multiple measurements into 1 */
+										  /* See inst_opt_set_averages */
 
 } inst3_capability;
 
@@ -511,7 +501,10 @@ typedef enum {
 											/*                             [xcalstd standard] */
 	inst_opt_get_xcalstd        = 0x0023,	/* Get the effective X-Rite ref. cal. standard */
 											/*                             [xcalstd *standard] */
-	inst_opt_lamp_remediate     = 0x0024	/* Remediate i1Pro lamp           [double seconds] */
+	inst_opt_lamp_remediate     = 0x0024,	/* Remediate i1Pro lamp           [double seconds] */
+
+	inst_opt_set_averages       = 0x0025	/* Set the number of measurements to average [int] */
+											/* 0 for default */
 
 
 } inst_opt_type;
@@ -680,7 +673,7 @@ typedef enum {
 	inst_conf_ambient
 } inst_config;
 
-# define EXRA_INST_OBJ
+# define EXTRA_INST_OBJ
 
 /* Off-line pending readings available (status) */
 #define CALIDLEN 200	/* Maxumum length of calibration tile ID string */
@@ -692,12 +685,10 @@ typedef enum {
 /* after initialisation. */
 #define INST_OBJ_BASE															\
 																				\
-	EXRA_INST_OBJ																\
-	a1log *log;			/* Pointer to debug & error logging class */			\
-	instType  itype;	/* Instrument type determined by driver */				\
-	icoms *icom;		/* Instrument coms object */							\
-	int gotcoms;		/* Coms established flag */                             \
-	int inited;			/* Instrument open and initialized flag */              \
+	DEV_OBJ_BASE																\
+	                                                                            \
+	EXTRA_INST_OBJ																\
+	                                                                            \
 	double cal_gy_level; /* Display calibration test window state */			\
 	int cal_gy_count;	/* Display calibration test window state */				\
 	inst_code (*uicallback)(void *cntx, inst_ui_purp purp);						\

@@ -21,6 +21,8 @@ LINKLIBS = ../icc/libicc ../xicc/libxicc
            ../cgats/libcgats ../numlib/libnum
            ../plot/libplot ../plot/libvrml ../numlib/libui $(LibWin) ;
 
+LINKFLAGS += $(GUILINKFLAGS) ;
+
 # Profile refiner
 Main refine : refine.c ;
 

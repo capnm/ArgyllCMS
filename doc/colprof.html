@@ -15,8 +15,8 @@
     [ Note that currently, Monochrome and N-Color profiles are not
     supported. ]<br>
     <h3>Usage Summary</h3>
-    &nbsp;<tt><small>colprof [-<i>options</i>] inoutfile<br>
-        &nbsp;<a href="#v">-v</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+    &nbsp;<tt>colprof [-<i>options</i>] inoutfile<br>
+      &nbsp;<a href="#v">-v</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
@@ -54,21 +54,6 @@
 
 
 
-        &nbsp; &nbsp; &nbsp; &nbsp; Verbose mode<br>
-        &nbsp;<a href="#A">-A "manufacturer"</a>&nbsp; Set the
-        manufacturer description string<br>
-        &nbsp;<a href="#M">-M "model"</a>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Set the model
-        description string<br>
-        &nbsp;<a href="#D">-D "description"</a>&nbsp;&nbsp; Set the
-        profile Description string&nbsp; (Default "<span
-          style="font-style: italic;">inoutfile</span>")<br>
-        &nbsp;<a href="#C">-C "copyright"</a> &nbsp;&nbsp;&nbsp; Set the
-        copyright string<br>
-        &nbsp;<a href="#Za">-Z tmnb &nbsp;</a>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Attributes:
-        Transparency, Matte, Negative, BlackAndWhite<br>
-      </small></tt><tt><small>&nbsp;<a href="colprof.html#Zi">-Z prsa</a>&nbsp;
 
 
 
@@ -79,6 +64,30 @@
 
 
 
+      &nbsp; &nbsp; &nbsp; &nbsp; Verbose mode<br>
+      &nbsp;<a href="#A">-A "manufacturer"</a>&nbsp; Set the
+      manufacturer description string<br>
+      &nbsp;<a href="#M">-M "model"</a>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Set the model
+      description string<br>
+      &nbsp;<a href="#D">-D "description"</a>&nbsp;&nbsp; Set the
+      profile Description string&nbsp; (Default "<span
+        style="font-style: italic;">inoutfile</span>")<br>
+      &nbsp;<a href="#C">-C "copyright"</a> &nbsp;&nbsp;&nbsp; Set the
+      copyright string<br>
+      &nbsp;<a href="#Za">-Z tmnb &nbsp;</a>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Attributes:
+      Transparency, Matte, Negative, BlackAndWhite<br>
+    </tt><tt>&nbsp;<a href="colprof.html#Zi">-Z prsa</a>&nbsp;
+      &nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Default intent:
+      Perceptual, Rel. Colorimetric, Saturation, Abs. Colorimetric</tt><tt><br>
+    </tt><tt> </tt><tt>&nbsp;<a href="#q">-q lmhu</a> &nbsp;&nbsp;
+      &nbsp; &nbsp; &nbsp;&nbsp;&nbsp; Quality - Low, Medium (def),
+      High, Ultra<br>
+      &nbsp;<a href="#b">-b [lmhun]</a>&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;
+      &nbsp; Low quality B2A table - or specific B2A quality or none for
+      input device<br>
+      &nbsp;<a href="#ni">-ni</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
@@ -96,16 +105,6 @@
 
 
 
-        &nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Default
-        intent: Perceptual, Rel. Colorimetric, Saturation, Abs.
-        Colorimetric</small></tt><tt><br>
-    </tt><tt> </tt><tt><small>&nbsp;<a href="#q">-q lmhu</a>
-        &nbsp;&nbsp; &nbsp; &nbsp; &nbsp;&nbsp;&nbsp; Quality - Low,
-        Medium (def), High, Ultra<br>
-        &nbsp;<a href="#b">-b [lmhun]</a>&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;
-        &nbsp; Low quality B2A table - or specific B2A quality or none
-        for input device<br>
-        &nbsp;<a href="#ni">-ni</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
@@ -136,6 +135,12 @@
 
 
 
+      &nbsp; &nbsp; &nbsp; &nbsp; Don't create input (Device) shaper
+      curves<br>
+    </tt><tt>&nbsp;<a href="#np">-np</a>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+      Don't create input (Device) grid position curves</tt><tt><br>
+    </tt><tt> </tt><tt>&nbsp;<a href="#no">-no</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
@@ -143,12 +148,6 @@
 
 
 
-        &nbsp; &nbsp; &nbsp; &nbsp; Don't create input (Device) shaper
-        curves<br>
-      </small></tt><tt><small>&nbsp;<a href="#np">-np</a>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
-        Don't create input (Device) grid position curves</small></tt><tt><br>
-    </tt><tt> </tt><tt><small>&nbsp;<a href="#no">-no</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
@@ -186,500 +185,55 @@
 
 
 
-        &nbsp; &nbsp; &nbsp; &nbsp; Don't create output (PCS) shaper
-        curves<br>
-      </small></tt><tt><small>&nbsp;<a href="#nc">-nc</a>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
-        Don't put the input .ti3 data in the profile</small></tt><tt><br>
-    </tt><tt> </tt><tt><small>&nbsp;<a href="#k">-k zhxr</a>&nbsp;
-        &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Black Ink generation: z =
-        zero K,<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;&nbsp;&nbsp;
-h
-=
-0.5
-K
-(def),
-x
-=
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        max K, r = ramp K<br>
-        &nbsp;<a href="#kp">-k p stle stpo enpo enle shape</a><br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;&nbsp;&nbsp;
-stle:
-K
-level
-at
-White
-0.0
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        - 1.0<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-stpo:
-start
-point
-of
-transition
-Wh
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        0.0 - Bk 1.0<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-enpo:
-End
-point
-of
-transition
-Wh
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        0.0 - Bk 1.0<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-enle:
-K
-level
-at
-Black
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        0.0 - 1.0<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-shape:
-1.0
-=
-straight,
-0.0-1.0
-concave,
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        1.0-2.0 convex<br>
-        &nbsp;<a href="#K">-K parameters</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        Same as -k, but target is K locus rather than K value itself<br>
-        &nbsp;<a href="#l">-l <i>tlimit</i></a>&nbsp;&nbsp; &nbsp;
-        &nbsp; &nbsp;&nbsp; override CMYK total ink limit, 0 - 400%
-        (default from .ti3)<br>
-        &nbsp;<a href="#L">-L <i>klimit</i></a>&nbsp;&nbsp; &nbsp;
-        &nbsp; &nbsp;&nbsp; override black ink limit, 0 - 100% (default
-        from .ti3)<br>
-        &nbsp;<a href="#a">-a lxXgsmGS</a> &nbsp;&nbsp; &nbsp; &nbsp;
-        Algorithm type override<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-l
-=
-Lab
-cLUT
-(def.),
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        x = XYZ cLUT, X = display XYZ cLUT + matrix<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-g
-=
-gamma+matrix,
-s
-=
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        shaper+matrix, m = matrix only,<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-G
-=
-single
-gamma+matrix,
-S
-=
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        single shaper+matrix<br>
-        &nbsp;<a href="#u">-u</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      &nbsp; &nbsp; &nbsp; &nbsp; Don't create output (PCS) shaper
+      curves<br>
+    </tt><tt>&nbsp;<a href="#nc">-nc</a>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+      Don't put the input .ti3 data in the profile</tt><tt><br>
+    </tt><tt> </tt><tt>&nbsp;<a href="#k">-k zhxr</a>&nbsp; &nbsp;
+      &nbsp; &nbsp; &nbsp; &nbsp; Black Ink generation: z = zero K,<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;&nbsp; h = 0.5 K (def), x = max
+      K, r = ramp K<br>
+      &nbsp;<a href="#kp">-k p stle stpo enpo enle shape</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;&nbsp; stle: K level at White 0.0
+      - 1.0<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; stpo: start point of transition
+      Wh 0.0 - Bk 1.0<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; enpo: End point of transition
+      Wh 0.0 - Bk 1.0<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; enle: K level at Black 0.0 -
+      1.0<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; shape: 1.0 = straight, 0.0-1.0
+      concave, 1.0-2.0 convex<br>
+      &nbsp;<a href="#K">-K parameters</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      Same as -k, but target is K locus rather than K value itself<br>
+      &nbsp;<a href="#l">-l <i>tlimit</i></a>&nbsp;&nbsp; &nbsp; &nbsp;
+      &nbsp;&nbsp; override CMYK total ink limit, 0 - 400% (default from
+      .ti3)<br>
+      &nbsp;<a href="#L">-L <i>klimit</i></a>&nbsp;&nbsp; &nbsp; &nbsp;
+      &nbsp;&nbsp; override black ink limit, 0 - 100% (default from
+      .ti3)<br>
+      &nbsp;<a href="#a">-a lxXgsmGS</a> &nbsp;&nbsp; &nbsp; &nbsp;
+      Algorithm type override<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; l = Lab cLUT (def.), x = XYZ
+      cLUT, X = display XYZ cLUT + matrix<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; g = gamma+matrix, s =
+      shaper+matrix, m = matrix only,<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; G = single gamma+matrix, S =
+      single shaper+matrix<br>
+      &nbsp;<a href="#u">-u</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;
 &nbsp;
 &nbsp;
@@ -713,14 +267,27 @@ S
 
 
 
-        If input profile, auto scale WP to allow extrapolation</small></tt><tt><br>
-    </tt><tt> </tt><tt><small><small>&nbsp;<a href="#uc">-uc</a>
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp;
-          &nbsp;&nbsp; If input profile, clip cLUT values above WP<br>
-        </small>&nbsp;</small></tt><tt><small><a href="#U">-U <span
-            style="font-style: italic;">scale</span></a>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; If input
-        profile, scale media white point by scale</small></tt><tt><br>
+
+
+
+
+
+
+
+
+
+
+      If input profile, auto scale WP to allow extrapolation</tt><br>
+    <tt><tt>&nbsp;<a href="colprof.html#ua">-ua</a>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp;
+        &nbsp;&nbsp; If input profile, force Absolute Colorimetric
+        intent</tt><br>
+    </tt><tt> </tt><tt>&nbsp;<a href="#uc">-uc</a>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp;
+      &nbsp;&nbsp; If input profile, clip cLUT values above WP<br>
+      &nbsp;</tt><tt><a href="#U">-U <span style="font-style: italic;">scale</span></a>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; If input
+      profile, scale media white point by scale</tt><tt><br>
     </tt><tt> </tt><tt>&nbsp;</tt><tt><a href="#R">-R</a></tt><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Restrict
 white
@@ -728,6 +295,16 @@ white
 1.0,
 black
 and
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -779,6 +356,16 @@ and
 
 
 
+
+
+
+
+
+
+
+
+
+
       Display Black Point override hack<br>
       &nbsp;<a href="#V">-V demphasis</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
@@ -799,12 +386,22 @@ and
 
 
 
+
+
+
+
+
+
+
+
+
+
       Degree of dark region cLUT grid emphasis 1.0-3.0 (default 1.00 =
       none)<br>
-    </tt><tt>&nbsp;</tt><tt><small><small><a href="#f">-f [<i>illum</i>]</a>
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Use Fluorescent
-          Whitening Agent compensation [opt. simulated inst. illum.:<br>
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+    </tt><tt>&nbsp;</tt><tt><a href="#f">-f [<i>illum</i>]</a>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Use Fluorescent
+      Whitening Agent compensation [opt. simulated inst. illum.:<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
@@ -832,9 +429,6 @@ and
 
 
 
-          M0, M1, M2, </small></small></tt><tt><small><small><small>A,
-            C, D50 (def.), D50M2, D65, F5, F8, F10 or file.sp ]</small></small></small></tt><tt><br>
-    </tt><tt><small><small><small><small>&nbsp;<a href="#i">-i <i>illum</i></a>&nbsp;&nbsp;
 
 
 
@@ -845,6 +439,30 @@ and
 
 
 
+      M0, M1, M2, </tt><tt>A, C, D50 (def.), D50M2, D65, F5, F8, F10 or
+      file.sp ]</tt><tt><br>
+    </tt><tt>&nbsp;<a href="#i">-i <i>illum</i></a>&nbsp;&nbsp; &nbsp;
+      &nbsp; &nbsp; &nbsp; Choose illuminant for computation of CIE XYZ
+      from spectral data &amp; FWA:<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; A, C, D50 (def.), D50M2, D65,
+      F5, F8, F10 or file.sp<br>
+      &nbsp;<a href="#o">-o <i>observ</i></a>&nbsp; &nbsp; &nbsp;
+      &nbsp; &nbsp; Choose CIE Observer for spectral data:<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 1931_2 </tt><tt>(def.)</tt><tt>,
+      1964_10, 2012_2, 2012_10, S&amp;B 1955_2, shaw, J&amp;V 1978_2 or
+      file.cmf<br>
+      &nbsp;<a href="#r">-r avgdev</a> &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;
+      Average deviation of device+instrument readings as a percentage
+      (default 0.5%)<br>
+      &nbsp;<a href="#s">-s src.icm|cperc</a> &nbsp; Apply gamut mapping
+      to output profile perceptual B2A table for given source, or
+      compression percentage<br>
+      &nbsp;<a href="#S">-S src.icm|experc</a>&nbsp; Apply gamut mapping
+      to output profile perceptual and saturation B2A table, or
+      expansion percentage<br>
+      &nbsp;<a href="#nP">-nP</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
@@ -862,19 +480,6 @@ and
 
 
 
-              &nbsp; &nbsp; &nbsp; &nbsp; Choose illuminant for
-              computation of CIE XYZ from spectral data &amp; FWA:<br>
-              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-A,
-C,
-D50
-(def.),
-D50M2,
 
 
 
@@ -902,13 +507,12 @@ D50M2,
 
 
 
-              D65, F5, F8, F10 or file.sp</small></small></small><br>
-        &nbsp;<a href="#o">-o <i>observ</i></a>&nbsp; &nbsp; &nbsp;
-        &nbsp; &nbsp; Choose CIE Observer for spectral data:<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
+      Use colormetric source gamut to make output profile perceptual
+      table<br>
+      &nbsp;<a href="#nS">-nS</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
@@ -943,18 +547,6 @@ D50M2,
 
 
 
-        &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 1931_2 </small></tt><tt><small>(def.)</small></tt><tt><small>,
-        1964_10, S&amp;B 1955_2, shaw, J&amp;V 1978_2<br>
-        &nbsp;<a href="#r">-r avgdev</a> &nbsp; &nbsp; &nbsp;
-        &nbsp;&nbsp; Average deviation of device+instrument readings as
-        a percentage (default 0.5%)<br>
-        &nbsp;<a href="#s">-s src.icm|cperc</a> &nbsp; Apply gamut
-        mapping to output profile perceptual B2A table for given source,
-        or compression percentage<br>
-        &nbsp;<a href="#S">-S src.icm|experc</a>&nbsp; Apply gamut
-        mapping to output profile perceptual and saturation B2A table,
-        or expansion percentage<br>
-        &nbsp;<a href="#nP">-nP</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
@@ -968,6 +560,17 @@ D50M2,
 
 
 
+      Use colormetric source gamut to make output profile saturation
+      table<br>
+      &nbsp;<a href="#g">-g src.gam</a>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Use source image gamut
+      as well for output profile gamut mapping<br>
+      &nbsp;<a href="#p">-p aprof.icm,...</a> &nbsp; Incorporate
+      abstract profile(s) into output tables<br>
+      &nbsp;<a href="#t">-t intent</a>&nbsp;
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Override gamut mapping
+      intent for output profile perceptual table:<br>
+      &nbsp;<a href="#T">-T intent</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
@@ -992,9 +595,6 @@ D50M2,
 
 
 
-        Use colormetric source gamut to make output profile perceptual
-        table<br>
-        &nbsp;<a href="#nS">-nS</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
@@ -1018,6 +618,24 @@ D50M2,
 
 
 
+      Override gamut mapping intent for output profile saturation table:<br>
+    </tt><tt> &nbsp; &nbsp; &nbsp;
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      a - Absolute Colorimetric (in Jab) [ICC Absolute Colorimetric]<br>
+      &nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp;&nbsp;
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; aw - Absolute Colorimetric
+      (in Jab) with scaling to fit white point<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;
+      &nbsp;&nbsp; &nbsp;&nbsp; aa - Absolute Appearance<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp;&nbsp;
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; r - White Point Matched Appearance
+      [ICC Relative Colorimetric]<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      &nbsp; &nbsp; &nbsp; la - Luminance matched Appearance<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp;&nbsp;
+      &nbsp;&nbsp;&nbsp;&nbsp; p - Perceptual (Preferred) [ICC
+      Perceptual]<br>
+    </tt><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
@@ -1032,17 +650,6 @@ D50M2,
 
 
 
-        Use colormetric source gamut to make output profile saturation
-        table<br>
-        &nbsp;<a href="#g">-g src.gam</a>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Use source image
-        gamut as well for output profile gamut mapping<br>
-        &nbsp;<a href="#p">-p aprof.icm,...</a> &nbsp; Incorporate
-        abstract profile(s) into output tables<br>
-        &nbsp;<a href="#t">-t intent</a>&nbsp;
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Override gamut
-        mapping intent for output profile perceptual table:<br>
-        &nbsp;<a href="#T">-T intent</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
@@ -1076,29 +683,12 @@ D50M2,
 
 
 
+      pa - Perceptual Appearance</tt><br>
+    <tt><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
 
-        Override gamut mapping intent for output profile saturation
-        table:<br>
-      </small></tt><tt><small> &nbsp; &nbsp; &nbsp;
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        a - Absolute Colorimetric (in Jab) [ICC Absolute Colorimetric]<br>
-        &nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp;&nbsp;
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; aw - Absolute Colorimetric
-        (in Jab) with scaling to fit white point<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;
-        &nbsp;&nbsp; &nbsp;&nbsp; aa - Absolute Appearance<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp;&nbsp;
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; r - White Point Matched
-        Appearance [ICC Relative Colorimetric]<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        &nbsp; &nbsp; &nbsp; la - Luminance matched Appearance<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp;&nbsp;
-        &nbsp;&nbsp;&nbsp;&nbsp; p - Perceptual (Preferred) [ICC
-        Perceptual]<br>
-      </small></tt><tt><small>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
@@ -1110,6 +700,15 @@ D50M2,
 
 
 
+        lp - Luminance Preserving Perceptual</tt><br>
+    </tt><tt> </tt><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      &nbsp; &nbsp;&nbsp; &nbsp;&nbsp;&nbsp; ms - Saturation<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;
+      &nbsp;&nbsp; &nbsp;&nbsp;&nbsp; s - Enhanced Saturation [ICC
+      Saturation]<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;
+      &nbsp;&nbsp; &nbsp; al - Absolute Colorimetric (Lab)</tt><tt><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
@@ -1136,19 +735,17 @@ D50M2,
 
 
 
-        pa - Perceptual Appearance</small></tt><br>
-    <tt><tt><small>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
 
 
-          lp - Luminance Preserving Perceptual</small></tt><br>
-    </tt><tt> </tt><tt><small>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
 
+      rl - White Point Matched Colorimetric (Lab)<br>
+      &nbsp;<a href="#c">-c viewcond</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
@@ -1182,12 +779,271 @@ D50M2,
 
 
 
-        &nbsp; &nbsp;&nbsp; &nbsp;&nbsp;&nbsp; ms - Saturation<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;
-        &nbsp;&nbsp; &nbsp;&nbsp;&nbsp; s - Enhanced Saturation [ICC
-        Saturation]<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;
-        &nbsp;&nbsp; &nbsp; al - Absolute Colorimetric (Lab)</small></tt><tt><small><br>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      set input viewing conditions for output profile CIECAM02 gamut
+      mapping,<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      either an enumerated choice, or a parameter<br>
+      &nbsp;<a href="#d">-d viewcond</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      set output viewing conditions for output profile CIECAM02, gamut
+      mapping<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      either an enumerated choice, or a parameter:value change<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      Also sets out of gamut clipping CAM space.<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      Enumerated Viewing Conditions:<br>
+    </tt><tt>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;
+      &nbsp; </tt><tt><tt>pc - Critical print evaluation environment
+        (ISO-3664 P1)</tt><tt><br>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
@@ -1195,6 +1051,33 @@ D50M2,
 
 
 
+      </tt>pp - Practical Reflection Print (ISO-3664 P2)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp;
+      &nbsp;&nbsp; &nbsp; pe - Print evaluation environment (CIE
+      116-1995)<br>
+    </tt><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp;
+      &nbsp;&nbsp; &nbsp; pm - Print evaluation with partial Mid-tone
+      adapation</tt><tt><br>
+    </tt><tt> </tt><tt>&nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp;&nbsp;
+      &nbsp; &nbsp; &nbsp; mt - Monitor in typical work environment<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+      &nbsp; mb - Monitor in bright work environment<br>
+      &nbsp;&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;
+      md - Monitor in darkened work environment<br>
+      &nbsp;&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;
+      jm - Projector in dim environment<br>
+      &nbsp;&nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;
+      &nbsp;&nbsp;&nbsp; jd - Projector in dark environment<br>
+      &nbsp;&nbsp; &nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp;&nbsp;
+      pcd - Photo CD - original scene outdoors<br>
+      &nbsp;&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;
+      &nbsp;&nbsp;&nbsp; ob - Original scene - Bright Outdoors<br>
+      &nbsp;&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;
+      cx - Cut Sheet Transparencies on a viewing box</tt><tt><br>
+      &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+      &nbsp; &nbsp;&nbsp;&nbsp; s:surround n = auto, a = average, m =
+      dim, d = dark,<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
@@ -1214,8 +1097,6 @@ D50M2,
 
 
 
-        rl - White Point Matched Colorimetric (Lab)<br>
-        &nbsp;<a href="#c">-c viewcond</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
@@ -1244,6 +1125,32 @@ D50M2,
 
 
 
+      &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;&nbsp;&nbsp;
+      &nbsp;&nbsp; c = transparency (default average)<br>
+      &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      w:X:Y:Z&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Adapted white point as
+      XYZ (default media white)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp; &nbsp;
+      &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+      w:x:y&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Adapted
+      white point as x, y<br>
+      &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; a:adaptation&nbsp; Adaptatation
+      luminance in cd.m^2 (default 50.0)<br>
+      &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; b:background&nbsp; Background % of
+      image luminance (default 20)<br>
+      &nbsp;&nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp;
+      &nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp; &nbsp; l:imageewhite Image
+      white in cd.m^2 if surround = auto (default 250)</tt><br>
+    <tt><span style="font-family: monospace;"><span style="font-family:
+          monospace;">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+          &nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+          f:flare&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Flare light % of
+          image luminance (default 0)<br>
+        </span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; </span><span
+        style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
@@ -1253,9 +1160,6 @@ D50M2,
 
 
 
-        set input viewing conditions for output profile CIECAM02 gamut
-        mapping,<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
@@ -1281,311 +1185,48 @@ D50M2,
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-        either an enumerated choice, or a parameter<br>
-        &nbsp;<a href="#d">-d viewcond</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        set output viewing conditions for output profile CIECAM02, gamut
-        mapping<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        either an enumerated choice, or a parameter:value change<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        Also sets out of gamut clipping CAM space.<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        Enumerated Viewing Conditions:<br>
-      </small></tt><tt><small>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
-        &nbsp;&nbsp; &nbsp; pp - Practical Reflection Print (ISO-3664
-        P2)<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp;
-        &nbsp;&nbsp; &nbsp; pe - Print evaluation environment (CIE
-        116-1995)<br>
-      </small></tt><tt><small>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        &nbsp; &nbsp; &nbsp;&nbsp; &nbsp; pc - Critical print evaluation
-        environment (ISO-3664 P1)</small></tt><tt><br>
-    </tt><tt> </tt><tt><small>&nbsp;&nbsp; &nbsp; &nbsp;&nbsp;
-        &nbsp;&nbsp; &nbsp; &nbsp; &nbsp; mt - Monitor in typical work
-        environment<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
-        &nbsp; mb - Monitor in bright work environment<br>
-        &nbsp;&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
-        &nbsp;&nbsp; md - Monitor in darkened work environment<br>
-        &nbsp;&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; &nbsp;
-        &nbsp; jm - Projector in dim environment<br>
-        &nbsp;&nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;
-        &nbsp;&nbsp;&nbsp; jd - Projector in dark environment<br>
-        &nbsp;&nbsp; &nbsp; &nbsp; &nbsp;&nbsp; &nbsp;
-        &nbsp;&nbsp;&nbsp; pcd - Photo CD - original scene outdoors<br>
-        &nbsp;&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;
-        &nbsp;&nbsp;&nbsp; ob - Original scene - Bright Outdoors<br>
-        &nbsp;&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
-        &nbsp;&nbsp; cx - Cut Sheet Transparencies on a viewing box</small></tt><tt><small><br>
-        &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
-        &nbsp; &nbsp;&nbsp;&nbsp; s:surround n = auto, a = average, m =
-        dim, d = dark,<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;&nbsp;&nbsp;
-        &nbsp;&nbsp; c = transparency (default average)<br>
-        &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        w:X:Y:Z&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Adapted white point
-        as XYZ (default media white)<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp; &nbsp;
-        &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
-        w:x:y&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Adapted
-        white point as x, y<br>
-        &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; a:adaptation&nbsp; Adaptatation
-        luminance in cd.m^2 (default 50.0)<br>
-        &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; b:background&nbsp; Background %
-        of image luminance (default 20)<br>
-        &nbsp;&nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp;
-        &nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp; &nbsp;
-        l:imageewhite&nbsp; Image white in cd.m^2 if surround = auto
-        (default 250)</small></tt><br>
-    <tt><small><small><span style="font-family: monospace;"><small><span
-                style="font-family: monospace;">&nbsp; &nbsp; &nbsp;
-                &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;
-                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                f:flare&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Flare light
-                % of image luminance (default 0)<br>
-              </span></small>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+        g:glare&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Glare light % of
+        ambient (default 5)</span><br style="font-family: monospace;">
+      <span style="font-family: monospace;">&nbsp; &nbsp; &nbsp; &nbsp;
+        &nbsp; &nbsp; &nbsp;&nbsp;
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        g:X:Y:Z&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Glare color as XYZ
+        (default media white)</span><br style="font-family: monospace;">
+      <span style="font-family: monospace;">&nbsp; &nbsp; &nbsp; &nbsp;
+        &nbsp; &nbsp; &nbsp; &nbsp;
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        g:x:y&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Glare
+        color as x, y<br>
+      </span></tt><tt><span style="font-family: monospace;"><tt><span
+            style="font-family: monospace;"><span style="font-family:
+              monospace;">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+              &nbsp;&nbsp;
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+              h:hkscale&nbsp;&nbsp;&nbsp;&nbsp; Helmholtz-Kohlrausch
+              effect scale factor (default 1.0)<br>
+            </span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
             &nbsp;&nbsp; </span><span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-            g:glare&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Glare light % of
-            ambient (default 5)</span><br style="font-family:
-            monospace;">
+            m:mtaf&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Mid-tone
+            partial adaptation factor (default 0.0)</span><br
+            style="font-family: monospace;">
           <span style="font-family: monospace;">&nbsp; &nbsp; &nbsp;
             &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;
             &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            g:X:Y:Z&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Glare color as
-            XYZ (default media white)</span><br style="font-family:
-            monospace;">
+            m:X:Y:Z&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Mid-tone
+            Adaptation white as XYZ (default D50)</span><br
+            style="font-family: monospace;">
           <span style="font-family: monospace;">&nbsp; &nbsp; &nbsp;
             &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
             &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            g:x:y&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Glare
-            color as x, y</span></small> <br>
-        &nbsp;<a href="#P">-P</a>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            m:x:y&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            Mid-tone Adaptation white as x, y</span></tt></span> <br>
+      &nbsp;<a href="#P">-P</a>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
@@ -1623,8 +1264,18 @@ D50M2,
 
 
 
-        Create gamut gammap_p.x3d.html and gammap_s.x3d.html diagostics<br>
-      </small></tt><tt><small>&nbsp;<a href="#O">-O outputfile</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
+
+
+
+
+
+      Create gamut gammap_p.x3d.html and gammap_s.x3d.html diagostics<br>
+    </tt><tt>&nbsp;<a href="#O">-O outputfile</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Override
 
 
@@ -1663,10 +1314,20 @@ Override
 
 
 
-        the default output filename &amp; extension.</small></tt><tt><br>
-    </tt><tt> </tt><tt><small>&nbsp;<a href="#p1"><i>inoutfile</i></a>
-        &nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Base name for
-        input.ti3/output.icc file</small></tt><br>
+
+
+
+
+
+
+
+
+
+
+      the default output filename &amp; extension.</tt><tt><br>
+    </tt><tt> </tt><tt>&nbsp;<a href="#p1"><i>inoutfile</i></a>
+      &nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Base name for
+      input.ti3/output.icc file</tt><br>
     <h3>Options<br>
     </h3>
     <b><a name="v"></a>-v</b>&nbsp; Turn on verbose mode. Gives progress
@@ -1824,10 +1485,30 @@ the
 
 
 
+
+
+
+
+
+
+
+
+
+
     device and CIE/spectral sample data and calibration curves used to
     create a profile is stored in the <span style="font-weight: bold;">'targ'</span>
     text tag in the resulting ICC profile. To suppress this and make the
     resulting profile smaller, use the <span style="font-weight: bold;">-nc
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1939,9 +1620,29 @@ the
 
 
 
+
+
+
+
+
+
+
+
+
+
       |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; &nbsp;
       &nbsp;_______&nbsp; enle<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2018,8 +1719,28 @@ the
 
 
 
+
+
+
+
+
+
+
+
+
+
       |&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; &nbsp; /<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2096,6 +1817,16 @@ the
 
 
 
+
+
+
+
+
+
+
+
+
+
       |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; /<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
       stle&nbsp; | ------/<br>
@@ -2106,6 +1837,16 @@ the
       stpo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 1.0<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2261,19 +2002,28 @@ White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
     lut table. Using the <b>-u</b> flag causes the media white point to
     be automatically scaled (using the same type of scaling as the <span
       style="font-weight: bold;">-U scale</span> option) to avoid
-    clipping values up to full device white. This flag can be useful
-    when an input profile is needed for using a scanner as a "poor mans"
-    colorimeter, or if the white point of the test chart doesn't
-    represent the white points of media that will be used in practice,
-    and that white point adjustment will be done individually in some
-    downstream application.<br>
+    clipping values up to full device white, while still correcting the
+    hue. This flag can be useful when the white point of the test chart
+    doesn't represent the white points of media that will be used in
+    practice, and that white point adjustment will be done individually
+    in some downstream application.<br>
+    <br>
+    <a name="ua"></a> <span style="font-weight: bold;">-ua:</span> For
+    input profiles, this flag forces the effective intent to be Absolute
+    Colorimetric even when used with Relative Colorimetric intent
+    selection in a CMM, by setting a D50 white point tag.&nbsp; This
+    also has the effect of preserving the conversion of colors whiter
+    than the white patch of the test chart without clipping them
+    (similar to the <b>-u</b> flag), but does not hue correct white.
+    This flag can be useful when an input profile is needed for using a
+    scanner as a "poor mans" colorimeter.<br>
     <br>
     <a name="uc"></a> <span style="font-weight: bold;">-uc:</span> For
     input profiles it is sometimes desirable that any highlights
-    brighter than the white point, map exactly to white, and this option
-    post processes the cLUT entries to ensure this is the case. Note
-    that due to the finite nature of the cLUT grid, this may affect the
-    accuracy of colors near the light surface of the device gamut.<br>
+    brighter than the white point, map (clip) exactly to white, and this
+    option post processes the cLUT entries to ensure this is the case.
+    Note that due to the finite nature of the cLUT grid, this may affect
+    the accuracy of colors near the light surface of the device gamut.<br>
     <br>
     <a name="U"></a><span style="font-weight: bold;"> -U <span
         style="font-style: italic;">scale</span>:</span> Input profiles
@@ -2369,6 +2119,16 @@ White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
     using, you should specify the spectrum of the illuminant you are <span
       style="text-decoration: underline;">actually using</span> for the
     proofing, including its <span style="text-decoration: underline;">Ultra
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2505,13 +2265,18 @@ White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
     <b>&nbsp; 1931_2</b> selects the standard CIE 1931 2 degree
     observer. The default.<br>
     &nbsp; <b>1964_10</b> selects the standard CIE 1964 10 degree
-    observer.<br>
+    observer<br>
+    <b>&nbsp; 2012_2</b> selects the proposed CIE 2012 2 degree observer<br>
+    &nbsp; <b>2012_10</b> selects the proposed CIE 2012 10 degree
+    observer<br>
     &nbsp; <b>1955_2</b> selects the Stiles and Birch 1955 2 degree
     observer<br>
     &nbsp; <b>1978_2 </b>selects the Judd and Voss 1978 2 degree
     observer<br>
     &nbsp; <b>shaw</b> selects the Shaw and Fairchild 1997 2 degree
     observer<br>
+    &nbsp; <i><b>file.cmf</b></i> selects an observer specified by the
+    given <a href="File_Formats.html#.cmf">.cmf</a> file.<br>
     <br>
     Note that if an observer other than 1931 2 degree is chosen, the
     resulting ICC profile will not be standard, and cannot be freely
@@ -2566,7 +2331,7 @@ White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
     be compressed to fit into it. The same percentage is used for
     expansion if a saturation table is generated, or a separate
     percentage can be specified by including both a <b>-s</b> and <b>-S</b>
-    percentage. You can optionally specify <u>both</u> and input ICC
+    percentage. You can optionally specify <u>both</u> an input ICC
     profile and a general compression percentage by using the -S option
     twice, in which case the input profile determines just the luminance
     range mapping, with the percentage determining the gamut volume
@@ -2596,6 +2361,14 @@ White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
     <b>Note</b> that an input, output, display or device colororspace
     profile should be specified, not a non-device colorspace, device
     link, abstract or named color profile.<br>
+    <b>Note</b> that specifying a very large gamut colorspace as the
+    source gamut (i.e. <b>ProPhoto</b> etc.) is probably <u><b>NOT</b></u>
+    what you want to do, since unless the source images have a similar
+    very large gamut to that of the colorspace, they will end up getting
+    over compressed and come out looking dull. Instead use a source
+    profile that has a gamut more representative of the images gamut, <b>or</b>
+    you should provide a gamut using the the <a href="#g">-g parameter</a>.
+    <br>
     <br>
     <a name="nP"></a><span style="font-weight: bold;">-nP</span>:
     Normally when a source profile is provided to define the source
@@ -2740,7 +2513,11 @@ White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
     the resulting <a href="File_Formats.html#ICC">ICC</a> output
     profile (.icm extension on the MSWindows platform, .icc on Apple or
     Unix platforms). The <span style="font-weight: bold;">-O</span>
-    parameter will override this default.
+    parameter will override this default.<br>
+    <br>
+    For information on typical usage, see the <a
+      href="file:///Users/graeme/src/argyll/doc/Scenarios.html">Typical
+      Usage Scenarios</a> page.
     <h3><a name="Di"></a>Discussion</h3>
     Note that monochrome profiling isn't currently supported. It may be
     supported sometime in the future.<br>
@@ -2780,6 +2557,23 @@ White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
     profile, <span style="font-weight: bold;"></span> so that
     subsequent evaluation of ink limits can compute the final calibrated
     device values.<br>
+    <br>
+    The viewing condition parameter <b>m:</b> is a hack, intended to
+    address certain situations involving the use of papers containing
+    FWA/OBE brighteners when viewed in an environment that has a very
+    noticeably warmer white point than the paper itself under the
+    illuminant. While the white point will remain that of the paper, it
+    allows the mid-tones to be partially adapted to a warmer white
+    point, possibly reducing visual discrepancy. NOTE though, that this
+    viewing situation doesn't often arise in real world viewing of such
+    media,&nbsp; as such documents are typically viewed in isolation or
+    against a background of other pieces of the same paper. Note that it
+    is a trap to evaluate such FWA/OBE rich paper using standard
+    proofing viewing conditions, since they deliberately use a
+    spectrally flat grey surround, unnaturally emphasizing the white
+    point difference between FWA/OBE rich papers and spectrally flat
+    neutrals, something that isn't present in real world conditions. The
+    <b>pm</b> preset condition has mtaf value of 0.7, and Wxyz2 of D50.<br>
     <br>
     <br>
     <br>

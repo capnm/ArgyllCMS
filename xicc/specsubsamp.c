@@ -19,6 +19,7 @@
 
 #include <stdio.h>
 #include <math.h>
+#include "cgats.h"
 #include "xspect.h"
 #include "numlib.h"
 #include "ui.h"
@@ -30,7 +31,7 @@ void usage(void) {
 	fprintf(stderr," -i illum        Choose illuminant for print/transparency spectral data:\n");
 	fprintf(stderr,"                 A, C, D50, D50M2, D65, F5, F8, F10 or file.sp\n");
 	fprintf(stderr," -o observ       Choose CIE Observer for spectral data:\n");
-	fprintf(stderr,"                 1931_2, 1964_10, S&B 1955_2, shaw, J&V 1978_2\n");
+	fprintf(stderr,"                 1931_2, 1964_10, 2012_2, 2012_10, S&B 1955_2, shaw, J&V 1978_2 or file.cmf\n");
 	fprintf(stderr," -w st,en,sp     Output start, end and spacing nm\n");
 	fprintf(stderr," -5 		     Commenf output wavelegths every 5\n");
 	exit(1);
@@ -45,7 +46,8 @@ main(
 	int verb = 0;
 	icxIllumeType illum = icxIT_D50;	/* Spectral defaults */
 	xspect cust_illum;			/* Custom illumination spectrum */
-	icxObserverType observ = icxOT_CIE_1931_2;
+	icxObserverType obType = icxOT_CIE_1931_2;
+	xspect custObserver[3];				/* If obType = icxOT_custom */
 	int obs = 0;				/* If nz output observer */			
 	double wl_short = 380.0, wl_long = 730.0, wl_width = 10.0;
 	int wl_n = 0;
@@ -112,21 +114,31 @@ main(
 				if (na == NULL) usage();
 				if (strcmp(na, "1931_2") == 0) {			/* Classic 2 degree */
 					obs = 1;
-					observ = icxOT_CIE_1931_2;
+					obType = icxOT_CIE_1931_2;
 				} else if (strcmp(na, "1964_10") == 0) {	/* Classic 10 degree */
 					obs = 1;
-					observ = icxOT_CIE_1964_10;
+					obType = icxOT_CIE_1964_10;
+				} else if (strcmp(na, "2012_2") == 0) {		/* Latest 2 degree */
+					obs = 1;
+					obType = icxOT_CIE_2012_2;
+				} else if (strcmp(na, "2012_10") == 0) {	/* Latest 10 degree */
+					obs = 1;
+					obType = icxOT_CIE_2012_10;
 				} else if (strcmp(na, "1955_2") == 0) {		/* Stiles and Burch 1955 2 degree */
 					obs = 1;
-					observ = icxOT_Stiles_Burch_2;
+					obType = icxOT_Stiles_Burch_2;
 				} else if (strcmp(na, "1978_2") == 0) {		/* Judd and Voss 1978 2 degree */
 					obs = 1;
-					observ = icxOT_Judd_Voss_2;
+					obType = icxOT_Judd_Voss_2;
 				} else if (strcmp(na, "shaw") == 0) {		/* Shaw and Fairchilds 1997 2 degree */
 					obs = 1;
-					observ = icxOT_Shaw_Fairchild_2;
-				} else
-					usage();
+					obType = icxOT_Shaw_Fairchild_2;
+				} else {	/* Assume it's a filename */
+					obs = 1;
+					obType = icxOT_custom;
+					if (read_cmf(custObserver, na) != 0)
+						usage();
+				}
 			}
 
 			else if (argv[fa][1] == 'w' || argv[fa][1] == 'W') {
@@ -163,8 +175,14 @@ main(
 		int i, j, k;
 		xspect *sp[3];
 
-		if (standardObserver(sp, observ) != 0)
-			error ("standardObserver returned error");
+		if (obType == icxOT_custom) {
+			sp[0] = &custObserver[0];
+			sp[1] = &custObserver[1];
+			sp[2] = &custObserver[2];
+		} else {
+			if (standardObserver(sp, obType) != 0)
+				error ("standardObserver returned error");
+		}
 		printf("/* %f - %f, %f spacing, %d samples */\n",wl_short,wl_long,wl_width,wl_n);
 		printf("{\n");
 		for (k = 0; k < 3; k++) {

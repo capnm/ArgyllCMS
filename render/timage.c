@@ -39,7 +39,7 @@
 #include "render.h"
 
 #define DEF_DPI 200
-#define DITHER 0x8002			/* [0] 1 for test 8 bit dithering, 2 for test error diffusion */
+#define DITHER 0		/* [0] 1 for test 8 bit dithering, 2 for test error diffusion */
 							/* 0x8001 for dithering FG only, 0x8002 for err. diff. FG only */
 #undef PNG_MEM				/* Test PNG save to memory */
 

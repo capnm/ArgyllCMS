@@ -71,6 +71,7 @@
  */
 	
 /* (Do we need a version of the above that tracks the actual input coords ?) */
+
 /* ------------------------------------------------------- */
 /* Similar to abovem but each dimension range can be clipped. */
 
@@ -81,10 +82,18 @@
 	int nn##_res[mxdi]; 	/* last count +1 */				\
 	int nn##_e				/* dimension index */
 
+/* Set start and end+1 to uniform values */
 #define FRECONF(nn, start, endp1) 							\
 	for (nn##_e = 0; nn##_e < nn##_di; nn##_e++) {			\
 		nn##_stt[nn##_e] = (start);	/* start count value */	\
 		nn##_res[nn##_e] = (endp1); /* last count +1 */		\
+	}
+
+/* Set start and end+1 to individual values */
+#define FRECONFA(nn, start, endp1) 							\
+	for (nn##_e = 0; nn##_e < nn##_di; nn##_e++) {			\
+		nn##_stt[nn##_e] = (start)[nn##_e];	/* start count value */	\
+		nn##_res[nn##_e] = (endp1)[nn##_e]; /* last count +1 */		\
 	}
 
 /* Set the counter value to 0 */
@@ -113,6 +122,7 @@
 /* ------------------------------------------------------- */
 /* Same as above, but allows for variable resolution on each axis. */
 /* End offset is added to count[] */
+/* (Hmm. Could merge FCOUNT and ECOUNT ?) */
 
 #define ECOUNT(nn, mxdi, di, start, endp1, end_offst)		\
 	int nn[mxdi];	/* counter value */						\
@@ -155,19 +165,27 @@
 /* e.g. if there are 8 objects, and we want all combinations */
 /* of 4 out of the 8, we would use: COMBO(nn, 4, 4, 8) */
 
+/* Declare and initialize */
 #define COMBO(nn, mxdi, comb, total) 				\
 	int nn[mxdi+2];			/* counter value */				\
 	int nn##_cmb = (comb);	/* number of combinations */	\
 	int nn##_tot = (total);	/* out of total possible */		\
 	int nn##_e				/* dimension index */
 
-/* Set total to new setting */
-#define CB_SETT(nn, total)					 		\
-	nn##_tot = (total)	/* total possible */
+/* Declare, but don't initialize */
+#define COMBO_DEC(nn, mxdi) 								\
+	int nn[mxdi+2];			/* counter value */				\
+	int nn##_cmb;			/* number of combinations */	\
+	int nn##_tot;			/* out of total possible */		\
+	int nn##_e				/* dimension index */
 
 /* Set combinations to new setting */
 #define CB_SETC(nn, comb)					 		\
 	nn##_cmb = (comb)	/* number of combinations*/
+
+/* Set total to new setting */
+#define CB_SETT(nn, total)					 		\
+	nn##_tot = (total)	/* total possible */
 
 /* Set the counter to its initial value */
 #define CB_INIT(nn) 								\
@@ -183,9 +201,9 @@
 	for (nn##_e = 0; nn##_e < nn##_cmb; nn##_e++) {	\
 		nn[nn##_e]++;								\
 		if (nn[nn##_e] < (nn##_tot-nn##_e)) {		\
-			int nn##_ee;		/* No carry */		\
-			for (nn##_ee = nn##_e-1; nn##_ee >= 0; nn##_ee--)	\
-				nn[nn##_ee] = nn[nn##_ee+1] + 1;	\
+			int _combo_ee;		/* No carry */		\
+			for (_combo_ee = nn##_e-1; _combo_ee >= 0; _combo_ee--)	\
+				nn[_combo_ee] = nn[_combo_ee+1] + 1;	\
 			break;									\
 		}											\
 	}												\

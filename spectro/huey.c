@@ -49,6 +49,7 @@
 #include "sa_config.h"
 #include "numsup.h"
 #endif /* SALONEINSTLIB */
+#include "cgats.h"
 #include "xspect.h"
 #include "insttypes.h"
 #include "conv.h"
@@ -885,25 +886,38 @@ huey_check_unlock(
 	if ((ev = huey_command(p, i1d_status, buf, buf, 1.0,1.0)) != inst_ok)
 		return ev;
 
-	/* Hmm. Some Lenovo Huey's say they are unlocked, even when they are not. */
+	/* Hmm. Some Lenovo Huey's (the HueyColors ?) aren't locked, */
+	/* so the unlock command fails. */
 	if (p->lenovo || strncmp((char *)buf, "Locked", 6) == 0) {
 		memset(buf, 0, 7);
+
+		/* Set unlock codes */
 		if (p->lenovo)
 			strcpy((char *)buf,"huyL");
 		else
 			strcpy((char *)buf,"GrMb");
 
-		if ((ev = huey_command(p, i1d_unlock, buf, buf, 1.0,1.0)) != inst_ok)
-			return ev;
+		if ((ev = huey_command(p, i1d_unlock, buf, buf, 1.0,1.0)) != inst_ok) {
+			a1logd(p->log,2,"huey_check_unlock: warning, unlock command returned error\n");
+			/* Perhaps the error code is for wrong unlock code, so ignore this */
+			/* and try a status command */
+		}
 
 		memset(buf, 0, 7);
 		if ((ev = huey_command(p, i1d_status, buf, buf, 1.0,1.0)) != inst_ok)
 			return ev;
 	}
 
+	/*
+	   Apparently the "ECCM3" is a "hueyCOLOR", which is actually
+	   a monochrome sensor! It uses different instructions to the Huey,
+	   and wouldn't be terribly useful to ArgyllCMS.
+	   See <https://github.com/hughsie/colord/tree/master/src/sensors/huey2>
+	 */
+
 	if (strncmp((char *)buf, "huL002", 6) != 0		/* Lenovo Huey ? */
-	 && strncmp((char *)buf, "ECCM2 ", 6) != 0		/* Lenovo Thinkpad W530 Huey ? */
-	 && strncmp((char *)buf, "ECCM3 ", 6) != 0		/* Lenovo Thinkpad W530 Huey ? */
+	 && strncmp((char *)buf, "ECCM2 ", 6) != 0		/* Lenovo Thinkpad W530 HueyPro ? */
+//	 && strncmp((char *)buf, "ECCM3 ", 6) != 0		/* Lenovo Thinkpad P70 HueyColor ? */
 	 && strncmp((char *)buf, "Cir001", 6) != 0) {	/* Huey */
 		a1logd(p->log,1,"huey_check_unlock: unknown model '%s'\n",buf);
 		return huey_interp_code((inst *)p, HUEY_UNKNOWN_MODEL);
@@ -1732,7 +1746,7 @@ huey_get_set_opt(inst *pp, inst_opt_type m, ...) {
 }
 
 /* Constructor */
-extern huey *new_huey(icoms *icom, instType itype) {
+extern huey *new_huey(icoms *icom, instType dtype) {
 	huey *p;
 	if ((p = (huey *)calloc(sizeof(huey),1)) == NULL) {
 		a1loge(icom->log, 1, "new_huey: malloc failed!\n");
@@ -1756,7 +1770,7 @@ extern huey *new_huey(icoms *icom, instType itype) {
 	p->del               = huey_del;
 
 	p->icom = icom;
-	p->itype = itype;
+	p->dtype = dtype;
 
 	icmSetUnity3x3(p->ccmat);	/* Set the colorimeter correction matrix to do nothing */
 	p->dtech = disptech_unknown;

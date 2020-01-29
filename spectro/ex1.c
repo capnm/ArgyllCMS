@@ -54,6 +54,7 @@
 #include "sa_config.h"
 #include "numsup.h"
 #endif /* !SALONEINSTLIB */
+#include "cgats.h"
 #include "xspect.h"
 #include "insttypes.h"
 #include "conv.h"
@@ -158,7 +159,7 @@ static int ex1_touch_calibration(ex1 *p);
 static inst_code
 ex1_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 	ex1 *p = (ex1 *) pp;
-	instType itype = pp->itype;
+	instType dtype = pp->dtype;
 	int se;
 
 	inst_code ev = inst_ok;
@@ -1210,7 +1211,7 @@ ex1_get_set_opt(inst *pp, inst_opt_type m, ...) {
 }
 
 /* Constructor */
-extern ex1 *new_ex1(icoms *icom, instType itype) {
+extern ex1 *new_ex1(icoms *icom, instType dtype) {
 	ex1 *p;
 	if ((p = (ex1 *)calloc(sizeof(ex1),1)) == NULL) {
 		a1loge(icom->log, 1, "new_ex1: malloc failed!\n");
@@ -1241,7 +1242,7 @@ extern ex1 *new_ex1(icoms *icom, instType itype) {
 	p->del               = ex1_del;
 
 	p->icom = icom;
-	p->itype = itype;
+	p->dtype = dtype;
 
 	p->want_dcalib = 1;		/* Always do an initial dark calibration */
 

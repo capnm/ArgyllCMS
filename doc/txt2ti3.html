@@ -11,8 +11,10 @@
     <h3>Summary</h3>
     <small><big>Convert Gretag/Logo/X-Rite/Barbieri or other CGATS
         format RGB or CMYK test chart results into</big></small>
-    Argyll&nbsp;<a href="File_Formats.html#.ti3">.ti3</a> CGATS
-    format.&nbsp;
+    Argyll&nbsp;<a href="File_Formats.html#.ti3">.ti3</a> CGATS format.<br>
+    txt2ti3 will also cope with source files that don't contain device
+    values, and will emit a file that is not strictly a .ti3, but can be
+    useful as input to spec2cie or scanin.<br>
     <h3>Usage Summary</h3>
     <small><span style="font-family: monospace;">txt2ti3 [-v] [-l limit]
         [-d] [devfile] infile [specfile] outbase</span><br
@@ -29,9 +31,15 @@
 Set
 
 
-        type of device as Display, not Output<br>
+
+
+        type of device as Display, rather than Output<br>
+        -D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        Set type of device as Display and not normalized<br>
         -i&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Set
+
+
 
 
         type of device as Input, not Output</span></small><br
@@ -48,6 +56,8 @@ Set
         style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Input
 CIE,
+
+
 
 
         Spectral or Device &amp; Spectral file (typically file.txt)</span><br

@@ -18,6 +18,8 @@ HDRS = ../h ../icc ../rspl ../plot ../numlib $(TIFFINC) ;
 LINKLIBS = $(TIFFLIB) $(JPEGLIB) ../icc/libicc ../plot/libplot
 ../numlib/libnum ../numlib/libui $(LibWin) ;
 
+LINKFLAGS += $(GUILINKFLAGS) ;
+
 # K only reprocessor
 #Main icc2ko : icc2ko.c ;
 

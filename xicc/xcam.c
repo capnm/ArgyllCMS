@@ -24,7 +24,7 @@
 static void icx_cam_free(icxcam *s);
 static int icx_set_view(icxcam *s, ViewingCondition Ev, double Wxyz[3],
                         double La, double Yb, double Lv, double Yf, double Yg, double Gxyz[3],
-						int hk, double hkscale);
+						int hk, double hkscale, double mtaf, double Wxyz2[3]);
 static int icx_XYZ_to_cam(struct _icxcam *s, double Jab[3], double XYZ[3]);
 static int icx_cam_to_XYZ(struct _icxcam *s, double XYZ[3], double Jab[3]);
 static void settrace(struct _icxcam *s, int tracev);
@@ -129,7 +129,9 @@ double Yf,		/* Flare as a fraction of the reference white (Y range 0.0 .. 1.0) *
 double Yg,		/* Glare as a fraction of the adapting/surround (Y range 0.0 .. 1.0) */
 double Gxyz[3],	/* The Glare white coordinates (typically the Ambient color) */
 int hk,			/* Flag, NZ to use Helmholtz-Kohlraush effect */
-double hkscale	/* HK effect scaling factor */
+double hkscale,	/* HK effect scaling factor */
+double mtaf,	/* Mid tone partial adapation factor from Wxyz to Wxyz2, <= 0.0 if none */
+double Wxyz2[3] /* Mid tone Adapted White XYZ (Y range 0.0 .. 1.0) */
 ) {
 	s->Wxyz[0] = Wxyz[0];
 	s->Wxyz[1] = Wxyz[1];
@@ -142,7 +144,7 @@ double hkscale	/* HK effect scaling factor */
 		}
 		case cam_CIECAM02: {
 			cam02 *pp = (cam02 *)s->p;
-			return pp->set_view(pp, Ev, Wxyz, La, Yb, Lv, Yf, Yg, Gxyz, hk, hkscale);
+			return pp->set_view(pp, Ev, Wxyz, La, Yb, Lv, Yf, Yg, Gxyz, hk, hkscale, mtaf, Wxyz2);
 		}
 		default:
 			break;

@@ -524,10 +524,7 @@ main(int argc, char *argv[]) {
 						double val;
 						val = i/(ro->size-1.0);
 //printf("~1 Input val %f", val);
-						if (inp)
-							val = cal->interp_ch(cal, j, val);		/* Input calibration */
-						else
-							val = cal->inv_interp_ch(cal, j, val);	/* Inverse output calibration */
+						val = cal->inv_interp_ch(cal, j, val);	/* Inverse output calibration */
 //printf(", after inv curve %f", val);
 						wo->lookup_fwd(wo, &val, &val);			/* Original curve */
 //printf(", after orig %f\n", val);

@@ -179,7 +179,7 @@ usage(int flag, char *diag, ...) {
 //	fprintf(stderr," -V                Use adaptive measurement mode (if available)\n");
 	fprintf(stderr," -C \"command\"      Invoke shell \"command\" each time a color is set\n");
 	fprintf(stderr," -o observ         Choose CIE Observer for CCMX spectrometer data:\n");
-	fprintf(stderr,"                   1931_2 (def), 1964_10, S&B 1955_2, shaw, J&V 1978_2\n");
+	fprintf(stderr,"                    1931_2 (def), 1964_10, 2012_2, 2012_10, S&B 1955_2, shaw, J&V 1978_2 or file.cmf\n");
 	fprintf(stderr," -s steps          Override default patch sequence combination steps  (default %d)\n",DEFAULT_MSTEPS);
 	fprintf(stderr," -W n|h|x          Override serial port flow control: n = none, h = HW, x = Xon/Xoff\n");
 	fprintf(stderr," -D [level]        Print debug diagnostics to stderr\n");
@@ -221,7 +221,8 @@ int main(int argc, char *argv[]) {
 	int faketoggle = 0;					/* Toggle fake between "colorimeter" and "spectro" */
 	int fakeseq = 0;					/* Fake auto CCMX sequence */
 	int spec = 0;						/* Need spectral data to implement option */
-	icxObserverType observ = icxOT_CIE_1931_2;
+	icxObserverType obType = icxOT_CIE_1931_2;
+	xspect custObserver[3];				/* If obType = icxOT_custom */
 	int override = 1;					/* Override redirect on X11 */
 	icompaths *icmps = NULL;			/* Ports to choose from */
 	int comno = COMPORT;				/* COM port used */
@@ -466,21 +467,30 @@ int main(int argc, char *argv[]) {
 				if (na == NULL) usage(0,"Parameter expecte after -o");
 				if (strcmp(na, "1931_2") == 0) {			/* Classic 2 degree */
 					spec = 2;
-					observ = icxOT_CIE_1931_2;
+					obType = icxOT_CIE_1931_2;
 				} else if (strcmp(na, "1964_10") == 0) {	/* Classic 10 degree */
 					spec = 2;
-					observ = icxOT_CIE_1964_10;
+					obType = icxOT_CIE_1964_10;
+				} else if (strcmp(na, "2012_2") == 0) {		/* Latest 2 degree */
+					spec = 2;
+					obType = icxOT_CIE_2012_2;
+				} else if (strcmp(na, "2012_10") == 0) {	/* Latest 10 degree */
+					spec = 2;
+					obType = icxOT_CIE_2012_10;
 				} else if (strcmp(na, "1955_2") == 0) {		/* Stiles and Burch 1955 2 degree */
 					spec = 2;
-					observ = icxOT_Stiles_Burch_2;
+					obType = icxOT_Stiles_Burch_2;
 				} else if (strcmp(na, "1978_2") == 0) {		/* Judd and Voss 1978 2 degree */
 					spec = 2;
-					observ = icxOT_Judd_Voss_2;
+					obType = icxOT_Judd_Voss_2;
 				} else if (strcmp(na, "shaw") == 0) {		/* Shaw and Fairchilds 1997 2 degree */
 					spec = 2;
-					observ = icxOT_Shaw_Fairchild_2;
-				} else
-					usage(0,"-o parameter '%s' not recognised",na);
+					obType = icxOT_Shaw_Fairchild_2;
+				} else {	/* Assume it's a filename */
+					obType = icxOT_custom;
+					if (read_cmf(custObserver, na) != 0)
+						usage(0,"Failed to read custom observer CMF from -o file '%s'",na);
+				}
 
 			} else if (argv[fa][1] == 's') {
 				fa = nfa;
@@ -874,7 +884,7 @@ int main(int argc, char *argv[]) {
 				}
 
 				/* Create a spectral conversion object */
-				if ((sp2cie = new_xsp2cie(icxIT_none, NULL, observ, NULL, icSigXYZData, icxClamp)) == NULL)
+				if ((sp2cie = new_xsp2cie(icxIT_none, NULL, obType, custObserver, icSigXYZData, icxClamp)) == NULL)
 					error("Creation of spectral conversion object failed");
 
 				for (i = 0; i < npat; i++) {
@@ -938,8 +948,8 @@ int main(int argc, char *argv[]) {
 			cgf = NULL;
 		}
 
-		if (spec != 0 && observ != icxOT_CIE_1931_2)
-			oname = standardObserverDescription(observ);
+		if (spec != 0 && obType != icxOT_CIE_1931_2)
+			oname = standardObserverDescription(obType);
 
 		if (oname != NULL) {
 			char *tt = colname;
@@ -1211,8 +1221,8 @@ int main(int argc, char *argv[]) {
 						for (i = 0; ; i++) {
 							if (paths[i] == NULL)
 								break;
-							if ((paths[i]->itype == instSpyder1 && setup_spyd2(0) == 0)
-							 || (paths[i]->itype == instSpyder2 && setup_spyd2(1) == 0))
+							if ((paths[i]->dtype == instSpyder1 && setup_spyd2(0) == 0)
+							 || (paths[i]->dtype == instSpyder2 && setup_spyd2(1) == 0))
 								fprintf(stderr,"    %d = '%s' !! Disabled - no firmware !!\n",i+1,paths[i]->name);
 							else
 								fprintf(stderr,"    %d = '%s'\n",i+1,paths[i]->name);
@@ -1308,7 +1318,7 @@ int main(int argc, char *argv[]) {
 
 						if (spec) {
 							/* Create a spectral conversion object */
-							if ((sp2cie = new_xsp2cie(icxIT_none, NULL, observ, NULL, icSigXYZData, icxClamp)) == NULL)
+							if ((sp2cie = new_xsp2cie(icxIT_none, NULL, obType, custObserver, icSigXYZData, icxClamp)) == NULL)
 								error("Creation of spectral conversion object failed");
 						}
 						for (i = 0; i < npat; i++) {	/* For all grid points */
@@ -1327,7 +1337,7 @@ int main(int argc, char *argv[]) {
 						if (fake)
 							refname = "fake spectrometer";
 						else
-							refname = inst_name(it->itype);
+							refname = inst_name(it->dtype);
 						gotref = 1;
 						if (sp2cie != NULL)
 							sp2cie->del(sp2cie);
@@ -1342,7 +1352,7 @@ int main(int argc, char *argv[]) {
 						if (fake)
 							colname = "fake colorimeter";
 						else
-							colname = inst_name(it->itype);
+							colname = inst_name(it->dtype);
 						gotcol = 1;
 					}
 				}
@@ -1427,8 +1437,8 @@ int main(int argc, char *argv[]) {
 						continue;
 					}
 	
-					if (spec != 0 && observ != icxOT_CIE_1931_2)
-						oname = standardObserverDescription(observ);
+					if (spec != 0 && obType != icxOT_CIE_1931_2)
+						oname = standardObserverDescription(obType);
 	
 					if (oname != NULL) {		/* Incorporate observer name in colname */
 						char *tt = colname;

@@ -72,7 +72,6 @@
 	a particular aux target that lies within that segment.
 	(1150 near black, k ~= 0.4).
 
-
  */
 
 #include <stdio.h>
@@ -109,9 +108,13 @@
 //#undef DMALLOC_GLOBALS
 
 #define DOSORT			/* [def] Cell sort for better speed */
+#undef EN_UNTWIST		/* [und] Force attempt to try and untwist gamut surface */
+						/* - Seems to improve some, make some worse ?? (i.e Bonet) */
+						/* By default this is controlled using ARGYLL_UNTWIST_GAMUT_SURFACE */
+						/* environment variable. */
 
 #undef REVTABLESTATS	/* [und] Reverse table stats */
-#undef REVVRML			/* [und] Reverse table plots */
+#undef REVVRML			/* [und] Reverse table 3D plots */
 
 #undef DEBUG1			/* [und] Higher level code */
 #undef DEBUG2			/* [und] Lower level code */
@@ -172,16 +175,16 @@ int thissz, lastsz = -1;
 #endif
 
 #ifdef REVTABLESTATS
-#pragma message("!!!!!!!!! REVTABLESTATS set in rspl/rev.c !!!!!!!!!!!")
+# pragma message("!!!!!!!!! REVTABLESTATS set in rspl/rev.c !!!!!!!!!!!")
 #endif
 
 #ifdef REVVRML
-#pragma message("!!!!!!!!! REVVRML set in rspl/rev.c !!!!!!!!!!!")
-#include "vrml.h"
+# pragma message("!!!!!!!!! REVVRML set in rspl/rev.c !!!!!!!!!!!")
+# include "vrml.h"
 #endif
 
 #ifdef CHECK_NNLU
-#pragma message("!!!!!!!!! CHECK_NNLU set in rspl/rspl.h !!!!!!!!!!!")
+# pragma message("!!!!!!!!! CHECK_NNLU set in rspl/rspl.h !!!!!!!!!!!")
 #endif
 
 /* Do an arbitrary printf */
@@ -356,7 +359,7 @@ static void rev_test_vram(size_t size) {
 static void *rev_malloc(rspl *s, size_t size) {
 	void *rv;
 
-	if ((size + 1 * 1024 * 1204) > g_test_ram)
+	if ((size + 1 * 1024 * 1024) > g_test_ram)
 		rev_test_vram(size);
 	if ((rv = malloc(size)) == NULL) {
 		rev_reduce_cache(size);
@@ -371,7 +374,7 @@ static void *rev_malloc(rspl *s, size_t size) {
 static void *rev_calloc(rspl *s, size_t num, size_t size) {
 	void *rv;
 
-	if (((num * size) + 1 * 1024 * 1204) > g_test_ram)
+	if (((num * size) + 1 * 1024 * 1024) > g_test_ram)
 		rev_test_vram(size);
 	if ((rv = calloc(num, size)) == NULL) {
 		rev_reduce_cache(num * size);
@@ -386,7 +389,7 @@ static void *rev_calloc(rspl *s, size_t num, size_t size) {
 static void *rev_realloc(rspl *s, void *ptr, size_t size) {
 	void *rv;
 
-	if ((size + 1 * 1024 * 1204) > g_test_ram)
+	if ((size + 1 * 1024 * 1024) > g_test_ram)
 		rev_test_vram(size);
 	if ((rv = realloc(ptr, size)) == NULL) {
 		rev_reduce_cache(size);		/* approximation */
@@ -1323,7 +1326,7 @@ set_search_limit(
 					/* should evaluate in[0..di-1], and return number that is not to exceed */
 					/* limitv. NULL if not used */
 	void *lcntx,	/* Context passed to limit() */
-	double limitv	/* Value that limit() is not to exceed */
+	double limitv	/* Value that limitf() is not to exceed */
 ) {
 	schbase *b = NULL;		/* Pointer to search base information structure */
 
@@ -4025,10 +4028,11 @@ double *err		/* Output error (weighted) distance at solution point */
 				}
 
 #ifdef DEBUG
-				if (wsrv2)
+				if (wsrv2) {
 					DBG(("Got second ink limit triangle in tetrahedron\n"));
-				else if (wsrv)
+				} else if (wsrv) {
 					DBG(("Got first ink limit triangle in tetrahedron\n"));
+				}
 #endif
 				*err = dist;
 				return wsrv;
@@ -6820,7 +6824,7 @@ static void free_surfhash(rspl *s, int del) {
 
 /* vertex status */
 typedef enum {
-	vtx_norm = 0,		/* Normal vertex in primary bxcell */
+	vtx_norm = 0,		/* Normal vertex in primary bxcell - initial value */
 	vtx_sha  = 1,		/* Vertex has been shadowed */
 	vtx_del  = 2,		/* Vertex has been deleted because it's shadowed */
 	vtx_oil  = 3		/* Vertex is over ink limit */
@@ -6828,8 +6832,9 @@ typedef enum {
 
 struct _vtxrec {
 	int ix;						/* fwd index of vertex */
-	int cix;					/* Cell index for this vertex */
-	double v[MXRO];				/* Output value of vertex */
+	int cix;					/* Fwd cell vertex is in index */
+	double vv[MXRO];			/* Output value of vertex */
+	double vl[MXRO];			/* Log compressed output value of vertex */
 	double dist;				/* Distance from center point squared */
 	int tcount;					/* Touch count for converting to fwd cells */
 	int acount;					/* Actual count for converting to fwd cells */
@@ -6866,7 +6871,7 @@ struct _vtxcache {
 }; typedef struct _vtxcache vtxcache;
 
 
-/* Create the vertex list & hash */
+/* Create the (empty) vertex list & hash */
 static void create_vtxrec_list(rspl *s, vtxcache *vc) {
 	vc->hash_size = primes[3];		/* 3373 */
 	if ((vc->hash = (vtxrec **) rev_calloc(s, vc->hash_size, sizeof(vtxrec *))) == NULL)
@@ -6949,16 +6954,67 @@ static vtxrec *get_vtxrec(vtxcache *vc, int ix) {
 
 	hash = ix % vc->hash_size;
 
-	for (vx = vc->hash[hash]; vx != NULL; vx = vx->hlink) {
+	for (vx = vc->hash[hash]; vx != NULL; vx = vx->hlink) { 
 		if (vx->ix == ix)
 			return vx;
 	}
 	return NULL;
 }
 
+/* Log compress an output value wrt to center point */
+static void logcomp(
+	rspl *s,
+	double *out,
+	double *in,
+	double *cent
+) {
+	int f, fdi = s->fdi;
+	double len;
+
+	if (s->rev.surflin_en) {
+#ifdef NEVER
+		/* (This doesn't seem to improve things) */
+		/* Calculate vector length */
+		for (len = 0.0, f = 0; f < fdi; f++) {
+			double tt= in[f] - cent[f]; 
+			len += tt * tt;
+		}
+		len = sqrt(len);
+
+		/* change length to log length */
+		if (len > DBL_EPSILON) {
+ 
+			len = 20.0 * pow(len, 0.25)/len;	/* Ratio */ 
+
+			for (f = 0; f < fdi; f++) {
+				double tt = in[f] - cent[f]; 
+				out[f] = len * tt + cent[f];
+			}
+		}
+#else
+		if (s->rev.surflin != NULL) {
+			co p;
+
+			for (f = 0; f < fdi; f++)
+				p.p[f] = in[f];
+			s->rev.surflin->interp(s->rev.surflin, &p);
+			for (f = 0; f < fdi; f++)
+				out[f] = p.v[f] - s->rev.linoff[f];
+		} else {
+			for (f = 0; f < fdi; f++)
+				out[f] = in[f];
+		}
+#endif
+	} else {
+		for (f = 0; f < fdi; f++)
+			out[f] = in[f];
+	}
+}
+
 /* Create a new vtxrec or return the current one. */
 /* Allocates it, adds it to cache. */
 /* DOESN"T add it to vtxlist. */
+/* If new, sets status = vtx_norm */
 static vtxrec *new_vtxrec(
 	rspl *s,
 	vtxcache *vc,
@@ -7005,12 +7061,15 @@ static vtxrec *new_vtxrec(
 
 	/* Get the output value */
 	for (f = 0; f < fdi; f++)
-		vx->v[f] = gp[f];
+		vx->vv[f] = gp[f];
+
+	/* Set vl[] */
+	logcomp(s, vx->vl, vx->vv, s->rev.ocent);
 
 	/* Compute distance to overall center point squared */
 	vx->dist = 0.0;
 	for (f = 0; f < fdi; f++) {
-		double tt = gp[f] - s->rev.ocent[f]; 
+		double tt = vx->vl[f] - s->rev.ocent[f]; 
 		vx->dist += tt * tt;
 	}
 
@@ -7020,7 +7079,7 @@ static vtxrec *new_vtxrec(
 		int mi;
 		double gw = s->rev.gw[f];
 		double gl = s->rev.gl[f];
-		t = (vx->v[f] - gl)/gw;
+		t = (vx->vv[f] - gl)/gw;
 		mi = (int)floor(t);			/* Grid coordinate */
 		if (mi < 0)					/* Limit to valid cube base index range */
 			mi = 0;
@@ -7442,7 +7501,7 @@ static void extend_bxcell_shadow_group(
 
 		/* vertex length from gamut center */
 		for (vlen= 0.0, f = 0; f < fdi; f++) {
-			double tt = vx->v[f] - s->rev.ocent[f];
+			double tt = vx->vl[f] - s->rev.ocent[f];
 			vlen += tt * tt;
 		}
 		vlen = sqrt(vlen);
@@ -7453,7 +7512,7 @@ static void extend_bxcell_shadow_group(
 			scale = 1.0;
 
 		for (f = 0; f < fdi; f++)
-			sv[f] = (scale * (vx->v[f] - s->rev.ocent[f])) + s->rev.ocent[f];
+			sv[f] = (scale * (vx->vl[f] - s->rev.ocent[f])) + s->rev.ocent[f];
 
 		/* Distance from scaled vertex to group center */
 		for (w = 0.0, f = 0; f < fdi; f++) {
@@ -8389,13 +8448,13 @@ static void plot_fxcell_surface(rspl *s, int dofclabels, int dobxcells, int dowa
 	is inside or on the surface of the gamut. A simple and definitive
 	topological rule hasn't been forthcoming, so a simpler heursitic
 	of visiblilty from a singe internal "focal" point is currently used.
-	calc_ocent() attempts to choose a point with best visibilit of
+	calc_ocent() attempts to choose a point with best visibility of
 	all the gamut surfaces, since any self-shadowing results in
 	gamut surface holes.
 
 	Improvements would be to create per-axis mappings (and separate
 	the shadow vertex locations from the real ones) to re-shape
-	the gamut into a squere as much as possible.
+	the gamut into a square as much as possible.
 	Multiple external focal points could be used,
     a vertex being shadowed only when it can't be "seen" by any
 	external focal point. It's hard to figure how to make the latter
@@ -8408,12 +8467,19 @@ static void plot_fxcell_surface(rspl *s, int dofclabels, int dobxcells, int dowa
 	accelleration structure for shadow testing (BSP tree ??),
 	and build the gamut surface incrementally from existing
 	furthest points.
+
+	(Have loop re-orderings been exausted ? i.e. can overlap
+	 triangle processing "Do a first pass for each test vertex,
+	 testing against just the triangles that are associated with
+	 it's triangle" be used for main shadowing testing ?)
 */
 
 /* Struct to slice locus points */
 struct _slpoint {
 	double v[MXRO];			/* Point location */
-	double rad;				/* Distance from ccent */
+	double wrad;			/* Weighted radius */
+	double rad;				/* Distance from ccent along slice */
+	double minrad;			/* Minimum distance from ccent */
 
 	double cvec[MXRO];		/* Vector from this point to ccent */
 	double len;				/* Length of segment, -1 if no good */
@@ -8426,12 +8492,15 @@ struct _ocenctx {
 	int ares;					/* angle resolution */ 
 	slpoint *p[MXRO];			/* Slice locus points */
 	double ccent[MXRO];			/* Construction center point */
+	double ret;					/* return value */
+	int oog;					/* flag set if center is out of gamut */
 	int debug;
 }; typedef struct _ocenctx ocenctx;
 
 /* Given a set of slice locus points and a proposed center point, */
-/* compute the weighted averag of the orthogonality of the point */
+/* compute the weighted average of the orthogonality of the point */
 /* to each locus line segment. (smaller is better) */
+/* (Used for optimizing the focal/center point.) */
 static double aorthog(void *_ctx, double *cent) {
 	ocenctx *ctx = (ocenctx *) _ctx;
 	rspl *s = ctx->s;
@@ -8441,6 +8510,8 @@ static double aorthog(void *_ctx, double *cent) {
 	double ang, aang = 0.0;
 	int naang = 0;
 	
+	ctx->oog = 0;
+
 	if (ctx->debug) printf("aorthog called with cent %s\n",debPdv(fdi,cent));
 
 	for (ff = 0; ff < fdi; ff++) {
@@ -8480,7 +8551,10 @@ static double aorthog(void *_ctx, double *cent) {
 			
 			/* Normalized difference in distance over length */
 			/* Compute dot product of cv and segment vector */
+			/* (ang range 0.0 .. 1.0 */
 			ang = fabs(trad - nrad)/ctx->p[ff][aa].len;
+			if (ang > 1.0)
+				ang = 1.0;
 
 			if (ctx->debug) printf("  aa %d: trad %f nrad %f, diff %f, len %f, ang %f\n",aa,trad,nrad,fabs(trad - nrad),ctx->p[ff][aa].len,ang);
 
@@ -8493,14 +8567,11 @@ static double aorthog(void *_ctx, double *cent) {
 
 			if (dot < 0.0) {
 				if (ctx->debug) printf("  dot is %f\n",dot);
-				ang = 50.0;			/* Big value */
+				ang = 50.0;				/* Big value */
+				ctx->oog = 1;
 			} else {
 				ang = pow(ang, 50.0);	/* Weight high angles */
 			}
-
-			if (ang > aang)
-				aang = ang;
-
 			aang += ang;
 			naang++;
 		}
@@ -8508,6 +8579,8 @@ static double aorthog(void *_ctx, double *cent) {
 	aang /= (double)naang;
 	
 	if (ctx->debug) printf(" returning %f\n",aang);
+
+	ctx->ret = aang;
 
 	return aang;
 }
@@ -8518,6 +8591,7 @@ static double aorthog(void *_ctx, double *cent) {
 /* surface of the gamut. */
 static void calc_ocent(rspl *s) {
 	int i, j, aa, mm;
+	int e, ee, di = s->di;
 	int f, ff, fdi = s->fdi;
 	int rgres = s->rev.res;			/* number of bwd cells */
 	double minmax[2][MXRO][MXRO];	/* Range min/max points for each axis */
@@ -8527,14 +8601,15 @@ static void calc_ocent(rspl *s) {
 	double ss[MXRO];
 	ocenctx ctx;					/* Context */
 	double atanscale;
+	int ici, nici;
 
 	/* Scan the forward array for the min and max points of each axis */
 	for (f = 0; f < fdi; f++) {
-		minmax[0][f][f] = 1e30;
-		minmax[1][f][f] = -1e30;
+		minmax[0][f][f] = 1e200;
+		minmax[1][f][f] = -1e200;
 	}
 
-	/* Scan the Grid for min/max values */
+	/* Scan the fwd Grid for min/max values */
 	for (gp = s->g.a, ep = s->g.a + s->g.no * s->g.pss; gp < ep; gp += s->g.pss) {
 		for (ff = 0; ff < fdi; ff++) {
 			if (minmax[0][ff][ff] > gp[ff]) {
@@ -8550,8 +8625,8 @@ static void calc_ocent(rspl *s) {
 
 	if (fdi == 1) {
 		for (f = 0; f < fdi; f++)
-			s->rev.ocent[f] = 0.5 * (minmax[0][0][f] + minmax[1][0][f]);
-		DBG(("calc_ocent: got ocent = %s\n",debPdv(fdi,s->rev.ocent)));
+			s->rev.ocent[f] = 0.5 * (minmax[0][f][f] + minmax[1][f][f]);
+		DBG(("calc_ocent: got 1d ocent = %s\n",debPdv(fdi,s->rev.ocent)));
 		return;
 	}
 
@@ -8569,7 +8644,8 @@ static void calc_ocent(rspl *s) {
 	for (f = 0; f < fdi; f++)
 		s->rev.ocent[f] = ctx.ccent[f] /= ((fdi-1) * 2.0);
 
-	DBG(("calc_ocent: ccent = %s\n",debPdv(fdi,ctx.ccent)));
+	DBG(("calc_ocent: initial ccent = %s\n",debPdv(fdi,ctx.ccent)));
+//printf("calc_ocent: initial ccent = %s\n",debPdv(fdi,ctx.ccent));
 
 	/* If it's all to hard ... */
 	if (fdi != 3) {
@@ -8581,11 +8657,17 @@ static void calc_ocent(rspl *s) {
 		midix[f] = (int)((ctx.ccent[f] - s->rev.gl[f])/s->rev.gw[f] + 0.5);
 		mid[f] = (midix[f]+0.5) * s->rev.gw[f] + s->rev.gl[f];
 	}
+//printf("calc_ocent: mid point = %s\n",debPdv(fdi,mid));
 
 	/* Array for each slice values at angle (+ repeat at end) */
 	ctx.debug = 0;
 	ctx.s = s;
-	ctx.ares = 20;
+	ctx.ares = (rgres + 1) & ~1;	/* Make even so that there is an opposite angle */
+	if (ctx.ares < 6)
+		ctx.ares = 6;
+	else if (ctx.ares > 20)
+		ctx.ares = 20;
+//printf("  ocent ares %d\n",ctx.ares);
 	atanscale = ctx.ares/(2.0 * DBL_PI);
 	for (ff = 0; ff < fdi; ff++) {
 		if ((ctx.p[ff] = (slpoint *)rev_calloc(s, ctx.ares+1,sizeof(slpoint))) == NULL)
@@ -8593,95 +8675,200 @@ static void calc_ocent(rspl *s) {
 		INCSZ(s, (ctx.ares+1) * sizeof(slpoint));
 	}
 
-//printf("~1 locating center point\n");
+	/* Use 5 passes to locate a more reliable initial center point */
+	for (nici = 10, ici = 0; ici < nici; ici++) {
+//printf("  locating center point iter %d\n",ici);
 
-	/* Set initial radius values */
-	for (aa = 0; aa < ctx.ares; aa++) {
-		for (ff = 0; ff < fdi; ff++)
-			ctx.p[ff][aa].rad = -1.0;
-	}
+		/* Set initial radius values */
+		for (ff = 0; ff < fdi; ff++) {
+			for (aa = 0; aa < ctx.ares; aa++) {
+				ctx.p[ff][aa].wrad = -1.0;
+				ctx.p[ff][aa].rad = -1.0;
+				ctx.p[ff][aa].minrad = 1e38;
+			}
+		}
+				
+		/* Take three slices through the rev[] array, plotting */
+		/* the maximum circumference for the slice */
+
+		/* For the axis we're slicing */
+		for (ff = 0; ff < fdi; ff++) {
+			FCOUNT(cc, MXRO, 3);	/* Counter through bwd cells */
+			int start[3], endp1[3];
+			double vv[MXRO];
+			int aa;
 			
-	/* Take three slices through the rev[] array, plotting */
-	/* the maximum circumference for the slice */
-
-	/* For the axis we're slicing */
-	for (ff = 0; ff < fdi; ff++) {
-		DCOUNT(cc, MXRO, 2, 0, 0, rgres);	/* Counter through bwd cells */
-		double vv[MXRO];
-		int aa;
-		
 //printf(" slice axis %d\n",ff);
 
-		/* Scan this slice of rev[] */
-		DC_INIT(cc);
-		while (!DC_DONE(cc)) {
-			int ix;
-			int slix[2];		/* Indexes in slice direction */
-			int *rp;
-			int co[MXRO];
-
-			/* Compute bx index */
-			ix = 0;
-			for (j = f = 0; f < fdi; f++) {
-				if (f == ff)
-					co[f] = midix[f];
-				else {
-					slix[j] = f;
-					co[f] = cc[j++];
+			/* Setup "fat" slice range */
+			for (f = 0; f < fdi; f++) {
+				if (f == ff) {
+					start[f] = midix[f]-1;
+					if (start[f] < 0)
+						start[f] = 0;
+					endp1[f] = midix[f]+2;
+					if (endp1[f] > rgres)
+						endp1[f] = rgres;
+				} else {
+					start[f] = 0;
+					endp1[f] = rgres;
 				}
-				ix += co[f] * s->rev.coi[f];
 			}
-//printf("  bx %d, %d ix %d\n",co[0],co[1],co[2],ix);
+			FRECONFA(cc, start, endp1);
 
-			if (s->rev.rev[ix] == NULL) {
+//printf("  slice range %d - %d, %d - %d, %d - %d\n", start[0], endp1[0]-1, start[1], endp1[1]-1, start[2], endp1[2]-1);
+
+			/* Scan this 3 thick, 2D slice of rev[] */
+			FC_INIT(cc);
+			while (!FC_DONE(cc)) {
+				int ix;
+				int slix[MXRO];		/* Indexes in slice direction + orthogonal */
+				int *rp;
+
+				/* Compute bx index */
+				ix = 0;
+				for (j = f = 0; f < fdi; f++) {
+					ix += cc[f] * s->rev.coi[f];
+					if (f != ff)
+						slix[j++] = f;
+				}
+				slix[j++] = ff;
+//printf("  bx %d, %d ix %d\n",cc[0],cc[1],cc[2],ix);
+
+				if (s->rev.rev[ix] == NULL) {
 //printf("  rev is empty\n");
-				goto next_bx;
-			}
+					goto next_bx;
+				}
 
-			/* For all the vertex values in bx rev[] */
-			for (rp = s->rev.rev[ix]+3; *rp != -1; rp++) {
-				float *fcb = s->g.a + *rp * s->g.pss;
-				double x, y, rad, ang;
+				/* For all the cubes bx rev[] */
+				for (rp = s->rev.rev[ix]+3; *rp != -1; rp++) {
 
-//printf("   vtx %d\n",*rp);
-				/* Ignore over ink limit values */
-				if (s->limiten && fcb[-1] > s->limitv)
-					continue;
-		
-				/* Compute radius and normalize */
-				x = fcb[slix[0]] - ctx.ccent[slix[0]];
-				y = fcb[slix[1]] - ctx.ccent[slix[1]];
-				rad = sqrt(x * x + y * y);
-				if (rad < EPS)
-					continue;
+					/* For each vertx of this cube */
+					for (ee = 0; ee < (1<<di); ee++) {
+						int vix = *rp + s->g.hi[ee];
+						float *gp = s->g.a + vix * s->g.pss;	/* Pointer to float of fwd vertex */
+						double fcb[MXRO];
+						double x, y, z, wrad, rad, ang;
 
-				/* Quantized angle this point is at */
-				ang = atanscale * atan2(y, x);
-				aa = (int)floor(ang);
-				if (aa < 0)
-					aa += ctx.ares;
-				if (aa >= ctx.ares) 
-					aa -= ctx.ares;
+						/* Don't add over ink limit vertexes */
+						if (s->limiten && gp[-1] > s->limitv) {
+							continue;
+						}
+
+						for (f = 0; f < fdi; f++)
+							fcb[f] = gp[f]; 
+
+						/* (Don't) Convert output values to log values */
+						/* logcomp(s, fcb, fcb, ctx.ccent); */
+
+						/* Compute 2D radius and normalize */
+						x = fcb[slix[0]] - ctx.ccent[slix[0]];
+						y = fcb[slix[1]] - ctx.ccent[slix[1]];
+						z = fcb[slix[2]] - ctx.ccent[slix[2]];
+						/* wrad is "elipsoid" weighted radius in slice */
+						wrad = x * x + y * y - 1.5 * z * z;
+						wrad = sqrt(wrad < 0.0 ? 0.0 : wrad);
+						rad = sqrt(x * x + y * y);
+						if (rad < EPS || wrad < EPS)
+							continue;
+
+						/* Quantized angle this point is at */
+						ang = atanscale * atan2(y, x);
+						aa = (int)floor(ang);
+						if (aa < 0)
+							aa += ctx.ares;
+						if (aa >= ctx.ares) 
+							aa -= ctx.ares;
 
 //printf("   slice %d vtx %f %f %f rad %f, ang %f aa %d\n", ff, fcb[0], fcb[1], fcb[2], rad, ang, aa);
 
-				if (rad > ctx.p[ff][aa].rad) {
-					ctx.p[ff][aa].rad = rad;
+						if (wrad > ctx.p[ff][aa].wrad) {
+							ctx.p[ff][aa].wrad = wrad;
+							ctx.p[ff][aa].rad = rad;
 
-					for (f = 0; f < fdi; f++) {
-						ctx.p[ff][aa].v[f] = fcb[f];
+							/* Copy far point */
+							for (f = 0; f < fdi; f++)
+								ctx.p[ff][aa].v[f] = fcb[f];
+
+							/* (don't) Flatten the points to lie on the notional center */
+							/* ctx.p[ff][aa].v[ff] = ctx.ccent[ff]; */
+						}
+
+						/* Track min in case ccent is not within slice */
+						if (rad < ctx.p[ff][aa].minrad) {
+							ctx.p[ff][aa].minrad = rad;
+						}
 					}
-					/* Flatten the points to lie on the notional center */
-					ctx.p[ff][aa].v[ff] = ctx.ccent[ff]; 
 				}
+			  next_bx:;
+				FC_INC(cc);
 			}
-		  next_bx:;
-			DC_INC(cc);
+
+			/* Repeat first in extra at end */
+			ctx.p[ff][ctx.ares] = ctx.p[ff][0];		/* Structure copy */
 		}
 
-		/* Repeat first in extra at end */
-		ctx.p[ff][ctx.ares] = ctx.p[ff][0];		/* Structure copy */
+		/* Check if center point is within slice by looking for empty entries. */
+		{
+			double ccvec[MXRO];		/* Center correction vector */
+			double ccount = 0.0;
+			
+			for (f = 0; f < fdi; f++)
+				ccvec[f] = 0.0;
+
+			for (ff = 0; ff < fdi; ff++) {
+				for (aa = 0; aa < ctx.ares; aa++) {
+
+//printf("   slice %d aa %d, vtx %s rad %f, irad %f\n", ff, aa, debPdv(fdi,ctx.p[ff][aa].v), ctx.p[ff][aa].rad, ctx.p[ff][aa].minrad);
+
+					/* Either the grid is very sparse, or our center */
+					/* is outside */
+					if (ctx.p[ff][aa].rad < 0.0) {
+						int oaa = aa + (ctx.ares/2);
+						if (oaa >= ctx.ares) 
+							oaa -= ctx.ares;
+
+//printf("   oaa %d, vtx %s rad %f, irad %f\n", oaa, debPdv(fdi,ctx.p[ff][oaa].v), ctx.p[ff][oaa].rad, ctx.p[ff][oaa].minrad);
+
+						/* If oposite side has an entry */
+						if (ctx.p[ff][oaa].rad > 0.0) {
+							double cor[MXRO];
+							double prop = (3.0 * ctx.p[ff][oaa].minrad
+							                   + ctx.p[ff][oaa].rad)/4.0;
+
+							prop /= ctx.p[ff][oaa].rad;		/* Proportion of distance to v[] */
+
+							for (f = 0; f < fdi; f++)
+								cor[f] = prop * (ctx.p[ff][oaa].v[f] - ctx.ccent[f]);
+//printf("   prop %f, corr %s\n",prop,debPdv(fdi,cor));
+							for (f = 0; f < fdi; f++)
+								ccvec[f] += cor[f];
+							ccount++;
+						}
+					}
+				}
+			}
+
+//printf("ccount %f\n",ccount);
+			if (ccount > 0.0) {	/* Make adjustment */
+				if (ici < (nici-1)) {
+					for (f = 0; f < fdi; f++)
+						ccvec[f] /= ccount;
+//printf("Corecting center by %s\n",debPdv(fdi,ccvec));
+					for (f = 0; f < fdi; f++)
+						ctx.ccent[f] += ccvec[f];
+//printf("cceny now %s\n",debPdv(fdi,ctx.ccent));
+				} else {		/* Last round and correction needed */
+					if (0.0 && s->verbose)
+						fprintf(stdout, "%cFailed to locate aprox. gamut center\n",cr_char);
+				}
+			} else {
+				break;		/* We're done */
+			}
+		}
 	}
+
+//printf("calc_ocent: refined ccent = %s\n",debPdv(fdi,ctx.ccent));
 
 	/* Pre-compute point to point info to speed optimization */
 	for (ff = 0; ff < fdi; ff++) {
@@ -8706,7 +8893,9 @@ static void calc_ocent(rspl *s) {
 	/* slice segment. This should maximize visibility of the inner of the */
 	/* gamut surface, for shadow testing. */
 	for (f = 0; f < fdi; f++)
-		ss[f] = 5.0;
+		ss[f] = fabs(0.1 * (minmax[1][f][f] - minmax[0][f][f]));
+
+//ctx.debug = 1;
 
 	/* return 0 on sucess, 1 on failure due to excessive itterations */
 	if (powell(NULL, fdi, s->rev.ocent, ss, 1e-3, 500, aorthog, (void *)&ctx, NULL, NULL)) {
@@ -8715,8 +8904,16 @@ static void calc_ocent(rspl *s) {
 			s->rev.ocent[f] = ctx.ccent[f];
 	}
 
-//	ctx.debug = 1;
-//	printf("Final angle = %f\n", aorthog(&ctx, ctx.ccent));
+//ctx.debug = 1;
+
+	/* Check result */
+	aorthog(&ctx, ctx.ccent);
+
+	/* Hmm. This isn't very reliable in detecting failure. */
+	if (ctx.oog)
+		printf("calc_ocent failed to return in-gamut focal point!\n");
+			
+//printf("Final angle = %f\n", ctx.ret);
 
 #ifdef REVVRML		/* Plotting routine declarations */
 	/* Diagnostic - dump the gamut slice locii */
@@ -8729,7 +8926,7 @@ static void calc_ocent(rspl *s) {
 		double blue[3] = { 0.1, 0.1, 0.8 };
 		double *rgb[3] = { red, green, blue };
 
-		wrl = new_vrml("section", 0, vrml_lab);
+		wrl = new_vrml("section", 0, s->rev.probxyz ? vrml_xyz : vrml_lab);
 		wrl->add_marker(wrl, s->rev.ocent, NULL, 1.0);
 
 		/* Show vertex labels */
@@ -8772,7 +8969,384 @@ static void calc_ocent(rspl *s) {
 		DECSZ(s, (ctx.ares+1) * sizeof(slpoint));
 	}
 
-	DBG(("calc_ocent: got ocent = %s\n",debPdv(fdi,s->rev.ocent)));
+	DBG(("calc_ocent: final ocent = %s\n",debPdv(fdi,s->rev.ocent)));
+//printf("calc_ocent: final ocent = %s\n",debPdv(fdi,s->rev.ocent));
+}
+
+/* Create gamut surface linearization (surflin) transform. */
+/* This is used by logcomp() to try and straighten out the */
+/* device response so that the ocent is "visible" from */
+/* any point on the surface. */ 
+/* (We assume we are called at the correct point when bx->status == bx_uninit) */
+static int calc_surflin(
+rspl *s,
+vtxcache *vc,		/* Vertexes */
+assdire *edgdir		/* Edge lookup for vertex */
+) {
+	int i, j, g;
+	int e, ee, di = s->di;
+	int f, ff, fdi = s->fdi;
+	vtxrec *vx, *nvx;
+	int nitter, itter;
+
+	double vxv[POW2MXRI][MXRO];		/* Overal fwd interp vertex values */
+	int nvtx;
+	cow *mpoints;
+	int gres[MXDO];
+	double min[MXDO], max[MXDO];
+	double vmin[MXDO], vmax[MXDO];
+
+	for (f = 0; f < fdi; f++)
+		gres[f] = s->g.bres;		// ??
+
+//printf("calc_surflin: rspl res %d\n",gres[0]);
+	DBG(("calc_surflin: rspl res %d\n",gres[0]));
+
+//printf("~1 gres = %d %d %d\n", s->g.res[0], s->g.res[1], s->g.res[2]);
+//printf("~1 ci = %d %d %d\n", s->g.ci[0], s->g.ci[1], s->g.ci[2]);
+
+	/* Lookup interpolation cube corners */
+	for (ee = 0; ee < (1<<di); ee++) {
+		int ix;
+		float *fcb;
+		for (ix = e = 0; e < di; e++) {
+			if (ee & (1<<e))
+				ix += s->g.ci[e] * (s->g.res[e] - 1);
+		}
+		fcb = s->g.a + ix * s->g.pss;
+		for (f = 0; f < fdi; f++)
+			vxv[ee][f] = fcb[f];
+//printf("~1 cube corners %d = %f %f %f\n",ee, vxv[ee][0], vxv[ee][1], vxv[ee][2]);
+	}
+
+//printf("calc_surflin: counting number of vertexes:\n");
+	/* Count the number of vertexes we may need */
+	nvtx = 0;
+	for (i = 0; i < vc->hash_size; i++) {
+		for (vx = vc->hash[i]; vx != NULL; vx = vx->hlink) {
+			nvtx++;
+		}
+	}
+	DBG(("calc_surflin: %d mapping points\n",nvtx));
+//printf("calc_surflin: %d mapping points\n",nvtx);
+
+//printf("calc_surflin: computing goal values:\n");
+	/* Currently the vertex vl = vv = output value of vertex. */
+	/* Temporarily replace vv with the idealize (linear interp) output "goal" values. */
+	for (i = 0; i < vc->hash_size; i++) {
+		for (vx = vc->hash[i]; vx != NULL; vx = vx->hlink) {
+			int tix;				/* Temp fwd cell index */
+			double we[MXRI];		/* Vertex input position == 1.0 - Weight */
+			double gw[POW2MXRI];	/* weight for each grid cube corner */
+			double w;
+
+			/* Compute this vertexes relative input position */
+			for (tix = vx->ix, e = 0; e < di; e++) {
+				int dix;
+				dix = tix % s->g.res[e];
+				tix /= s->g.res[e];
+				we[e] = (double)dix/(s->g.res[e]-1.0);
+			}
+			
+			/* Compute corner weights needed for interpolation */
+			gw[0] = 1.0;
+			for (e = 0, g = 1; e < di; g *= 2, e++) {
+				for (j = 0; j < g; j++) {
+					gw[g+j] = gw[j] * we[e];
+					gw[j] *= (1.0 - we[e]);
+				}
+			}
+		
+			/* Linear interpolated output values */
+			w = gw[0];
+			for (f = 0; f < fdi; f++)			/* Base of cube */
+				vx->vv[f] = w * vxv[0][f];
+		
+			for (g = 1; g < (1<<di); g++) {	/* For all other corners of cube */
+				w = gw[g];
+				for (f = 0; f < fdi; f++)
+					vx->vv[f] += w * vxv[g][f];
+			}
+		}
+	}
+
+	/* Now itteratively adjust the vl values to better match the scaled */
+	/* relative positions of the goal values. */
+
+	/* Go through them again to get every line they are part of */
+	/* (We're assuming we need exponentially more itters with finer point */
+	/* spacing ?) */
+	nitter = (int)(0.06 * s->g.bres * s->g.bres + 0.5);
+	if (nitter < 1)
+		nitter = 1;
+	for (itter = 0; itter < nitter; itter++) {
+
+		DBG(("calc_surflin: maping itter %d\n",itter));
+//printf("calc_surflin: maping itter %d\n",itter);
+
+		for (i = 0; i < vc->hash_size; i++) {
+			for (vx = vc->hash[i]; vx != NULL; vx = vx->hlink) {
+				assdire *edg;			/* Edge table */
+				float *fp;
+				int fl;
+				double agrad, aorad;
+				int nn;
+				double scale;
+
+				fp = s->g.a + vx->ix * s->g.pss;	/* This vertex in fwd grid */
+				fl = FLV(fp);		/* Edge flags for this vertex */
+				edg = edgdir + fl;
+
+				/* For vertexes at the end of all possible edges common with this vertex, */
+				/* compute average radius */
+				agrad = aorad = 0.0;
+				for (j = 0; j < edgdir[fl].no; j++) {
+					int eix;
+
+					/* Index number of vertex other than the one we got it from */
+					if (edg->ti[j].goffs[0] != 0)
+						eix = vx->ix + edg->ti[j].goffs[0];
+					else
+						eix = vx->ix + edg->ti[j].goffs[1];
+
+					if ((nvx = get_vtxrec(vc, eix)) != NULL) {
+						double glen, olen;
+						glen = olen = 0.0;
+						for (f = 0; f < fdi; f++) {
+							double tt;
+
+							tt = vx->vv[f] - nvx->vv[f];
+							glen += tt * tt;
+
+							tt = vx->vl[f] - nvx->vl[f];
+							olen += tt * tt;
+						}
+						glen = sqrt(glen);
+						olen = sqrt(olen);
+						agrad += glen;
+						aorad += olen;
+						nn++;
+					}
+				}
+
+				if (nn == 0) {					/* Hmm. No neighors ? */
+					vx->status = vtx_del;		/* Mark it as isolated */
+					continue;
+				}
+
+				scale = aorad/agrad;	/* Local scale factor from goal to output */
+
+				/* Reset the current vertex output value based on the relative */
+				/* position of it in goal space */
+				for (f = 0; f < fdi; f++)
+					vx->vl[f] = 0.0;
+
+				nn = 0;
+				for (j = 0; j < edgdir[fl].no; j++) {
+					int eix;
+
+					/* Index number of vertex other than the one we got it from */
+					if (edg->ti[j].goffs[0] != 0)
+						eix = vx->ix + edg->ti[j].goffs[0];
+					else
+						eix = vx->ix + edg->ti[j].goffs[1];
+
+					if ((nvx = get_vtxrec(vc, eix)) != NULL) {
+						for (f = 0; f < fdi; f++)
+							vx->vl[f] += nvx->vl[f] + scale * (vx->vv[f] - nvx->vv[f]);
+						nn++;
+					}
+				}
+				for (f = 0; f < fdi; f++)
+					vx->vl[f] /= (double)nn;
+			}
+		}
+	}
+
+	DBG(("calc_surflin: creating rspl\n"));
+//printf("calc_surflin: creating rspl\n");
+
+	/* Now construct rspl setup mapping points from vertex normal output values */
+	/* to adjusted vl values */
+
+	if ((s->rev.surflin = new_rspl(RSPL_NOFLAGS, fdi, fdi)) == NULL)
+		error("calc_surflin: new_rspl failed");
+
+	nvtx++;		/* One for center point */
+
+	/* Allocate rspl setup points */
+	if ((mpoints = malloc(sizeof(cow) * 2 * nvtx)) == NULL)
+//	if ((mpoints = malloc(sizeof(cow) * nvtx)) == NULL)
+		error("calc_surflin: malloc of %d rspl setup points failed",nvtx);
+	
+	nvtx = 0;
+
+#ifndef NEVER
+	/* Center point */
+	for (f = 0; f < fdi; f++) {
+		mpoints[nvtx].p[f] = s->rev.ocent[f]; 
+		mpoints[nvtx].v[f] = s->rev.ocent[f]; 
+	}
+	mpoints[nvtx].w = 10.0;
+	nvtx++;
+#endif
+
+	/* Set the surface mapping points and restore vertexes values */
+	for (i = 0; i < vc->hash_size; i++) {
+		for (vx = vc->hash[i]; vx != NULL; vx = vx->hlink) {
+			float *fcb;
+
+			fcb = s->g.a + vx->ix * s->g.pss;	/* This vertex in fwd grid */
+
+			/* Actual output value as source of mapping */
+			for (f = 0; f < fdi; f++)
+				mpoints[nvtx].p[f] = vx->vv[f] = fcb[f];
+
+			if (vx->status != vtx_norm) {	/* Skip isolated values */
+				vx->status = vtx_norm;		/* Restore vtx contents */
+				for (f = 0; f < fdi; f++)
+					vx->vl[f] = vx->vv[f];
+				continue;
+			}
+
+			for (f = 0; f < fdi; f++)
+				mpoints[nvtx].v[f] = vx->vl[f];
+			mpoints[nvtx].w = 1.0;
+			nvtx++;
+
+			vx->status = vtx_norm;		/* Restore vtx contents */
+			for (f = 0; f < fdi; f++)
+				vx->vl[f] = vx->vv[f];
+			
+//printf("Map[%d] %f %f %f -> %f %f %f\n", nvtx-1, mpoints[nvtx-1].p[0], mpoints[nvtx-1].p[1], mpoints[nvtx-1].p[2], mpoints[nvtx-1].v[0], mpoints[nvtx-1].v[1], mpoints[nvtx-1].v[2]);
+
+#ifndef NEVER
+			/* Add intermediate "fixed" point */
+			for (f = 0; f < fdi; f++) {
+				mpoints[nvtx].p[f] = mpoints[nvtx].v[f]
+				                  = 0.5 * mpoints[nvtx-1].p[f] + 0.5 * s->rev.ocent[f];
+			}
+			mpoints[nvtx].w = 0.5;
+			nvtx++;
+#endif
+		}
+	}
+
+	for (f = 0; f < fdi; f++) {
+		min[f] = 1e38;
+		max[f] = -1e38;
+		vmin[f] = 1e38;
+		vmax[f] = -1e38;
+	}
+	for (i = 0; i < nvtx; i++) {
+
+#ifdef NEVER
+		/* Blend with original values */
+		for (f = 0; f < fdi; f++)
+			mpoints[i].v[f] = 0.5 * mpoints[i].p[f] + 0.5 * mpoints[i].v[f];
+#endif
+
+		for (f = 0; f < fdi; f++) {
+			if (mpoints[i].p[f] < min[f])
+				min[f] = mpoints[i].p[f];
+			if (mpoints[i].p[f] > max[f])
+				max[f] = mpoints[i].p[f];
+
+			if (mpoints[i].v[f] < vmin[f])
+				vmin[f] = mpoints[i].v[f];
+			if (mpoints[i].v[f] > vmax[f])
+				vmax[f] = mpoints[i].v[f];
+		}
+	}
+
+#ifdef REVVRML	/* Plot mapping vectors red->green */
+	{
+		vrml *wrl;
+		double red[3] = { 1.0, 0.0, 0.0 };
+		double green[3] = { 0.0, 1.0, 0.0 };
+
+		wrl = new_vrml("suflinvecss", 0, vrml_lab);
+		wrl->start_line_set(wrl, 0);
+
+		for (i = 0; i < nvtx; i++) {
+			wrl->add_col_vertex(wrl, 0, mpoints[i].p, red);
+			wrl->add_col_vertex(wrl, 0, mpoints[i].v, green);
+			
+		}
+
+		wrl->make_lines(wrl, 0, 2);
+		wrl->del(wrl);
+	}
+#endif
+
+	DBG(("calc_surflin: mapping points set, about to creat rspl:\n"));
+//printf("calc_surflin: mapping points set, about to creat rspl:\n");
+
+	/* Fit the rspl */
+	s->rev.surflin->fit_rspl_w(s->rev.surflin, RSPL_NOFLAGS, mpoints, nvtx,  
+	                           min, max, gres, vmin, vmax, 4.0, NULL, NULL);   
+
+	DBG(("calc_surflin: mapping created\n"));
+//printf("calc_surflin: mapping created\n");
+
+#ifdef NEVER
+	{
+		double de;
+		co p;
+		extern double icmNorm33(double *, double *);
+
+		/* Check fit */
+		de = 0.0;
+
+		for (i = 0; i < nvtx; i++) {
+			for (f = 0; f < fdi; f++)
+				p.p[f] = mpoints[i].p[f];
+
+			s->rev.surflin->interp(s->rev.surflin, &p);
+	
+			de += icmNorm33(mpoints[i].v, p.v);
+		}
+		de = de/(double)nvtx;
+
+		printf("Avg fit error = %f\n",de);
+	}
+#endif
+	
+	free(mpoints);
+
+	/* Lookup ocent mapping offset */
+	{
+		co p;
+
+		for (f = 0; f < fdi; f++)
+			p.p[f] = s->rev.ocent[f];
+		s->rev.surflin->interp(s->rev.surflin, &p);
+//printf("opoint mapping %f %f %f -> %f %f %f\n", p.p[0], p.p[1], p.p[2], p.v[0], p.v[1], p.v[2]);
+		for (f = 0; f < fdi; f++)
+			s->rev.linoff[f] = p.v[f] - s->rev.ocent[f];
+	}
+	
+
+#ifndef NEVER
+	/* Put the transform into use */
+	s->rev.surflin_en = 1;
+
+	/* Transform all the vertexes */
+	for (i = 0; i < vc->hash_size; i++) {
+		for (vx = vc->hash[i]; vx != NULL; vx = vx->hlink) {
+			logcomp(s, vx->vl, vx->vv, s->rev.ocent);
+
+			/* Compute distance to overall center point squared */
+			vx->dist = 0.0;
+			for (f = 0; f < fdi; f++) {
+				double tt = vx->vl[f] - s->rev.ocent[f]; 
+				vx->dist += tt * tt;
+			}
+		}
+	}
+#endif
+
+	return 0;
 }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -8800,6 +9374,7 @@ rspl *s
 								/* Note that bit 1 can be set for cells that are not */
 								/* to be explored because they are in the gamut interior, */
 								/* and because they have already been added to the seedlist. */
+	int pass;					/* Construction pass */
 	float *gp;					/* Pointer to fwd grid points */
 
 	DCOUNT(gg, MXRO, fdi, 0, 0, rgres);	/* Track the prime seed coordinate */
@@ -8835,8 +9410,23 @@ rspl *s
 	int nnmxrevcelldepth = 0;			/* Maximum nnrev[] list lengths */
 	int nnrevshare = 0;					/* Sum of nnrev[] list reference counts */
 #endif
+	datao rgmin, rgmax;
 
 	DBG(("init_revaccell called, di = %d, fdi = %d, mgres = %d\n",di,fdi,(int)s->g.mres));
+
+	/* To help VRML diagnostics, make a guess as to whether the output */
+	/* space is XYZ like, or L*a*b* like */
+
+	s->get_out_range(s, rgmin, rgmax);	/* overall output min/max */
+
+	if (fdi >= 3
+	 && rgmin[0] >= -1.0 && rgmax[0] < 3.0
+	 && rgmin[1] >= -1.0 && rgmax[1] < 3.0
+	 && rgmin[2] >= -1.0 && rgmax[2] < 3.0) {
+		s->rev.probxyz = 1;
+		if (s->verbose)
+			fprintf(stdout, "%cLooks like an XYZ space\n",cr_char);
+	}
 
 	if (fdi > 1 && s->verbose)
 		fprintf(stdout, "%cInitializing nnrev arrays...\n",cr_char);
@@ -8885,7 +9475,7 @@ rspl *s
 	/*
 	 * The rev[] and nnrev[] grids contain pointers to lists of grid cube base indexes.
 	 * If the pointer is NULL, then there are no base indexes in that list.
-	 * A non NULL list uses element [0] to indicate the alocation size of the list,
+	 * A non NULL list uses element [0] to indicate the allocation size of the list,
 	 * [1] contains the index of the next free location, [2] contains the reference
      * count (lists may be shared), the list starts at [3]. The last entry is marked with -1.
 	 */
@@ -8897,6 +9487,8 @@ rspl *s
 		double iv[MXDI];				/* Input value corresponding to grid */
 
 		DBG(("Looking up fwd vertex ink limit values\n"));
+//printf("Looking up fwd vertex ink limit values\n");
+//printf("s->limitv = %f\n",s->limitv);
 		/* Calling the limit function for each fwd vertex could be bad */
 		/* if the limit function is slow. Maybe an octree type algorithm */
 		/* could be used if this is a problem ? */
@@ -8906,7 +9498,9 @@ rspl *s
 				for (e = 0; e < di; e++)
 					iv[e] = s->g.l[e] + gc[e] * s->g.w[e];  /* Input sample values */
 				gp[-1] = (float)(INKSCALE * s->limitf(s->lcntx, iv));
+//printf("~1 set ix %d limitv to %f\n",i,gp[-1]);
 			}
+//else printf("~1 ix %d limitv is %f\n",i,gp[-1]);
 			EC_INC(gc);
 		}
 		s->g.limitv_cached = 1;
@@ -8958,6 +9552,7 @@ rspl *s
 		uil = oil = 0;
 		for (f = 0; f < fdi; f++)	/* Init output min/max */
 			min[f] = max[f] = gp[f];
+
 		if (!s->limiten || gp[-1] <= s->limitv)
 			uil = 1;
 		else
@@ -9065,7 +9660,7 @@ rspl *s
 		}	/* Next reverse grid point in intersecting cube */
 	}	/* Next base grid point */
 
-	DBG(("We skipped %d cells that were over the limit\n",nskcells));
+	DBG(("We skipped %d/%d cells that were over the limit\n",nskcells,gno));
 
 #ifdef CHECK_NNLU
 	if (fdi > 1) {
@@ -9180,7 +9775,6 @@ rspl *s
 				cc[f]  += (ff & 1) ? 1 : -1;
 				vflagp += (ff & 1) ? s->rev.coi[f] : -s->rev.coi[f];
 
-
 				/* Out of bounds or empty */
 				if (cc[f] < 0 || cc[f] >= rgres || ((*vflagp & 0xf) == 0)) {
 					vflag[i] = (vflag[i] & ~0xf) | 2;	/* Convert this one to empty surface cell */
@@ -9256,7 +9850,7 @@ rspl *s
 			}
 		}
 
-	} else {
+	} else {		/* di >= 3 gamut surface finding */
 
 #ifdef REVVRML
 		/* Plot the initial surface bxcells & their fwd cells. */
@@ -9289,7 +9883,7 @@ rspl *s
 		/* - - - - - - - - - - - - - - */
 		/* fill, thin and add, until */
 		/* there is no more work to do. */
-		for (;;) {
+		for (pass = 0;; pass++) {
 			int phase;
 			int morevtxadded = 0;
 #if defined(REVTABLESTATS) || defined(DEBUG)
@@ -9301,7 +9895,7 @@ rspl *s
 
 			/* For each surface bxcell, convert the corresponding */
 			/* rev[] fwd cubes into vertices. */
-			/* (Musk keep bxcells even if none of their verticies */
+			/* (Must keep bxcells even if none of their verticies */
 			/*  are physically in them, so that those verticies get thinned. */
 			/*  could only remove them if vertex was not in any surface cell ?) */
 			for (pbx = &s->rev.surflist, bx = *pbx; bx != NULL; bx = nbx) {
@@ -9368,10 +9962,10 @@ rspl *s
 				/* Expand a bxcell's shadow testing group values based on it's vertex list */
 				/* so that shadow testing works correctly for vertexes that don't */
 				/* actually lie within the bxcell. (Note that in fact the triangle */
-				/* testing creates triangles that are mode of vertexes that may not */
-				/* be in this bx's list, so the shadow size doesn't accturatly  reprsent */
+				/* testing creates triangles that are made of vertexes that may not */
+				/* be in this bx's list, so the shadow size doesn't accuratly  reprsent */
 				/* the possible shadow area. It's not clear what consequences this has, */
-				/* if any. If we extanded the group to cover this, we would need to have ) */
+				/* if any. If we extanded the group to cover this, we would need to have */
 				/* two groups, a shadower group including those vertexes, and a shadowee */
 				/* goup for just those vertexes that are part of the bx. */
 				extend_bxcell_shadow_group(s, &vc, bx);
@@ -9380,6 +9974,19 @@ rspl *s
 				morevtxadded = 1;
 			}
 	
+			/* Compute transform rspl that helps "unfold" any regions of the surface */
+			/* that overlap from the perspective of ocent, to try and avoid gaps in */
+			/* the final gamut surface. Existing vtxrec are converted to have vl */
+			/* in the unfolded space. */
+			if (pass == 0 /* && function flag set */) {
+#ifndef EN_UNTWIST		/* Control using an environment variable */
+				if (getenv("ARGYLL_UNTWIST_GAMUT_SURFACE") != NULL)
+#endif
+				{
+					calc_surflin(s, &vc, edgdir);
+				}
+			}
+
 			DBG(("thinning surface vertex lists and converting to cells\n"));
 
 			/* (Sorting bxcells doesn't seem to make any performace difference.) */
@@ -9440,8 +10047,8 @@ rspl *s
 								/* If any of bx is further from nbx and their bounding */
 								/* cylinders overlap in perspective from rev.ocenter, */
 								/* assume nbx is a shadow */
-								if (shadow_group_group(s, s->rev.ocent, bx->g.bcent, bx->cc, bx->dw,    
-									                                    nbx->g.bcent, nbx->cc, nbx->dw)) {
+								if (shadow_group_group(s, s->rev.ocent, bx->g.bcent, bx->cc,
+									                 bx->dw, nbx->g.bcent, nbx->cc, nbx->dw)) {
 									nbx->wlist = bx->wlist;
 									bx->wlist = nbx;
 //printf("~1 adding shadow nnrev[%d] from xlist\n",nbx->ix);
@@ -9511,8 +10118,8 @@ rspl *s
 							/* marked deleted ??) */
 							if (
 //						    vx->status == vtx_norm &&
-							    shadow_group_vertex(s, s->rev.ocent, bx->g.bcent, bx->cc, bx->dw,
-								                                                          vx->v)) { 
+							    shadow_group_vertex(s, s->rev.ocent, bx->g.bcent, bx->cc,
+								                                          bx->dw, vx->vl)) { 
 									add_vtxrec_list(&vc, vx, 0);	/* Add if not deleted */
 //printf(" Added ix %d from bx %d\n",vx->ix,nbx->ix);
 							}
@@ -9529,7 +10136,8 @@ rspl *s
 							error("Failed to find vertex %s in cache",*rp);
 
 						if (vx->status == vtx_norm &&
-						    shadow_group_vertex(s, s->rev.ocent, bx->g.bcent, bx->cc, bx->dw, vx->v)) { 
+						    shadow_group_vertex(s, s->rev.ocent, bx->g.bcent, bx->cc,
+							                                          bx->dw, vx->vl)) { 
 								add_vtxrec_list(&vc, vx, 1);	/* Add if not hidden/deleted */
 						}
 					}
@@ -9543,7 +10151,7 @@ rspl *s
 					/* For vertexes of this bxcell and shadowers, */
 					/* in order from largst to smallest distance from center. */
 					for (vx = vc.vtxlist; vx != NULL; vx = vx->tlist) {
-						float *vp;				/* Vertex being tested */
+						float *fcb;				/* Vertex being tested */
 						int fl;
 						assdire *tri;			/* Triangle table */
 
@@ -9556,8 +10164,8 @@ rspl *s
 
 //printf("~1 doing vertex %d at %s dist %f\n",vx->ix, debPdv(fdi,vx->v), sqrt(vx->dist));
 
-						vp = s->g.a + vx->ix * s->g.pss;	/* This vertex in fwd grid */
-						fl = FLV(vp);		/* Edge flags for this vertex */
+						fcb = s->g.a + vx->ix * s->g.pss;	/* This vertex in fwd grid */
+						fl = FLV(fcb);		/* Edge flags for this vertex */
 
 						tri = tridir + fl;
 //printf("~1 fl %d = 0o%o, no triangles %d\n",fl, fl, tri->no);
@@ -9597,7 +10205,7 @@ rspl *s
 
 							for (e = 0; e <= sdi; e++) {
 								for (f = 0; f < fdi; f++)
-									v[e][f] = trivx[e]->v[f];
+									v[e][f] = trivx[e]->vl[f];
 							}
 
 							/* Compute shadow group params of triangle for quick vertex test */
@@ -9633,7 +10241,7 @@ rspl *s
 
 								/* Do quick check against triangle */
 								if (!shadow_group_vertex(s,
-									     s->rev.ocent, gc, cc, dw, nvx->v)) { 
+									     s->rev.ocent, gc, cc, dw, nvx->vl)) { 
 //printf("~1 shadow group check shows no intersection\n");
 									continue;
 								}
@@ -9644,11 +10252,14 @@ rspl *s
 								shdwd = wsrv = 0;
 
 								/* Compute line delta */
-								vp = s->g.a + nvx->ix * s->g.pss;
-								for (f = 0; f < fdi; f++) {
-									pv[f] = vp[f];
+								fcb = s->g.a + nvx->ix * s->g.pss;
+								for (f = 0; f < fdi; f++)
+									pv[f] = fcb[f];
+
+								logcomp(s, pv, pv, s->rev.ocent);
+
+								for (f = 0; f < fdi; f++)
 									de[f] = pv[f] - s->rev.ocent[f];
-								}
 
 								/* Setup line cla and clb */
 								init_line_eq_imp(s, NULL, &cla, clb, s->rev.ocent, de, 0);
@@ -9773,13 +10384,13 @@ rspl *s
 						/* Check all of its neighbor vertexes, to see if */
 						/* it's safe to actually delete them. */
 						if (vx->status >= vtx_sha) {	/* vertex to delete ? */
-							float *vp;
+							float *fcb;
 							int fl;
 							assdire *edg;			/* Edge table */
 
 //printf("Checking vx %d neighbors\n",vx->ix);
-							vp = s->g.a + vx->ix * s->g.pss;	/* This vertex in fwd grid */
-							fl = FLV(vp);		/* Edge flags for this vertex */
+							fcb = s->g.a + vx->ix * s->g.pss;	/* This vertex in fwd grid */
+							fl = FLV(fcb);		/* Edge flags for this vertex */
 							edg = edgdir + fl;
 
 							/* For all possible edges that use this vertex */
@@ -9972,7 +10583,7 @@ rspl *s
 
 			/* Struct to hold test vertex locations */
 			struct _tvxrec {
-				double v[MXRO];
+				double v[MXRO];			/* Log output vertex value */
 				double dist;			/* Distance from center point squared */
 				int ix[MXRO+1];			/* Indexes of the triangle verticies */
 				int shad;				/* Test result */
@@ -10082,10 +10693,10 @@ rspl *s
 						for (j = 0; j <= sdi;  j++) {
 							if (trivx[j]->status == vtx_norm) {
 								for (f = 0; f < fdi; f++)
-									tvx->v[f] += 0.95/nntvsh * trivx[j]->v[f];
+									tvx->v[f] += 0.95/nntvsh * trivx[j]->vl[f];
 							} else {
 								for (f = 0; f < fdi; f++)
-									tvx->v[f] += 0.05/ntvsh * trivx[j]->v[f];
+									tvx->v[f] += 0.05/ntvsh * trivx[j]->vl[f];
 								trivx[j]->cross = 1;		/* For diagnostics */
 							}
 						}
@@ -10202,7 +10813,7 @@ rspl *s
 
 							for (j = 0; j <= sdi; j++) {
 								for (f = 0; f < fdi; f++)
-									v[j][f] = trivx[j]->v[f];
+									v[j][f] = trivx[j]->vl[f];
 							}
 
 							/* Compute shadow group params of triangle for quick vertex test */
@@ -10380,7 +10991,7 @@ rspl *s
 
 						for (j = 0; j <= sdi; j++) {
 							for (f = 0; f < fdi; f++)
-								v[j][f] = trivx[j]->v[f];
+								v[j][f] = trivx[j]->vl[f];
 						}
 
 						/* Compute shadow group params of triangle for quick vertex test */
@@ -10570,7 +11181,7 @@ rspl *s
 				vtxrec *vx;
 
 				if ((vx = get_vtxrec(&vc, *rp)) == NULL)
-					continue;		/* Hmm. */
+					continue;		/* Hmm. Delete it.*/
 
 				/* Keep all the un-shadowed or preserved vertexes */
 				if (vx->status == vtx_norm	
@@ -10618,9 +11229,9 @@ rspl *s
 		/* Add extra over ink limit vertexes. */
 		for (bx = s->rev.surflist; bx != NULL; bx = bx->slist) {
 			int sdi = 1;					/* sub-simplexes are edges */
-			int *crp, *rp, *nrp;
-			int ttouch;
+			int *rp;
 			vtxrec *vx, *nvx;
+			int *exlist = NULL;
 	
 			/* Add over ink limit vertexes, so that fwd cells will straddle */
 			/* the ink limit boundary. */
@@ -10630,8 +11241,8 @@ rspl *s
 			/* over ink limit verticies.) */ 
 			if (s->limiten && vflag[bx->ix] & 0x10) {
 				int *rp;
-//printf("~1 ink limitin is enabled bx %d\n", bx->ix);
 
+//printf("~1 ink limitin is enabled bx %d\n", bx->ix);
 				for (rp = bx->sl+3; *rp != -1; rp++) {
 					float *vp, *evp;
 					int fl;
@@ -10671,7 +11282,7 @@ rspl *s
 
 //printf(" Checking edge %d (%f) -> %d (%f)\n", vx->ix, vp[-1], eix, evp[-1]);
 
-						/* If over limit, add it to the list */
+						/* If over limit, add it to the expansion list */
 						if (evp[-1] > s->limitv) {
 //printf("~1 added over ink limit vertex %d\n",eix);
 
@@ -10679,9 +11290,17 @@ rspl *s
 								continue;		/* Added by another bx */
 							nvx = new_vtxrec(s, &vc, eix);
 							nvx->status = vtx_oil; 
-							add2indexlist(s, &bx->sl, eix, 0);
+							add2indexlist(s, &exlist, eix, 0);
 						}
 					}
+				}
+		
+				/* If we found over ink limit verticies, add them to our list */
+				if (exlist != NULL) {
+					for (rp = exlist+3; *rp != -1; rp++) {
+						add2indexlist(s, &bx->sl, *rp, 0);
+					}
+					free_indexlist(s, &exlist);
 				}
 			}
 		}
@@ -10808,6 +11427,11 @@ rspl *s
 			bx->status = bx_conv;
 		}
 
+		if (s->rev.surflin != NULL) {	/* Don't need surflin anymore */
+			s->rev.surflin->del(s->rev.surflin);
+			s->rev.surflin = NULL;
+			s->rev.surflin_en = 0;
+		}
 		if (cla != NULL)
 			free_dmatrix(cla, 0, fdi-1, 0, fdi);
 		free_trirec(s, &stc);
@@ -11911,7 +12535,7 @@ int dofwlabels			/* Plot fwd cell base indexs */
 	double grey[3] = { 0.5, 0.5, 0.5 };
 	double white[3] = { 1.0, 1.0, 1.0 };
 
-	wrl = new_vrml("raw_bxfwcells", 0, vrml_lab);
+	wrl = new_vrml("raw_bxfwcells", 0, s->rev.probxyz ? vrml_xyz : vrml_lab);
 	wrl->add_marker(wrl, s->rev.ocent, NULL, 1.0);
 
 	if (dofwlabels) {
@@ -12080,7 +12704,7 @@ double xv[MXRO]			/* Intersection point */
 	double blue[3] = { 0.1, 0.1, 0.8 };
 	double yellow[3] = { 0.8, 0.8, 0.1 };
 
-	wrl = new_vrml("tri_check", 0, vrml_lab);
+	wrl = new_vrml("tri_check", 0, s->rev.probxyz ? vrml_xyz : vrml_lab);
 
 	/* Gamut center point marker */
 	wrl->add_marker(wrl, s->rev.ocent, NULL, 1.0);
@@ -12166,6 +12790,8 @@ double xv[MXRO]			/* Intersection point */
 /* Main summary plot at each thinning round and at end. */
 /* Show vertex surface & optional added or deleted vertexes, */
 /* + optional bxcells. */
+#define VV vv		/* Actual surface values */
+//#define VV vl		/* Logf mapped surface values */
 static void plot_vtx_surface(
 rspl *s,
 int dovtxlabels,		/* Show vertex index numbers */
@@ -12193,9 +12819,9 @@ assdire *edgdir		/* Edge lookup for vertex */
 	bxcell *vbx;
 
 	if (dopres)
-		wrl = new_vrml("final_surface", 0, vrml_lab);
+		wrl = new_vrml("last_surface", 0, s->rev.probxyz ? vrml_xyz : vrml_lab);
 	else
-		wrl = new_vrml("thinned_surface", 0, vrml_lab);
+		wrl = new_vrml("thinned_surface", 0, s->rev.probxyz ? vrml_xyz : vrml_lab);
 	wrl->add_marker(wrl, s->rev.ocent, NULL, 1.0);
 
 	if (dovtxlabels) {
@@ -12209,7 +12835,7 @@ assdire *edgdir		/* Edge lookup for vertex */
 				 || (dopres && vx->pres)
 				 || (dooil && vx->status == vtx_oil)) {
 					sprintf(index, "%d",vx->ix);
-					wrl->add_text(wrl, index, vx->v, cyan, 0.3);
+					wrl->add_text(wrl, index, vx->VV, cyan, 0.3);
 				}
 			}
 		}
@@ -12218,20 +12844,25 @@ assdire *edgdir		/* Edge lookup for vertex */
 	/* Go through the vertex hash to set every vertex value */
 	for (i = 0; i < vc->hash_size; i++) {
 		for (vx = vc->hash[i]; vx != NULL; vx = vx->hlink) {
+			double *col = NULL;
 
 			if (vx->status != vtx_norm && vx->addvtx)
 				error ("Found vertex that is both deleted and cause of added bxcell");
 
 			if (doadded && vx->addvtx)				/* Cause of added bxcell */
-				vx->vrmlix = wrl->add_col_vertex(wrl, 0, vx->v, green);
+				col = green;
 			else if (dopres && vx->pres)			/* Preserved vertex */
-				vx->vrmlix = wrl->add_col_vertex(wrl, 0, vx->v, yellow);
+				col = yellow;
 			else if (dodeleted && (vx->status == vtx_sha || vx->status == vtx_del))
-				vx->vrmlix = wrl->add_col_vertex(wrl, 0, vx->v, red);
+				col = red;
 			else if (dooil && vx->status == vtx_oil)
-				vx->vrmlix = wrl->add_col_vertex(wrl, 0, vx->v, blue);
+				col = blue;
 			else if (vx->status == vtx_norm)
-				vx->vrmlix = wrl->add_col_vertex(wrl, 0, vx->v, white);
+				col = white;
+
+			if (col != NULL) {
+				vx->vrmlix = wrl->add_col_vertex(wrl, 0, vx->VV, col);
+			}
 		}
 	}
 
@@ -12304,26 +12935,26 @@ assdire *edgdir		/* Edge lookup for vertex */
 					col = white;
 
 				for (f = 0; f < fdi; f++)
-					vv[f] = vx->v[f] + off;
+					vv[f] = vx->VV[f] + off;
 				lix[0] = wrl->add_vertex(wrl, 2, vv);
 				for (f = 0; f < fdi; f++)
-					vv[f] = vx->v[f] - off;
+					vv[f] = vx->VV[f] - off;
 				lix[1] = wrl->add_vertex(wrl, 2, vv);
 				wrl->add_col_line(wrl, 2, lix, col);
 
 				for (f = 0; f < fdi; f++)
-					vv[f] = vx->v[f] + ((f & 1) ? off : -off);
+					vv[f] = vx->VV[f] + ((f & 1) ? off : -off);
 				lix[0] = wrl->add_vertex(wrl, 2, vv);
 				for (f = 0; f < fdi; f++)
-					vv[f] = vx->v[f] - ((f & 1) ? off : -off);
+					vv[f] = vx->VV[f] - ((f & 1) ? off : -off);
 				lix[1] = wrl->add_vertex(wrl, 2, vv);
 				wrl->add_col_line(wrl, 2, lix, col);
 
 				for (f = 0; f < fdi; f++)
-					vv[f] = vx->v[f] + ((f & 2) ? off : -off);
+					vv[f] = vx->VV[f] + ((f & 2) ? off : -off);
 				lix[0] = wrl->add_vertex(wrl, 2, vv);
 				for (f = 0; f < fdi; f++)
-					vv[f] = vx->v[f] - ((f & 2) ? off : -off);
+					vv[f] = vx->VV[f] - ((f & 2) ? off : -off);
 				lix[1] = wrl->add_vertex(wrl, 2, vv);
 				wrl->add_col_line(wrl, 2, lix, col);
 			}
@@ -12396,7 +13027,7 @@ int bxix			/* Index of bx cell causing touches */
 	double white[3] = { 1.0, 1.0, 1.0 };
 	double red[3] = { 0.8, 0.1, 0.1 };
 
-	wrl = new_vrml("add_touch_bxcells", 0, vrml_lab);
+	wrl = new_vrml("add_touch_bxcells", 0, s->rev.probxyz ? vrml_xyz : vrml_lab);
 
 	/* Gamut center point marker */
 	wrl->add_marker(wrl, s->rev.ocent, NULL, 1.0);
@@ -12461,7 +13092,7 @@ int dowait				/* Wait for a return key */
 	double grey[3] = { 0.5, 0.5, 0.5 };
 	double white[3] = { 1.0, 1.0, 1.0 };
 
-	wrl = new_vrml("thinned_fwcells", 0, vrml_lab);
+	wrl = new_vrml("thinned_fwcells", 0, s->rev.probxyz ? vrml_xyz : vrml_lab);
 	wrl->add_marker(wrl, s->rev.ocent, NULL, 1.0);
 
 	if (dofclabels) {

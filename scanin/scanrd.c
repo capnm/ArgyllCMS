@@ -3471,7 +3471,7 @@ scanrd_ *s
 				ADD_ITEM_TO_TOP(s->alist,sp);	/* Add it to the active list */
 				sp->active = 1;
 				sp->ps[0] = calloc(s->tdepth * binsize,sizeof(unsigned long));
-				if (sp->ps == NULL)
+				if (sp->ps[0] == NULL)
 					error("do_value_scan: Failed to malloc sbox histogram array");
 				for (e = 1; e < s->depth; e++)
 					sp->ps[e] = sp->ps[e-1] + binsize;

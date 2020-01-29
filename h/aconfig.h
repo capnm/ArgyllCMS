@@ -7,7 +7,7 @@
 /*
  * Author: Graeme W. Gill
  *
- * Copyright 2006 - 2016, Graeme W. Gill
+ * Copyright 2006 - 2017, Graeme W. Gill
  * All rights reserved.
  *
  * This material is licenced under the GNU GENERAL PUBLIC LICENSE Version 2 or later :-
@@ -24,8 +24,8 @@
 /* major number = 8 bits */
 
 #ifndef USE_NG_VERSION 
-# define ARGYLL_VERSION 0x01092
-# define ARGYLL_VERSION_STR "1.9.2"
+# define ARGYLL_VERSION 0x02000
+# define ARGYLL_VERSION_STR "2.0.0"
 #else
 # define ARGYLL_VERSION NG_VERSION
 # define ARGYLL_VERSION_STR "NG_VERSION_STR"
@@ -40,13 +40,13 @@
 #endif
 #if defined(UNIX)
 # if defined(__APPLE__)
-#  if defined(__P64__)
+#  if defined(__LP64__) || defined(__ILP64__) || defined(__LLP64__)
 #   define ARGYLL_BUILD_STR "OS X 64 bit" 
 #  else
 #   define ARGYLL_BUILD_STR "OS X 32 bit" 
 #  endif
 # else
-#  if defined(__P64__)
+#  if defined(__LP64__) || defined(__ILP64__) || defined(__LLP64__)
 #   define ARGYLL_BUILD_STR "Linux 64 bit" 
 #  else
 #   define ARGYLL_BUILD_STR "Linux 32 bit" 

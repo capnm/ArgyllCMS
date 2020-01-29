@@ -2,8 +2,152 @@
 Argyll CMS change log
 =====================
 
+Version 2.1.0 Beta 
+-------------
+
+* Started adding comms for Lumagen Radiance detection.
+
+Version 2.0.0  17th November 2017
+-------------
+
+* Returned input profile forced Absolute Colorimetric option with
+  -ua flag, after the -u option was changed in V1.5.0.
+
+* Added support for "pm" viewing condition (Print evaluation with partial
+  Mid-tone adaptation), and associated m: viewing condition parameter.
+  This is intended to address certain situations involving the use of
+  papers containing FWA/OBE brighteners when viewed in an environment that
+  has a very noticeably warmer white point than the paper itself under the
+  illuminant. 
+
+* Added support for the X-Rite i1Studio
+  (AKA new ColorMunki Spectrometer) instrument.
+  Note that you may have to un-install and re-install the
+  system drivers on MSWindows, or update the udev 55-Argyll.rules
+  file on Linux.
+
+* Slight improvement to i1d3 accuracy, by rounding
+  the frequency mode measurements up by 0.5.
+  This makes frequency and period modes mesh better
+  in adaptive mode, as well as improving non-adaptive
+  mode accuracy subtly. (Thanks to Marc Repnow for
+  noticing this.)
+
+* Try and fix problem in triggering calibration when
+  ARGYLL_NOT_INTERACTIVE is set.
+
+* Fixed rspl scattered data setup to be unrestricted in
+  input dimensions.
+
+* Improve compatibility of txt2ti3, and added -D option to mark 
+  output as Display but not Normalized to white.
+
+* Changed Huey driver to ignore return status of unlock command.
+  (Doesn't help make it work on the crippled "HueyColor"
+  some embeded instruments though!).
+
+* Modified collink to control Video encoded in/out sync level
+  preservation with #PRESERVE_SYNC, and default this to off.
+
+* Added experimental perceptual space "Lpt" based on
+  CIE 2012 cone space transform + IPT matrix and L* curve,
+  designed to replace L*a*b*.
+
+* Added support for custom Observer by using a .cmf file as
+  an argument to all tools taking an observer parameter.
+
+* Added support for proposed CIE 2012 2 degree & 10 degree observers.
+  These are based on the CIE (2006) 2-deg LMS cone fundamentals.
+
+* Fix problem with dispwin -E option not being shown in usage,
+  and only being applied when a calibration file is used.
+  (Thanks to Florian Hoch).
+
+* Added spotread -u option to display XYZ amd CIE 1976 Yuv values.
+
+* Added XRGA conversion support to spec2cie, as well as
+  better support in chartread and txt2ti3 for tracking
+  XRGA standard and polarization filter use.
+
+* Fix bug in spec2cie processing emissive .sp files.
+
+* Fix problem with i1d3 running direct USB (i.e. Not via HID)
+  on MSWin.
+
+* Fixed bug in render/timage -p. This wasn't working since
+  dithering was left on and 16 bit or dithered L*a*b* output
+  was broken.
+
+* Changed spotread ambient readings (CCT, CRI, TLCI) to show
+  CCT delta E in 1960 Duv units and others in Delta E 2000.
+  Also renamed (Invalid) notification to (Caution), since
+  the computed values themselves are not necessarily invalid,
+  just that the illuminant is out of whiteness (red/green) tollerance.
+
+* Added ARGYLL_UNTWIST_GAMUT_SURFACE environment variable,
+  that enables extra gamut clip surface processing that
+  may improve the smoothness of device links and B2A tables
+  for poorly behaved devices. Makes processing slower,
+  and can harm the accuracy and smoothness in other cases,
+  so probably shouldn't be used by default.
+
+* Fixed bug introduced in new colorimetric nearest clipping code
+  in rspl/rev.c in V1.9.0 that caused colprof using some ink limit
+  settings (such as -L0) to crash.
+
+* Fixed bug introduced in new colorimetric nearest clipping code
+  in rspl/rev.c in V1.9.0 that caused some (mainly XYZ clut) profiles
+  to clip badly, causing banding.
+
+* Improved dispcal -R VideoLUT depth measurement
+  algorithm robustness (allow for rounding offset).
+
+* Worked around latest OS X super slow opening
+  serial port problem (1.5 seconds to open a port!) 
+ 
+* Added ColorCheckerHalfPassport.cht file.
+
+* Fixed bug in ChromeCast mDNS parsing that caused problems
+  with some devices with long names being detected.
+
+* Now ignoring Chromecast-Audio and (.ca flags & 1) == 0 devices,
+  and showing the friendly chromecast name if available.
+
+* Wait longer to find more Chromecasts, even if we've found one.
+
+* Fixed colprof bug when handling Display L*a*b* .ti3 data -
+  (Only converted L*a*b* of first sample to XYZ internally).
+
+* Added Wacom i1d3 support.
+
+* Changed dispwin to by default ignore Gnome colord,
+  and use its native ucmm for storage of display profiles,
+  since colord support for ArgyllCMS has proven unreliable.
+  This can be re-enabled by setting the ARGYLL_USE_COLORD
+  environment variable (i.e. to "true").
+
+* Change X11 root window _ICC_PROFILE_xxx atom setting for
+  Xrandr case to now match the Xinerama order, so that
+  _ICC_PROFILE_xxx atoms match, irrespective of which
+  extension applications are using. This improves conformance
+  to "ICC Profiles in X Specification 0.2".
+
+* Improved ucmm install/load/delete to better respect
+  systemlocal/user scopes, as well as eliminating need
+  for profile name on delete when ucmm is used.
+
+* Improve fast serial port scan to better detect Lumagen Radiance
+  without upsetting it.
+
+* Added ARGYLL_EXCLUDE_SERIAL_SCAN environment variable, to allow
+  suppression of fast serial port scan of sensitive devices.
+
 Version 1.9.2 14th October 2016
 -------------
+
+* Added CMYKOGB and CMYKRGB 7 channel ink preset, and made
+  targen more flexible in matching pre-conditioning profiles
+  to targen ink selection.
 
 * Fix oeminst for OS X save location.
 

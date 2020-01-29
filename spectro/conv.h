@@ -168,6 +168,10 @@ athread *new_athread(int (*function)(void *context), void *context);
 
 /* - - - - - - - - - - - - - - - - - - -- */
 
+/* Return the login $HOME directory. */
+/* (Useful if we might be running sudo) */
+char *login_HOME();
+
 /* Delete a file */
 void delete_file(char *fname);
 

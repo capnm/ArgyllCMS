@@ -25,6 +25,10 @@
 
 /*
  * TTBD:
+ *
+ *		Should add -ua option, to restore option to force input profile to be
+ *      absolute intent for all ICC intents.
+ *
  *		Should allow ICC Device attributes to be set.
  *
  *      Add Argyll private tag to record ink limit etc. to automate link parameters.
@@ -121,6 +125,7 @@ void usage(char *diag, ...) {
 //	fprintf(stderr," -I ver          Set ICC profile version > 2.2.0\n");
 //	fprintf(stderr,"                 ver = 4, Enable ICC V4 creation\n");
 	fprintf(stderr," -u              If input profile, auto scale WP to allow extrapolation\n");
+	fprintf(stderr," -ua             If input profile, force absolute intent\n");
 	fprintf(stderr," -uc             If input profile, clip cLUT values above WP\n");
 	fprintf(stderr," -U scale        If input profile, scale media white point by scale\n");
 	fprintf(stderr," -R              Restrict white <= 1.0, black and primaries to be +ve\n");
@@ -131,7 +136,7 @@ void usage(char *diag, ...) {
 	fprintf(stderr," -i illum        Choose illuminant for computation of CIE XYZ from spectral data & FWA:\n");
 	fprintf(stderr,"                  A, C, D50 (def.), D50M2, D65, F5, F8, F10 or file.sp\n");
 	fprintf(stderr," -o observ       Choose CIE Observer for spectral data:\n");
-	fprintf(stderr,"                  1931_2 (def), 1964_10, S&B 1955_2, shaw, J&V 1978_2\n");
+	fprintf(stderr,"                  1931_2 (def), 1964_10, 2012_2, 2012_10, S&B 1955_2, shaw, J&V 1978_2, or file.cmf\n");
 	fprintf(stderr," -r avgdev       Average deviation of device+instrument readings as a percentage (default %4.2f%%)\n",DEFAVGDEV);
 /* Research options: */
 /*	fprintf(stderr," -r sSMOOTH      RSPL or shaper suplimental optimised smoothing factor\n"); */
@@ -187,7 +192,8 @@ int main(int argc, char *argv[]) {
 	int noptop = 0;				/* Use colormetric source gamut to make perceptual table */
 	int nostos = 0;				/* Use colormetric source gamut to make saturation table */
 	int gamdiag = 0;			/* Make gamut mapping diagnostic wrl plots */
-	int autowpsc = 0;			/* Auto scale the WP to prevent clipping above WP patch */
+	int autowpsc = 0;			/* 1 = Auto scale the WP to prevent clipping above WP patch */
+								/* 2 = Force absolute colorimetric */
 	int clipovwp = 0;			/* Clip cLUT values above WP */
 	int clipprims = 0;			/* Clip white, black and primaries */
 //	double bpo[3] = { -1,-1,-1 };	/* Black point override hack XYZ value */
@@ -209,7 +215,8 @@ int main(int argc, char *argv[]) {
 								/* xspect will use illum/cust_illum if tillum == none */
 	icxIllumeType illum = icxIT_none;	/* Spectral illuminant (defaults to D50) */
 	xspect cust_illum;			/* Custom illumination spectrum */
-	icxObserverType observ = icxOT_none;	/* Observer (defaults to 1931 2 degree) */
+	icxObserverType obType = icxOT_none;	/* Observer (defaults to 1931 2 degree) */
+	xspect custObserver[3];		/* If obType = icxOT_custom */
 	int gcompr = 0, gexpr = 0;		/* Gamut compression/expansion % instead of Input icc profile */
 	char ipname[MAXNAMEL+1] = "";	/* Input icc profile - enables gamut map */
 	char sgname[MAXNAMEL+1] = "";	/* Image source gamut name */
@@ -251,6 +258,9 @@ int main(int argc, char *argv[]) {
 	ivc_p.Yf = -1.0;
 	ivc_p.Yg = -1.0;
 	ivc_p.Gxyz[0] = -1.0; ivc_p.Gxyz[1] = -1.0; ivc_p.Gxyz[2] = -1.0;
+	ivc_p.hkscale = -1.0;
+	ivc_p.mtaf = -1.0;
+	ivc_p.Wxyz2[0] = -1.0; ivc_p.Wxyz2[1] = -1.0; ivc_p.Wxyz2[2] = -1.0;
 
 	ovc_p.Ev = -1;
 	ovc_p.Wxyz[0] = -1.0; ovc_p.Wxyz[1] = -1.0; ovc_p.Wxyz[2] = -1.0;
@@ -260,6 +270,9 @@ int main(int argc, char *argv[]) {
 	ovc_p.Yf = -1.0;
 	ovc_p.Yg = -1.0;
 	ovc_p.Gxyz[0] = -1.0; ovc_p.Gxyz[1] = -1.0; ovc_p.Gxyz[2] = -1.0;
+	ovc_p.hkscale = -1.0;
+	ovc_p.mtaf = -1.0;
+	ovc_p.Wxyz2[0] = -1.0; ovc_p.Wxyz2[1] = -1.0; ovc_p.Wxyz2[2] = -1.0;
 
 	xicc_enum_gmapintent(&pgmi, icxPerceptualGMIntent, NULL);
 	xicc_enum_gmapintent(&sgmi, icxSaturationGMIntent, NULL);
@@ -462,7 +475,10 @@ int main(int argc, char *argv[]) {
 			else if (argv[fa][1] == 'u') {
 				autowpsc = 1;
 				clipovwp = 0;
-				if (argv[fa][2] == 'c') {
+				if (argv[fa][2] == 'a') {
+					autowpsc = 2;
+					clipovwp = 0;
+				} else if (argv[fa][2] == 'c') {
 					autowpsc = 0;
 					clipovwp = 1;
 				} else if (argv[fa][2] != '\000') {
@@ -713,23 +729,31 @@ int main(int argc, char *argv[]) {
 				fa = nfa;
 				if (strcmp(na, "1931_2") == 0) {			/* Classic 2 degree */
 					spec = 1;
-					observ = icxOT_CIE_1931_2;
+					obType = icxOT_CIE_1931_2;
 				} else if (strcmp(na, "1964_10") == 0) {	/* Classic 10 degree */
 					spec = 1;
-					observ = icxOT_CIE_1964_10;
+					obType = icxOT_CIE_1964_10;
+				} else if (strcmp(na, "2012_2") == 0) {		/* Latest 2 degree */
+					spec = 1;
+					obType = icxOT_CIE_2012_2;
+				} else if (strcmp(na, "2012_10") == 0) {	/* Latest 10 degree */
+					spec = 1;
+					obType = icxOT_CIE_2012_10;
 				} else if (strcmp(na, "1955_2") == 0) {		/* Stiles and Burch 1955 2 degree */
 					spec = 1;
-					observ = icxOT_Stiles_Burch_2;
+					obType = icxOT_Stiles_Burch_2;
 				} else if (strcmp(na, "1978_2") == 0) {		/* Judd and Voss 1978 2 degree */
 					spec = 1;
-					observ = icxOT_Judd_Voss_2;
+					obType = icxOT_Judd_Voss_2;
 				} else if (strcmp(na, "shaw") == 0) {		/* Shaw and Fairchilds 1997 2 degree */
 					spec = 1;
-					observ = icxOT_Shaw_Fairchild_2;
-				} else
-					usage("Unrecognised argument '%s' to observer flag -o",na);
+					obType = icxOT_Shaw_Fairchild_2;
+				} else {	/* Assume it's a filename */
+					obType = icxOT_custom;
+					if (read_cmf(custObserver, na) != 0)
+						usage(0,"Failed to read custom observer CMF from -o file '%s'",na);
+				}
 			}
-
 
 			/* Average Deviation percentage */
 			else if (argv[fa][1] == 'r') {
@@ -915,6 +939,22 @@ int main(int argc, char *argv[]) {
 						vc->Yg = x/100.0;
 					} else
 						usage("Viewing condition (-%cg) unrecognised flare '%s'",argv[fa][1],na+1);
+
+				} else if (na[0] == 'h' || na[0] == 'H') {
+					if (na[1] != ':')
+						usage("Viewing conditions (-%ch) missing ':'",argv[fa][1]);
+					vc->hkscale = atof(na+2);
+				} else if (na[0] == 'm' || na[0] == 'M') {
+					double x, y, z;
+					if (sscanf(na+1,":%lf:%lf:%lf",&x,&y,&z) == 3) {
+						vc->Wxyz2[0] = x; vc->Wxyz2[1] = y; vc->Wxyz2[2] = z;
+					} else if (sscanf(na+1,":%lf:%lf",&x,&y) == 2) {
+						vc->Wxyz2[0] = x; vc->Wxyz2[1] = y; vc->Wxyz2[2] = -1;
+					} else if (sscanf(na+1,":%lf",&x) == 1) {
+						vc->mtaf = x;
+					} else
+						usage("Viewing condition (-%cm) unrecognised flare '%s'",argv[fa][1],na+1);
+
 				} else
 					usage("Viewing condition (-%c) unrecognised sub flag '%c'",argv[fa][1],na[0]);
 			}
@@ -1018,8 +1058,8 @@ int main(int argc, char *argv[]) {
 	if (illum == icxIT_none)
 		illum = icxIT_D50;
 	
-	if (observ == icxOT_none)
-		observ = icxOT_CIE_1931_2;
+	if (obType == icxOT_none)
+		obType = icxOT_CIE_1931_2;
 
 	/* See if CIE is actually available - some sources of .TI3 don't provide it */
 	if (!spec
@@ -1034,7 +1074,7 @@ int main(int argc, char *argv[]) {
 			printf("No CIE data found, switching to spectral with standard observer & D50\n");
 		spec = 1;
 		illum = icxIT_D50;
-		observ = icxOT_CIE_1931_2;
+		obType = icxOT_CIE_1931_2;
 	}
 	
 	/* If we requested spectral, check that it is available */
@@ -1164,8 +1204,10 @@ int main(int argc, char *argv[]) {
 			error ("Output profile can only be a cLUT algorithm");
 		}
 
-		if (autowpsc)
+		if (autowpsc == 1)
 			error ("Input auto WP scale mode isn't applicable to an output device");
+		if (autowpsc == 2)
+			error ("Force absolute colorimetric isn't applicable to an output device");
 		if (clipovwp)
 			error ("Input cLUT clipping above WP mode isn't applicable to an output device");
 
@@ -1174,8 +1216,8 @@ int main(int argc, char *argv[]) {
 		                gamdiag, verify, clipprims, iwpscale,
 //		                NULL,		/* bpo */
 		                &ink, inname, outname, icg, 
-		                spec, tillum, &cust_tillum, illum, &cust_illum, observ, fwacomp,
-		                smooth, avgdev, 1.0,
+		                spec, tillum, &cust_tillum, illum, &cust_illum, obType, custObserver,
+						fwacomp, smooth, avgdev, 1.0,
 						gcompr, gexpr,
 		                ipname[0] != '\000' ? ipname : NULL,
 		                sgname[0] != '\000' ? sgname : NULL,
@@ -1200,7 +1242,7 @@ int main(int argc, char *argv[]) {
 
 		make_input_icc(ptype, iccver, verb, iquality, oquality, noisluts, noipluts, nooluts, nocied,
 		               verify, autowpsc, clipovwp, iwpscale, doinb2a, doinextrap, clipprims,
-		               inname, outname, icg, emis, spec, illum, &cust_illum, observ,
+		               inname, outname, icg, emis, spec, illum, &cust_illum, obType, custObserver,
 		               smooth, avgdev, &xpi);
 
 	/* Display or Projector */
@@ -1223,8 +1265,8 @@ int main(int argc, char *argv[]) {
 		                gamdiag, verify, clipprims, iwpscale,
 //		                bpo[1] >= 0.0 ? bpo : NULL,
 		                NULL, inname, outname, icg,
-		                spec, icxIT_none, NULL, illum, &cust_illum, observ, 0,
-		                smooth, avgdev, demph,
+		                spec, icxIT_none, NULL, illum, &cust_illum, obType, custObserver,
+						0, smooth, avgdev, demph,
 						gcompr, gexpr,
 		                ipname[0] != '\000' ? ipname : NULL,
 		                sgname[0] != '\000' ? sgname : NULL,

@@ -30,6 +30,9 @@ Verbose
 
 
 
+
+
+
         mode</span><br style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp;</span><a
         style="font-family: monospace;" href="#c">-c listno</a><span
@@ -42,6 +45,9 @@ Verbose
 &nbsp;&nbsp;
 Use
 transmission
+
+
+
 
 
 
@@ -62,12 +68,18 @@ measurement
 
 
 
+
+
+
         mode (white Y relative results)</span></small><small><span
         style="font-family: monospace;"></span></small><small><span
         style="font-family: monospace;"><br>
         &nbsp;</span></small><font size="-1"><span style="font-family:
         monospace;"><a href="#y">-y X</a>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
 
 
 
@@ -81,6 +93,9 @@ measurement
 Use
 emissive&nbsp;
 measurement
+
+
+
 
 
 
@@ -101,11 +116,17 @@ by
 
 
 
+
+
+
         patch rather than strip</span></small><br>
     <small><span style="font-family: monospace;"></span>&nbsp; <a
         style="font-family: monospace;" href="#x">-x [lx]</a><span
         style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Take
+
+
+
 
 
 
@@ -117,6 +138,9 @@ Take
 &nbsp;
 &nbsp;
 Don't
+
+
+
 
 
 
@@ -144,12 +168,18 @@ partly
 
 
 
+
+
+
         read chart<br>
         &nbsp;<a href="#I">-I</a>
         file.cal&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Override
         calibration info from .ti2 in resulting .ti3<br>
         &nbsp;</span></small><font size="-1"><span style="font-family:
         monospace;"><a href="#F">-F filter</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
 
 
 
@@ -165,9 +195,15 @@ partly
 
 
 
+
+
+
         None<br>
         &nbsp;
         p&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
 
 
 
@@ -183,9 +219,15 @@ partly
 
 
 
+
+
+
         D65<br>
         &nbsp;
         u&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
 
 
 
@@ -196,6 +238,9 @@ partly
         monospace;"></span><span style="font-family: monospace;"></span></small><br>
     &nbsp; <font size="-1"><span style="font-family: monospace;"><a
           href="#A">-A N|A|X|G</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
 
         XRGA conversion</span></font> (default N)<br>
     <font size="-1"><span style="font-family: monospace;">&nbsp;</span><a
@@ -224,6 +269,9 @@ partly
 
 
 
+
+
+
         Apply Colorimeter Correction Matrix</span></font><br>
     <span style="font-family: monospace;">&nbsp;<a href="#X2">-X
         file.ccss</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
@@ -232,6 +280,9 @@ Colorimeter
 Calibration
 Spectral
 Samples
+
+
+
 
 
 
@@ -254,18 +305,26 @@ Samples
 
 
 
+
+
+
         &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; </span></small><small><span
         style="font-family: monospace;">1931_2 </span></small><small><span
         style="font-family: monospace;"> (def.)</span></small><small><span
-        style="font-family: monospace;">, 1964_10, S&amp;B 1955_2, shaw,
-        J&amp;V 1978_2</span></small><small><span style="font-family:
-        monospace;"></span></small><font size="-1"><span
+        style="font-family: monospace;">, 1964_10, </span></small><small><span
+        style="font-family: monospace;"><tt><small>2012_2, 2012_10, </small></tt>S&amp;B
+
+        1955_2, shaw, J&amp;V 1978_2 or file.cmf</span></small><small><span
+        style="font-family: monospace;"></span></small><font size="-1"><span
         style="font-family: monospace;"></span></font><br>
     <font size="-1"><span style="font-family: monospace;"> &nbsp;<a
           href="#T">-T ratio</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Modify
 strip
 patch
+
+
+
 
 
 
@@ -284,10 +343,16 @@ strip
 
 
 
+
+
+
         &amp; unexpected value warnings</span></font><br>
     <font size="-1"><span style="font-family: monospace;">&nbsp;<a
           href="#W">-W n|h|x</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Override
+
+
+
 
 
 
@@ -303,6 +368,9 @@ Override
       <span style="font-family: monospace;">&nbsp;</span><a
         style="font-family: monospace;" href="#p1"><i>inoutfile</i></a><span
         style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
 
 
 
@@ -458,6 +526,9 @@ Override
 
 
 
+
+
+
       -I</span> parameter allows overriding the .ti2 calibration curves
     placed in the resulting .ti3 file with the actual calibration that
     was used for that particular print.<br>
@@ -531,7 +602,9 @@ Override
     information (ie. the X-Rite <span style="font-weight: bold;">i1d3</span>,
     or the DataColor <span style="font-weight: bold;">Spyder4 &amp;
       Spyder 5</span>).This can improve a colorimeters accuracy for a
-    particular type of display.<br>
+    particular type of display. A list of contributed <span
+      style="font-weight: bold;">ccss</span> files is <a
+      href="ccsss.html">here</a>.<br>
     <br>
     <a name="T"></a> The -<span style="font-weight: bold;">T ratio</span>
     argument modifies the patch consistency tolerance threshold for some
@@ -553,12 +626,18 @@ Override
     observer. The default.<br>
     &nbsp; <b>1964_10</b> selects the standard CIE 1964 10 degree
     observer.<br>
+    <b>&nbsp; 2012_2</b> selects the proposed CIE 2012 2 degree
+    observer.<br>
+    &nbsp; <b>2012_10</b> selects the proposed CIE 2012 10 degree
+    observer.<br>
     &nbsp; <b>1955_2</b> selects the Stiles and Birch 1955 2 degree
     observer<br>
     &nbsp; <b>1978_2 </b>selects the Judd and Voss 1978 2 degree
     observer<br>
     &nbsp; <b>shaw</b> selects the Shaw and Fairchild 1997 2 degree
     observer<br>
+    &nbsp; <i><b>file.cmf</b></i> selects an observer specified by the
+    given <a href="File_Formats.html#.cmf">.cmf</a> file.<br>
     <br>
     <a name="S"></a>The <b>-S</b> flag causes the normal "wrong strip"
     and "unexpected value" warnings to be suppressed. There may be a lot

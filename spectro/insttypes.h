@@ -65,21 +65,23 @@ typedef enum {
 
 	instFakeDisp = 9998,		/* Fake display & instrument device id */
 
+#ifdef ENABLE_VTPGLUT
 	/* 3D cLUT box */
-	// 20000
+	devRadiance = 20000,		/* Lumagen Radiance v3dlut & vtpg */
+	devPrisma,					/* Q, Inc Prisma v3dlut */
 
 	/* Video test patern generator box */
 	// 30000
+#endif
 
-	/* Printers */
-	devEpsonR1800 = 40000		/* Epson R1800 printer */
+
 
 } devType;
 
 /* Aliases for backwards compatibility */
 #define instUnknown devUnknown
 typedef devType instType;
-typedef devType cLUTType;
+typedef devType vcLUTType;
 typedef devType vtpgType;
 typedef devType printerType;
 
@@ -90,7 +92,7 @@ enum _icom_type;
 
 /* Given a device type, return the corrsponding */
 /* category */
-//extern _icom_type inst_category(instType itype);
+//extern _icom_type dev_category(instType itype);
 
 /* Given its instrument type, return the matching */
 /* short instrument name (static string), */
@@ -126,6 +128,24 @@ int nep);					/* Number of end points (0 for prelim match) */
 /* Return 0 on sucess, 1 if not not applicable. */
 extern int inst_illuminant(xspect *sp, instType itype);
 
+
+/* ------------------------------------------------------ */
+/* Gretag/X-Rite specific reflective measurement standard */
+
+typedef enum {
+	xcalstd_none = -2,		/* Not set */
+	xcalstd_native = -1,	/* No conversion */
+	xcalstd_xrdi = 0,		/* Historical X-Rite */
+	xcalstd_gmdi = 1,		/* Historical Gretag-Macbeth */
+	xcalstd_xrga = 2,		/* Current X-Rite */
+} xcalstd;
+
+/* Return a string for the xcalstd enum */
+char *xcalstd2str(xcalstd std);
+
+/* Parse a string to xcalstd, */
+/* return xcalstd_none if not recognized */
+xcalstd str2xcalstd(char *str);
 
 #ifdef __cplusplus
 	}

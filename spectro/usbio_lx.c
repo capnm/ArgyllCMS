@@ -22,6 +22,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#include <sys/time.h>
 #include <linux/usbdevice_fs.h>
 
 /* select() defined, but not poll(), so emulate poll() */
@@ -784,6 +785,9 @@ static int icoms_usb_transaction(
 
 	in_usb_rw++;
 	a1logd(p->log, 8, "icoms_usb_transaction: req type 0x%x ep 0x%x size %d to %d\n",ttype,endpoint,length, timeout);
+
+	if (transferred != NULL)
+		*transferred = 0;
 
 	if (!p->usbd->running) {
 		in_usb_rw--;

@@ -33,7 +33,8 @@ void usage(void) {
 	fprintf(stderr,"Author: Graeme W. Gill\n");
 	fprintf(stderr,"usage: cgatssplot [-v] infile\n");
 	fprintf(stderr," -v        verbose\n");
-	fprintf(stderr," -0 .. -9  Choose channel to plot against\n");
+	fprintf(stderr," -x        plot XYZ");
+	fprintf(stderr," -0 .. -9  Choose channel to plot against (dflt: index)\n");
 	exit(1);
 }
 
@@ -51,21 +52,22 @@ main(
 ) {
 	int fa,nfa;				/* argument we're looking at */
 	int verb = 0;
-	int chan = 0;			/* Chosen channel to plot against */
+	int chan = -1;			/* Chosen channel to plot against, -1 for index */
 	char in_name[100];
 
 	char *buf, *outc;
 	int ti;
 	cgats *cgf = NULL;			/* cgats file data */
 	int isLab = 0;				/* cgats output is Lab, else XYZ */
+	int wantLab = 1;			/* cgats output is Lab, else XYZ */
 	char *xyzfname[3] = { "XYZ_X", "XYZ_Y", "XYZ_Z" };
 	char *labfname[3] = { "LAB_L", "LAB_A", "LAB_B" };
 	int npat;					/* Number of patches */ 
 	inkmask nmask;				/* Device inkmask */
 	int nchan;					/* Number of input chanels */
 	char *bident;				/* Base ident */
-	int chix[ICX_MXINKS];	/* Device chanel indexes */
-	int pcsix[3];	/* Device chanel indexes */
+	int chix[ICX_MXINKS];		/* Device chanel indexes */
+	int pcsix[3];				/* Device chanel indexes */
 	pval *pat;					/* patch values */
 	int i, j;
 	
@@ -92,8 +94,12 @@ main(
 			}
 
 			/* Verbosity */
-			if (argv[fa][1] == 'v' || argv[fa][1] == 'V') {
+			if (argv[fa][1] == 'v') {
 				verb = 1;
+			}
+
+			else if (argv[fa][1] == 'x') {
+				wantLab = 0;
 			}
 
 			else if (argv[fa][1] >= '0' && argv[fa][1] <= '9') {
@@ -196,18 +202,30 @@ main(
 			pat[i].v[1] /= 100.0;
 			pat[i].v[2] /= 100.0;
 		}
-		if (!isLab) { /* Convert test patch result XYZ to PCS (D50 Lab) */
+		if (wantLab && !isLab) { /* Convert test patch result XYZ to PCS (D50 Lab) */
 			icmXYZ2Lab(&icmD50, pat[i].v, pat[i].v);
+		} else if (!wantLab && isLab) {
+			icmLab2XYZ(&icmD50, pat[i].v, pat[i].v);
+		}
+		if (!wantLab) {
+			pat[i].v[0] *= 100.0;		/* Normalise XYZ to range 0.0 - 100.0 */
+			pat[i].v[1] *= 100.0;
+			pat[i].v[2] *= 100.0;
 		}
 		for (j = 0; j < nchan; j++) {
 			pat[i].d[j] = *((double *)cgf->t[0].fdata[i][chix[j]]);
 		}
 	}
+	isLab = wantLab;
 
+#ifdef NEVER
 	/* Sort by the selected channel */
+	if (chan >= 0 && chan < nchan) {
 #define HEAP_COMPARE(A,B) (A.d[chan] < B.d[chan])
-	HEAPSORT(pval, pat, npat);
+		HEAPSORT(pval, pat, npat);
 #undef HEAP_COMPARE
+	}
+#endif
 
 	/* Create the plot */
 	{
@@ -226,13 +244,22 @@ main(
 		if ((y2 = (double *)malloc(sizeof(double) * npat)) == NULL)
 			error("Malloc failed - y2[]");
 		
+printf("~1 chan = %d\n",chan);
 		for (i = 0; i < npat; i++) {
-			xx[i] = pat[i].d[chan];
-			y0[i] = pat[i].v[0];
-			y1[i] = 50 + pat[i].v[1]/2.0;
-			y2[i] = 50 + pat[i].v[2]/2.0;
-
-//			printf("~1 %d: xx = %f, y = %f %f %f\n",i,xx[i],y0[i],y1[i],y2[i]);
+			if (chan >= 0 && chan < nchan)
+				xx[i] = pat[i].d[chan];
+			else
+				xx[i] = (double)i;
+			if (isLab) {
+				y0[i] = pat[i].v[0];
+				y1[i] = 50.0 + pat[i].v[1]/2.0;
+				y2[i] = 50.0 + pat[i].v[2]/2.0;
+			} else {
+				y0[i] = pat[i].v[0];
+				y1[i] = pat[i].v[1];
+				y2[i] = pat[i].v[2];
+			}
+			printf("~1 %d: xx = %f, y = %f %f %f\n",i,xx[i],y0[i],y1[i],y2[i]);
 		}
 		do_plot6(xx,y0,y1,NULL,NULL,y2,NULL,npat);
 

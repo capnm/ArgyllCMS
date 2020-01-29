@@ -1834,6 +1834,7 @@ static int xfit_fit(
 	} else {
 		icmSetUnity3x3(p->fromAbs);
 		icmSetUnity3x3(p->toAbs);
+		icmCpy3(p->wp, icmD50_ary3);		/* Default to forced absolute */
 	}
 
 	/* Setup input position/shape curves to be linear initially */

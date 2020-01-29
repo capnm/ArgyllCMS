@@ -73,6 +73,7 @@
 #include "sa_config.h"
 #endif
 #include "numsup.h"
+#include "cgats.h"
 #include "xspect.h"
 #include "insttypes.h"
 #include "conv.h"
@@ -419,6 +420,8 @@ int hid_get_paths(icompaths *p) {
 
 				/* Add the path to the list */
 				p->add_hid(p, pname, vid, pid, 0, hidd, itype);
+			} else {
+	        	a1logd(p->log, 4, "skipping HID device VID 0x%x PID 0x%x lid 0x%x that we don't want\n",vid, pid, lid);
 			}
 			if (ioob != 0)		/* If we haven't kept it */
 			    IOObjectRelease(ioob);		/* Release found object */

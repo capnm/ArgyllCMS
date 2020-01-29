@@ -3,7 +3,7 @@
   <head>
     <title>refine</title>
     <meta http-equiv="content-type" content="text/html;
-      charset=ISO-8859-1">
+      charset=windows-1252">
     <meta name="author" content="Graeme Gill">
   </head>
   <body>
@@ -24,14 +24,17 @@
     correction profile in as well, iterative improvement can be made to
     the proofing reproduction.<br>
     <br>
-    <a href="colverify.html">colverify</a> is a useful tool to use on the two
-    test charts, to check how well the refinement is proceeding. If a
-    white point relative match is being created (refine -R), then use
-    veryify -N.<br>
+    <a href="colverify.html">colverify</a> is a useful tool to use on
+    the two test charts, to check how well the refinement is proceeding.
+    If a white point relative match is being created (refine -R), then
+    use veryify -N.<br>
     <h3>Usage Summary</h3>
     <tt><small>usage: refine [-options] cietarget ciecurrent [outdevicc]
         [inabs] outabs<br>
         &nbsp;-v&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
 
 
         Verbose<br>
@@ -39,9 +42,15 @@
 Create
 
 
+
+
+
         initial abstract correction profile<br>
         &nbsp;-g&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Don't
+
+
+
 
 
         impose output device gamut limit<br>
@@ -53,11 +62,17 @@ Don't
 Aim
 
 
+
+
+
         for white point relative match rather than absolute<br>
-        &nbsp;</small></tt><tt><small><small></small><small><small>-f
+        &nbsp;</small></tt><tt><small><small><small>-f
             [illum]&nbsp;&nbsp;&nbsp; Use Fluorescent Whitening Agent
             compensation [opt. simulated inst. illum.:<br>
             &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
 
 
 
@@ -70,6 +85,9 @@ Aim
 
 
 
+
+
+
             A, C, D50 (def.), D50M2, D65, F5, F8, F10 or file.sp</small></small><br>
         &nbsp;-o observ&nbsp;&nbsp;&nbsp;&nbsp; Choose CIE Observer for
         spectral data:<br>
@@ -77,23 +95,43 @@ Aim
 1931_2,
 
 
-        1964_10, S&amp;B 1955_2, J&amp;V 1978_2 (def.)<br>
+
+
+
+        1964_10, </small></tt><tt><small><tt><small>2012_2 (def.),
+            2012_10, </small></tt>S&amp;B 1955_2, J&amp;V 1978_2 or
+        file.cmf<br>
         &nbsp;<span style="font-style: italic;">cietarget&nbsp;</span>&nbsp;&nbsp;&nbsp;
+
+
+
 
         Target CIE or spectral values, CGATS file (e.g. .ti3)<br>
         &nbsp;<span style="font-style: italic;">ciecurrent</span>&nbsp;&nbsp;&nbsp;
 
+
+
+
         Actual CIE or spectral values, CGATS file (e.g. .ti3)<br>
         &nbsp;[<span style="font-style: italic;">outdevicc</span>]&nbsp;&nbsp;
+
+
+
 
         Output device ICC profile to set gamut limit (not used if -g)<br>
         &nbsp;[<span style="font-style: italic;">inabs</span>]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Previous
 
 
+
+
+
         abstract correction ICC profile (not used if -c)<br>
         &nbsp;<span style="font-style: italic;">outabs</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Created/refined
+
+
+
 
 
         abstract correction ICC profile</small></tt><br>
@@ -148,9 +186,9 @@ Created/refined
     illumination spectrum to be used as the similated instrument
     illuminant, overriding the default <b>D50</b> or CIE computation
     illuminant used for FWA (see <b>-i</b> below<b>). </b>See <a
-      href="colprof.html#f">colprof -f</a> for
-    a fuller explanation. The same value should be used as was used
-    during the creation of the profile.<br>
+      href="colprof.html#f">colprof -f</a> for a fuller explanation. The
+    same value should be used as was used during the creation of the
+    profile.<br>
     <br>
     The <b>-i</b> flag allows specifying a standard or custom
     illumination spectrum, applied to the spectral test point values to
@@ -158,9 +196,8 @@ Created/refined
       D65</b>, <b>F5</b>, <b>F8</b>, <b>F10</b> are a selection of
     standard illuminant spectrums, with <b>D50</b> being the default.
     If a filename is specified instead, it will be assumed to be an
-    Argyll specific <a
-      href="File_Formats.html#.sp">.sp</a>
-    spectrum file. If FWA compensation is used during measurement, this
+    Argyll specific <a href="File_Formats.html#.sp">.sp</a> spectrum
+    file. If FWA compensation is used during measurement, this
     illuminant will be used by default as the simulated instrument
     illuminant. The same value should be used as was used during the
     creation of the profile.<br>
@@ -172,12 +209,17 @@ Created/refined
     observer.<br>
     &nbsp; <b>1964_10</b> selects the standard CIE 1964 10 degree
     observer.<br>
+    <b>&nbsp; 2012_2</b> selects the proposed CIE 2012 2 degree observer<br>
+    &nbsp; <b>2012_10</b> selects the proposed CIE 2012 10 degree
+    observer<br>
     &nbsp; <b>1955_2</b> selects the Stiles and Birch 1955 2 degree
     observer<br>
     &nbsp; <b>1978_2 </b>selects the Judd and Voss 1978 2 degree
     observer<br>
     &nbsp; <b>shaw</b> selects the Shaw and Fairchild 1997 2 degree
     observer<br>
+    &nbsp; <i><b>file.cmf</b></i> selects an observer specified by the
+    given <a href="File_Formats.html#.cmf">.cmf</a> file.<br>
     <br>
     If both CIE and spectral values are present in the input files, the
     CIE values will be used by default. Using the <span
@@ -190,6 +232,9 @@ Created/refined
     <br>
     <span style="font-style: italic; font-weight: bold;">cietarget</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Is
+
+
+
 
 
     the filename of the target CIE or spectral values. This is a <a
@@ -213,6 +258,9 @@ Is
 If
 
 
+
+
+
     the <span style="font-weight: bold;">-g</span> flag is not used,
     then the output device ICC profile should be supplied here, to allow
     <span style="font-weight: bold;">refine</span> to limit its
@@ -220,6 +268,9 @@ If
     <br>
     &nbsp;[<span style="font-weight: bold; font-style: italic;">inabs</span>]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 After
+
+
+
 
 
     the first correction has been created, subsequent corrections need
@@ -230,6 +281,9 @@ After
     <br>
     &nbsp;<span style="font-weight: bold; font-style: italic;">outabs</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 The
+
+
+
 
 
     name of the created or refined abstract correction ICC profile<br>
@@ -300,6 +354,9 @@ The
         style="font-weight: bold;"><span style="font-weight: bold;"></span>proofer.icm&nbsp;
 
 
+
+
+
       </span>or <span style="font-weight: bold;">target_proofer.icm</span>,
       with the addition of the "-p fix1.icm" option to specify the
       abstract correction profile be applied.<br>
@@ -319,6 +376,9 @@ The
       <span style="font-weight: bold;"><span style="font-weight: bold;"></span></span><br>
       <span style="font-weight: bold;"><span style="font-weight: bold;">&nbsp;</span></span>We
 can
+
+
+
 
 
       then start another round of improvement:<br>
@@ -354,6 +414,9 @@ can
       Rounds of improvements can be continues by looping back to <span
         style="font-weight: bold;">&gt;&gt;&gt;</span>, being careful to
       increment the names of the <span style="font-weight: bold;">fixN.icm</span>,&nbsp;
+
+
+
 
 
       <span style="font-weight: bold;">proofer_fixN.icm</span> or <span

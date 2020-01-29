@@ -836,7 +836,7 @@ double *kblk		/* K only black */
 
 //printf("~1 white %f %f %f, black %f %f %f, kblack %f %f %f\n",white[0],white[1],white[2],black[0],black[1],black[2],kblack[0],kblack[1],kblack[2]);
 	/* Convert to possibl xicc override PCS */
-	switch (p->pcs) {
+	switch ((int)p->pcs) {
 		case icSigXYZData:
 			break;								/* Don't have to do anyting */
 		case icSigLabData:
@@ -1676,6 +1676,14 @@ double *wp			/* Provide XYZ white point if xicc is NULL */
 
 		/* Default HK scaling factor = none */
 		vc->hkscale = 1.0;
+
+		/* Default Mid tone partial adapation factor = none */
+		vc->mtaf = 0.0;
+
+		/* Default Mid tone partial adapation white point = D50 */
+		vc->Wxyz2[0] = icmD50.X;
+		vc->Wxyz2[1] = icmD50.Y;
+		vc->Wxyz2[2] = icmD50.Z;
 	}
 
 	/*
@@ -1733,10 +1741,10 @@ double *wp			/* Provide XYZ white point if xicc is NULL */
 			vc->Yg = 0.01 * XICC_DEFAULT_GLARE;	/* 5% glare */
 		}
 	}
-	else if (no == 2
+	else if (no == 0
 	 || (as != NULL && stricmp(as,"pc") == 0)) {
 
-		no = 2;
+		no = 0;
 		if (vc != NULL) {
 			vc->desc = " pc - Critical print evaluation environment (ISO-3664 P1)";
 			vc->Ev = vc_average;	/* Average viewing conditions */
@@ -1747,10 +1755,10 @@ double *wp			/* Provide XYZ white point if xicc is NULL */
 			vc->Yg = 0.01 * XICC_DEFAULT_GLARE;	/* 5% glare */
 		}
 	}
-	else if (no == 0
+	else if (no == 1
 	 || (as != NULL && stricmp(as,"pp") == 0)) {
 
-		no = 0;
+		no = 1;
 		if (vc != NULL) {
 			vc->desc = " pp - Practical Reflection Print (ISO-3664 P2)";
 			vc->Ev = vc_none;		/* Use explicit La/Lv */
@@ -1761,10 +1769,10 @@ double *wp			/* Provide XYZ white point if xicc is NULL */
 			vc->Yg = 0.01 * XICC_DEFAULT_GLARE;	/* 5% glare */
 		}
 	}
-	else if (no == 1
+	else if (no == 2
 	 || (as != NULL && stricmp(as,"pe") == 0)) {
 
-		no = 1;
+		no = 2;
 		if (vc != NULL) {
 			vc->desc = " pe - Print evaluation environment (CIE 116-1995)";
 			vc->Ev = vc_none;		/* Use explicit La/Lv */
@@ -1773,6 +1781,21 @@ double *wp			/* Provide XYZ white point if xicc is NULL */
 			vc->Yb = 0.2;			/* Grey world */
 			vc->Yf = 0.0;			/* 0% flare */
 			vc->Yg = 0.01 * XICC_DEFAULT_GLARE;	/* 5% glare */
+		}
+	}
+	else if (no == 3
+	 || (as != NULL && stricmp(as,"pm") == 0)) {
+
+		no = 3;
+		if (vc != NULL) {
+			vc->desc = " pm - Print evaluation with partial Mid-tone adapation";
+			vc->Ev = vc_none;		/* Use explicit La/Lv */
+			vc->La = 30.0;			/* 0.2 * Lv ? */ 
+			vc->Lv = 150.0;			/* White of the image field */ 
+			vc->Yb = 0.2;			/* Grey world */
+			vc->Yf = 0.0;			/* 0% flare */
+			vc->Yg = 0.01 * XICC_DEFAULT_GLARE;	/* 5% glare */
+			vc->mtaf = 0.7;			/* Mid-tone partial adapation to D50 */
 		}
 	}
 	else if (no == 4
@@ -1789,10 +1812,10 @@ double *wp			/* Provide XYZ white point if xicc is NULL */
 			vc->Yg = 0.01 * XICC_DEFAULT_GLARE;	/* 5% glare */
 		}
 	}
-	else if (no == 3
+	else if (no == 5
 	 || (as != NULL && stricmp(as,"mt") == 0)) {
 
-		no = 3;
+		no = 5;
 		if (vc != NULL) {
 			vc->desc = " mt - Monitor in typical work environment";
 			vc->Ev = vc_none;		/* Use explicit La/Lv */
@@ -1803,10 +1826,10 @@ double *wp			/* Provide XYZ white point if xicc is NULL */
 			vc->Yg = 0.01 * XICC_DEFAULT_GLARE;	/* 5% glare */
 		}
 	}
-	else if (no == 5
+	else if (no == 6
 	 || (as != NULL && stricmp(as,"md") == 0)) {
 
-		no = 5;
+		no = 6;
 		if (vc != NULL) {
 			vc->desc = " md - Monitor in darkened work environment";
 			vc->Ev = vc_none;		/* Use explicit La/Lv */
@@ -1817,10 +1840,10 @@ double *wp			/* Provide XYZ white point if xicc is NULL */
 			vc->Yg = 0.01 * XICC_DEFAULT_GLARE;	/* 5% glare */
 		}
 	}
-	else if (no == 6
+	else if (no == 7
 	 || (as != NULL && stricmp(as,"jm") == 0)) {
 
-		no = 6;
+		no = 7;
 		if (vc != NULL) {
 			vc->desc = " jm - Projector in dim environment";
 			vc->Ev = vc_none;		/* Use explicit La/Lv */
@@ -1831,10 +1854,10 @@ double *wp			/* Provide XYZ white point if xicc is NULL */
 			vc->Yg = 0.01 * XICC_DEFAULT_GLARE;	/* 5% glare */
 		}
 	}
-	else if (no == 7
+	else if (no == 8
 	 || (as != NULL && stricmp(as,"jd") == 0)) {
 
-		no = 7;
+		no = 8;
 		if (vc != NULL) {
 			vc->desc = " jd - Projector in dark environment";
 			vc->Ev = vc_none;		/* Use explicit La/Lv */
@@ -1845,10 +1868,10 @@ double *wp			/* Provide XYZ white point if xicc is NULL */
 			vc->Yg = 0.01 * XICC_DEFAULT_GLARE;	/* 5% glare */
 		}
 	}
-	else if (no == 8
+	else if (no == 9
 	 || (as != NULL && stricmp(as,"tv") == 0)) {
 
-		no = 8;
+		no = 9;
 		if (vc != NULL) {
 			vc->desc = " tv - Television/Film Studio";
 			vc->Ev = vc_none;				/* Compute from La/Lv */
@@ -1859,10 +1882,10 @@ double *wp			/* Provide XYZ white point if xicc is NULL */
 			vc->Yg = 0.01 * XICC_DEFAULT_GLARE;	/* 5% glare */
 		}
 	}
-	else if (no == 9
+	else if (no == 10
 	 || (as != NULL && stricmp(as,"pcd") == 0)) {
 
-		no = 9;
+		no = 10;
 		if (vc != NULL) {
 			vc->desc = "pcd - Photo CD - original scene outdoors";
 			vc->Ev = vc_average;	/* Average viewing conditions */
@@ -1872,10 +1895,10 @@ double *wp			/* Provide XYZ white point if xicc is NULL */
 			vc->Yg = 0.0;			/* 0% glare - assumed to be compensated ? */
 		}
 	}
-	else if (no == 10
+	else if (no == 11
 	 || (as != NULL && stricmp(as,"ob") == 0)) {
 
-		no = 10;
+		no = 11;
 		if (vc != NULL) {
 			vc->desc = " ob - Original scene - Bright Outdoors";
 			vc->Ev = vc_average;	/* Average viewing conditions */
@@ -1885,10 +1908,10 @@ double *wp			/* Provide XYZ white point if xicc is NULL */
 			vc->Yg = 0.0;			/* 0% glare - assumed to be compensated ? */
 		}
 	}
-	else if (no == 11
+	else if (no == 12
 	 || (as != NULL && stricmp(as,"cx") == 0)) {
 
-		no = 11;
+		no = 12;
 		if (vc != NULL) {
 			vc->desc = " cx - Cut Sheet Transparencies on a viewing box";
 			vc->Ev = vc_cut_sheet;	/* Cut sheet viewing conditions */
@@ -1931,6 +1954,9 @@ icxViewCond *vc
 	printf("  Glare to adapting/surround ratio = %f\n",vc->Yg);
 	printf("  Flare color = %f %f %f\n",vc->Gxyz[0], vc->Gxyz[1], vc->Gxyz[2]);
 	printf("  HK scaling = %f\n",vc->hkscale);
+	printf("  Mid tone partial adapation factor = %f\n",vc->mtaf);
+	if (vc->mtaf > 0.0)
+		printf("  Mid tone adapted white = %f %f %f\n",vc->Wxyz2[0], vc->Wxyz2[1], vc->Wxyz2[2]);
 }
 
 

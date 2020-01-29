@@ -63,6 +63,7 @@
 #include "sa_config.h"
 #include "numsup.h"
 #endif /* !SALONEINSTLIB */
+#include "cgats.h"
 #include "xspect.h"
 #include "insttypes.h"
 #include "conv.h"
@@ -73,6 +74,9 @@ static inst_code specbos_interp_code(inst *pp, int ec);
 
 #define MAX_MES_SIZE 500		/* Maximum normal message reply size */
 #define MAX_RD_SIZE 8000		/* Maximum reading message reply size */
+
+#define DEFAULT_TRANS_NAV 10	/* Default transmission mode number of averages */
+#define DEFAULT_NAV 1			/* Default other mode number of averages */
 
 /* Interpret an icoms error into a SPECBOS error */
 static int icoms2specbos_err(int se) {
@@ -132,12 +136,17 @@ int nd				/* nz to disable debug messages */
 		return icoms2specbos_err(se);
 	}
 
-	/* Over Bluetooth, we get an erronious string "AT+JSCR\r\n" mixed in our output. */
+	/* Over Bluetooth, we get an erroneous string "AT+JSCR\r\n" mixed in our output. */
 	/* This would appear to be from the eBMU Bluetooth adapter AT command set. */
 	if (bread > 9 && strncmp(out, "AT+JSCR\r\n", 9) == 0) {
 		a1logd(p->log, 8, "specbos: ignored 'AT+JSCR\\r\\n' response\n");
 		memmove(out, out+9, bsize-9);
 		bread -= 9;
+	}
+	if (bread > 8 && strncmp(out, "AT+JSCR\r", 8) == 0) {
+		a1logd(p->log, 8, "specbos: ignored 'AT+JSCR\\r' response\n");
+		memmove(out, out+8, bsize-8);
+		bread -= 8;
 	}
 
 	/* See if there was an error, and remove any enquire codes */
@@ -221,7 +230,7 @@ specbos_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 
 	unsigned int etime;
 	unsigned int len, i;
-	instType itype = pp->itype;
+	instType dtype = pp->dtype;
 	int se;
 
 	inst_code ev = inst_ok;
@@ -250,6 +259,8 @@ specbos_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 			return ev;
 		}
 
+		msec_sleep(600);
+
 	/* We need to setup communications */
 	} else {
 		int delayms = 0;
@@ -261,7 +272,7 @@ specbos_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 		a1logd(p->log, 1, "specbos_init_coms: Trying different baud rates (%u msec to go)\n",etime - msec_time());
 
 		/* Spectraval Bluetooth serial doesn't seem to actuall function */
-		/* until 600msec after it is opened. We get arroneos "AT+JSCR\r\n" reply */
+		/* until 600msec after it is opened. We get an erroneous "AT+JSCR\r\n" reply */
 		/* within that time, and it won't re-open after closing. */
 		if (p->icom->dctype & icomt_btserial)
 			delayms = 600;
@@ -321,8 +332,8 @@ specbos_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 		p->model = 1201;
 	} else if ((len >= 10 && strncmp(buf, "JETI_SDCM3", 10) == 0)
 	        || (len >= 9  && strncmp(buf, "DCM3_JETI", 9) == 0)
-			|| (len >= 17  && strncmp(buf, "PECFIRM_JETI_1501", 18) == 0)
-			|| (len >= 18  && strncmp(buf, "SPECFIRM_JETI_1501", 17) == 0)) {
+			|| (len >= 17  && strncmp(buf, "PECFIRM_JETI_1501", 17) == 0)
+			|| (len >= 18  && strncmp(buf, "SPECFIRM_JETI_1501", 18) == 0)) {
 		p->model = 1501;
 	} else {
 		if (len < 11
@@ -342,22 +353,32 @@ specbos_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 	}
 	a1logd(p->log, 2, "specbos_init_coms: init coms has suceeded\n");
 
-	p->gotcoms = 1;
-
 	/* See if it's a 1501 or 1511 */
 	if (p->model == 1501) {
+		int i;
 		int dispen = 0;
 
-		if ((ev = specbos_command(p, "*conf:dispen?\r", buf, MAX_MES_SIZE, 1.0)) != inst_ok) {
-			amutex_unlock(p->lock);
-			a1logd(p->log, 2, "specbos_init_coms: failed to get display status\n");
-			return inst_protocol_error;
+		/* Try a few times because of BT misbehaviour */
+		for (i = 0; i < 3; i++) {
+			if ((ev = specbos_command(p, "*conf:dispen?\r", buf, MAX_MES_SIZE, 1.0)) != inst_ok) {
+				if (i < 3)
+					continue;
+				amutex_unlock(p->lock);
+				a1logd(p->log, 2, "specbos_init_coms: failed to get display status\n");
+				return inst_protocol_error;
+			}
+			
+			if (sscanf(buf, "%d ",&dispen) != 1) {
+				if (i < 3)
+					continue;
+				amutex_unlock(p->lock);
+				a1loge(p->log, 1, "specbos_init_inst: failed to parse display status\n");
+				return specbos_interp_code((inst *)p, SPECBOS_DATA_PARSE_ERROR);
+			} else {
+				break;
+			}
 		}
-		if (sscanf(buf, "%d ",&dispen) != 1) {
-			amutex_unlock(p->lock);
-			a1loge(p->log, 1, "specbos_init_inst: failed to parse display status\n");
-			return ev;
-		}
+
 		a1logd(p->log, 1, " spectraval %s display\n",dispen ? "has" : "doesn't have");
 		if (dispen) {
 			p->model = 1511;
@@ -392,6 +413,8 @@ specbos_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 		return ev;
 	}
 #endif
+
+	p->gotcoms = 1;
 
 	amutex_unlock(p->lock);
 	return inst_ok;
@@ -559,25 +582,33 @@ specbos_init_inst(inst *pp) {
 	p->measto = 20.0;		/* Set default. Specbos default is 60.0 */
 
 	if (p->model == 1211)
-		p->measto = 6.0;		/* Same overall time as i1d3 ?? */
+		p->measto = 6.0 + 3.6;		/* Aprox. Same overall time as i1d3 ?? */
 	else if (p->model == 1201)
-		p->measto = 16.0;
+		p->measto = 16.0 + 3.6;
 	else if (p->model == 1501 || p->model == 1511)
-		p->measto = 6.0;
+		p->measto = 6.0 + 3.6;
 
 	/* Implement max auto int. time, to speed up display measurement */
 	if (p->model == 1501 || p->model == 1511) {
+#ifdef NEVER		/* Bound auto by integration time (worse for inttime > 1.0) */ 
 		int maxaver = 2;	/* Maximum averages for auto int time */
 		double dmaxtint;
 		int maxtint;
 
 		/* Actual time taken depends on maxtint, autoavc & fudge factor. */
-		dmaxtint = p->measto/(maxaver + 3.5);
+		dmaxtint = (p->measto - 3.6)/(2.0 * maxaver);
+
+		//printf("dmaxtint %f\n",dmaxtint);
 
 		maxtint = (int)(dmaxtint * 1000.0+0.5);
 
-		if (maxtint < 1000 || maxtint > 64999)
-			error("specbos: assert, maxtint %d out of range",maxtint);
+		if (maxtint < 1000 || maxtint > 64999) {
+			warning("specbos: assert, maxtint %d out of range",maxtint);
+			if (maxtint < 1000)
+				maxtint = 1000;
+			else if (maxtint > 64999)
+				maxtint = 64999;
+		}
 
 		/* Set maximum integration time */
 		sprintf(mes, "*para:maxtint %d\r", maxtint);
@@ -592,6 +623,45 @@ specbos_init_inst(inst *pp) {
 			amutex_unlock(p->lock);
 			return ev;
 		}
+#else	/* Bound auto by no. averages (better - limit maxint to 1.0) */
+		double dmaxtint = 1.0;		/* Recommended maximum */
+		int maxtint;
+		int maxaver;	/* Maximum averages for auto int time */
+
+		maxtint = (int)(dmaxtint * 1000.0+0.5);
+
+		if (maxtint < 1000 || maxtint > 64999) {
+			warning("specbos: assert, maxtint %d out of range",maxtint);
+			if (maxtint < 1000)
+				maxtint = 1000;
+			else if (maxtint > 64999)
+				maxtint = 64999;
+		}
+
+		/* Set maximum integration time */
+		sprintf(mes, "*para:maxtint %d\r", maxtint);
+		if ((ev = specbos_command(p, mes, buf, MAX_MES_SIZE, 1.0)) != inst_ok) {
+			amutex_unlock(p->lock);
+			return ev;
+		}
+
+		/* Total time = overhead + initial sample + 2 * int time per measure */
+		maxaver = (int)ceil((p->measto - 3.6)/(2.0 * dmaxtint));
+
+		//printf("maxaver %d\n",maxaver);
+
+		if (maxaver < 2) {
+			warning("specbos: assert, maxaver %d out of range",maxaver);
+			maxaver = 2;
+		}
+
+		/* Set maximum number of auto averages. Min value is 2 */
+		sprintf(mes, "*para:maxaver %d\r", maxaver);
+		if ((ev = specbos_command(p, mes, buf, MAX_MES_SIZE, 1.0)) != inst_ok) {
+			amutex_unlock(p->lock);
+			return ev;
+		}
+#endif
 
 		/* spectraval doesn't support *fetch:XYZ command */
 		p->noXYZ  = 1;
@@ -600,38 +670,69 @@ specbos_init_inst(inst *pp) {
 		double dmaxtin;
 		int maxtin;
 
-		dmaxtin = p->measto/2.5;		/* Fudge factor */
+		/* Total time = overhead + initial sample + 2 * int time per measure */
+		dmaxtin = (p->measto - 3.6)/2.0;		/* Fudge factor */
+
 		maxtin = (int)(dmaxtin * 1000.0+0.5);
 
-		if (maxtin < 1000 || maxtin > 64999)
-			error("specbos: assert, maxtin %d out of range",maxtin);
+		if (maxtin < 1000 || maxtin > 64999) {
+			warning("specbos: assert, maxtint %d out of range",maxtin);
+			if (maxtin < 1000)
+				maxtin = 1000;
+			else if (maxtin > 64999)
+				maxtin = 64999;
+		}
 
 		/* Set maximum integration time */
-		sprintf(mes, "*para:maxtint %d\r", maxtin);
+		/* (1201 *para:maxtint doesn't work !!) */
+		sprintf(mes, "*conf:maxtin %d\r", maxtin);
 		if ((ev = specbos_command(p, mes, buf, MAX_MES_SIZE, 1.0)) != inst_ok) {
 			amutex_unlock(p->lock);
 			return ev;
 		}
+
+#ifdef NEVER	/* Use default */
+		/* Set split time to limit dark current error for long integration times */
+		sprintf(mes, "*para:splitt %d\r", 1000);
+		if ((ev = specbos_command(p, mes, buf, MAX_MES_SIZE, 1.0)) != inst_ok) {
+			amutex_unlock(p->lock);
+			return ev;
+		}
+#endif
+
 	}
 
 	if (p->model == 1501 || p->model == 1511) {
+		int i;
 		int wstart, wend, wstep;
 
-		/* Set the measurement format to None. We will read measurement manually. */
-		/* (0 = None, 1 = Binary, 2 = ASCII) */
-		if ((ev = specbos_command(p, "*para:form 0\r", buf, MAX_MES_SIZE, 1.0)) != inst_ok) {
-			amutex_unlock(p->lock);
-			return ev;
-		}
+		/* Try several times due to BT problems */
+		for (i = 0; i < 3; i++) {
+			/* Set the measurement format to None. We will read measurement manually. */
+			/* (0 = None, 1 = Binary, 2 = ASCII) */
+			if ((ev = specbos_command(p, "*para:form 0\r", buf, MAX_MES_SIZE, 1.0)) != inst_ok) {
+				if (i < 3)
+					continue;
+				amutex_unlock(p->lock);
+				return ev;
+			}
 
-		if ((ev = specbos_command(p, "*para:wran?\r", buf, MAX_MES_SIZE, 1.0)) != inst_ok) {
-			amutex_unlock(p->lock);
-			return ev;
-		}
-		if (sscanf(buf, "%d %d %d",&wstart,&wend,&wstep) != 3) {
-			amutex_unlock(p->lock);
-			a1loge(p->log, 1, "specbos_init_inst: failed to parse wavelength range\n");
-			return ev;
+			if ((ev = specbos_command(p, "*para:wran?\r", buf, MAX_MES_SIZE, 1.0)) != inst_ok) {
+				if (i < 3)
+					continue;
+				amutex_unlock(p->lock);
+				return ev;
+			}
+			if (sscanf(buf, "%d %d %d",&wstart,&wend,&wstep) != 3) {
+				if (i < 3)
+					continue;
+				amutex_unlock(p->lock);
+				a1loge(p->log, 1, "specbos_init_inst: failed to parse wavelength range\n");
+				return specbos_interp_code((inst *)p, SPECBOS_DATA_PARSE_ERROR);
+
+			} else {
+				break;
+			}
 		}
 
 		p->wl_short = (double)wstart;
@@ -679,7 +780,7 @@ specbos_init_inst(inst *pp) {
 		if (sscanf(buf, "Predefined start wave: %lf ",&p->wl_short) != 1) {
 			amutex_unlock(p->lock);
 			a1loge(p->log, 1, "specbos_init_inst: failed to parse start wave\n");
-			return ev;
+			return specbos_interp_code((inst *)p, SPECBOS_DATA_PARSE_ERROR);
 		}
 		a1logd(p->log, 1, " Short wl range %f\n",p->wl_short);
 	
@@ -690,7 +791,7 @@ specbos_init_inst(inst *pp) {
 		if (sscanf(buf, "Predefined end wave: %lf ",&p->wl_long) != 1) {
 			amutex_unlock(p->lock);
 			a1loge(p->log, 1, "specbos_init_inst: failed to parse end wave\n");
-			return ev;
+			return specbos_interp_code((inst *)p, SPECBOS_DATA_PARSE_ERROR);
 		}
 		if (p->wl_long > 830.0)			/* Could go to 1000 with 1211 */
 			p->wl_long = 830.0;			/* Limit it to useful visual range */
@@ -807,13 +908,13 @@ specbos_get_target_laser(
 	}
 	if (p->model == 1501 || p->model == 1511) {
 		if (sscanf(buf, "%d ",&lstate) != 1) {
-			a1loge(p->log, 2, "specbos_get_target_laser: failed to parse laser state\n");
-			return inst_protocol_error;
+			a1logd(p->log, 1, "specbos_get_target_laser: failed to parse laser state\n");
+			return specbos_interp_code((inst *)p, SPECBOS_DATA_PARSE_ERROR);
 		}
 	} else {
 		if (sscanf(buf, "laser: %d ",&lstate) != 1) {
-			a1loge(p->log, 2, "specbos_get_target_laser: failed to parse laser state\n");
-			return inst_protocol_error;
+			a1logd(p->log, 1, "specbos_get_target_laser: failed to parse laser state\n");
+			return specbos_interp_code((inst *)p, SPECBOS_DATA_PARSE_ERROR);
 		}
 	}
 	*laser = lstate;
@@ -956,9 +1057,18 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 		}
 	}
 		
+	/* If we have a requested number of averages */
+	if (p->noaverage != 0) {
+		if ((rv = set_average(p, p->noaverage, 0)) != inst_ok)
+			return rv;
+
 	/* Set to average 10 readings for transmission */
-	if ((p->mode & inst_mode_illum_mask) == inst_mode_transmission) {
-		if ((rv = set_average(p, 10, 0)) != inst_ok)
+	} else if ((p->mode & inst_mode_illum_mask) == inst_mode_transmission) {
+		if ((rv = set_average(p, DEFAULT_TRANS_NAV, 0)) != inst_ok)
+			return rv;
+	/* Or default 1 otherwise */
+	} else {
+		if ((rv = set_average(p, DEFAULT_NAV, 0)) != inst_ok)
 			return rv;
 	}
 
@@ -1037,7 +1147,7 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 	           &val->XYZ[0], &val->XYZ[1], &val->XYZ[2]) != 3) {
 			amutex_unlock(p->lock);
 			a1logd(p->log, 1, "specbos_read_sample: failed to parse '%s'\n",buf);
-			return inst_protocol_error;
+			return specbos_interp_code((inst *)p, SPECBOS_DATA_PARSE_ERROR);
 		}
 	
 	/* Hmm. Some older firmware versions are reported to not support the */
@@ -1048,7 +1158,7 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 		p->noXYZ = 1;
 
 		if (p->model == 1501 || p->model == 1511) {
-			if ((ec = specbos_fcommand(p, "*calc:PHOTOmetric\r", buf, MAX_RD_SIZE, 0.5, 1, tnorm, 0))
+			if ((ec = specbos_fcommand(p, "*calc:PHOTOmetric\r", buf, MAX_RD_SIZE, 1.0, 1, tnorm, 0))
 			                                                                        != SPECBOS_OK) {
 				amutex_unlock(p->lock);
 				return specbos_interp_code((inst *)p, ec);
@@ -1056,7 +1166,7 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 			if (sscanf(buf, "%lf ", &Yxy[0]) != 1) {
 				amutex_unlock(p->lock);
 				a1logd(p->log, 1, "specbos_read_sample: failed to parse '%s'\n",buf);
-				return inst_protocol_error;
+				return specbos_interp_code((inst *)p, SPECBOS_DATA_PARSE_ERROR);
 			}
 		} else {
 			if ((ec = specbos_fcommand(p, "*fetch:PHOTOmetric\r", buf, MAX_RD_SIZE, 0.5, 1, tnorm, 0))
@@ -1067,7 +1177,7 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 			if (sscanf(buf, "Luminance[cd/m^2]: %lf ", &Yxy[0]) != 1) {
 				amutex_unlock(p->lock);
 				a1logd(p->log, 1, "specbos_read_sample: failed to parse '%s'\n",buf);
-				return inst_protocol_error;
+				return specbos_interp_code((inst *)p, SPECBOS_DATA_PARSE_ERROR);
 			}
 		}
 	
@@ -1080,7 +1190,7 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 			if (sscanf(buf, " %lf %lf ", &Yxy[1], &Yxy[2]) != 2) {
 				amutex_unlock(p->lock);
 				a1logd(p->log, 1, "specbos_read_sample: failed to parse '%s'\n",buf);
-				return inst_protocol_error;
+				return specbos_interp_code((inst *)p, SPECBOS_DATA_PARSE_ERROR);
 			}
 		} else {
 			if ((ec = specbos_fcommand(p, "*fetch:CHROMXY\r", buf, MAX_RD_SIZE, 0.5, 1, tnorm, 0))
@@ -1147,10 +1257,10 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 
 			/* Fetch the spectral readings */
 			if (p->model == 1501 || p->model == 1511)
-				ec = specbos_fcommand(p, "*calc:sprad\r", buf, MAX_RD_SIZE, 4.0,
+				ec = specbos_fcommand(p, "*calc:sprad\r", buf, MAX_RD_SIZE, 6.0,
 				                                            1, tspec, 0);
 			else
-				ec = specbos_fcommand(p, "*fetch:sprad\r", buf, MAX_RD_SIZE, 4.0,
+				ec = specbos_fcommand(p, "*fetch:sprad\r", buf, MAX_RD_SIZE, 6.0,
 				                                             2+p->nbands+1, tnorm, 0);
 			if (ec != SPECBOS_OK) {
 				a1logd(p->log, 1, "specbos_fcommand: failed with 0x%x\n",ec);
@@ -1196,7 +1306,7 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 		  try_again:;
 		}
 		if (tries >= maxtries) {
-			a1logd(p->log, 1, "specbos_fcommand: ran out of retries\n");
+			a1logd(p->log, 1, "specbos_fcommand: ran out of retries - parsing error ?\n");
 			amutex_unlock(p->lock);
 			return inst_protocol_error;
 		}
@@ -1616,7 +1726,7 @@ char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 			p->mode = inst_mode_emis_tele | inst_mode_spectral; 
 		p->doing_cal = 1;
 
-		/* Set to average 50 readings */
+		/* Set to average 50 readings for calibration */
 		if ((ev = set_average(p, 50, 1)) != inst_ok)
 			return ev;
 
@@ -1982,9 +2092,9 @@ specbos_del(inst *pp) {
 		if (p->th != NULL) {		/* Terminate diffuser monitor thread  */
 			int i;
 			p->th_term = 1;			/* Tell thread to exit on error */
-			for (i = 0; p->th_termed == 0 && i < 5; i++)
+			for (i = 0; p->th_termed == 0 && i < 50; i++)
 				msec_sleep(100);	/* Wait for thread to terminate */
-			if (i >= 5) {
+			if (i >= 50) {
 				a1logd(p->log,3,"specbos diffuser thread termination failed\n");
 			}
 			p->th->del(p->th);
@@ -2007,6 +2117,7 @@ inst3_capability *pcap3) {
 	specbos *p = (specbos *)pp;
 	inst_mode cap1 = 0;
 	inst2_capability cap2 = 0;
+	inst3_capability cap3 = 0;
 
 	cap1 |= inst_mode_emis_tele
 	     |  inst_mode_trans_spot		/* Emulated transmission mode diffuse/90 */
@@ -2034,12 +2145,15 @@ inst3_capability *pcap3) {
 		cap2 |= inst2_get_refresh_rate;
 	}
 
+	/* Can average multiple measurements */
+	cap3 |= inst3_average;
+
 	if (pcap1 != NULL)
 		*pcap1 = cap1;
 	if (pcap2 != NULL)
 		*pcap2 = cap2;
 	if (pcap3 != NULL)
-		*pcap3 = inst3_none;
+		*pcap3 = cap3;
 }
 
 /* Return current or given configuration available measurement modes. */
@@ -2368,6 +2482,24 @@ specbos_get_set_opt(inst *pp, inst_opt_type m, ...) {
 	if (!p->inited)
 		return inst_no_init;
 
+	if (m == inst_opt_set_averages) {
+		va_list args;
+		int nav = 1;
+
+		va_start(args, m);
+		nav = va_arg(args, int);
+		va_end(args);
+
+		if (nav < 0)
+			return inst_bad_parameter;
+
+		p->noaverage = nav;
+
+		/* Averages will get set before each measurement */
+
+		return inst_ok;
+	}
+
 	/* Use default implementation of other inst_opt_type's */
 	{
 		inst_code rv;
@@ -2382,7 +2514,7 @@ specbos_get_set_opt(inst *pp, inst_opt_type m, ...) {
 }
 
 /* Constructor */
-extern specbos *new_specbos(icoms *icom, instType itype) {
+extern specbos *new_specbos(icoms *icom, instType dtype) {
 	specbos *p;
 	if ((p = (specbos *)calloc(sizeof(specbos),1)) == NULL) {
 		a1loge(icom->log, 1, "new_specbos: malloc failed!\n");
@@ -2410,11 +2542,13 @@ extern specbos *new_specbos(icoms *icom, instType itype) {
 	p->del               = specbos_del;
 
 	p->icom = icom;
-	p->itype = itype;
-	if (p->itype == instSpecbos1201)
+	p->dtype = dtype;
+	if (p->dtype == instSpecbos1201)
 		p->model = 1201;
 
 	amutex_init(p->lock);
+
+	p->noaverage = 1;
 
 	return p;
 }

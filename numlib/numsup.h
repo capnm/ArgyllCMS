@@ -78,6 +78,14 @@
 # endif
 #endif
 
+#ifndef INLINE
+# ifdef _MSC_VER
+#  define INLINE __inline
+# else
+#  define INLINE inline
+# endif
+#endif
+
 #else  /* !__STDC_VERSION__ */
 
 #ifdef _MSC_VER
@@ -98,6 +106,10 @@
 
 #ifndef ATTRIBUTE_NORETURN
 # define ATTRIBUTE_NORETURN __declspec(noreturn)
+#endif
+
+#ifndef INLINE
+# define INLINE __inline
 #endif
 
 #else  /* !_MSC_VER */
@@ -131,6 +143,9 @@
 #ifndef ATTRIBUTE_NORETURN
 # define ATTRIBUTE_NORETURN __attribute__((noreturn))
 #endif
+#ifndef INLINE
+#  define INLINE inline
+#endif /* INLINE */
 
 #endif /* !_MSC_VER */
 #endif /* !__STDC_VERSION__ */
@@ -299,6 +314,12 @@ a1log *new_a1log_d(a1log *log);
 /* Returns NULL */
 a1log *del_a1log(a1log *log);
 
+/* Set the debug logging level. */
+void a1log_debug(a1log *log, int level);
+
+/* Set the vebosity level. */
+void a1log_verb(a1log *log, int level);
+
 /* Set the tag. Note that the tag string is NOT copied, just referenced */
 void a1log_tag(a1log *log, char *tag);
 
@@ -398,6 +419,7 @@ void free_dhmatrix(double **m, int nrl, int nrh, int ncl, int nch);
 void copy_dmatrix(double **dst, double **src, int nrl, int nrh, int ncl, int nch);
 void copy_dmatrix_to3x3(double dst[3][3], double **src, int nrl, int nrh, int ncl, int nch);
 
+/* Convert from C matrix to matrix */
 double **convert_dmatrix(double *a,int nrl,int nrh,int ncl,int nch);
 void free_convert_dmatrix(double **m,int nrl,int nrh,int ncl,int nch);
 
@@ -437,6 +459,9 @@ void free_smatrix(short **m,int nrl,int nrh,int ncl,int nch);
 /* Transpose a 0 base matrix */
 void matrix_trans(double **d, double **s, int nr,  int nc);
 
+/* Transpose a 0 base symetrical matrix in place */
+void sym_matrix_trans(double **m, int n);
+
 /* Matrix multiply 0 based matricies */
 int matrix_mult(
 	double **d,  int nr,  int nc,
@@ -444,8 +469,63 @@ int matrix_mult(
 	double **s2, int nr2, int nc2
 );
 
-/* Diagnostic */
-void matrix_print(char *c, double **a, int nr,  int nc);
+/* Matrix multiply transpose of s1 by s2 */
+/* 0 based matricies,  */
+/* This is usefull for using results of lu_invert() */
+int matrix_trans_mult(
+	double **d,  int nr,  int nc,
+	double **ts1, int nr1, int nc1,
+	double **s2, int nr2, int nc2
+);
+
+/* Multiply a 0 based matrix by a vector */
+/* d may be same as v */
+int matrix_vect_mult(
+	double *d, int nd,
+	double **m, int nr, int nc,
+	double *v, int nv
+);
+
+/* Set zero based dvector */
+void vect_set(double *d, double v, int len);
+
+/* Copy zero based dvector */
+void vect_cpy(double *d, double *s, int len);
+
+/* Negate and copy a vector, d = -v */
+/* d may be same as v */
+void vect_neg(double *d, double *s, int len);
+
+/* Add two vectors, d += v */
+/* d may be same as v */
+void vect_add(
+	double *d, double *v, int len
+);
+
+/* Subtract two vectors, d -= v */
+/* d may be same as v */
+void vect_sub(
+	double *d, double *v, int len
+);
+
+
+/* Diagnostics */
+/* id identifies matrix/vector */
+/* pfx used at start of each line */
+/* Assumed indexed from 0 */
+
+void adump_dmatrix(a1log *log, char *id, char *pfx, double **a, int nr,  int nc);
+void adump_fmatrix(a1log *log, char *id, char *pfx, float **a, int nr,  int nc);
+void adump_imatrix(a1log *log, char *id, char *pfx, int **a, int nr,  int nc);
+void adump_smatrix(a1log *log, char *id, char *pfx, short **a, int nr,  int nc);
+
+void adump_dvector(a1log *log, char *id, char *pfx, double *a, int nc);
+void adump_fvector(a1log *log, char *id, char *pfx, float *a, int nc);
+void adump_ivector(a1log *log, char *id, char *pfx, int *a, int nc);
+void adump_svector(a1log *log, char *id, char *pfx, short *a, int nc);
+
+/* Dump C type matrix */
+void adump_C_dmatrix(a1log *log, char *id, char *pfx, double *a, int nr,  int nc);
 
 /* =========================================================== */
 
@@ -547,11 +627,11 @@ double usec_time();
 /* Returned static buffer is re-used every 5 calls. */
 char *debPiv(int di, int *p);
 
-/* Print a double color vector to a string. */
+/* Print a double vector to a string. */
 /* Returned static buffer is re-used every 5 calls. */
 char *debPdv(int di, double *p);
 
-/* Print a float color vector to a string. */
+/* Print a float vector to a string. */
 /* Returned static buffer is re-used every 5 calls. */
 char *debPfv(int di, float *p);
 

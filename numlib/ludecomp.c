@@ -162,6 +162,8 @@ int      n	/* Dimensionality */
 }
 
 /* Decompose the square matrix A[][] into lower and upper triangles */
+/* NOTE that it returns transposed inverse by normal convention. */
+/* Use sym_matrix_trans() to fix this. */
 /* Return 1 if the matrix is singular. */
 int
 lu_decomp(
@@ -339,6 +341,8 @@ int     *pivx		/* Pivoting row permutations record */
 
 
 /* Invert a matrix A using lu decomposition */
+/* NOTE that it returns transposed inverse by normal convention. */
+/* Use sym_matrix_trans() to fix this, or use matrix_trans_mult() */
 /* Return 1 if the matrix is singular, 0 if OK */
 int
 lu_invert(
@@ -385,7 +389,10 @@ int      n	/* Dimensionality */
 	return 0;
 }
 
-#ifdef NEVER		/* It's not clear that this is correct */
+/* Invert a matrix A using lu decomposition, and polish it. */
+/* NOTE that it returns transposed inverse by normal convention. */
+/* Use sym_matrix_trans() to fix this, or use matrix_trans_mult() */
+/* Return 1 if the matrix is singular, 0 if OK */
 int
 lu_polished_invert(
 double **a,	/* A[][] input matrix, returns inversion of A */
@@ -413,8 +420,8 @@ int      n	/* Dimensionality */
 		return i;
 	}
 
-	for (k = 0; k < 10; k++) {
-		matrix_mult(t1, n, n, aa, n, n, a, n, n);
+	for (k = 0; k < 20; k++) {
+		matrix_trans_mult(t1, n, n, aa, n, n, a, n, n);
 		for (i = 0; i < n; i++) {
 			for (j = 0; j < n; j++) {
 				t2[i][j] = a[i][j];
@@ -432,9 +439,10 @@ int      n	/* Dimensionality */
 	free_dmatrix(t2, 0, n-1, 0, n-1);
 	return 0;
 }
-#endif
 
 /* Pseudo-Invert matrix A using lu decomposition */
+/* NOTE that it returns transposed inverse by normal convention. */
+/* Use matrix_trans() to fix this, or use matrix_trans_mult(). */
 /* Return 1 if the matrix is singular, 0 if OK */
 int
 lu_psinvert(

@@ -60,6 +60,7 @@
 #include "numsup.h"
 #include "rspl1.h"
 #endif /* SALONEINSTLIB */
+#include "cgats.h"
 #include "xspect.h"
 #include "insttypes.h"
 #include "conv.h"
@@ -483,7 +484,7 @@ munki_code munki_imp_init(munki *p) {
 
 	a1logd(p->log,2,"munki_init:\n");
 
-	if (p->itype != instColorMunki)
+	if (p->dtype != instColorMunki)
 		return MUNKI_UNKNOWN_MODEL;
 
 
@@ -3183,7 +3184,8 @@ munki_code munki_save_calibration(munki *p) {
 #endif
 
 	sprintf(cal_name, "ArgyllCMS/.mk_%s.cal", m->serno);
-	if ((no_paths = xdg_bds(NULL, &cal_paths, xdg_cache, xdg_write, xdg_user, cal_name)) < 1) {
+	if ((no_paths = xdg_bds(NULL, &cal_paths, xdg_cache, xdg_write, xdg_user, xdg_none,
+		                                                                      cal_name)) < 1) {
 		a1logd(p->log,1,"munki_save_calibration xdg_bds returned no paths\n");
 		return MUNKI_INT_CAL_SAVE;
 	}
@@ -3299,7 +3301,8 @@ munki_code munki_restore_calibration(munki *p) {
 #endif
 
 	sprintf(cal_name, "ArgyllCMS/.mk_%s.cal" SSEPS "color/.mk_%s.cal", m->serno, m->serno);
-	if ((no_paths = xdg_bds(NULL, &cal_paths, xdg_cache, xdg_read, xdg_user, cal_name)) < 1) {
+	if ((no_paths = xdg_bds(NULL, &cal_paths, xdg_cache, xdg_read, xdg_user, xdg_none,
+		                                                                     cal_name)) < 1) {
 		a1logd(p->log,1,"munki_restore_calibration xdg_bds returned no paths\n");
 		return MUNKI_INT_CAL_RESTORE;
 	}
@@ -3616,7 +3619,8 @@ munki_code munki_touch_calibration(munki *p) {
 	int rv;
 
 	sprintf(cal_name, "ArgyllCMS/.mk_%s.cal" SSEPS "color/.mk_%s.cal", m->serno, m->serno);
-	if ((no_paths = xdg_bds(NULL, &cal_paths, xdg_cache, xdg_read, xdg_user, cal_name)) < 1)
+	if ((no_paths = xdg_bds(NULL, &cal_paths, xdg_cache, xdg_read, xdg_user, xdg_none,
+		                                                                     cal_name)) < 1)
 		return MUNKI_INT_CAL_TOUCH;
 
 	a1logd(p->log,2,"munki_touch_calibration touching file '%s'\n",cal_paths[0]);

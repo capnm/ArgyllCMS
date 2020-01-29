@@ -51,6 +51,7 @@
 #include "sa_config.h"
 #include "numsup.h"
 #endif  /* !SALONEINSTLIB */
+#include "cgats.h"
 #include "xspect.h"
 #include "insttypes.h"
 #include "conv.h"
@@ -97,9 +98,7 @@ extract_ec(char *s) {
 		if (*p == '>')
 			break;
 	}
-	if (  (p-3) < s
-	   || p[0] != '>'
-	   || p[-3] != '<')
+	if ((p-3) < s || p[0] != '>' || p[-3] != '<')
 		return -1;
 	tt[0] = p[-2];
 	tt[1] = p[-1];
@@ -517,8 +516,8 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 					}
 				}
 			} else {	/* Inst error or switch activated */
-				if (strlen(buf) >= 4
-				 && buf[0] == '<' && isdigit(buf[1]) && isdigit(buf[2]) && buf[3] == '>') {
+				if ((strlen(buf) >= 4
+				         && buf[0] == '<' && isdigit(buf[1]) && isdigit(buf[2]) && buf[3] == '>')) {
 					if ((ev = dtp22_interp_code((inst *)p, extract_ec(buf))) != inst_ok) {
 						dtp22_command(p, "CE\r", buf, MAX_MES_SIZE, 0.5);
 						dtp22_command(p, "2PB\r", buf, MAX_MES_SIZE, 0.5);
@@ -747,8 +746,8 @@ char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 					}
 				}
 			} else {	/* Inst error or switch activated */
-				if (strlen(buf) >= 4
-				 && buf[0] == '<' && isdigit(buf[1]) && isdigit(buf[2]) && buf[3] == '>') {
+				if ((strlen(buf) >= 4
+				      && buf[0] == '<' && isdigit(buf[1]) && isdigit(buf[2]) && buf[3] == '>')) {
 					if ((ev = dtp22_interp_code((inst *)p, extract_ec(buf))) != inst_ok) {
 						dtp22_command(p, "CE\r", buf, MAX_MES_SIZE, 0.5);
 						if (ev != inst_ok)
@@ -1145,7 +1144,7 @@ extern dtp22 *new_dtp22(icoms *icom, instType itype) {
 	p->del                   = dtp22_del;
 
 	p->icom = icom;
-	p->itype = itype;
+	p->dtype = itype;
 	p->mode = inst_mode_none;
 	p->need_cal = 1;			/* Do a white calibration each time we open the device */
 

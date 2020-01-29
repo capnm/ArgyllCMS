@@ -589,6 +589,9 @@ static int icoms_usb_transaction(
 
 	a1logd(p->log, 8, "icoms_usb_transaction: req type 0x%x ep 0x%x size %d\n",ttype,endpoint,length);
 
+	if (transferred != NULL)
+		*transferred = 0;
+
 	if (ttype != icom_usb_trantype_interrutpt
 	 && ttype != icom_usb_trantype_bulk) {
 		/* We only handle interrupt & bulk, not control */
@@ -691,6 +694,9 @@ int timeout) {
 	int retsz = 0;
 
 	a1logd(p->log, 8, "icoms_usb_control_msg: type 0x%x req 0x%x size %d\n",requesttype,request,size);
+
+	if (transferred != NULL)
+		*transferred = 0;
 
 	memset(&req, 0, sizeof(libusb_request));
     req.timeout = timeout;

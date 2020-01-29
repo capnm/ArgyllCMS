@@ -69,6 +69,8 @@ int     *pivx		/* Pivoting row permutations record */
 );
 
 /* Invert a matrix A using lu decomposition */
+/* NOTE that it returns transposed inverse by normal convention. */
+/* Use sym_matrix_trans() to fix this, or use matrix_trans_mult() */ 
 /* Return 1 if the matrix is singular, 0 if OK */
 int
 lu_invert(
@@ -76,7 +78,19 @@ double **a,	/* A[][] input matrix, returns inversion of A */
 int      n	/* Dimensionality */
 );
 
+/* Invert a matrix A using lu decomposition, and polish it. */
+/* NOTE that it returns transposed inverse by normal convention. */
+/* Use sym_matrix_trans() to fix this, or use matrix_trans_mult() */
+/* Return 1 if the matrix is singular, 0 if OK */
+int
+lu_polished_invert(
+double **a,	/* A[][] input matrix, returns inversion of A */
+int      n	/* Dimensionality */
+);
+
 /* Pseudo-Invert matrix A using lu decomposition */
+/* NOTE that it returns transposed inverse by normal convention. */
+/* Use matrix_trans() to fix this, or use matrix_trans_mult(). */ 
 /* Return 1 if the matrix is singular, 0 if OK */
 int
 lu_psinvert(

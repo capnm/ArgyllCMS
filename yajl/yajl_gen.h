@@ -137,6 +137,10 @@ extern "C" {
     YAJL_API yajl_gen_status yajl_gen_map_close(yajl_gen hand);
     YAJL_API yajl_gen_status yajl_gen_array_open(yajl_gen hand);
     YAJL_API yajl_gen_status yajl_gen_array_close(yajl_gen hand);
+	YAJL_API yajl_gen_status yajl_gen_c_comment(yajl_gen g, const unsigned char * str,
+                                                unsigned int len, int dlytoeol);
+	YAJL_API yajl_gen_status yajl_gen_cpp_comment(yajl_gen g, const unsigned char * str,
+	                                              unsigned int len);
 
     /** access the null terminated generator buffer.  If incrementally
      *  outputing JSON, one should call yajl_gen_clear to clear the

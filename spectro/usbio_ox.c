@@ -457,12 +457,20 @@ char **pnames		/* List of process names to try and kill before opening */
 				(*pluginref)->Stop(pluginref);
 				IODestroyPlugInInterface(pluginref);	// this stops IOServices though ??
 
+				/* This can fail if the device has multiple interfaces, and */
+				/* one of them is grabbed by a system interface (i.e. debug serial port) */
+				/* So soft fail, and rely on ep use to fail for invalid interface */
 				if ((rv = (*(p->usbd->interfaces[i]))->USBInterfaceOpen(
 					           p->usbd->interfaces[i])) != kIOReturnSuccess) {
-					a1loge(p->log, rv, "usb_open_port: USBInterfaceOpen failed with 0x%x\n",rv);
+#ifdef NEVER
+					a1loge(p->log, rv, "usb_open_port: USBInterfaceOpen %d failed with 0x%x\n",i, rv);
 					IOObjectRelease(ioit);
 					cleanup_device(p);
 					return ICOM_SYS;
+#else
+					a1logw(p->log, "usb_open_port: USBInterfaceOpen %d failed with 0x%x\n",i,rv);
+					continue;
+#endif
 				}
 
 				/* Get the end point details, and set reference to pipe no and interfece ix */
@@ -579,6 +587,9 @@ static int icoms_usb_transaction(
 	in_usb_rw++;
 
 	a1logd(p->log, 8, "icoms_usb_transaction: req type 0x%x ep 0x%x size %d\n",ttype,endpoint,length);
+
+	if (transferred != NULL)
+		*transferred = 0;
 
 	if (ttype != icom_usb_trantype_interrutpt
 	 && ttype != icom_usb_trantype_bulk) {

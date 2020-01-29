@@ -20,8 +20,15 @@
         &nbsp;-v
         [n]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         Verbose mode, n &gt;= 2 print each value<br>
+        &nbsp;-l&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+        Match patches by sample location rather than id<br>
         &nbsp;-n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Normalise
+
+
+
 
 
 
@@ -35,13 +42,25 @@ Normalise
 
 
 
+
+
+
         each files reading to white XYZ<br>
         &nbsp;-m&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
         Normalise each files reading to its white X+Y+Z<br>
         &nbsp;-M&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
         Normalise both files reading to mean white XYZ<br>
         &nbsp;-D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Use
+
+
+
 
 
 
@@ -55,10 +74,16 @@ Use
 
 
 
+
+
+
         &nbsp; Show CIE94 delta E values<br>
         &nbsp;-k &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         &nbsp; &nbsp; Show CIEDE2000 delta E values<br>
         &nbsp;-h&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
 
 
         Plot a histogram of delta E's<br>
@@ -66,6 +91,9 @@ Use
         &nbsp; &nbsp; Sort patch value by error<br>
         &nbsp;-w&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;
+
+
+
 
 
 
@@ -83,11 +111,17 @@ Use
 
 
 
+
+
+
         &nbsp; Use X3DOM axes<br>
         &nbsp;</small></tt><tt><small><small>-f
           [illum]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Use Fluorescent
           Whitening Agent compensation [opt. simulated inst. illum.:<br>
           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
 
 
 
@@ -104,6 +138,9 @@ Use
 
 
 
+
+
+
           A, C, D50 (def.), D50M2, D65, F5, F8, F10 or file.sp<br>
           &nbsp;-o observ&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; Choose
           CIE Observer for spectral data:<br>
@@ -113,9 +150,14 @@ Use
 
 
 
-          1931_2 </small><small>(def.)</small><small>, 1964_10, S&amp;B
-          1955_2, shaw, J&amp;V 1978_2<br>
-          &nbsp;-L profile.icm&nbsp;&nbsp; Skip any first file out of
+
+
+
+          1931_2 </small><small>(def.)</small><small>, 1964_10, </small></small></tt><tt><small><small><tt><small>2012_2,
+
+              2012_10, </small></tt>S&amp;B 1955_2, shaw, J&amp;V
+          1978_2 or file.cmf<br>
+          &nbsp;-L profile.icm&nbsp;&nbsp; Skip any first file, out of
           profile gamut patches<br>
           &nbsp;-X file.ccmx&nbsp;&nbsp;&nbsp;&nbsp; Apply Colorimeter
           Correction Matrix to second file<br>
@@ -129,6 +171,9 @@ Use
     <br>
     The <b>-v</b> flag prints out extra information during the
     checking, and prints each patch value, rather than just a summary.<br>
+    <br>
+    The <b>-l</b> flag makes colverify look for the SAMPLE_LOC fields
+    to match patches by, rather than the default SAMPLE_ID field.<br>
     <br>
     The <b>-n</b> flag causes the two sets of values to be normalized
     to the Y value of white for each set before comparison. White is
@@ -216,12 +261,18 @@ Use
     observer. The default.<br>
     &nbsp; <b>1964_10</b> selects the standard CIE 1964 10 degree
     observer.<br>
+    <b>&nbsp; 2012_2</b> selects the proposed CIE 2012 2 degree
+    observer.<br>
+    &nbsp; <b>2012_10</b> selects the proposed CIE 2012 10 degree
+    observer.<br>
     &nbsp; <b>1955_2</b> selects the Stiles and Birch 1955 2 degree
     observer<br>
     &nbsp; <b>1978_2 </b>selects the Judd and Voss 1978 2 degree
     observer<br>
     &nbsp; <b>shaw</b> selects the Shaw and Fairchild 1997 2 degree
     observer<br>
+    &nbsp; <i><b>file.cmf</b></i> selects an observer specified by the
+    given <a href="File_Formats.html#.cmf">.cmf</a> file.<br>
     <br>
     The same parameter value should be used as was used during the
     creation of the profile.<br>
