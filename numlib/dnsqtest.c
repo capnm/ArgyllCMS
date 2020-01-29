@@ -74,7 +74,7 @@ int main(void)
 	/*	 Unless high precision solutions are required, */
 	/*	 this is the recommended setting. */
 
-	tol = sqrt(M_DIVER);
+	tol = M_SQRT_DIVER;
 
 	info = dnsqe(NULL, fcn, NULL, n, x, ss, fvec, tol, tol, 0, nprint);
 	fnorm = denorm(n, fvec);

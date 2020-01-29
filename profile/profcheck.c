@@ -781,7 +781,7 @@ int main(int argc, char *argv[])
 			}
 
 			/* Create a spectral conversion object */
-			if ((sp2cie = new_xsp2cie(illum, illum == icxIT_none ? NULL : &cust_illum,
+			if ((sp2cie = new_xsp2cie(illum, 0.0, illum == icxIT_none ? NULL : &cust_illum,
 			                          obType, custObserver, icSigLabData, icxClamp)) == NULL)
 				error("Creation of spectral conversion object failed");
 
@@ -945,7 +945,7 @@ int main(int argc, char *argv[])
 
 	/* Open up the file for reading */
 	if ((rd_fp = new_icmFileStd_name(iccname,"r")) == NULL)
-		error("Write: Can't open file '%s'",iccname);
+		error("Read: Can't open file '%s'",iccname);
 
 	if ((rd_icco = new_icc()) == NULL)
 		error("Read: Creation of ICC object failed");

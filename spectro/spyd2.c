@@ -2146,7 +2146,7 @@ spyd4_comp_calmat(
 	}
 
 	/* Compute XYZ of the real sample array. */
-	if ((conv = new_xsp2cie(icxIT_none, NULL, obType, custObserver, icSigXYZData, icxClamp)) == NULL)
+	if ((conv = new_xsp2cie(icxIT_none, 0.0, NULL, obType, custObserver, icSigXYZData, icxClamp)) == NULL)
 		return spyd2_interp_code((inst *)p, SPYD2_INT_CIECONVFAIL);
 	sampXYZ = dmatrix(0, nasamp-1, 0, 3-1);
 	for (i = 0; i < nsamp; i++) {

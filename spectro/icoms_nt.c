@@ -163,6 +163,16 @@ void serial_close_port(icoms *p) {
 	}
 }
 
+/* Clear any serial errors */
+static void nt_ser_clearerr(icoms *p) {
+	DWORD errs;
+
+	if (!ClearCommError(p->phandle, &errs,NULL))
+   		error("nt_ser_clearerr: failed, and Clear error failed");
+
+	return;
+}
+
 /* -------------------------------------------------------------------- */
 
 #ifndef CBR_230400
@@ -428,6 +438,7 @@ int          delayms) {		/* Delay after open in msec */
 
 		p->write = icoms_ser_write;
 		p->read = icoms_ser_read;
+		p->ser_clearerr = nt_ser_clearerr;
 
 	}
 	a1logd(p->log, 8, "icoms_set_ser_port: port characteristics set ok\n");

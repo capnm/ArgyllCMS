@@ -1063,14 +1063,14 @@ int main(int argc, char *argv[])
 			bf.r_sp = &r_sp;
 			bf.p_sp = &p_sp;
 
-			if ((bf.pap = new_xsp2cie(icxIT_custom, &i_sp, icxOT_CIE_1931_2, NULL, icSigLabData, icxClamp)) == NULL)
+			if ((bf.pap = new_xsp2cie(icxIT_custom, 0.0, &i_sp, icxOT_CIE_1931_2, NULL, icSigLabData, icxClamp)) == NULL)
 				error("new_xsp2cie pap failed");
 
 			if (bf.pap->set_fwa(bf.pap, &insp, NULL, &p_sp) != 0) 
 				error ("Setting FWA compensation failed");
 
 			/* Setup the equal energy to Lab conversion */
-			if ((bf.ref = new_xsp2cie(icxIT_E, NULL, icxOT_CIE_1931_2, NULL, icSigLabData, icxClamp)) == NULL)
+			if ((bf.ref = new_xsp2cie(icxIT_E, 0.0, NULL, icxOT_CIE_1931_2, NULL, icSigLabData, icxClamp)) == NULL)
 				error("new_xsp2cie ref failed");
 
 			/* Estimate an initial gain match */
@@ -1154,7 +1154,7 @@ int main(int argc, char *argv[])
 				xspect cpdsp;		/* FWA corrected calculated daylight paper reflectance */
 				
 				/* Setup the referencec comversion */
-				if ((cf.ref = new_xsp2cie(icxIT_E, NULL, icxOT_CIE_1931_2, NULL, icSigLabData, icxClamp)) == NULL)
+				if ((cf.ref = new_xsp2cie(icxIT_E, 0.0, NULL, icxOT_CIE_1931_2, NULL, icSigLabData, icxClamp)) == NULL)
 					error("new_xsp2cie ref failed");
 
 				cf.ill = bf.ill; 

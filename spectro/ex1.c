@@ -382,7 +382,7 @@ ex1_init_inst(inst *pp) {
 	}
 #endif /* NEVER */
 
-	p->conv = new_xsp2cie(icxIT_none, NULL, icxOT_CIE_1931_2, NULL, icSigXYZData, icxNoClamp);
+	p->conv = new_xsp2cie(icxIT_none, 0.0, NULL, icxOT_CIE_1931_2, NULL, icSigXYZData, icxNoClamp);
 
 	if (p->conv == NULL)
 		return EX1_INT_CIECONVFAIL;

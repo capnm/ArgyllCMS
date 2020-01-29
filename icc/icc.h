@@ -1784,6 +1784,12 @@ extern ICCLIB_API unsigned int icmCSSig2chanNames( icColorSpaceSignature sig, ch
 /* Copy a 2 vector */
 #define icmCpy2(d_ary, s_ary) ((d_ary)[0] = (s_ary)[0], (d_ary)[1] = (s_ary)[1])
 
+#define icmAdd2(d_ary, s1_ary, s2_ary) ((d_ary)[0] = (s1_ary)[0] + (s2_ary)[0], \
+                                        (d_ary)[1] = (s1_ary)[1] + (s2_ary)[1])
+
+#define icmSub2(d_ary, s1_ary, s2_ary) ((d_ary)[0] = (s1_ary)[0] - (s2_ary)[0], \
+                                        (d_ary)[1] = (s1_ary)[1] - (s2_ary)[1])
+
 /* Copy a 3 vector */
 #define icmCpy3(d_ary, s_ary) ((d_ary)[0] = (s_ary)[0], (d_ary)[1] = (s_ary)[1], \
                               (d_ary)[2] = (s_ary)[2])
@@ -1792,10 +1798,12 @@ extern ICCLIB_API unsigned int icmCSSig2chanNames( icColorSpaceSignature sig, ch
 #define icmCpy4(d_ary, s_ary) ((d_ary)[0] = (s_ary)[0], (d_ary)[1] = (s_ary)[1], \
                               (d_ary)[2] = (s_ary)[2], (d_ary)[3] = (s_ary)[3])
 
+/* - - - - - - - - - - - - - - */
+
 /* Clamp a 3 vector to be +ve */
 void icmClamp3(double out[3], double in[3]);
 
-/* Invert a 3 vector */
+/* Invert (negate) a 3 vector */
 void icmInv3(double out[3], double in[3]);
 
 /* Add two 3 vectors */
@@ -1832,8 +1840,6 @@ double icmDot3(double in1[3], double in2[3]);
 /* Compute the cross product of two 3D vectors, out = in1 x in2 */
 void icmCross3(double out[3], double in1[3], double in2[3]);
 
-#define icmNorm2(i) sqrt((i)[0] * (i)[0] + (i)[1] * (i)[1])
-
 /* Compute the norm squared (length squared) of a 3 vector */
 double icmNorm3sq(double in[3]);
 
@@ -1868,9 +1874,6 @@ double icmClip3marg(double out[3], double in[3]);
 
 /* Normalise a 3 vector to the given length. Return nz if not normalisable */
 int icmNormalize3(double out[3], double in[3], double len);
-
-/* Compute the norm (length) of of a vector defined by two points */
-double icmNorm22(double in1[2], double in0[2]);
 
 /* Compute the norm squared (length squared) of a vector defined by two points */
 double icmNorm33sq(double in1[3], double in0[3]);
@@ -1983,30 +1986,24 @@ double icmClip4marg(double out[4], double in[4]);
 
 /* - - - - - - - - - - - - - - - - - - - - - - - */
 
-/* Multiply 5 vector by 5x5 transform matrix */
-/* Organization is mat[out][in] */
-void icmMulBy5x5(double out[5], double mat[5][5], double in[5]);
+#define icmNorm2(i) sqrt((i)[0] * (i)[0] + (i)[1] * (i)[1])
 
-/* Transpose a 5x5 matrix */
-void icmTranspose5x5(double out[5][5], double in[5][5]);
+#define icmNorm2sq(i) ((i)[0] * (i)[0] + (i)[1] * (i)[1])
 
-/* Clip a vector to the range 0.0 .. 1.0 */
-/* and return any clipping margine */
-double icmClip5marg(double out[5], double in[5]);
+/* Compute the norm (length) of of a vector defined by two points */
+double icmNorm22(double in1[2], double in0[2]);
 
+/* Compute the norm (length) squared of of a vector defined by two points */
+double icmNorm22sq(double in1[2], double in0[2]);
 
-/* Multiply 6 vector by 6x6 transform matrix */
-/* Organization is mat[out][in] */
-void icmMulBy6x6(double out[6], double mat[6][6], double in[6]);
+/* Compute the dot product of two 2 vectors */
+double icmDot2(double in1[2], double in2[2]);
 
-/* Transpose a 6x6 matrix */
-void icmTranspose6x6(double out[6][6], double in[6][6]);
+#define ICMDOT2(o, i, j) ((o) = (i)[0] * (j)[0] + (i)[1] * (j)[1])
 
-/* Clip a vector to the range 0.0 .. 1.0 */
-/* and return any clipping margine */
-double icmClip6marg(double out[6], double in[6]);
-
-/* - - - - - - - - - - - - - - - - - - - - - - - */
+/* Compute the dot product of two 2 vectors defined by 4 points */
+/* 1->2 and 3->4 */
+double icmDot22(double in1[2], double in2[2], double in3[2], double in4[2]);
 
 /* Given 2 2D points, compute a plane equation. */
 /* The normal will be right handed given the order of the points */
@@ -2038,12 +2035,25 @@ int icmLinePointClosest2(double cp[2], double *pa,
 int icmLineIntersect2(double res[2], double p1[2], double p2[2], double p3[2], double p4[2]);
 
 /* Given two finite 2D lines define by 4 points, compute their paramaterized intersection. */
-/* aprm may be NULL */
-/* Return nz if there is no intersection (lines are parallel or do not cross in length) */
+/* aprm may be NULL. Param is prop. from p1 -> p2, p3 -> p4 */
+/* Return 2 if there is no intersection (lines are parallel) */
+/* Return 1 lines do not cross within their length */
 int icmParmLineIntersect2(double ares[2], double aprm[2], double p1[2], double p2[2], double p3[2], double p4[2]);
+
+/* Invert a 2x2 transform matrix. Return 1 if error. */
+int icmInverse2x2(double out[2][2], double in[2][2]);
 
 /* Multiply 2 array by 2x2 transform matrix */
 void icmMulBy2x2(double out[2], double mat[2][2], double in[2]);
+
+/* Compute a blend between in0 and in1 */
+void icmBlend2(double out[2], double in0[2], double in1[2], double bf);
+
+/* Scale a 2 vector by the given ratio */
+void icmScale2(double out[2], double in[2], double rat);
+
+/* Scale a 2 vector by the given ratio and add it */
+void icmScaleAdd2(double out[2], double in2[3], double in1[2], double rat);
 
 /* - - - - - - - - - - - - - - */
 

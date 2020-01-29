@@ -233,7 +233,7 @@ double quadprog(	/* Return solution cost, QP_INFEASIBLE if infeasible/error */
 	/* and compute the current solution value */ 
 	f_value = 0.5 * scalar_product(g0, x, n);
 #ifdef TRACE_SOLVER
-	printf("Unconstrained solution: %f",f_value);
+	printf("Unconstrained solution: f_value %f\n",f_value);
 	print_vector("x", x, n);
 #endif
 	
@@ -314,9 +314,11 @@ l1:	iter++;
 #endif
 	
 	if (fabs(psi) <= m * DBL_EPSILON * c1 * c2* 100.0) {
-		/* numerically there are not infeasibilities anymore */
+		/* numerically there are no infeasibilities anymore */
+#ifdef TRACE_SOLVER
+		printf("numerically there are no infeasibilities anymore\n");
+#endif
 		q = iq;
-		
 		goto done;
 	}
 	
@@ -338,8 +340,10 @@ l2:	/* Step 2: check for feasibility and determine a new S-pair */
 		}
 	}
 	if (ss >= 0.0) {
+#ifdef TRACE_SOLVER
+		printf(" ss %f >= 0.0\n",ss);
+#endif
 		q = iq;
-		
 		goto done;
 	}
 	
@@ -398,7 +402,7 @@ l2a:
 	/* the step is chosen as the minimum of t1 and t2 */
 	t = FMIN(t1, t2);
 #ifdef TRACE_SOLVER
-	printf("Step sizes: %f (t1 = %f, t2 = %f\n",t,t1,t2);
+	printf("Step size: %e (t1 = %e, t2 = %e\n",t,t1,t2);
 #endif
 	
 	/* Step 2c: determine new S-pair and take step: */
@@ -407,6 +411,9 @@ l2a:
 	if (t >= QP_INFEASIBLE) {
 		/* QPP is infeasible */
 		// FIXME: unbounded to raise
+#ifdef TRACE_SOLVER
+		printf(" QPP is infeasible\n");
+#endif
 		q = iq;
 		f_value = QP_INFEASIBLE;
 		goto done;
@@ -449,18 +456,21 @@ l2a:
 	
 	if (fabs(t - t2) < DBL_EPSILON) {
 #ifdef TRACE_SOLVER
-		printf("Full step has taken %f\n",t);
+		printf("Full step has been taken %f\n",t);
 		print_vector("x", x, n);
 #endif
-		/* full step has taken */
-		/* add constraint ip to the active set*/
+		/* full step has been taken */
+		/* Add constraint ip to the active set*/
 		if (!add_constraint(R, J, d, &iq, &R_norm, n)) {
+#ifdef TRACE_SOLVER
+			printf("add_constraint failed - removing constraint ant step\n",t);
+#endif
 			iaexcl[ip] = 0;
 			delete_constraint(R, J, A, u, n, p, &iq, ip);
 #ifdef TRACE_SOLVER
 			print_matrix("R", R, n, n);
 			print_ivector("A", A, iq);
-			print_ivector("iai", iai, iq);		// ?? iq size of m+p ?
+			print_ivector("iai", iai, m+p);
 #endif
 			for (i = 0; i < m; i++)
 				iai[i] = i;
@@ -477,7 +487,7 @@ l2a:
 #ifdef TRACE_SOLVER
 		print_matrix("R", R, n, n);
 		print_ivector("A", A, iq);
-		print_ivector("iai", iai, iq);		// ?? iq size of m+p ?
+		print_ivector("iai", iai, m + p);
 #endif
 		goto l1;
 	}
@@ -531,6 +541,11 @@ l2a:
 		free_ivector(iai, 0, m + p-1);
 		free_svector(iaexcl, 0, m + p-1);
 	}
+
+#ifdef TRACE_SOLVER
+	printf("Returning f_value %e\n",f_value);
+	print_vector("Returning x", x, n);
+#endif
 
 	return f_value;
 }

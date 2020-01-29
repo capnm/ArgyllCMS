@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <math.h>
+#include "aconfig.h"
 #include "rspl.h"
 #include "tiffio.h"
 #include "plot.h"

@@ -19,6 +19,7 @@
 
 #include <stdio.h>
 #include <math.h>
+#include "aconfig.h"
 #include "cgats.h"
 #include "xspect.h"
 #include "numlib.h"

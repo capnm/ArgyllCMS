@@ -760,8 +760,12 @@ int frbw			/* nz to Flush Read Before Write */
 		int debug = p->log->debug;
 		int bread;
 
+		p->ser_clearerr(p);
+
 		if (debug < 8)
 			p->log->debug =  0;
+		/* (Could use tcflush() or ioctl(TCFLSH) on *nix,  */
+		/*  except these don't work on USB serial ports!) */
 		for (;;) {
 			bread = 0;
 			p->read(p, tbuf, 500, &bread, NULL, 500, 0.02);
@@ -811,6 +815,11 @@ int ntc,			/* Number of terminating characters needed, or char count needed */
 double tout		/* Timeout for write and then read (i.e. max = 2 x tout) */
 ) {
 	return icoms_write_read_ex(p, wbuf, nwch, rbuf, bsize, bread, tc, ntc, tout, 0);
+}
+
+/* Default NOP implementation - Serial open or set_methods may override */ 
+static void icoms_ser_clearerr(icoms *p) {
+	return;
 }
 
 /* Optional callback to client from device */ 
@@ -907,6 +916,7 @@ icoms *new_icoms(
 	p->read = NULL;
 	p->write_read = icoms_write_read;
 	p->write_read_ex = icoms_write_read_ex;
+	p->ser_clearerr = icoms_ser_clearerr;		/* Default NOP implementation */
 	p->interrupt = icoms_interrupt;
 
 	p->del = icoms_del;

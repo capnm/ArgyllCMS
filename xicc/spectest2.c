@@ -25,14 +25,15 @@
 
 #include <stdio.h>
 #include <math.h>
+#include "aconfig.h"
 #include "cgats.h"
 #include "xspect.h"
 #include "insttypes.h"
 //#include "inst.h"
 #include "numlib.h"
 #ifdef DOPLOT
-#include "plot.h"
-#include "ui.h"
+# include "plot.h"
+# include "ui.h"
 #endif
 
 
@@ -237,7 +238,7 @@ main(void) {
 		printf("Material %d\n", m+1);
 
 		/* Create two conversions for the target/check illuminant */
-		if ((con = new_xsp2cie(icxIT_D50, NULL, icxOT_CIE_1931_2,
+		if ((con = new_xsp2cie(icxIT_D50, 0.0, NULL, icxOT_CIE_1931_2,
 		                       NULL, icSigLabData, 1)) == NULL)
 			error ("Creating conversion failed");
 

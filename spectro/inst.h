@@ -43,8 +43,8 @@
    and agreed to support.
  */
 
-#include "dev.h"			/* Base device class */
 #include "insttypes.h"		/* libinst Includes this functionality */
+#include "dev.h"			/* Base device class */
 #include "disptechs.h"		/* libinst Includes this functionality */
 #include "icoms.h"			/* libinst Includes this functionality */
 #include "conv.h"
@@ -68,6 +68,10 @@
 /* Structure for holding an instrument patch reading */
 
 #ifdef NEVER	/* Declared in xicc/xspect.h */
+
+// ~~~ should add absorbance mode -
+//     i.e. modified transmissive mode where units are
+//     log10(incident/transmitted) = Beer-Lambert Law
 
 /* Type of measurement result */
 typedef enum {						/* XYZ units,      Spectral units */

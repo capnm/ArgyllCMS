@@ -25,20 +25,20 @@ The problem is in the form:
 
 min 0.5 * x G x + g0 x
 s.t.
-    CE^T x + ce0 = 0
-    CI^T x + ci0 >= 0
+    CE^t x + ce0 = 0
+    CI^t x + ci0 >= 0
 	 
  The matrix and vectors dimensions are as follows:
-     G: n * n
-		g0: n
+      G: n * n
+	 g0: n
 				
-		CE: n * p
-	 ce0: p
+	 CE: n * p
+	ce0: p
 				
-	  CI: n * m
-   ci0: m
+	 CI: n * m
+    ci0: m
 
-     x: n
+      x: n
  
  References: D. Goldfarb, A. Idnani. A numerically stable dual method for solving
              strictly convex quadratic programs. Mathematical Programming 27 (1983) pp. 1-33.

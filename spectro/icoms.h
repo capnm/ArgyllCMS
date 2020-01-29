@@ -515,6 +515,9 @@ struct _icoms {
 		double tout,		/* Timeout in seconds */
 		int frbw);			/* nz to Flush Read Before Write */
 
+	/* For serial device, clear any errors */
+	void (*ser_clearerr)(struct _icoms *p);
+
 	/* For a USB device, do a control message */
 	/* return icom error */
 	int (*usb_control)(struct _icoms *p,

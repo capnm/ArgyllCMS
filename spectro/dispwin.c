@@ -1754,6 +1754,8 @@ static char *cur_profile(dispwin *p) {
 
 /* Return a CMProfileRef/ColorSyncProfileRef for the */
 /* displays profile. Return NULL on error */
+/* Could use CGDisplayCopyColorSpace() instead of */
+/* cur_profile_url/ColorSyncProfileCreateWithURL for 10.5 + ? */
 static void *cur_colorsync_ref(dispwin *p) {
 	void *cspr = NULL;
  
@@ -3853,6 +3855,8 @@ static void create_my_win(void *cntx) {
 #if __MAC_OS_X_VERSION_MAX_ALLOWED >= 1060
 
 	/* Get the ColorSync profile for this display */
+	/* Could use CGDisplayCopyColorSpace() instead of */
+	/* cur_colorsync_ref() code for 10.5 + ? */
 	if ((cspr = cur_colorsync_ref(p)) == NULL) {
 		debugr2((errout,"cur_colorsync_ref failed\n"));
 

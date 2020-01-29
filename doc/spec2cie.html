@@ -22,6 +22,7 @@
 
 
 
+
     <span style="font-weight: bold;">EMISINPUT</span> (See the <a
       href="ti3_format.html">description of the .ti3 format</a>. This
     would have to be done manually, as no ArgyllCMS tools generate such
@@ -38,9 +39,11 @@
 
 
 
+
           output.[ti3|sp]<br>
           &nbsp;</span></small></tt><tt><small>-v
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -58,7 +61,9 @@
 
 
 
+
           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -70,10 +75,12 @@
 
 
 
+
           &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; (only used in conjunction
           with <span style="font-weight: bold;">-f</span>)<br>
         </small></small></tt><tt><small><small>&nbsp;<a href="#f">-f [<i>illum</i>]</a>
           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -83,14 +90,17 @@
 
 
 
+
           &nbsp; &nbsp; &nbsp; &nbsp; M0, M1, M2, A, C, D50 (def.),
           D50M2, D65, F5, F8, F10 or file.sp]<br>
         </small></small></tt><tt><small><small><small>&nbsp;<a href="#i">-i
 
 
 
+
               <i>illum</i></a>&nbsp;&nbsp;
             &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -110,7 +120,9 @@
 
 
 
+
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -121,8 +133,10 @@
 
 
 
+
         &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; 1931_2 </small></tt><tt><small>
         (def.)</small></tt><tt><small>, 1964_10, </small></tt><tt><small><tt><small>2012_2,
+
 
 
             2012_10, </small></tt>S&amp;B 1955_2, shaw, J&amp;V 1978_2
@@ -140,9 +154,11 @@ output
 
 
 
+
         spectral values<br>
       </small></tt><tt><small>&nbsp;<a href="#p">-p</a>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -239,6 +255,7 @@ output
 
 
 
+
     <a href="colprof.html#f">colprof -f</a> for a fuller explanation. <br>
     <br>
     <a name="i"></a>The <b>-i</b> parameter allows specifying a
@@ -280,6 +297,13 @@ output
     particularly if the absolute rendering intent is used. Profiles
     should generally be linked with other profiles that have the same
     illuminant and observer.<br>
+    <br>
+    If a non D50 illuminant is used, then an extra set of L*a*b* output
+    fields will be created in the resulting CGATS file, containing
+    values relative to the illuminant white point. These will be
+    labelled XXXLAB_L etc, where XXX is the name of the illuminant.
+    These are informational only, and are not used by any ArgyllCMS
+    tools.<br>
     <br>
     <a name="o"></a> The <b>-o</b> flag allows specifying a tristimulus
     observer, and is used to compute PCS (Profile Connection Space)

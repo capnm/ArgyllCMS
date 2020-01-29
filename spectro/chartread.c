@@ -256,7 +256,7 @@ int trans,			/* Use transmission mode */
 int emis,			/* Use emissive mode */
 int displ,			/* 1 = Use display emissive mode, 2 = display bright rel. */
 					/* 3 = display white rel. */
-int dtype,			/* Display type selection charater */
+int ditype,			/* Display type selection charater */
 inst_opt_filter fe,	/* Optional filter */
 xcalstd scalstd,	/* X-Rite calibration standard to set */
 xcalstd *ucalstd,	/* X-Rite calibration standard actually used */
@@ -398,11 +398,11 @@ a1log *log			/* verb, debug & error log */
 			}
 
 			/* Set display type or calibration mode */
-			if (dtype != 0) {
+			if (ditype != 0) {
 
 				if (cap2 & inst2_disptype) {
 					int ix;
-					if ((ix = inst_get_disptype_index(it, dtype, 0)) < 0) {
+					if ((ix = inst_get_disptype_index(it, ditype, 0)) < 0) {
 						printf("Setting display type ix %d failed\n",ix);
 						it->del(it);
 						return -1;
@@ -2188,7 +2188,7 @@ int main(int argc, char *argv[]) {
 	int emis = 0;					/* Use emissive mode */
 	int displ = 0;					/* 1 = Use display emissive mode, 2 = display bright rel. */
 	                                /* 3 = display white rel. */
-	int dtype = 0;					/* Display type selection charater */
+	int ditype = 0;					/* Display type selection charater(s) */
 	inst_opt_filter fe = inst_opt_filter_unknown;
 	int pbypatch = 0;				/* Read patch by patch */
 	int disbidi = 0;				/* Disable bi-directional strip recognition */
@@ -2383,7 +2383,10 @@ int main(int argc, char *argv[]) {
 			} else if (argv[fa][1] == 'y') {
 				fa = nfa;
 				if (na == NULL) usage();
-				dtype = na[0];
+				ditype = na[0];
+				if (ditype == '_' && na[1] != '\000')
+					ditype = ditype << 8 | na[1];
+
 
 			/* Request patch by patch measurement */
 			} else if (argv[fa][1] == 'p') {
@@ -2998,7 +3001,7 @@ int main(int argc, char *argv[]) {
 	/* Read all of the strips in */
 	if (read_strips(itype, scols, &atype, npat, totpa, stipa, pis, paix,
 	                saix, ixord, rstart, rand, hex, ipath, fc, plen, glen, tlen,
-	                trans, emis, displ, dtype, fe, scalstd, &ucalstd, nocal, disbidi, highres,
+	                trans, emis, displ, ditype, fe, scalstd, &ucalstd, nocal, disbidi, highres,
 		            ccxxname, obType, custObserver,
 	                scan_tol, pbypatch, xtern, spectral, uvmode, accurate_expd,
 	                emit_warnings, doplot, g_log) == 0) {

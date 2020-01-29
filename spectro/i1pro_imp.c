@@ -582,25 +582,33 @@ i1pro_code i1pro_imp_init(i1pro *p) {
 
 		/* Information about the instrument */
 
-		if ((ip = m->data->get_ints(m->data, &count, key_serno)) == NULL || count < 1)
+		if ((ip = m->data->get_ints(m->data, &count, key_serno)) == NULL || count < 1) {
+			a1logd(p->log,7,"Missing key_serno\n");
 			return I1PRO_HW_CALIBINFO;
+		}
 		m->serno = ip[0];
 		a1logd(p->log,2,"Serial number = %d\n",m->serno);
 		sprintf(m->sserno,"%ud",m->serno);
 
-		if ((ip = m->data->get_ints(m->data, &count, key_dom)) == NULL || count < 1)
+		if ((ip = m->data->get_ints(m->data, &count, key_dom)) == NULL || count < 1) {
+			a1logd(p->log,7,"Missing key_dom\n");
 			return I1PRO_HW_CALIBINFO;
+		}
 		m->dom = ip[0];
 		a1logd(p->log,2, "Date of manufactur = %d-%d-%d\n",
 		                          m->dom/1000000, (m->dom/10000) % 100, m->dom % 10000);
 
-		if ((ip = m->data->get_ints(m->data, &count, key_cpldrev)) == NULL || count < 1)
+		if ((ip = m->data->get_ints(m->data, &count, key_cpldrev)) == NULL || count < 1) {
+			a1logd(p->log,7,"Missing key_cpldrev\n");
 			return I1PRO_HW_CALIBINFO;
+		}
 		m->cpldrev = ip[0];
 		a1logd(p->log,2,"CPLD rev = %d\n",m->cpldrev);
 
-		if ((ip = m->data->get_ints(m->data, &count, key_capabilities)) == NULL || count < 1)
+		if ((ip = m->data->get_ints(m->data, &count, key_capabilities)) == NULL || count < 1) {
+			a1logd(p->log,7,"Missing key_capabilities\n");
 			return I1PRO_HW_CALIBINFO;
+		}
 		m->capabilities = ip[0];
 		if (m->capabilities & 0x6000)		/* Has ambient */
 			m->capabilities2 |= I1PRO_CAP2_AMBIENT;	/* Mimic in capabilities2 */
@@ -608,8 +616,10 @@ i1pro_code i1pro_imp_init(i1pro *p) {
 		if (m->capabilities & 0x6000)
 			a1logd(p->log,2," Can read ambient\n");
 
-		if ((ip = m->data->get_ints(m->data, &count, key_physfilt)) == NULL || count < 1)
+		if ((ip = m->data->get_ints(m->data, &count, key_physfilt)) == NULL || count < 1) {
+			a1logd(p->log,7,"Missing key_physfilt\n");
 			return I1PRO_HW_CALIBINFO;
+		}
 		m->physfilt = ip[0];
 		if (m->physfilt == 0x82)
 			m->capabilities2 |= I1PRO_CAP2_UV_FILT;	/* Mimic in cap 2 */
@@ -639,10 +649,14 @@ i1pro_code i1pro_imp_init(i1pro *p) {
 			if (m->nsen > NSEN_MAX)		/* Static allocation assumed */
 				return I1PRO_HW_UNEX_SPECPARMS;
 		}
-		if (m->data->get_ints(m->data, &m->nwav[0], key_mtx_index) == 0)
+		if (m->data->get_ints(m->data, &m->nwav[0], key_mtx_index) == 0) {
+			a1logd(p->log,7,"Missing key_mtx_index\n");
 			return I1PRO_HW_CALIBINFO;
-		if (m->nwav[0] != 36)
+		}
+		if (m->nwav[0] != 36) {
+			a1logd(p->log,7,"key_mtx_index != 36 elements\n");
 			return I1PRO_HW_CALIBINFO;
+		}
 		m->wl_short[0] = 380.0;		/* Normal res. range */
 		m->wl_long[0] = 730.0;
 
@@ -651,18 +665,24 @@ i1pro_code i1pro_imp_init(i1pro *p) {
 		m->wl_long[1] = HIGHRES_LONG;
 		m->nwav[1] = (int)((m->wl_long[1]-m->wl_short[1])/HIGHRES_WIDTH + 0.5) + 1;	
 
-		if ((dp = m->data->get_doubles(m->data, &count, key_hg_factor)) == NULL || count < 1)
+		if ((dp = m->data->get_doubles(m->data, &count, key_hg_factor)) == NULL || count < 1) {
+			a1logd(p->log,7,"Missing key_hg_factor\n");
 			return I1PRO_HW_CALIBINFO;
+		}
 		m->highgain = dp[0];
 		a1logd(p->log,2,"High gain         = %.10f\n",m->highgain);
 
 		if ((m->lin0 = m->data->get_doubles(m->data, &m->nlin0, key_ng_lin)) == NULL
-		                                                               || m->nlin0 < 1)
+		                                                               || m->nlin0 < 1) {
+			a1logd(p->log,7,"Missing key_ng_lin\n");
 			return I1PRO_HW_CALIBINFO;
+		}
 
 		if ((m->lin1 = m->data->get_doubles(m->data, &m->nlin1, key_hg_lin)) == NULL
-		                                                               || m->nlin1 < 1)
+		                                                               || m->nlin1 < 1) {
+			a1logd(p->log,7,"Missing key_hg_lin\n");
 			return I1PRO_HW_CALIBINFO;
+		}
 
 		if (p->log->debug >= 2) {
 			char oline[200] = { '\000' }, *bp = oline;
@@ -681,8 +701,10 @@ i1pro_code i1pro_imp_init(i1pro *p) {
 			a1logd(p->log,2,oline);
 		}
 
-		if ((dp = m->data->get_doubles(m->data, &count, key_min_int_time)) == NULL || count < 1)
+		if ((dp = m->data->get_doubles(m->data, &count, key_min_int_time)) == NULL || count < 1) {
+			a1logd(p->log,7,"Missing key_min_int_time\n");
 			return I1PRO_HW_CALIBINFO;
+		}
 		m->min_int_time = dp[0];
 
 		/* And then override it */
@@ -695,62 +717,84 @@ i1pro_code i1pro_imp_init(i1pro *p) {
 				m->min_int_time = 0.00884;		/* == 1 sub clock */
 		}
 
-		if ((dp = m->data->get_doubles(m->data, &count, key_max_int_time)) == NULL || count < 1)
+		if ((dp = m->data->get_doubles(m->data, &count, key_max_int_time)) == NULL || count < 1) {
+			a1logd(p->log,7,"Missing key_max_int_time\n");
 			return I1PRO_HW_CALIBINFO;
+		}
 		m->max_int_time = dp[0];
 
 
 		if ((m->mtx_o.index = m->data->get_ints(m->data, &count, key_mtx_index)) == NULL
-		                                                                   || count != m->nwav[0])
+		                                                       || count != m->nwav[0]) {
+			a1logd(p->log,7,"Missing key_mtx_index\n");
 			return I1PRO_HW_CALIBINFO;
+		}
 
 		if ((m->mtx_o.nocoef = m->data->get_ints(m->data, &count, key_mtx_nocoef)) == NULL
-		                                                                   || count != m->nwav[0])
+		                                                           || count != m->nwav[0]) {
+			a1logd(p->log,7,"Missing key_mtx_nocoef\n");
 			return I1PRO_HW_CALIBINFO;
+		}
 
 		for (xcount = i = 0; i < m->nwav[0]; i++)	/* Count number expected in matrix coeffs */
 			xcount += m->mtx_o.nocoef[i];
 
 		if ((m->mtx_o.coef = m->data->get_doubles(m->data, &count, key_mtx_coef)) == NULL
-		                                                                    || count != xcount)
+		                                                             || count != xcount) {
+			a1logd(p->log,7,"Missing key_mtx_coef\n");
 			return I1PRO_HW_CALIBINFO;
+		}
 
 		if ((m->white_ref[0] = m->data->get_doubles(m->data, &count, key_white_ref)) == NULL
-		                                                                   || count != m->nwav[0]) {
-			if (p->dtype != instI1Monitor)
+		                                                           || count != m->nwav[0]) {
+			if (p->dtype != instI1Monitor) {
+				a1logd(p->log,7,"Missing key_white_ref\n");
 				return I1PRO_HW_CALIBINFO;
+			}
 			m->white_ref[0] = NULL;
 		}
 
 		if ((m->emis_coef[0] = m->data->get_doubles(m->data, &count, key_emis_coef)) == NULL
-		                                                                   || count != m->nwav[0])
+		                                                           || count != m->nwav[0]) {
+			a1logd(p->log,7,"Missing key_emis_coef\n");
 			return I1PRO_HW_CALIBINFO;
+		}
 
 		if ((m->amb_coef[0] = m->data->get_doubles(m->data, &count, key_amb_coef)) == NULL
-		                                                                   || count != m->nwav[0]) {
+		                                                          || count != m->nwav[0]) {
 			if (p->dtype != instI1Monitor
-			 && m->capabilities & 0x6000)		/* Expect ambient calibration */
+			 && m->capabilities & 0x6000) {		/* Expect ambient calibration */
+				a1logd(p->log,7,"Missing key_amb_coef\n");
 				return I1PRO_HW_CALIBINFO;
+			}
 			m->amb_coef[0] = NULL;
 		}
 		/* Default to original EEProm raw to wav filters values*/
 		m->mtx[0][0] = m->mtx_o;	/* Std res reflective */
 		m->mtx[0][1] = m->mtx_o;	/* Std res emissive */
 
-		if ((ip = m->data->get_ints(m->data, &count, key_sens_target)) == NULL || count < 1)
+		if ((ip = m->data->get_ints(m->data, &count, key_sens_target)) == NULL || count < 1) {
+			a1logd(p->log,7,"Missing key_sens_target\n");
 			return I1PRO_HW_CALIBINFO;
+		}
 		m->sens_target = ip[0];
 
-		if ((ip = m->data->get_ints(m->data, &count, key_sens_dark)) == NULL || count < 1)
+		if ((ip = m->data->get_ints(m->data, &count, key_sens_dark)) == NULL || count < 1) {
+			a1logd(p->log,7,"Missing key_sens_dark\n");
 			return I1PRO_HW_CALIBINFO;
+		}
 		m->sens_dark = ip[0];
 
-		if ((ip = m->data->get_ints(m->data, &count, key_ng_sens_sat)) == NULL || count < 1)
+		if ((ip = m->data->get_ints(m->data, &count, key_ng_sens_sat)) == NULL || count < 1) {
+			a1logd(p->log,7,"Missing key_ng_sens_sat\n");
 			return I1PRO_HW_CALIBINFO;
+		}
 		m->sens_sat0 = ip[0];
 
-		if ((ip = m->data->get_ints(m->data, &count, key_hg_sens_sat)) == NULL || count < 1)
+		if ((ip = m->data->get_ints(m->data, &count, key_hg_sens_sat)) == NULL || count < 1) {
+			a1logd(p->log,7,"Missing key_hg_sens_sat\n");
 			return I1PRO_HW_CALIBINFO;
+		}
 		m->sens_sat1 = ip[0];
 
 		a1logd(p->log,2,"sens_target %d, sens_dark %d, sens_sat0 %d, sens_sat1 %d\n",
@@ -809,8 +853,10 @@ i1pro_code i1pro_imp_init(i1pro *p) {
 
 		/* Capability bits */
 		if ((ip = m->data->get_ints(m->data, &count, key2_capabilities)) == NULL
-		                                                                  || count != 1)
+		                                                           || count != 1) {
+			a1logd(p->log,7,"Missing key2_capabilities\n");
 			return I1PRO_HW_CALIBINFO;
+		}
 		m->capabilities2 = *ip;
 		if (p->log->debug >= 2) {
 			a1logd(p->log,2,"Capabilities2 flag = 0x%x\n",m->capabilities2);
@@ -831,64 +877,94 @@ i1pro_code i1pro_imp_init(i1pro *p) {
 		if (m->capabilities2 & I1PRO_CAP2_WL_LED) {
 			/* wavelength LED calibration integration time (0.56660) */
 			if ((dp = m->data->get_doubles(m->data, &count, key2_wlcal_intt)) == NULL
-			                                                                  || count != 1)
+			                                                           || count != 1) {
+				a1logd(p->log,7,"Missing key2_wlcal_intt\n");
 				return I1PRO_HW_CALIBINFO;
+			}
 			m->wl_cal_inttime = *dp;
 	
 			/* Wavelength calibration minimum level */
 			if ((ip = m->data->get_ints(m->data, &count, key2_wlcal_minlev)) == NULL
-			                                                                  || count != 1)
+			                                                         || count != 1) {
+				a1logd(p->log,7,"Missing key2_wlcal_minlev\n");
 				return I1PRO_HW_CALIBINFO;
+			}
 			/* Normalize it to 1.0 seconds (ie. 500/0.56660) */
 			m->wl_cal_min_level = (double)(*ip) / m->wl_cal_inttime;
 	
 			/* wavelength LED measurement expected FWHM in nm */
 			if ((dp = m->data->get_doubles(m->data, &count, key2_wlcal_fwhm)) == NULL
-			                                                                  || count != 1)
+			                                                          || count != 1) {
+				a1logd(p->log,7,"Missing key2_wlcal_fwhm\n");
 				return I1PRO_HW_CALIBINFO;
+			}
 			m->wl_cal_fwhm = *dp;
 	
 			/* wavelength LED measurement FWHM tollerance in nm */
 			if ((dp = m->data->get_doubles(m->data, &count, key2_wlcal_fwhm_tol)) == NULL
-			                                                                  || count != 1)
+			                                                              || count != 1) {
+				a1logd(p->log,7,"Missing key2_wlcal_fwhm_tol\n");
 				return I1PRO_HW_CALIBINFO;
+			}
 			m->wl_cal_fwhm_tol = *dp;
 	
 			/* wavelength LED reference spectrum */
-			if ((m->wl_led_spec = m->data->get_doubles(m->data, &m->wl_led_count, key2_wlcal_spec)) == NULL)
+			if ((m->wl_led_spec = m->data->get_doubles(m->data, &m->wl_led_count,
+				                                       key2_wlcal_spec)) == NULL) {
+				a1logd(p->log,7,"Missing key2_wlcal_spec\n");
 				return I1PRO_HW_CALIBINFO;
+			}
 	
 			/* wavelength LED spectraum reference offset */
 			if ((ip = m->data->get_ints(m->data, &count, key2_wlcal_ooff)) == NULL
-			                                                                  || count != 1)
+			                                                       || count != 1) {
+				a1logd(p->log,7,"Missing key2_wlcal_ooff\n");
 				return I1PRO_HW_CALIBINFO;
+			}
 			m->wl_led_ref_off = *ip;
 			/* Hmm. this is odd, but it doesn't work correctly otherwise... */
 			m->wl_led_ref_off--;
 	
 			/* wavelength calibration maximum error */
 			if ((dp = m->data->get_doubles(m->data, &count, key2_wlcal_max)) == NULL
-			                                                                  || count != 1)
+			                                                           || count != 1) {
+				a1logd(p->log,7,"Missing key2_wlcal_max\n");
 				return I1PRO_HW_CALIBINFO;
+			}
 			m->wl_err_max = *dp;
 		}
 
-		/* CCD bin to wavelength polinomial */
-		if ((m->wlpoly1 = m->data->get_doubles(m->data, &count, key2_wlpoly_1)) == NULL || count != 4)
+		/* CCD bin to wavelength polinomial (Emission) */
+		if ((m->wlpoly2 = m->data->get_doubles(m->data, &count, key2_wlpoly_2)) == NULL
+			                                                             || count != 4) {
+			a1logd(p->log,7,"Missing key2_wlpoly_2\n");
 			return I1PRO_HW_CALIBINFO;
+		}
 
-		if ((m->wlpoly2 = m->data->get_doubles(m->data, &count, key2_wlpoly_2)) == NULL || count != 4)
-			return I1PRO_HW_CALIBINFO;
+		/* CCD bin to wavelength polinomial (Reflection) */
+		if ((m->wlpoly1 = m->data->get_doubles(m->data, &count, key2_wlpoly_1)) == NULL || count != 4) {
+			/* Hmm. no key2_wlpoly_1. This seems to be the case for */
+			/* some stripped down OEM instruments. Use key2_wlpoly_2 instead */
+			if ((m->wlpoly2 = m->data->get_doubles(m->data, &count, key2_wlpoly_2)) == NULL
+				                                                              || count != 4) {
+				a1logd(p->log,7,"Missing key2_wlpoly_1 and key2_wlpoly_2\n");
+				return I1PRO_HW_CALIBINFO;
+			}
+		}
 
 		/* Stray light compensation. Note that 16 bit numbers are signed. */
 		if ((sip = m->data->get_shorts(m->data, &count, key2_straylight)) == NULL
-		                                                          || count != (36 * 36))
+		                                                     || count != (36 * 36)) {
+			a1logd(p->log,7,"Missing key2_straylight\n");
 			return I1PRO_HW_CALIBINFO;
+		}
 
 		/* stray light scale factor */
 		if ((dp = m->data->get_doubles(m->data, &count, key2_straylight_scale)) == NULL
-		                                                                  || count != 1)
+		                                                                  || count != 1) {
+			a1logd(p->log,7,"Missing key2_straylight_scale\n");
 			return I1PRO_HW_CALIBINFO;
+		}
 
 		/* Convert from ints to floats */
 		m->straylight[0] = dmatrixz(0, 35, 0, 35);  
@@ -1060,6 +1136,7 @@ i1pro_code i1pro_imp_init(i1pro *p) {
 					s->scan = 1;
 					s->adaptive = 1;
 					s->inttime = m->min_int_time;	/* Maximize scan rate */
+													/* (see i1pro_imp_calibrate() too) */
 					s->dark_int_time = s->inttime;
 					if (m->fwrev >= 301)			/* (We're not using scan targoscale though) */
 						s->targoscale = 0.25;
@@ -1127,6 +1204,7 @@ i1pro_code i1pro_imp_init(i1pro *p) {
 					s->scan = 1;
 					s->adaptive = 1;			/* ???? */
 					s->inttime = m->min_int_time;	/* Maximize scan rate */
+													/* (see i1pro_imp_calibrate() too) */
 					s->lamptime = 0.0;
 					s->dark_int_time = s->inttime;
 					if (m->fwrev >= 301)
@@ -1223,6 +1301,7 @@ i1pro_code i1pro_imp_init(i1pro *p) {
 					s->scan = 1;
 					s->adaptive = 0;
 					s->inttime = m->min_int_time;	/* Maximize scan rate */
+													/* (see i1pro_imp_calibrate() too) */
 					s->dark_int_time = s->inttime;
 					if (m->fwrev >= 301)			/* (We're not using scan targoscale though) */
 						s->targoscale = 0.25;
@@ -10175,9 +10254,9 @@ i1pro_code i1pro_conv2XYZ(
 	double sms;			/* Weighting */
 
 	if (s->emiss)
-		conv = new_xsp2cie(icxIT_none, NULL, icxOT_CIE_1931_2, NULL, icSigXYZData, (icxClamping)clamp);
+		conv = new_xsp2cie(icxIT_none, 0.0, NULL, icxOT_CIE_1931_2, NULL, icSigXYZData, (icxClamping)clamp);
 	else
-		conv = new_xsp2cie(icxIT_D50, NULL, icxOT_CIE_1931_2, NULL, icSigXYZData, (icxClamping)clamp);
+		conv = new_xsp2cie(icxIT_D50, 0.0, NULL, icxOT_CIE_1931_2, NULL, icSigXYZData, (icxClamping)clamp);
 	if (conv == NULL)
 		return I1PRO_INT_CIECONVFAIL;
 
@@ -10325,16 +10404,16 @@ i1pro_code i1pro_check_white_reference1(
 
 	/* And check them against tolerance for the illuminant. */
 	if (m->physfilt == 0x82) {		/* UV filter */
-		a1logd(p->log,2,"Checking white reference (UV): 0.0 < avg01 %f < 0.05, 1.2 < avg2227 %f < 1.76\n",avg01,avg2227);
-		if (0.0 < avg01 && avg01 < 0.05
-		 && 1.2 < avg2227 && avg2227 < 1.76) {
+		a1logd(p->log,2,"Checking white reference (UV): 0.0 <= avg01 %f <= 0.05, 1.2 <= avg2227 %f <= 1.76\n",avg01,avg2227);
+		if (0.0 <= avg01 && avg01 <= 0.05
+		 && 1.2 <= avg2227 && avg2227 <= 1.76) {
 			return I1PRO_OK;
 		}
 
 	} else {						/* No filter */
-		a1logd(p->log,2,"Checking white reference: 0.11 < avg01 %f < 0.22, 1.35 < avg2227 %f < 1.6\n",avg01,avg2227);
-		if (0.11 < avg01 && avg01 < 0.22
-		 && 1.35 < avg2227 && avg2227 < 1.6) {
+		a1logd(p->log,2,"Checking white reference: 0.11 <= avg01 %f <= 0.22, 1.35 <= avg2227 %f <= 1.6\n",avg01,avg2227);
+		if (0.11 <= avg01 && avg01 <= 0.22
+		 && 1.35 <= avg2227 && avg2227 <= 1.6) {
 			return I1PRO_OK;
 		}
 	}

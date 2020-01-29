@@ -330,7 +330,7 @@ static disptech_info disptech_info_array[] = {
 };
 
 
-static int unknown_ix = -1;
+static int unknown_ix = -1;			/* Set to actual index by find_unknown() */
 
 static void find_unknown() {
 	int i;

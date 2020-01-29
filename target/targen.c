@@ -18,6 +18,8 @@
 
 /* TTBD:
 
+	Should add option to create just surface test patches.
+
 	Should add an option to generate grey and near grey
 	or other PCS based pattern test points based on the previous profile.
 	How about an option to read in an CGATS file containing

@@ -13560,7 +13560,7 @@ void icmClamp3(double out[3], double in[3]) {
 		out[i] = in[i] < 0.0 ? 0.0 : in[i];
 }
 
-/* Invert a 3 vector */
+/* Invert (negate) a 3 vector */
 void icmInv3(double out[3], double in[3]) {
 	int i;
 	for (i = 0; i < 3; i++)
@@ -13858,7 +13858,7 @@ double in[3][3]
      */
     det = icmDet3x3(in);
 
-    if ( fabs(det) < ICM_SMALL_NUMBER)
+    if (fabs(det) < ICM_SMALL_NUMBER)
         return 1;
 
     /* calculate the adjoint matrix */
@@ -13868,6 +13868,23 @@ double in[3][3]
     for (i = 0; i < 3; i++)
         for(j = 0; j < 3; j++)
 		    out[i][j] /= det;
+	return 0;
+}
+
+/* Invert a 2x2 transform matrix. Return 1 if error. */
+int icmInverse2x2(double out[2][2], double in[2][2]) {
+	double det = det2x2(in[0][0], in[0][1], in[1][0], in[1][1]);
+
+    if (fabs(det) < ICM_SMALL_NUMBER)
+        return 1;
+
+	det = 1.0/det;
+
+	out[0][0] = det * in[1][1];
+	out[0][1] = det * -in[0][1];
+	out[1][0] = det * -in[1][0];
+	out[1][1] = det * in[0][0];
+
 	return 0;
 }
 
@@ -14004,17 +14021,6 @@ int icmNormalize3(double out[3], double in[3], double len) {
 	out[1] = in[1] * tt;
 	out[2] = in[2] * tt;
 	return 0;
-}
-
-/* Compute the norm (length) of a vector define by two points */
-double icmNorm22(double in1[2], double in0[2]) {
-	int j;
-	double rv;
-	for (rv = 0.0, j = 0; j < 2; j++) {
-		double tt = in1[j] - in0[j];
-		rv += tt * tt;
-	}
-	return sqrt(rv);
 }
 
 /* Compute the norm (length) squared of a vector define by two points */
@@ -14228,143 +14234,6 @@ double icmClip4marg(double out[4], double in[4]) {
 		}
 	}
 	return marg;
-}
-
-/* - - - - - - - - - - - - - - - - - - - - - - - - */
-
-/* 
-
-  mat     in    out
-
-[     ]   []    []
-[     ]   []    []
-[     ] * [] => []
-[     ]   []    []
-[     ]   []    []
-
- */
-
-/* Multiply 5 array by 5x5 transform matrix */
-void icmMulBy5x5(double out[5], double mat[5][5], double in[5]) {
-	int i, j;
-	double tt[5];
-
-	for (i = 0; i < 5; i++) {
-		tt[i] = 0.0;
-		for (j = 0; j < 5; j++)
-			tt[i] += mat[i][j] * in[j];
-	}
-
-	for (i = 0; i < 5; i++)
-		out[i] = tt[i];
-}
-
-/* Transpose a 5x5 matrix */
-void icmTranspose5x5(double out[5][5], double in[5][5]) {
-	int i, j;
-	if (out != in) {
-		for (i = 0; i < 5; i++)
-			for (j = 0; j < 5; j++)
-				out[i][j] = in[j][i];
-	} else {
-		double tt[5][5];
-		for (i = 0; i < 5; i++)
-			for (j = 0; j < 5; j++)
-				tt[i][j] = in[j][i];
-		for (i = 0; i < 5; i++)
-			for (j = 0; j < 5; j++)
-				out[i][j] = tt[i][j];
-	}
-}
-
-/* Clip a vector to the range 0.0 .. 1.0 */
-/* and return any clipping margine */
-double icmClip5marg(double out[5], double in[5]) {
-	int j;
-	double tt, marg = 0.0;
-	for (j = 0; j < 5; j++) {
-		out[j] = in[j];
-		if (out[j] < 0.0) {
-			tt = 0.0 - out[j];
-			out[j] = 0.0;
-			if (tt > marg)
-				marg = tt;
-		} else if (out[j] > 1.0) {
-			tt = out[j] - 1.0;
-			out[j] = 1.0;
-			if (tt > marg)
-				marg = tt;
-		}
-	}
-	return marg;
-}
-
-
-/* Multiply 6 array by 6x6 transform matrix */
-void icmMulBy6x6(double out[6], double mat[6][6], double in[6]) {
-	int i, j;
-	double tt[6];
-
-	for (i = 0; i < 6; i++) {
-		tt[i] = 0.0;
-		for (j = 0; j < 6; j++)
-			tt[i] += mat[i][j] * in[j];
-	}
-
-	for (i = 0; i < 6; i++)
-		out[i] = tt[i];
-}
-
-/* Transpose a 6x6 matrix */
-void icmTranspose6x6(double out[6][6], double in[6][6]) {
-	int i, j;
-	if (out != in) {
-		for (i = 0; i < 6; i++)
-			for (j = 0; j < 6; j++)
-				out[i][j] = in[j][i];
-	} else {
-		double tt[6][6];
-		for (i = 0; i < 6; i++)
-			for (j = 0; j < 6; j++)
-				tt[i][j] = in[j][i];
-		for (i = 0; i < 6; i++)
-			for (j = 0; j < 6; j++)
-				out[i][j] = tt[i][j];
-	}
-}
-
-/* Clip a vector to the range 0.0 .. 1.0 */
-/* and return any clipping margine */
-double icmClip6marg(double out[6], double in[6]) {
-	int j;
-	double tt, marg = 0.0;
-	for (j = 0; j < 6; j++) {
-		out[j] = in[j];
-		if (out[j] < 0.0) {
-			tt = 0.0 - out[j];
-			out[j] = 0.0;
-			if (tt > marg)
-				marg = tt;
-		} else if (out[j] > 1.0) {
-			tt = out[j] - 1.0;
-			out[j] = 1.0;
-			if (tt > marg)
-				marg = tt;
-		}
-	}
-	return marg;
-}
-
-/* - - - - - - - - - - - - - - - - - - - - - - - - */
-/* Multiply 2 array by 2x2 transform matrix */
-void icmMulBy2x2(double out[2], double mat[2][2], double in[2]) {
-	double tt[2];
-
-	tt[0] = mat[0][0] * in[0] + mat[0][1] * in[1];
-	tt[1] = mat[1][0] * in[0] + mat[1][1] * in[1];
-
-	out[0] = tt[0];
-	out[1] = tt[1];
 }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -14638,6 +14507,52 @@ double icmPlaneDist3(double eq[4], double p[3]) {
 }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - */
+
+/* Compute the norm (length) of a vector define by two points */
+double icmNorm22(double in1[2], double in0[2]) {
+	int j;
+	double rv;
+	for (rv = 0.0, j = 0; j < 2; j++) {
+		double tt = in1[j] - in0[j];
+		rv += tt * tt;
+	}
+	return sqrt(rv);
+}
+
+/* Compute the norm (length) squared of of a vector defined by two points */
+double icmNorm22sq(double in1[2], double in0[2]) {
+	int j;
+	double rv;
+	for (rv = 0.0, j = 0; j < 2; j++) {
+		double tt = in1[j] - in0[j];
+		rv += tt * tt;
+	}
+	return rv;
+}
+
+/* Multiply 2 array by 2x2 transform matrix */
+void icmMulBy2x2(double out[2], double mat[2][2], double in[2]) {
+	double tt[2];
+
+	tt[0] = mat[0][0] * in[0] + mat[0][1] * in[1];
+	tt[1] = mat[1][0] * in[0] + mat[1][1] * in[1];
+
+	out[0] = tt[0];
+	out[1] = tt[1];
+}
+
+/* Compute the dot product of two 2 vectors */
+double icmDot2(double in1[2], double in2[2]) {
+	return in1[0] * in2[0] + in1[1] * in2[1];
+}
+
+/* Compute the dot product of two 2 vectors defined by 4 points */
+/* 1->2 and 3->4 */
+double icmDot22(double in1[2], double in2[2], double in3[2], double in4[2]) {
+	return (in2[0] - in1[0]) * (in4[0] - in3[0])
+	     + (in2[1] - in1[1]) * (in4[1] - in3[1]);
+}
+
 /* Given 2 2D points, compute a plane equation (implicit line equation). */
 /* The normal will be right handed given the order of the points */
 /* The plane equation will be the 2 normal components and the constant. */
@@ -14769,7 +14684,7 @@ int icmLineIntersect2(double res[2], double p1[2], double p2[2], double p3[2], d
 }
 
 /* Given two finite 2D lines define by 4 points, compute their paramaterized intersection. */
-/* aprm may be NULL */
+/* aprm may be NULL. Param is prop. from p1 -> p2, p3 -> p4 */
 /* Return 2 if there is no intersection (lines are parallel) */
 /* Return 1 lines do not cross within their length */
 int icmParmLineIntersect2(double res[2], double aprm[2], double p1[2], double p2[2], double p3[2], double p4[2]) {
@@ -14803,6 +14718,23 @@ int icmParmLineIntersect2(double res[2], double aprm[2], double p1[2], double p2
 	return 0;
 }
 
+/* Compute a blend between in0 and in1 */
+void icmBlend2(double out[2], double in0[2], double in1[2], double bf) {
+	out[0] = (1.0 - bf) * in0[0] + bf * in1[0];
+	out[1] = (1.0 - bf) * in0[1] + bf * in1[1];
+}
+
+/* Scale a 2 vector by the given ratio */
+void icmScale2(double out[2], double in[2], double rat) {
+	out[0] = in[0] * rat;
+	out[1] = in[1] * rat;
+}
+
+/* Scale a 2 vector by the given ratio and add it */
+void icmScaleAdd2(double out[3], double in2[2], double in1[2], double rat) {
+	out[0] = in2[0] + in1[0] * rat;
+	out[1] = in2[1] + in1[1] * rat;
+}
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - */
 /* CIE Y (range 0 .. 1) to perceptual CIE 1976 L* (range 0 .. 100) */
@@ -14893,12 +14825,14 @@ icmLab2XYZ(icmXYZNumber *w, double *out, double *in) {
  * This is a modern update to L*a*b*, based on IPT space.
  *
  * Differences to L*a*b* and IPT:
- *	Using inverse CIE 2012 2degree LMS to XYZ matrix instead of Hunt-Pointer-Estevez
+ *	Using inverse CIE 2012 2degree LMS to XYZ matrix instead of Hunt-Pointer-Estevez.
  *  Von Kries chromatic adapation in LMS space.
  *  Using L* compression rather than IPT pure 0.43 power.
  *  Tweaked LMS' to IPT matrix to account for change in XYZ to LMS matrix.
  *  Output scaled to L*a*b* type ranges, to maintain 1 JND scale.
- *  (Watch out - L* value is not a non-linear Y value though!).
+ *  (Watch out - L* value is not a non-linear Y value though!
+ *   - Interesting that Dolby force L to be just dependent on Y
+ *     by making L = 0.5 L | 0.5 M in ICtCp space).
  */
 
 /* CIE XYZ to perceptual Lpt */

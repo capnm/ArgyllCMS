@@ -14,9 +14,9 @@
 /* return 0 on sucess, 1 on failure due to excessive itterations */
 /* Result will be in cp */
 int dhsx(
- double *rv,				/* If not NULL, return the residual error */
- int di,					/* Dimentionality */
- double *cp,				/* Initial starting point, return minimum */
+ double *rv,			/* If not NULL, return the residual error */
+ int di,				/* Dimentionality */
+ double *cp,			/* Initial starting point, return minimum */
  double *s,				/* Size of initial search area */
  double ftol,			/* Finishing tollerance of error change */
  double athr,			/* Absolute return value threshold. (Set high to not use) */

@@ -383,11 +383,9 @@ specbos_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 		if (dispen) {
 			p->model = 1511;
 
-			/* Set remote mode */
+			/* Set remote mode (for old firmare) */
 			if ((ev = specbos_command(p, "*REMOTE 1\r", buf, MAX_MES_SIZE, 1.0)) != inst_ok) {
-				amutex_unlock(p->lock);
-				a1logd(p->log, 2, "specbos_init_coms: failed to set remote mode\n");
-				return inst_protocol_error;
+				a1logd(p->log, 2, "specbos_init_coms: remote command failed (newer firmware ?)\n");
 			}
 		}
 
@@ -579,6 +577,9 @@ specbos_init_inst(inst *pp) {
 		}
 	}
 
+	/* Set target maximum measure time (no averaging) */
+	/* (We will then setup instrument to compy with this target) */
+	/* 3.6 is the assumed maximum fixed overhead */
 	p->measto = 20.0;		/* Set default. Specbos default is 60.0 */
 
 	if (p->model == 1211)
@@ -624,10 +625,11 @@ specbos_init_inst(inst *pp) {
 			return ev;
 		}
 #else	/* Bound auto by no. averages (better - limit maxint to 1.0) */
-		double dmaxtint = 1.0;		/* Recommended maximum */
+		double dmaxtint = 1.0;		/* Recommended maximum is 1.0 */
 		int maxtint;
 		int maxaver;	/* Maximum averages for auto int time */
 
+		/* Set the max integration time to 1.0 seconds: */
 		maxtint = (int)(dmaxtint * 1000.0+0.5);
 
 		if (maxtint < 1000 || maxtint > 64999) {
@@ -638,22 +640,23 @@ specbos_init_inst(inst *pp) {
 				maxtint = 64999;
 		}
 
-		/* Set maximum integration time */
 		sprintf(mes, "*para:maxtint %d\r", maxtint);
 		if ((ev = specbos_command(p, mes, buf, MAX_MES_SIZE, 1.0)) != inst_ok) {
 			amutex_unlock(p->lock);
 			return ev;
 		}
 
+		/* Then compute the maximum number of measurements to meet measto: */
+
 		/* Total time = overhead + initial sample + 2 * int time per measure */
 		maxaver = (int)ceil((p->measto - 3.6)/(2.0 * dmaxtint));
-
-		//printf("maxaver %d\n",maxaver);
 
 		if (maxaver < 2) {
 			warning("specbos: assert, maxaver %d out of range",maxaver);
 			maxaver = 2;
 		}
+
+		a1logd(p->log, 6, "specbos_init_inst: set maxaver %d\n",maxaver);
 
 		/* Set maximum number of auto averages. Min value is 2 */
 		sprintf(mes, "*para:maxaver %d\r", maxaver);
@@ -679,16 +682,25 @@ specbos_init_inst(inst *pp) {
 			warning("specbos: assert, maxtint %d out of range",maxtin);
 			if (maxtin < 1000)
 				maxtin = 1000;
-			else if (maxtin > 64999)
-				maxtin = 64999;
+			else if (maxtin > 60000)		/* 60 secs according to auxiliary doco. */
+				maxtin = 60000;
 		}
 
-		/* Set maximum integration time */
-		/* (1201 *para:maxtint doesn't work !!) */
+		/* Set maximum integration time that auto will use */
 		sprintf(mes, "*conf:maxtin %d\r", maxtin);
 		if ((ev = specbos_command(p, mes, buf, MAX_MES_SIZE, 1.0)) != inst_ok) {
-			amutex_unlock(p->lock);
-			return ev;
+			/* 1201 Firmware V1.8.3 and earlier doesn't support maxtin. */
+			/* Ignore error with a warning. */
+			if (p->model == 1201) {
+				if (!p->maxtin_warn)
+					warning("specbos: conf:maxtin %d command failed (Old Firmware ?)",maxtin);
+				p->maxtin_warn = 1;
+
+			/* Fatal error otherwise */
+			} else {
+				amutex_unlock(p->lock);
+				return ev;
+			}
 		}
 
 #ifdef NEVER	/* Use default */
@@ -972,6 +984,7 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 	int user_trig = 0;
 	int pos = -1;
 	inst_code rv = inst_protocol_error;
+	double measto = p->measto;
 
 	if (!p->gotcoms)
 		return inst_no_coms;
@@ -1062,10 +1075,21 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 		if ((rv = set_average(p, p->noaverage, 0)) != inst_ok)
 			return rv;
 
+		/* Adjust timeout to account for averaging */
+		/* (Allow extra 1 sec fudge factor per average) */
+		if (p->noaverage > 1) {
+			measto = p->noaverage * (p->measto - 3.6 + 1.0) + 3.6;
+			a1logd(p->log, 6, " Adjusted measto to %f for noaver %d\n",measto,p->noaverage);
+		}
+
 	/* Set to average 10 readings for transmission */
 	} else if ((p->mode & inst_mode_illum_mask) == inst_mode_transmission) {
 		if ((rv = set_average(p, DEFAULT_TRANS_NAV, 0)) != inst_ok)
 			return rv;
+
+		measto = DEFAULT_TRANS_NAV * (p->measto - 3.6 + 1.0) + 3.6;
+		a1logd(p->log, 6, " Adjusted measto to %f for noaver %d\n",measto,DEFAULT_TRANS_NAV);
+
 	/* Or default 1 otherwise */
 	} else {
 		if ((rv = set_average(p, DEFAULT_NAV, 0)) != inst_ok)
@@ -1080,12 +1104,12 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 		}
 	}
 
-	/* Trigger a measurement */
+	/* Trigger a measurement (Allow 10 second timeout margine) */
 	/* (Note that ESC will abort it) */
 	if (p->model == 1501 || p->model == 1511)
-		ec = specbos_fcommand(p, "*meas:refer\r", buf, MAX_MES_SIZE, p->measto + 10.0 , 1, tmeas, 0);
+		ec = specbos_fcommand(p, "*meas:refer\r", buf, MAX_MES_SIZE, measto + 10.0 , 1, tmeas, 0);
 	else
-		ec = specbos_fcommand(p, "*init\r", buf, MAX_MES_SIZE, p->measto + 10.0 , 1, tmeas, 0);
+		ec = specbos_fcommand(p, "*init\r", buf, MAX_MES_SIZE, measto + 10.0 , 1, tmeas, 0);
 
 	// Test out bug workaround
 	// if (!p->badCal) ec = SPECBOS_EXCEED_CAL_WL;
@@ -1118,9 +1142,9 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 
 		/* Try command again */
 		if (p->model == 1501 || p->model == 1511)
-			ec = specbos_fcommand(p, "*meas:refer\r", buf, MAX_MES_SIZE, p->measto + 10.0 , 1, tmeas, 0);
+			ec = specbos_fcommand(p, "*meas:refer\r", buf, MAX_MES_SIZE, measto + 10.0 , 1, tmeas, 0);
 		else
-			ec = specbos_fcommand(p, "*init\r", buf, MAX_MES_SIZE, p->measto + 10.0 , 1, tmeas, 0);
+			ec = specbos_fcommand(p, "*init\r", buf, MAX_MES_SIZE, measto + 10.0 , 1, tmeas, 0);
 	}
 
 	/* Restore single reading if transmission */
@@ -1405,7 +1429,7 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 
 		/* Convert to XYZ */
 		if (p->conv == NULL) {
-			p->conv = new_xsp2cie(icxIT_D50, NULL, icxOT_CIE_1931_2, NULL, icSigXYZData,
+			p->conv = new_xsp2cie(icxIT_D50, 0.0, NULL, icxOT_CIE_1931_2, NULL, icSigXYZData,
 			                                                                  icxNoClamp);
 			if (p->conv == NULL) {
 				a1logd(p->log, 1, "specbos_read_sample: Emulated transmission new_xsp2cie() failed");

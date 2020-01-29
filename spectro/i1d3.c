@@ -2205,7 +2205,7 @@ i1d3_comp_calmat(
 	sampRGB = dmatrix(0, nsamp-1, 0, 3-1);
 
 	/* Compute XYZ of the sample array */
-	if ((conv = new_xsp2cie(icxIT_none, NULL, obType, custObserver, icSigXYZData, icxClamp)) == NULL)
+	if ((conv = new_xsp2cie(icxIT_none, 0.0, NULL, obType, custObserver, icSigXYZData, icxClamp)) == NULL)
 		return i1d3_interp_code((inst *)p, I1D3_INT_CIECONVFAIL);
 	for (i = 0; i < nsamp; i++) {
 		conv->convert(conv, sampXYZ[i], &samples[i]); 
@@ -2213,7 +2213,7 @@ i1d3_comp_calmat(
 	conv->del(conv);
 
 	/* Compute sensor RGB of the sample array */
-	if ((conv = new_xsp2cie(icxIT_none, NULL, icxOT_custom, RGBcmfs, icSigXYZData, icxClamp)) == NULL) {
+	if ((conv = new_xsp2cie(icxIT_none, 0.0, NULL, icxOT_custom, RGBcmfs, icSigXYZData, icxClamp)) == NULL) {
 		free_dmatrix(sampXYZ, 0, nsamp-1, 0, 3-1);
 		free_dmatrix(sampRGB, 0, nsamp-1, 0, 3-1);
 		return i1d3_interp_code((inst *)p, I1D3_INT_CIECONVFAIL);
@@ -2880,7 +2880,7 @@ double mtx[3][3]
 	i1d3 *p = (i1d3 *)pp;
 	inst_code ev = inst_ok;
 
-	a1logd(p->log, 4, "i1d3_col_cor_mat%s\n",mtx == NULL ? " (noop)": "");
+	a1logd(p->log, 4, "i1d3_col_cor_mat%s dtech %d cbid %d\n",mtx == NULL ? " (noop)": "",dtech,cbid);
 
 	if (!p->gotcoms)
 		return inst_no_coms;

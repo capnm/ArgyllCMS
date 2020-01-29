@@ -2,7 +2,7 @@
 /* 
  * Argyll Color Correction System
  *
- * JETI kleink10 1211/1201 related functions
+ * Klein K10 related functions
  *
  * Author: Graeme W. Gill
  * Date:   29/4/2014
@@ -68,6 +68,7 @@
 #undef PLOT_REFRESH     /* [und] Plot refresh rate measurement info */
 #undef PLOT_UPDELAY     /* [und] Plot update delay measurement info */
 
+#undef TEST_FAKE_CALIBS	/* Fake having a full calibration set (98 calibs) */
 #undef TEST_BAUD_CHANGE	/* Torture test baud rate change on non high speed K10 */
 
 static inst_disptypesel k10_disptypesel[98];
@@ -216,7 +217,7 @@ int nd					/* nz to disable debug messages */
 	strncpy((char *)cmd, (char *)in, 2);
 	cmd[2] = '\000';
 
-	if ((se = p->icom->write_read(p->icom, in, 0, out, bsize, &bread, NULL, nchar, to))
+	if ((se = p->icom->write_read_ex(p->icom, in, 0, out, bsize, &bread, NULL, nchar, to, 1))
 		                                                                    != ICOM_OK) {
 		rv =  icoms2k10_err(se);
 
@@ -331,7 +332,7 @@ struct _kleink10 *p,
 baud_rate br
 ) {
 	int se, rv = K10_OK;
-	if ((se = p->icom->set_ser_port(p->icom, fc_HardwareDTR, br, parity_none,
+	if ((se = p->icom->set_ser_port(p->icom, fc_None, br, parity_none,
 		                                      stop_1, length_8)) != ICOM_OK) {
 		rv =  icoms2k10_err(se);
 	} else {
@@ -388,7 +389,7 @@ k10_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 		}
 		a1logd(p->log, 5, "k10_init_coms: Trying %s baud, %d msec to go\n",
 			                      baud_rate_to_str(brt[i]), etime- msec_time());
-		if ((se = p->icom->set_ser_port(p->icom, fc_HardwareDTR, brt[i], parity_none,
+		if ((se = p->icom->set_ser_port(p->icom, fc_None, brt[i], parity_none,
 			                         stop_1, length_8)) != ICOM_OK) { 
 			amutex_unlock(p->lock);
 			a1logd(p->log, 5, "k10_init_coms: set_ser_port failed with 0x%x\n",se);
@@ -872,8 +873,16 @@ kleink10 *p) {
 			name[j] = buf[i + j];
 
 		if (((unsigned char *)name)[0] == 0xff) {
+#ifdef TEST_FAKE_CALIBS
+ #pragma message("!!!!!!!!!!!!!!! Klein K10 TEST_FULL_CALIB set !!!!!!!!!!!!!!!!!!!")
+			sprintf(name, "Fake_%d",ix);
+#else
+			//printf("Cal %d is 0xff - skipping\n",ix);
 			continue;
+#endif
 		}
+
+		/* Remove trailing spaces */
 		for (j = 19; j >= 0; j--) {
 			if (name[j] != ' ') {
 				name[j+1] = '\000';
@@ -881,7 +890,7 @@ kleink10 *p) {
 			}
 		}
 
-//		printf("Adding Cal %d is '%s'\n",ix,name);
+		// printf("Adding Cal %d is '%s'\n",ix,name);
 
 		/* Add it to the list */
 		memset((void *)&k10_disptypesel[n], 0, sizeof(inst_disptypesel));
@@ -974,7 +983,7 @@ int usefast				/* If nz use fast rate is possible */
 #ifdef HIGH_SPEED
 	/* This isn't reliable, because there is no way to ensure that */
 	/* the T1 command has been sent before we change the baud rate, */
-	/* anf if we wait too long will will loose the measurements. */
+	/* and if we wait too long we will loose the measurements. */
 	if (usefast && strcmp(p->firm_ver, "v01.09fh") > 0) {
 		isnew = 1;			/* We can use faster T1 command */
 		rate = 384;

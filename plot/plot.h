@@ -11,6 +11,10 @@
  * see the License.txt file for licencing details.
  */
 
+/* MXGPHS is defined in aconfig.h */
+
+extern int plot_colors[MXGPHS][3];
+
 /* Graph order is Black = Y1, Red = Y2, Green = Y3, Blue = Y4, Yellow = Y5, Purple = Y6 */
 /* Brown = Y7, Orange = Y8, Grey = Y9, White = Y10  */
 
@@ -78,6 +82,20 @@ int do_plot10pw(double *x, double *y1, double *y2, double *y3, double *y4, doubl
                double *y7, double *y8, double *y9, double *y10,
                int n, double *xp, double *yp, int m, int dowait);
 
+/* Plot up to 10 graphs + optional crosses */
+/* if dowait > 0, wait for user key */
+/* if dowait < 0, wait for no seconds */
+/* return 0 on success, -1 on error */
+/* If n is -ve, reverse the X axis */
+/* if dozero flag, make sure y range covers zero */
+int do_plot10pwz(double *x, double *y1, double *y2, double *y3, double *y4, double *y5, double *y6,
+               double *y7, double *y8, double *y9, double *y10,
+               int n, double *xp, double *yp, int m, int dowait, int zero);
+
+/* Public routines */
+/* Plot up to MXGPHS (12) graphs + optional crosses */
+int do_plotNpwz(double *x, double **yy, int n, double *xp, double *yp, int m, int dowait, int zero);
+
 /* Plot a bunch of vectors + points + optional colored points & notation */
 /* return 0 on success, -1 on error */
 /* Vectors are x1, y1 to x2, y2 with 'X' at x2, y2, */
@@ -98,6 +116,18 @@ int do_plot_vec2(double xmin, double xmax, double ymin, double ymax,
                 int dowait,
 				double *x3, double *y3, plot_col *mcols, char **mtext, int m,
 				double *x4, double *y4, double *x5, double *y5, plot_col *ocols, int o);
+
+/* Plot a bunch of colored vectors + points + optional colored points & notation */
+/* + optional colored vectors */
+/* return 0 on success, -1 on error */
+/* Vectors are x1, y1 to x2, y2 with color ncols and annotated 'X' at x2, y2, */
+/* Colored annotated Crosss at x3, y3. */
+/* Colored vector from x4, y4 to x5, y5 */
+int do_plot_vec3(double xmin, double xmax, double ymin, double ymax,
+         double *x1, double *y1, double *x2, double *y2, plot_col *ncols, char **ntext, int n,
+         int dowait,
+		 double *x3, double *y3, plot_col *mcols, char **mtext, int m,
+		 double *x4, double *y4, double *x5, double *y5, plot_col *ocols, int o);
 
 #define PLOT_H
 #endif /* PLOT_H */

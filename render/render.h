@@ -26,7 +26,7 @@
 /* the bottom left corner. */
 /* Device color values range from 0.0 to 1.0 */
 
-#define MXCH2D  8			/* Maximum color channels */
+#define MXCH2D  16			/* Maximum color channels */
 #define TOTC2D  (MXCH2D+1)	/* Maximum total components */
 #define PRIX2D  (MXCH2D)	/* Index of primitive kept with color value */
 

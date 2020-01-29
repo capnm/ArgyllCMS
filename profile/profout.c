@@ -89,6 +89,7 @@
 #define FILTER_MAX_RAD 0.1		/* [0.1] Filtering maximum radius in grid */
 
 #include <stdio.h>
+#include "aconfig.h"
 #include "numlib.h"
 #include "icc.h"
 #include "cgats.h"
@@ -1798,7 +1799,7 @@ make_output_icc(
 			}
 
 			/* Create a spectral conversion object */
-			if ((sp2cie = new_xsp2cie(illum, cust_illum, obType, custObserver,
+			if ((sp2cie = new_xsp2cie(illum, 0.0, cust_illum, obType, custObserver,
 			                          wantLab ? icSigLabData : icSigXYZData, icxClamp)) == NULL)
 				error("Creation of spectral conversion object failed");
 

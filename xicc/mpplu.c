@@ -23,6 +23,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <math.h>
+#include "aconfig.h"
 #include "numlib.h"
 #include "xicc.h"
 #include "counters.h"

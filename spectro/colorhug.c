@@ -435,6 +435,7 @@ static inst_code
 colorhug_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 	int se;
 	colorhug *p = (colorhug *) pp;
+	icomuflags usbflags = icomuf_none;
 
 	a1logd(p->log, 2, "colorhug_init_coms: About to init coms\n");
 
@@ -444,7 +445,7 @@ colorhug_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 		a1logd(p->log, 3, "colorhug_init_coms: About to init HID\n");
 
 		/* Set config, interface */
-		if ((se = p->icom->set_hid_port(p->icom, icomuf_none, 0, NULL)) != ICOM_OK) {
+		if ((se = p->icom->set_hid_port(p->icom, usbflags, 0, NULL)) != ICOM_OK) {
 			a1logd(p->log, 1, "colorhug_init_coms: set_hid_port failed ICOM err 0x%x\n",se);
 			return colorhug_interp_code((inst *)p, icoms2colorhug_err(se));
 		}
@@ -453,9 +454,16 @@ colorhug_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 
 		a1logd(p->log, 3, "colorhug_init_coms: About to init USB\n");
 
+#if defined(UNIX_X11)
+		usbflags |= icomuf_detach;
+		/* Some Linux drivers can't open the device a second time, so */
+		/* use the reset on close workaround. */
+		usbflags |= icomuf_reset_before_close;
+#endif
+
 		/* Set config, interface, write end point, read end point */
 		// ~~ does Linux need icomuf_reset_before_close ? Why ?
-		if ((se = p->icom->set_usb_port(p->icom, 1, 0x00, 0x00, icomuf_detach, 0, NULL))
+		if ((se = p->icom->set_usb_port(p->icom, 1, 0x00, 0x00, usbflags, 0, NULL))
 			                                                                 != ICOM_OK) { 
 			a1logd(p->log, 1, "colorhug_init_coms: set_usb_port failed ICOM err 0x%x\n",se);
 			return colorhug_interp_code((inst *)p, icoms2colorhug_err(se));

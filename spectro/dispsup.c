@@ -205,9 +205,9 @@ inst_code setup_display_calibrate(
 int disprd_calibration(
 icompath *ipath,		/* Instrument path to open, &icomFakeDevice == fake */
 flow_control fc,		/* Serial flow control */
-int dtype,				/* Display type selection character */
-int sdtype,				/* Spectro dtype, use dtype if -1 */
-int docbid,				/* NZ to only allow cbid dtypes */
+int ditype,				/* Display type selection character(s) */
+int sditype,			/* Spectro ditype, use ditype if -1 */
+int docbid,				/* NZ to only allow cbid ditypes */
 int tele,				/* NZ for tele mode, falls back to spot mode */
 int nadaptive,			/* NZ for non-adaptive mode */ 
 int noinitcal,			/* NZ to disable initial instrument calibration */
@@ -326,16 +326,17 @@ a1log *log				/* Verb, debug & error log */
 	p->capabilities(p, &cap, &cap2, &cap3);
 
 	/* If this is a spectral instrument, and a different */
-	/* spectral inst. dtype is supplied, then use it */
-	if (IMODETST(cap, inst_mode_spectral) && sdtype >= 0)
-		dtype = sdtype;
+	/* spectral inst. ditype is supplied, then use it */
+	if (IMODETST(cap, inst_mode_spectral) && sditype >= 0)
+		ditype = sditype;
 
 	/* Set the display type or calibration mode */
-	if (dtype != 0) {		/* Given selection character */
+	if (ditype != 0) {		/* Given selection character */
 		if (cap2 & inst2_disptype) {
 			int ix;
-			if ((ix = inst_get_disptype_index(p, dtype, docbid)) < 0) {
-				a1logd(log,1,"Display type selection '%c' is not valid for instrument\n",dtype);
+			if ((ix = inst_get_disptype_index(p, ditype, docbid)) < 0) {
+				a1logd(log,1,"Display type selection '%s' is not valid for instrument\n",
+					                                                 inst_distr(ditype));
 				p->del(p);
 				return -1;
 			}
@@ -2156,7 +2157,7 @@ static int config_inst_displ(disprd *p) {
 	inst2_capability cap2;
 	inst3_capability cap3;
 	inst_mode mode = 0;
-	int dtype = p->dtype;
+	int ditype = p->ditype;
 	int rv;
 	
 	p->it->capabilities(p->it, &cap, &cap2, &cap3);
@@ -2229,16 +2230,17 @@ static int config_inst_displ(disprd *p) {
 	}
 	
 	/* If this is a spectral instrument, and a different */
-	/* spectral inst. dtype is supplied, then use it */
-	if (IMODETST(cap, inst_mode_spectral) && p->sdtype >= 0)
-		dtype = p->sdtype;
+	/* spectral inst. ditype is supplied, then use it */
+	if (IMODETST(cap, inst_mode_spectral) && p->sditype >= 0)
+		ditype = p->sditype;
 
 	/* Set the display type or calibration mode */
-	if (dtype != 0) {
+	if (ditype != 0) {
 		if (cap2 & inst2_disptype) {
 			int ix;
-			if ((ix = inst_get_disptype_index(p->it, dtype, p->docbid)) < 0) {
-				a1logd(p->log,1,"Display type selection '%c' is not valid for instrument\n",dtype);
+			if ((ix = inst_get_disptype_index(p->it, ditype, p->docbid)) < 0) {
+				a1logd(p->log,1,"Display type selection '%s' is not valid for instrument\n",
+					                                                     inst_distr(ditype));
 				if (p->docbid)
 					return 16;
 				return 15;
@@ -2356,9 +2358,9 @@ disprd *new_disprd(
 int *errc,          /* Error code. May be NULL (could use log for this instead?) */
 icompath *ipath,	/* Instrument path to open, &icomFakeDevice == fake */
 flow_control fc,	/* Flow control */
-int dtype,			/* Display type selection character */
-int sdtype,			/* Spectro dtype, use dtype if -1 */
-int docbid,			/* NZ to only allow cbid dtypes */
+int ditype,			/* Display type selection character(s) */
+int sditype,		/* Spectro ditype, use ditype if -1 */
+int docbid,			/* NZ to only allow cbid ditypes */
 int tele,			/* NZ for tele mode. Falls back to display mode */
 int nadaptive,		/* NZ for non-adaptive mode */
 int noinitcal,		/* No initial instrument calibration */
@@ -2436,8 +2438,8 @@ a1log *log      	/* Verb, debug & error log */
 	p->custObserver = custObserver;
 	p->bdrift = bdrift;
 	p->wdrift = wdrift;
-	p->dtype = dtype;
-	p->sdtype = sdtype;
+	p->ditype = ditype;
+	p->sditype = sditype;
 	p->docbid = docbid;
 	p->refrmode = -1;			/* Unknown */
 	p->cbid = 0;				/* Unknown */
@@ -2568,7 +2570,7 @@ a1log *log      	/* Verb, debug & error log */
 
 	/* Create a spectral conversion object if needed */
 	if (p->spectral && p->obType != icxOT_none) {
-		if ((p->sp2cie = new_xsp2cie(icxIT_none, NULL, p->obType, custObserver, icSigXYZData, icxNoClamp))
+		if ((p->sp2cie = new_xsp2cie(icxIT_none, 0.0, NULL, p->obType, custObserver, icSigXYZData, icxNoClamp))
 		                                                                                 == NULL) {
 			a1logd(log,1,"new_disprd failed because creation of spectral conversion object failed\n");
 			p->del(p);

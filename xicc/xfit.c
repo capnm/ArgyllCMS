@@ -74,8 +74,8 @@
 #include "numlib.h"
 #include "icc.h"
 #include "rspl.h"
-#include "xicc.h"
 #include "plot.h"
+#include "xicc.h"
 #include "xfit.h"
 #include "sort.h"
 

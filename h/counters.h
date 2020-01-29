@@ -160,7 +160,7 @@
 /* ------------------------------------------------------- */
 /* Macros combination counter */
 /* Declare the counter name nn, combinations out of total */
-/* mxdi should be set to maximum combinations */
+/* mxdi should be set to maximum combinations. */
 
 /* e.g. if there are 8 objects, and we want all combinations */
 /* of 4 out of the 8, we would use: COMBO(nn, 4, 4, 8) */
@@ -209,7 +209,7 @@
 	}												\
 }
 
-/* After increment, expression is TRUE if counter is done */
+/* After init or increment, expression is TRUE if counter is done */
 #define CB_DONE(nn)									\
 	(nn##_e >= nn##_cmb)
 	
@@ -272,7 +272,7 @@
 	}													\
 }
 
-/* After increment, expression is TRUE if counter is done */
+/* After init or increment, expression is TRUE if counter is done */
 #define XCB_DONE(nn)									\
          CB_DONE(nn)
 	

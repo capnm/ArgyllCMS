@@ -25,6 +25,7 @@
 #if defined(__IBMC__) && defined(_M_IX86)
 #include <float.h>
 #endif
+#include "aconfig.h"
 #include "numlib.h"
 #include "plot.h"
 #include "ui.h"

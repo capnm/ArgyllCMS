@@ -113,6 +113,7 @@
 #if defined(__IBMC__) && defined(_M_IX86)
 #include <float.h>
 #endif
+#include "aconfig.h"
 #include "numlib.h"
 #include "cgats.h"
 #include "icc.h"
@@ -123,8 +124,9 @@
 #include "gamut.h"
 #include "mpp.h"
 #ifdef DOPLOT
-#include "plot.h"
-#endif /* DOPLOT */
+# include "plot.h"
+# include "ui.h"
+#endif
 
 /* Forward declarations */
 static double bandval(mpp *p, int band, double *dev);
@@ -715,7 +717,7 @@ int           use_fwa			/* NZ to involke FWA. */
 		custIllum = NULL;
 	}
 
-	if ((p->spc = new_xsp2cie(ilType, custIllum, obType, custObserver, rcs, 1)) == NULL)
+	if ((p->spc = new_xsp2cie(ilType, 0.0, custIllum, obType, custObserver, rcs, 1)) == NULL)
 		error("mpp->set_ilob, new_xsp2cie failed");
 
 	if (use_fwa) {

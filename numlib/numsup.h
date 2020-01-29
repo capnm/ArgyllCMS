@@ -411,6 +411,7 @@ void free_dvector(double *v,int nl,int nh);
 double **dmatrix(int nrl, int nrh, int ncl, int nch);
 double **dmatrixz(int nrl, int nrh, int ncl, int nch);
 void free_dmatrix(double **m, int nrl, int nrh, int ncl, int nch);
+void dmatrix_reset(double **m, int nrl, int nrh, int ncl, int nch);
 
 double **dhmatrix(int nrl, int nrh, int ncl, int nch);
 double **dhmatrixz(int nrl, int nrh, int ncl, int nch);
@@ -486,6 +487,14 @@ int matrix_vect_mult(
 	double *v, int nv
 );
 
+/* Multiply a 0 based transposed matrix by a vector */
+/* d may be same as v */
+int matrix_trans_vect_mult(
+	double *d, int nd,
+	double **m, int nr, int nc,
+	double *v, int nv
+);
+
 /* Set zero based dvector */
 void vect_set(double *d, double v, int len);
 
@@ -498,16 +507,21 @@ void vect_neg(double *d, double *s, int len);
 
 /* Add two vectors, d += v */
 /* d may be same as v */
-void vect_add(
-	double *d, double *v, int len
-);
+void vect_add(double *d, double *v, int len);
 
 /* Subtract two vectors, d -= v */
 /* d may be same as v */
-void vect_sub(
-	double *d, double *v, int len
-);
+void vect_sub(double *d, double *v, int len);
 
+/* Scale a vector, */
+/* d may be same as v */
+void vect_scale(double *d, double *s, double scale, int len);
+
+/* Take dot product of two vectors */
+double vect_dot(double *s1, double *s2, int len);
+
+/* Return the vectors magnitude */
+double vect_mag(double *s, int len);
 
 /* Diagnostics */
 /* id identifies matrix/vector */
@@ -523,6 +537,20 @@ void adump_dvector(a1log *log, char *id, char *pfx, double *a, int nc);
 void adump_fvector(a1log *log, char *id, char *pfx, float *a, int nc);
 void adump_ivector(a1log *log, char *id, char *pfx, int *a, int nc);
 void adump_svector(a1log *log, char *id, char *pfx, short *a, int nc);
+
+/* ===================================================== */
+/* C matrix support */
+
+/* Clip a vector to the range 0.0 .. 1.0 */
+/* and return any clipping margine */
+double vect_ClipNmarg(int n, double *out, double *in);
+
+/* Multiply N vector by NxN transform matrix */
+/* Organization is mat[out][in] */
+void vect_MulByNxN(int n, double *out, double *mat, double *in);
+
+/* Transpose an NxN matrix */
+void matrix_TransposeNxN(int n, double *out, double *in);
 
 /* Dump C type matrix */
 void adump_C_dmatrix(a1log *log, char *id, char *pfx, double *a, int nr,  int nc);
@@ -631,9 +659,14 @@ char *debPiv(int di, int *p);
 /* Returned static buffer is re-used every 5 calls. */
 char *debPdv(int di, double *p);
 
+/* Print a double vector to a string with format. */
+/* Returned static buffer is re-used every 5 calls. */
+char *debPdvf(int di, char *fmt, double *p);
+
 /* Print a float vector to a string. */
 /* Returned static buffer is re-used every 5 calls. */
 char *debPfv(int di, float *p);
+
 
 /*******************************************/
 /* Numerical diagnostics */

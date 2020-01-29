@@ -2,10 +2,48 @@
 Argyll CMS change log
 =====================
 
-Version 2.1.0 Beta 
--------------
+Not included yet:
+----------------
 
 * Started adding comms for Lumagen Radiance detection.
+
+Version 2.0.1  9th July 2018
+-------------
+
+* Increased maximum render channels to 16
+
+* Added -O option to collink to allow creating a link
+  purely from calibration file.
+
+* Fixed JETI specbos & specval timeout when in averaging mode
+  and dark measurement.
+
+* Changed JETI specval 1511 driver to ignore REMOTE command
+  error with newer firmware.
+
+* Changed Klein K10 serial parameters in attempt to prevent
+  serial lock up on MSWindows.
+
+* Made a failure of the conf:maxtin command with a JETI 1201
+  a soft error, to allow for old firmware versions.
+
+* Change colorhug Linux driver to reset on close. This may overcome
+  a problem re-starting the driver.
+
+* Fixed i1Pro driver to cope with stripped down OEM i1Pro2 that is missing
+  one piece of calibration information.
+ 
+* Fixed display calibration selection to allow for more
+  than 62 entries. This is to fix problem using Klein K10
+  that has a lot of saved calibrations.
+
+* Changed spec2cie to add extra informational L*a*b* output fields, if
+  a non D50 illuminant (-i option) is used.
+
+* Added -w parameter to spotread, to use the -i parameter illuminant
+  for L*a*b* calculation.
+
+* Fixed bug in spec2cie - XRGA conversion wasn't saving spectrum out.
 
 Version 2.0.0  17th November 2017
 -------------

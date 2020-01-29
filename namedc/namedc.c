@@ -710,7 +710,7 @@ static int read_cxf(namedc *p, const char *filename, int options) {
 				else if (strcmp(name, "FieldOfView_10_Degree") == 0)
 					p->obs = icxOT_CIE_1964_10;
 				else {
-					a1logd(p->log, 2, "read_cxf: Illuminant '%s' unrecognised\n",name);
+					a1logd(p->log, 2, "read_cxf: Observer '%s' unrecognised\n",name);
 					p->obs = icxOT_CIE_1931_2;
 				}
 			}
@@ -784,7 +784,7 @@ static int read_cxf(namedc *p, const char *filename, int options) {
 						else if (strcmp(name, "10_Degree") == 0)
 							p->obs = icxOT_CIE_1964_10;
 						else {
-							a1logd(p->log, 2, "read_cxf: Illuminant '%s' unrecognised\n",name);
+							a1logd(p->log, 2, "read_cxf: Observer '%s' unrecognised\n",name);
 							p->obs = icxOT_CIE_1931_2;
 						}
 					}
@@ -1087,7 +1087,7 @@ int match(struct _namedc *p, double *de, double *pLab, xspect *rspect, int deTyp
 		if (rspect != NULL) {
 
 			if (p->sp2cie == NULL) {
-				if ((p->sp2cie = new_xsp2cie(p->ill, NULL, p->obs, NULL, icSigLabData, 0)) == NULL) {
+				if ((p->sp2cie = new_xsp2cie(p->ill, 0.0, NULL, p->obs, NULL, icSigLabData, 0)) == NULL) {
 					snprintf(p->err, NAMEDC_ERRL, "creating spetral conversion failed");
 					a1logd(p->log, 1, "match: %s\n",p->err);
 					return -1;
@@ -1109,7 +1109,7 @@ int match(struct _namedc *p, double *de, double *pLab, xspect *rspect, int deTyp
 					xsp2cie *tt;
 					xspect ts;
 					// Get the XYZ of the given white point for the illuminant and observer
-					if ((tt = new_xsp2cie(p->ill, NULL, p->obs, NULL, icSigXYZData, 0)) == NULL) {
+					if ((tt = new_xsp2cie(p->ill, 0.0, NULL, p->obs, NULL, icSigXYZData, 0)) == NULL) {
 						snprintf(p->err, NAMEDC_ERRL, "creating spetral conversion failed");
 						a1logd(p->log, 1, "match: %s\n",p->err);
 						return -1;

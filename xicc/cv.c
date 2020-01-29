@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <numlib.h>
+#include "aconfig.h"
 #include "plot.h"
 #include "ui.h"
 

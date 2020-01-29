@@ -33,6 +33,7 @@
 #include "copyright.h"
 #include "aconfig.h"
 #include "numlib.h"
+#include "plot.h"
 #include "xicc.h"
 #else
 #include "sa_config.h"

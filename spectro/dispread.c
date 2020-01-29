@@ -242,7 +242,7 @@ int main(int argc, char *argv[]) {
 	int nadaptive = 0;					/* Use non-adaptive mode if available */
 	int bdrift = 0;						/* Flag, nz for black drift compensation */
 	int wdrift = 0;						/* Flag, nz for white drift compensation */
-	int dtype = 0;						/* Display type selection charater */
+	int ditype = 0;						/* Display type selection charater(s) */
 	int tele = 0;						/* NZ if telephoto mode */
 	int noautocal = 0;					/* Disable auto calibration */
 	int noplace = 0;					/* Disable user instrument placement */
@@ -426,7 +426,9 @@ int main(int argc, char *argv[]) {
 			} else if (argv[fa][1] == 'y') {
 				fa = nfa;
 				if (na == NULL) usage(0,"Parameter expected after -y");
-				dtype = na[0];
+				ditype = na[0];
+				if (ditype == '_' && na[1] != '\000')
+					ditype = ditype << 8 | na[1];
 
 			/* Calibration file */
 			} else if (argv[fa][1] == 'k'
@@ -701,7 +703,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (docalib) {
-		if ((rv = disprd_calibration(ipath, fc, dtype, -1, 0, tele, nadaptive, noautocal, 
+		if ((rv = disprd_calibration(ipath, fc, ditype, -1, 0, tele, nadaptive, noautocal, 
 			                         disp, webdisp, ccid,
 #ifdef NT
 			                         madvrdisp,
@@ -919,7 +921,7 @@ int main(int argc, char *argv[]) {
 		cal[0][0] = -1.0;	/* Not used */
 	}
 
-	if ((dr = new_disprd(&errc, ipath, fc, dtype, -1, 0, tele, nadaptive, noautocal, noplace,
+	if ((dr = new_disprd(&errc, ipath, fc, ditype, -1, 0, tele, nadaptive, noautocal, noplace,
 	                     highres, refrate, native, &noramdac, &nocm, cal, ncal, disp,
 		                 out_tvenc, fullscreen, override, webdisp, ccid,
 #ifdef NT

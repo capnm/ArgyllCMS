@@ -57,6 +57,7 @@ SPECTRO_FILES="
 	hidio.h
 	hidio.c
 	icoms.h
+	dev.h
 	inst.h
 	inst.c
 	insttypes.c

@@ -191,6 +191,10 @@ void sa_Yxy2XYZ(double *out, double *in);
 #define icmLab2XYZ sa_Lab2XYZ
 #define icmYxy2XYZ sa_Yxy2XYZ
 
+/* Lpt isn't used by instlib, so dummy it out */
+#define icmXYZ2Lpt sa_XYZ2Lab
+#define icmLpt2XYZ sa_Lab2XYZ
+
 /* A helper object that computes MD5 checksums */
 struct _sa_MD5 {
   /* Private: */

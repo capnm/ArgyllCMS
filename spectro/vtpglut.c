@@ -14,6 +14,16 @@
  * see the License2.txt file for licencing details.
  */
 
+/*
+	TTBD:
+
+	Note that there is some support for HW 3dLUTs in X11 xrandr
+	in a patch for xf86-videeo-amdgpu drmmode_display.c
+	submitted on 3 May 2018. 
+	See <https://lists.freedesktop.org/archives/amd-gfx/2018-May/022007.html>
+
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>

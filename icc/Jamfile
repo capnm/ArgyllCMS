@@ -41,7 +41,7 @@ MainsFromSources icctest.c lutest.c iccdump.c icclu.c iccrw.c ;
 # This is an example program for making a matrix display profile
 MainsFromSources mkDispProf.c ;
 
-#MainsFromSources t.c ;
+#MainsFromSources t2.c ;
 
 if $(BUILD_JUNK) {
 

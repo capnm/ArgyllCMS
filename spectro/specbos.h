@@ -150,7 +150,7 @@ struct _specbos {
 
 	inst_opt_type trig;			/* Reading trigger mode */
 
-	double measto;				/* Expected measurement timeout value */
+	double measto;				/* Measurement maximum time target value */
 	int nbands;					/* Number of spectral bands */
 	double wl_short;
 	double wl_long;
@@ -168,6 +168,8 @@ struct _specbos {
 	volatile int th_termed;		/* nz when thread terminated */
 	int dpos;					/* Diffuser position, 0 = emissive, 1 = ambient */
 	int laser;					/* Target laser state, nz = on */
+
+	int maxtin_warn;			/* NZ if conf:maxtin failure warning has been given */
 
 	}; typedef struct _specbos specbos;
 

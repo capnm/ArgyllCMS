@@ -479,6 +479,7 @@ inst2_capability inst_show_disptype_options(FILE *fp, char *oline, icompaths *ic
 				if (docbib && sels[j].cbid == 0)
 					continue;			/* Skip non cbid type */
 
+				/* Break up selector chars/pairs with '|' */
 				m = pstart;
 				for (k = 0; k < (INST_DTYPE_SEL_LEN-1); k++) {
 					if (sels[j].sel[k] == '\000')
@@ -486,6 +487,8 @@ inst2_capability inst_show_disptype_options(FILE *fp, char *oline, icompaths *ic
 					if (m > pstart)
 						buf[m++] = '|';
 					buf[m++] = sels[j].sel[k];
+					if (sels[j].sel[k] == '_')
+						buf[m++] = sels[j].sel[++k];
 				}
 				while (m < (olen+1))	/* Indent it by 1 */
 					buf[m++] = ' ';
@@ -534,8 +537,9 @@ inst2_capability inst_show_disptype_options(FILE *fp, char *oline, icompaths *ic
 
 /* A helper function to turn a -y flag into a selection index */
 /* If docbib is nz, then only allow base calibration display types */
+/* c will be 16 bits ('_' + 'X') if a 2 char selector */
 /* Return -1 on error */
-int inst_get_disptype_index(inst *it, int c, int docbib) {
+int inst_get_disptype_index(inst *it, int ditype, int docbib) {
 	inst2_capability cap;
 	int j, k;
 
@@ -555,7 +559,14 @@ int inst_get_disptype_index(inst *it, int c, int docbib) {
 			for (k = 0; k < (INST_DTYPE_SEL_LEN-1); k++) {
 				if (sels[j].sel[k] == '\000')
 					break;
-				if (sels[j].sel[k] == c) {
+				if (sels[j].sel[k] == '_') {	/* 2 char selector */
+					k++;
+					if (sels[j].sel[k-1] == (0xff & (ditype >> 8))
+					 && sels[j].sel[k] == (0xff & ditype)) {
+						return j;
+					}
+				}
+				if (sels[j].sel[k] == ditype) {
 					return j;
 				}
 			}
@@ -564,6 +575,21 @@ int inst_get_disptype_index(inst *it, int c, int docbib) {
 	return -1;
 }
 
+/* Return a static string of the ditype flag char(s) */
+char *inst_distr(int ditype) {
+	static char buf[5];
+	
+	if ((ditype >> 8) & 0xff) {
+		buf[0] = (ditype >> 8) & 0xff;
+		buf[1] = ditype & 0xff;
+		buf[2] = '\000';
+	} else {
+		buf[0] = ditype;
+		buf[1] = '\000';
+	}
+
+	return buf;
+}
 /* ================================================================= */
 
 

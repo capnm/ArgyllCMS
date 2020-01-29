@@ -35,6 +35,7 @@
 #include <unistd.h>
 #endif
 #include <math.h>
+#include "aconfig.h"
 #include "numlib.h"
 #include "plot.h"
 //#ifdef STANDALONE_TEST
@@ -54,14 +55,12 @@
 #define DEFWHEIGHT 500
 
 /* Graph order is Black = Y1, Red = Y2, Green = Y3, Blue = Y4, Yellow = Y5, Purple = Y6 */
-/* Brown = Y7, Orange = Y8, Grey = Y9, Magenta = Y10  */
+/* Brown = Y7, Orange = Y8, Grey = Y9, Magenta = Y10, Lime = Y11, Pink = Y12   */
 
 double nicenum(double x, int round);
 
-#define MXGPHS	10		/* Number of graphs with common X axis */
-
 /* Colors of the graphs */
-static int gcolors[MXGPHS][3] = {
+int plot_colors[MXGPHS][3] = {
 	{   0,   0,   0},	/* Black */
 	{ 210,  30,   0},	/* Red */
 	{   0, 200,  90},	/* Green */
@@ -71,7 +70,9 @@ static int gcolors[MXGPHS][3] = {
 	{ 136,  86,  68},	/* Brown */
 	{ 248,  95,   0},	/* Orange */
 	{ 160, 160, 160},	/* Grey */
-	{ 220, 30,  220}	/* Magenta */
+	{ 220,  30, 220},	/* Magenta */
+	{ 112, 255, 161},	/* Lime */
+	{ 255, 191,  80}	/* Pink */
 };
 
 /* Information defining plot */
@@ -90,6 +91,7 @@ struct _plot_info {
 
 	double *x1, *x2;
 	double *yy[MXGPHS];				/* y1 - y10 */
+	plot_col *ncols;
 	char **ntext;
 	int n;
 
@@ -123,7 +125,7 @@ static int do_plot_imp(
 	double ratio,	/* Aspect ratio of window, X/Y, 1.0 = nominal */
 	int dowait,		/* > 0 wait for user to hit space key, < 0 delat dowait seconds. */
 	double *x1, double *x2,
-	double *yy[MXGPHS], char **ntext,
+	double *yy[MXGPHS], plot_col *ncols, char **ntext,
 	int n,
 	double *x7, double *y7, plot_col *mcols, char **mtext,
     int m,
@@ -184,7 +186,7 @@ int n) {
 
 	return do_plot_imp(PLOTF_NONE,
 	                   xmin, xmax, ymin, ymax, 1.0, 1,
-	                   x, NULL, yy, NULL, n,
+	                   x, NULL, yy, NULL, NULL, n,
 	                   NULL, NULL, NULL, NULL, 0,
 	                   NULL, NULL, NULL, NULL, NULL, 0); 
 }
@@ -256,7 +258,7 @@ int m) {
 
 	return do_plot_imp(PLOTF_NONE,
 	                   xmin, xmax, ymin, ymax, 1.0, 1,
-	                   x, NULL, yy, NULL, n,
+	                   x, NULL, yy, NULL, NULL, n,
 	                   x4, y4, NULL, NULL, m ,
 	                   NULL, NULL, NULL, NULL, NULL, 0); 
 }
@@ -331,7 +333,7 @@ double ratio
 
 	return do_plot_imp(PLOTF_NONE,
 	                   xmin, xmax, ymin, ymax, ratio, dowait,
-	                   x, NULL, yy, NULL, n,
+	                   x, NULL, yy, NULL, NULL, n,
 	                   NULL, NULL, NULL, NULL, 0,
 	                   NULL, NULL, NULL, NULL, NULL, 0); 
 }
@@ -393,7 +395,7 @@ int n) {	/* Number of values */
 
 	return do_plot_imp(PLOTF_NONE,
 	                   xmin, xmax, ymin, ymax, 1.0, 1,
-	                   x, NULL, yy, NULL, n,
+	                   x, NULL, yy, NULL, NULL, n,
 	                   NULL, NULL, NULL, NULL, n ,
 	                   NULL, NULL, NULL, NULL, NULL, 0); 
 }
@@ -472,127 +474,26 @@ int m) {
 
 	return do_plot_imp(PLOTF_NONE,
 	                   xmin, xmax, ymin, ymax, 1.0, 1,
-	                   x, NULL, yy, NULL, n,
+	                   x, NULL, yy, NULL, NULL, n,
 	                   xp, yp, NULL, NULL, m,
 	                   NULL, NULL, NULL, NULL, NULL, 0); 
 }
 
 /* Public routines */
-/* Plot up to 10 graphs. Wait for a key */
-/* return 0 on success, -1 on error */
-/* If n is -ve, reverse the X axis */
+/* Plot up to 12 graphs + optional crosses */
 int
-do_plot10(
-double *x,	/* X coord */
-double *y1,	/* Black */
-double *y2,	/* Red */
-double *y3,	/* Green */
-double *y4,	/* Blue */
-double *y5,	/* Yellow */
-double *y6,	/* Purple */
-double *y7,	/* Brown */
-double *y8,	/* Orange */
-double *y9,	/* Grey */
-double *y10,/* White */
-int n,		/* Number of values */
-int zero	/* Flag - make sure zero is in y range */
+do_plotNpwz(
+double *x,		/* X coord */
+double **yy,	/* Y values, NULL for none */
+int n,			/* Number of values, -ve for reverse X axis */
+double *xp, double *yp,		/* And crosses */
+int m,			/* Number of crosses */
+int dowait,		/* == 0 no wait, > 0, wait for user key, < 0 wait for secs */
+int zero		/* Flag - nz, make sure zero is in y range */
 ) {
 	int i, j;
 	double xmin, xmax, ymin, ymax;
 	int nn = abs(n);
-	double *yy[MXGPHS];
-
-	for (j = 0; j < MXGPHS; j++)
-		yy[j] = NULL;
-
-	yy[0] = y1;
-	yy[1] = y2;
-	yy[2] = y3;
-	yy[3] = y4;
-	yy[4] = y5;
-	yy[5] = y6;
-	yy[6] = y7;
-	yy[7] = y8;
-	yy[8] = y9;
-	yy[9] = y10;
-
-	/* Determine min and max dimensions of plot */
-	xmin = ymin = 1e6;
-	xmax = ymax = -1e6;
-
-	for (i = 0; i < n; i++) {
-		if (xmin > x[i])
-			xmin = x[i];
-		if (xmax < x[i])
-			xmax = x[i];
-
-		for (j = 0; j < MXGPHS; j++) {
-			if (yy[j] != NULL) {
-				if (ymin > yy[j][i])
-					ymin = yy[j][i];
-				if (ymax < yy[j][i])
-					ymax = yy[j][i];
-			}
-		}
-	}
-
-	if (zero && ymin > 0.0)
-		ymin = 0.0;
-		
-	/* Work out scale factors */
-	if ((xmax - xmin) == 0.0)
-		xmax += 0.5, xmin -= 0.5;
-	if ((ymax - ymin) == 0.0)
-		ymax += 0.5, ymin -= 0.5;
-
-	return do_plot_imp(PLOTF_NONE,
-	                   xmin, xmax, ymin, ymax, 1.0, 1,
-	                   x, NULL, yy, NULL, n,
-	                   NULL, NULL, NULL, NULL, n ,
-	                   NULL, NULL, NULL, NULL, NULL, 0); 
-}
-
-/* Public routines */
-/* Plot up to 10 graphs + optional crosses */
-/* if dowait > 0, wait for user key */
-/* if dowait < 0, wait for no seconds */
-/* return 0 on success, -1 on error */
-/* If n is -ve, reverse the X axis */
-int
-do_plot10pw(
-double *x,	/* X coord */
-double *y1,	/* Black */
-double *y2,	/* Red */
-double *y3,	/* Green */
-double *y4,	/* Blue */
-double *y5,	/* Yellow */
-double *y6,	/* Purple */
-double *y7,	/* Brown */
-double *y8,	/* Orange */
-double *y9,	/* Grey */
-double *y10,/* White */
-int n,		/* Number of values */
-double *xp, double *yp,		/* And crosses */
-int m,
-int dowait) {
-	int i, j;
-	double xmin, xmax, ymin, ymax;
-	int nn = abs(n);
-	double *yy[MXGPHS];
-
-	for (j = 0; j < MXGPHS; j++)
-		yy[j] = NULL;
-
-	yy[0] = y1;
-	yy[1] = y2;
-	yy[2] = y3;
-	yy[3] = y4;
-	yy[4] = y5;
-	yy[5] = y6;
-	yy[6] = y7;
-	yy[7] = y8;
-	yy[8] = y9;
-	yy[9] = y10;
 
 	/* Determine min and max dimensions of plot */
 	xmin = ymin = 1e6;
@@ -629,6 +530,9 @@ int dowait) {
 		}
 	}
 
+	if (zero && ymin > 0.0)
+		ymin = 0.0;
+
 	/* Work out scale factors */
 	if ((xmax - xmin) == 0.0)
 		xmax += 0.5, xmin -= 0.5;
@@ -637,9 +541,102 @@ int dowait) {
 
 	return do_plot_imp(PLOTF_NONE,
 	                   xmin, xmax, ymin, ymax, 1.0, dowait,
-	                   x, NULL, yy, NULL, n,
+	                   x, NULL, yy, NULL, NULL, n,
 	                   xp, yp, NULL, NULL, m,
 	                   NULL, NULL, NULL, NULL, NULL, 0); 
+}
+
+/* Public routines */
+/* Plot up to 10 graphs + optional crosses */
+/* if dowait > 0, wait for user key */
+/* if dowait < 0, wait for no seconds */
+/* return 0 on success, -1 on error */
+/* If n is -ve, reverse the X axis */
+/* If zero, ensure Y goes to zero */
+int
+do_plot10pwz(
+double *x,	/* X coord */
+double *y1,	/* Black */
+double *y2,	/* Red */
+double *y3,	/* Green */
+double *y4,	/* Blue */
+double *y5,	/* Yellow */
+double *y6,	/* Purple */
+double *y7,	/* Brown */
+double *y8,	/* Orange */
+double *y9,	/* Grey */
+double *y10,/* White */
+int n,		/* Number of values, -ve for reverse X axis */
+double *xp, double *yp,		/* And crosses */
+int m,		/* Number of crosses */
+int dowait,	/* == 0 no wait, > 0, wait for user key, < 0 wait for secs */
+int zero	/* Flag - nz, make sure zero is in y range */
+) {
+	int j;
+	double *yy[MXGPHS];
+
+	for (j = 0; j < MXGPHS; j++)
+		yy[j] = NULL;
+
+	yy[0] = y1;
+	yy[1] = y2;
+	yy[2] = y3;
+	yy[3] = y4;
+	yy[4] = y5;
+	yy[5] = y6;
+	yy[6] = y7;
+	yy[7] = y8;
+	yy[8] = y9;
+	yy[9] = y10;
+
+	return do_plotNpwz(x, yy, n, xp, yp, m, dowait, zero);
+}
+
+/* Plot up to 10 graphs. Wait for a key */
+/* return 0 on success, -1 on error */
+/* If n is -ve, reverse the X axis */
+int
+do_plot10(
+double *x,	/* X coord */
+double *y1,	/* Black */
+double *y2,	/* Red */
+double *y3,	/* Green */
+double *y4,	/* Blue */
+double *y5,	/* Yellow */
+double *y6,	/* Purple */
+double *y7,	/* Brown */
+double *y8,	/* Orange */
+double *y9,	/* Grey */
+double *y10,/* White */
+int n,		/* Number of values */
+int zero	/* Flag - make sure zero is in y range */
+) {
+	return do_plot10pwz(x, y1, y2, y3, y4, y5, y6, y7, y8, y9, y10, n, NULL, NULL, 0, 1, zero);
+}
+
+/* Plot up to 10 graphs + optional crosses */
+/* if dowait > 0, wait for user key */
+/* if dowait < 0, wait for no seconds */
+/* return 0 on success, -1 on error */
+/* If n is -ve, reverse the X axis */
+int
+do_plot10pw(
+double *x,	/* X coord */
+double *y1,	/* Black */
+double *y2,	/* Red */
+double *y3,	/* Green */
+double *y4,	/* Blue */
+double *y5,	/* Yellow */
+double *y6,	/* Purple */
+double *y7,	/* Brown */
+double *y8,	/* Orange */
+double *y9,	/* Grey */
+double *y10,/* White */
+int n,		/* Number of values */
+double *xp, double *yp,		/* And crosses */
+int m,
+int dowait) {
+	return do_plot10pwz(x, y1, y2, y3, y4, y5, y6, y7, y8, y9, y10, n, xp, yp, m, dowait, 0);
 }
 
 /* Plot up to 10 graphs + optional crosses. Wait for a key */
@@ -661,7 +658,7 @@ double *y10,/* White */
 int n,		/* Number of values */
 double *xp, double *yp,		/* And crosses */
 int m) {
-	return do_plot10pw(x, y1, y2, y3, y4, y5, y6, y7, y8, y9, y10, n, xp, yp, m, 1);
+	return do_plot10pwz(x, y1, y2, y3, y4, y5, y6, y7, y8, y9, y10, n, xp, yp, m, 1, 0);
 }
 
 
@@ -695,7 +692,7 @@ int m			/* Number of points */
 
 	return do_plot_imp(PLOTF_VECCROSSES,
 	                   xmin, xmax, ymin, ymax, 1.0, dowait,
-	                   x1, x2, yy, NULL, n,
+	                   x1, x2, yy, NULL, NULL, n,
 	                   x3, y3, mcols, mtext, m,
 	                   NULL, NULL, NULL, NULL, NULL, 0); 
 }
@@ -737,7 +734,54 @@ int o			/* Number of vectors */
 
 	return do_plot_imp(PLOTF_VECCROSSES,
 	                   xmin, xmax, ymin, ymax, 1.0, dowait,
-	                   x1, x2, yy, ntext, n,
+	                   x1, x2, yy, NULL, ntext, n,
+	                   x3, y3, mcols, mtext, m,
+	                   x4, y4, x5, y5, ocols, o); 
+}
+
+/* Plot a bunch of colored vectors + points + optional colored points & notation */
+/* + optional colored vectors */
+/* return 0 on success, -1 on error */
+/* Vectors are x1, y1 to x2, y2 with color ncols and annotated 'X' at x2, y2, */
+/* Colored annotated Crosss at x3, y3. */
+/* Colored vector from x4, y4 to x5, y5 */
+int do_plot_vec3(
+double xmin,
+double xmax,
+double ymin,
+double ymax,
+double *x1,		/* n vector start */
+double *y1,
+double *x2,		/* vector end and diagonal cross */
+double *y2,
+plot_col *ncols,/* Vector and cross colors */	
+char **ntext,	/* text annotation at cross */
+int n,			/* Number of vectors */
+int dowait,
+double *x3,		/* m extra crosses */
+double *y3,
+plot_col *mcols,/* cross colors */
+char **mtext,	/* text annotation at cross */
+int m,			/* Number of crosses */
+double *x4,		/* o vector start */
+double *y4,
+double *x5,		/* o vector end */
+double *y5,
+plot_col *ocols,/* Vector colors */
+int o			/* Number of vectors */
+) {
+	int j;
+	double *yy[MXGPHS];
+
+	for (j = 0; j < MXGPHS; j++)
+		yy[j] = NULL;
+
+	yy[0] = y1;
+	yy[1] = y2;
+
+	return do_plot_imp(PLOTF_VECCROSSES,
+	                   xmin, xmax, ymin, ymax, 1.0, dowait,
+	                   x1, x2, yy, ncols, ntext, n,
 	                   x3, y3, mcols, mtext, m,
 	                   x4, y4, x5, y5, ocols, o); 
 }
@@ -836,7 +880,7 @@ DWORD WINAPI plot_message_thread(LPVOID lpParameter) {
 /* Hybrid Graph uses x1 : y1, y2, y3, y4, y5, y6 for up to 6 graph curves + */
 /* optional diagonal crosses at x7, y7 in yellow (x2 == NULL). */
 /* Vector uses x1, y1 to x2, y2 as a vector with a (optional) diagonal cross at x2, y2 */
-/* all in black with annotation ntext at the cross, */
+/* all in black or ncols with annotation ntext at the cross, */
 /* plus a (optiona) diagonal cross at x7, y7 in yellow. The color for x7, y7 can be */
 /* overidden by an array of colors mcols, plus optional label text mtext. (x2 != NULL) */
 /* n = number of points/vectors. -ve for reversed X axis */
@@ -848,7 +892,7 @@ static int do_plot_imp(
 	double ratio,	/* Aspect ratio of window, X/Y */
 	int dowait,		/* > 0 wait for user to hit space key, < 0 delat dowait seconds. */
     double *x1, double *x2,
-    double *yy[MXGPHS], char **ntext,
+    double *yy[MXGPHS], plot_col *ncols, char **ntext,
 	int n,
 	double *x7, double *y7, plot_col *mcols, char **mtext,
     int m,
@@ -883,11 +927,12 @@ static int do_plot_imp(
 		if (x2 == NULL)
 			pd.graph = 1;		/* 6 graphs + points */
 		else
-			pd.graph = 0;
+			pd.graph = 0;		/* vectors + optional crosses */
 		pd.x1 = x1;
 		pd.x2 = x2;
 		for (j = 0; j < MXGPHS; j++)
 			pd.yy[j] = yy[j];
+		pd.ncols = ncols;
 		pd.ntext = ntext;
 		pd.n = abs(n);
 
@@ -1105,25 +1150,13 @@ plot_info *p
 	DeleteObject(pen);
 
 	if (p->graph) {		/* Up to MXGPHS graphs + crosses */
-		int gcolors[MXGPHS][3] = {
-			{   0,   0,   0},	/* Black */
-			{ 210,  30,   0},	/* Red */
-			{   0, 200,  90},	/* Green */
-			{   0,  10, 255},	/* Blue */
-			{ 200, 200,   0},	/* Yellow */
-			{ 220,   0, 255},	/* Purple */
-			{ 136,  86,  68},	/* Brown */
-			{ 248,  95,   0},	/* Orange */
-			{ 160, 160, 160},	/* Grey */
-			{ 220, 220, 220}	/* White */
-		};
 		for (j = MXGPHS-1; j >= 0; j--) {
 			double *yp = p->yy[j];
 		
 			if (yp == NULL)
 				continue;
 
-			pen = CreatePen(PS_SOLID,ILTHICK,RGB(gcolors[j][0],gcolors[j][1],gcolors[j][2]));
+			pen = CreatePen(PS_SOLID,ILTHICK,RGB(plot_colors[j][0],plot_colors[j][1],plot_colors[j][2]));
 			SelectObject(hdc,pen);
 
 			lx = (int)((p->x1[0] - p->mnx) * p->scx + 0.5);
@@ -1149,8 +1182,9 @@ plot_info *p
 
 	} else {	/* Vectors with cross */
 
-		pen = CreatePen(PS_SOLID,ILTHICK,RGB(0,0,0));
-		SelectObject(hdc,pen);
+		/* Default is black */
+		pen = CreatePen(PS_SOLID,ILTHICK, RGB(0,0,0));
+		SelectObject(hdc, pen);
 
 		if (p->ntext != NULL) {
 			HFONT fon;
@@ -1169,6 +1203,20 @@ plot_info *p
 
 		for (i = 0; i < p->n; i++) {
 			int cx,cy;
+
+			if (p->ncols != NULL) {
+				int rgb[3];
+
+				for (j = 0; j < 3; j++)
+					rgb[j] = (int)(p->ncols[i].rgb[j] * 255.0 + 0.5);
+
+				DeleteObject(pen);
+				pen = CreatePen(PS_SOLID,ILTHICK,RGB(rgb[0],rgb[1],rgb[2]));
+				SelectObject(hdc,pen);
+
+				if (p->mtext != NULL)
+					SetTextColor(hdc, RGB(rgb[0],rgb[1],rgb[2]));
+			}
 
 			lx = (int)((p->x1[i] - p->mnx) * p->scx + 0.5);
 			ly = (int)((p->yy[0][i] - p->mny) * p->scy + 0.5);
@@ -1450,7 +1498,7 @@ static void create_my_win(void *cntx) {
 /* Hybrid Graph uses x1 : y1, y2, y3, y4, y5, y6 for up to 6 graph curves + */
 /* optional diagonal crosses at x7, y7 in yellow (x2 == NULL). */
 /* Vector uses x1, y1 to x2, y2 as a vector with a (optional) diagonal cross at x2, y2 */
-/* all in black with annotation ntext at the cross, */
+/* all in black or ncols with annotation ntext at the cross, */
 /* plus a (optiona) diagonal cross at x7, y7 in yellow. The color for x7, y7 can be */
 /* overidden by an array of colors mcols, plus optional label text mtext. (x2 != NULL) */
 /* n = number of points/vectors. -ve for reversed X axis */
@@ -1462,7 +1510,7 @@ static int do_plot_imp(
 	double ratio,	/* Aspect ratio of window, X/Y */
 	int dowait,		/* > 0 wait for user to hit space key, < 0 delat dowait seconds. */
     double *x1, double *x2,
-    double *yy[MXGPHS], char **ntext,
+    double *yy[MXGPHS], plot_col *ncols, char **ntext,
 	int n,
 	double *x7, double *y7, plot_col *mcols, char **mtext,
     int m,
@@ -1504,6 +1552,7 @@ static int do_plot_imp(
 		pd.x2 = x2;
 		for (j = 0; j < MXGPHS; j++)
 			pd.yy[j] = yy[j];
+		pd.ncols = ncols;
 		pd.ntext = ntext;
 		pd.n = abs(n);
 
@@ -1761,26 +1810,15 @@ static void DoPlot(NSRect *rect, plot_info *pdp) {
 	[path setLineDash: NULL count: 0 phase: 0.0 ];
 
 	if (pdp->graph) {		/* Up to 6 graphs */
-		int gcolors[MXGPHS][3] = {
-			{   0,   0,   0},	/* Black */
-			{ 210,  30,   0},	/* Red */
-			{   0, 200,  90},	/* Green */
-			{   0,  10, 255},	/* Blue */
-			{ 200, 200,   0},	/* Yellow */
-			{ 220,   0, 255},	/* Purple */
-			{ 136,  86,  68},	/* Brown */
-			{ 248,  95,   0},	/* Orange */
-			{ 160, 160, 160},	/* Grey */
-			{ 220, 220, 220}	/* White */
-		};
 		for (j = MXGPHS-1; j >= 0; j--) {
 			double *yp = pdp->yy[j];
 		
 			if (yp == NULL)
 				continue;
-			[[NSColor colorWithCalibratedRed: gcolors[j][0]/255.0
-			                           green: gcolors[j][1]/255.0
-			                            blue: gcolors[j][2]/255.0
+
+			[[NSColor colorWithCalibratedRed: plot_colors[j][0]/255.0
+			                           green: plot_colors[j][1]/255.0
+			                            blue: plot_colors[j][2]/255.0
 			                           alpha: 1.0] setStroke];
 
 			if (pdp->n > 0) {
@@ -1804,6 +1842,7 @@ static void DoPlot(NSRect *rect, plot_info *pdp) {
 		}
 
 	} else {	/* Vectors */
+
 		[[NSColor colorWithCalibratedRed: 0.0
 		                           green: 0.0
 		                            blue: 0.0
@@ -1816,6 +1855,20 @@ static void DoPlot(NSRect *rect, plot_info *pdp) {
 		}
 		for (i = 0; i < pdp->n; i++) {
 			int cx,cy;
+
+			if (pdp->ncols != NULL) {
+				[[NSColor colorWithCalibratedRed: pdp->ncols[i].rgb[0]/255.0
+				                           green: pdp->ncols[i].rgb[1]/255.0
+				                            blue: pdp->ncols[i].rgb[2]/255.0
+				                           alpha: 1.0] setStroke];
+	
+				if (pdp->ntext != NULL) {
+					tcol = [NSColor colorWithCalibratedRed: pdp->ncols[i].rgb[0]/255.0
+						                             green: pdp->ncols[i].rgb[1]/255.0
+						                              blue: pdp->ncols[i].rgb[2]/255.0
+						                             alpha: 1.0];
+				}
+			}
 
 			lx = (int)((pdp->x1[i] - pdp->mnx) * pdp->scx + 0.5);
 			ly = (int)((pdp->yy[0][i] - pdp->mny) * pdp->scy + 0.5);
@@ -1924,7 +1977,7 @@ void DoPlot(Display *mydisplay, Window mywindow, GC mygc, plot_info *pdp);
 /* Hybrid Graph uses x1 : y1, y2, y3, y4, y5, y6 for up to 6 graph curves + */
 /* optional diagonal crosses at x7, y7 in yellow (x2 == NULL). */
 /* Vector uses x1, y1 to x2, y2 as a vector with a (optional) diagonal cross at x2, y2 */
-/* all in black with annotation ntext at the cross, */
+/* all in black or ncols with annotation ntext at the cross, */
 /* plus a (optiona) diagonal cross at x7, y7 in yellow. The color for x7, y7 can be */
 /* overidden by an array of colors mcols, plus optional label text mtext. (x2 != NULL) */
 /* n = number of points/vectors. -ve for reversed X axis */
@@ -1936,7 +1989,7 @@ static int do_plot_imp(
 	double ratio,	/* Aspect ratio of window, X/Y */
 	int dowait,		/* > 0 wait for user to hit space key, < 0 delat dowait seconds. */
     double *x1, double *x2,
-    double *yy[MXGPHS], char **ntext,
+    double *yy[MXGPHS], plot_col *ncols, char **ntext,
 	int n,
 	double *x7, double *y7, plot_col *mcols, char **mtext,
     int m,
@@ -1977,6 +2030,7 @@ static int do_plot_imp(
 		pd.x2 = x2;
 		for (j = 0; j < MXGPHS; j++)
 			pd.yy[j] = yy[j];
+		pd.ncols = ncols;
 		pd.ntext = ntext;
 		pd.n = abs(n);
 
@@ -2225,9 +2279,9 @@ plot_info *pdp
 			if (yp == NULL)
 				continue;
 
-			col.red   = gcolors[j][0] * 256;
-			col.green = gcolors[j][1] * 256;
-			col.blue  = gcolors[j][2] * 256;
+			col.red   = plot_colors[j][0] * 256;
+			col.green = plot_colors[j][1] * 256;
+			col.blue  = plot_colors[j][2] * 256;
 			XAllocColor(mydisplay, mycmap, &col);
 			XSetForeground(mydisplay,mygc, col.pixel);
 			XSetLineAttributes(mydisplay, mygc, ILTHICK, LineSolid, CapButt, JoinBevel);
@@ -2252,13 +2306,21 @@ plot_info *pdp
 
 	} else {	/* Vectors */
 
-		col.red = col.green = col.blue = 0 * 256;
 		XAllocColor(mydisplay, mycmap, &col);
 		XSetForeground(mydisplay,mygc, col.pixel);
 		XSetLineAttributes(mydisplay, mygc, ILTHICK, LineSolid, CapButt, JoinBevel);
 
 		for (i = 0; i < pdp->n; i++) {
 			int cx,cy;
+
+			if (pdp->ncols != NULL) {
+				col.red = (int)(pdp->ncols[i].rgb[0] * 65535.0 + 0.5);
+				col.green = (int)(pdp->ncols[i].rgb[1] * 65535.0 + 0.5);
+				col.blue = (int)(pdp->ncols[i].rgb[2] * 65535.0 + 0.5);
+				XAllocColor(mydisplay, mycmap, &col);
+				XSetForeground(mydisplay,mygc, col.pixel);
+				XSetLineAttributes(mydisplay, mygc, ILTHICK, LineSolid, CapButt, JoinBevel);
+			}
 
 			lx = (int)((pdp->x1[i] - pdp->mnx) * pdp->scx + 0.5);
 			ly = (int)((pdp->yy[0][i] - pdp->mny) * pdp->scy + 0.5);

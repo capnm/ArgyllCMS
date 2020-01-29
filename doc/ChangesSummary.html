@@ -16,6 +16,35 @@
     <h1> Summary of Argyll CMS Changes since last release</h1>
     <h3>For a <span style="text-decoration: underline;">complete</span>
       and more detailed list of changes, please see the log.txt file.</h3>
+    <h1>[V2.0.0 -&gt; V2.0.1] 9th July 2018</h1>
+    <ul>
+      <li>Increased maximum render channels to 16<br>
+      </li>
+      <li>Added -O option to collink to allow creating a link purely
+        from calibration file.</li>
+      <li>Fixed JETI specbos &amp; specval timeout when in averaging
+        mode and dark measurement.</li>
+      <li>Changed JETI specval 1511 driver to ignore REMOTE command
+        error with newer firmware.</li>
+      <li>Changed Klein K10 serial parameters in attempt to prevent
+        serial lock up on MSWindows.</li>
+      <li>Made a failure of the conf:maxtin command with a JETI 1201 a
+        soft error, to allow for old firmware versions.</li>
+      <li>Change colorhug Linux driver to reset on close. This may
+        overcome a problem re-starting the driver.</li>
+      <li>Fixed i1Pro driver to cope with stripped down OEM i1Pro2 that
+        is missing one piece of calibration information.</li>
+      <li>Fixed display calibration selection to allow for more than 62
+        entries. This is to fix problem using Klein K10 that has a lot
+        of saved calibrations.</li>
+      <li>Changed spec2cie to add extra informational L*a*b* output
+        fields, if a non D50 illuminant (-i option) is used.</li>
+      <li>Added -w parameter to spotread, to use the -i parameter
+        illuminant for L*a*b* calculation.</li>
+      <li>Fixed bug in spec2cie - XRGA conversion wasn't saving spectrum
+        out.<br>
+      </li>
+    </ul>
     <h1>[V1.9.2 -&gt; V2.0.0] 17th November 2017</h1>
     <ul>
       <li>Added support for "pm" viewing condition (Print evaluation
@@ -1206,6 +1235,9 @@
 
 
 
+
+
+
         </span>for systems with &gt; 3Gig Ram.</li>
       <li>Add support for the Eye-One Monitor spectrometer.</li>
       <li>Added -L option to <span style="font-weight: bold;">printtarg</span>
@@ -1220,6 +1252,9 @@
     Various bug fixes, the main ones being:<br>
     <ul>
       <li>Fixed some <span style="font-weight: bold;">colprof </span>performance
+
+
+
 
 
 

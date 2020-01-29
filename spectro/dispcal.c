@@ -1684,7 +1684,7 @@ int main(int argc, char *argv[]) {
 	icompaths *icmps = NULL;
 	icompath *ipath = NULL;
 	flow_control fc = fc_nc;			/* Default flow control */
-	int dtype = 0;						/* Display type selection charater */
+	int ditype = 0;						/* Display type selection charater(s) */
 	int tele  = 0;						/* nz if telephoto mode */
 	int nocal = 0;						/* Disable auto calibration */
 	int noplace = 0;					/* Disable initial user placement check */
@@ -2121,7 +2121,9 @@ int main(int argc, char *argv[]) {
 			} else if (argv[fa][1] == 'y') {
 				fa = nfa;
 				if (na == NULL) usage(0,"Parameter expected after -y");
-				dtype = na[0];
+				ditype = na[0];
+				if (ditype == '_' && na[1] != '\000')
+					ditype = ditype << 8 | na[1];
 
 			/* Daylight color temperature */
 			} else if (argv[fa][1] == 't' || argv[fa][1] == 'T') {
@@ -2342,7 +2344,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (docalib) {
-		if ((rv = disprd_calibration(ipath, fc, dtype, -1, 0, tele, nadaptive, nocal, disp,
+		if ((rv = disprd_calibration(ipath, fc, ditype, -1, 0, tele, nadaptive, nocal, disp,
 		                             webdisp, ccid,
 #ifdef NT
 			                         madvrdisp,
@@ -2384,7 +2386,7 @@ int main(int argc, char *argv[]) {
 		native = 0;	/* But measure current calibrated & CM response for verify or report calibrated */ 
 
 	/* Get ready to do some readings */
-	if ((dr = new_disprd(&errc, ipath, fc, dtype, -1, 0, tele, nadaptive, nocal, noplace,
+	if ((dr = new_disprd(&errc, ipath, fc, ditype, -1, 0, tele, nadaptive, nocal, noplace,
 	                     highres, refrate, native, &noramdac, &nocm, NULL, 0,
 		                 disp, out_tvenc, fullscreen, override, webdisp, ccid,
 #ifdef NT
@@ -2677,14 +2679,15 @@ int main(int argc, char *argv[]) {
 
 		/* Read in the setup, user and model values */
 
-		if (dtype == 0) {	/* If the use hasn't set anything */
+		if (ditype == 0) {	/* If the use hasn't set anything */
 			if ((fi = icg->find_kword(icg, 0, "DEVICE_TYPE")) >= 0) {
 				if (strcmp(icg->t[0].kdata[fi], "CRT") == 0)
-					dtype = 'c';
+					ditype = 'c';
 				else if (strcmp(icg->t[0].kdata[fi], "LCD") == 0)
-					dtype = 'l';
-				else
-					dtype = icg->t[0].kdata[fi][0];
+					ditype = 'l';
+				else {
+					ditype = icg->t[0].kdata[fi][0];	// Hmm. not handling '_' ...
+				}
 			}
 		}
 //printf("~1 dealt with device type\n");
@@ -3024,8 +3027,8 @@ int main(int argc, char *argv[]) {
 		if (out_tvenc)
 			printf("Using TV encoding range of (16-235)/255\n");
 
-		if (dtype > 0)
-			printf("Display type is '%c'\n",dtype);
+		if (ditype > 0)
+			printf("Display type is '%s'\n",inst_distr(ditype));
 
 		if (doupdate) {
 			if (x.nat)
@@ -5269,8 +5272,11 @@ int main(int argc, char *argv[]) {
 		ocg->add_kword(ocg, 0, "TV_OUTPUT_ENCODING",out_tvenc ? "YES" : "NO", NULL);
 
 		/* Put the target parameters in the CGATS file too */
-		if (dtype != 0) {
-			sprintf(buf,"%c",dtype);
+		if (ditype != 0) {
+			if ((ditype & ~0xff) != 0)
+				sprintf(buf,"%c%c",((ditype >> 8) & 0xff), ditype & 0xff);
+			else
+				sprintf(buf,"%c",ditype);
 			ocg->add_kword(ocg, 0, "DEVICE_TYPE", buf, NULL);
 		}
 		

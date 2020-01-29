@@ -278,13 +278,6 @@ cgats *icg			/* input cgats structure */
 	}
 
 	if ((ti = icg->find_kword(icg, 0, "OEM")) >= 0) {
-		if ((p->ref = strdup(icg->t[0].kdata[ti])) == NULL) {
-			sprintf(p->err, "read_ccmx: malloc failed");
-			return 2;
-		}
-	}
-
-	if ((ti = icg->find_kword(icg, 0, "OEM")) >= 0) {
 		if (stricmp(icg->t[0].kdata[ti], "YES") == 0)
 			p->oem = 1;
 		else if (stricmp(icg->t[0].kdata[ti], "NO") == 0)

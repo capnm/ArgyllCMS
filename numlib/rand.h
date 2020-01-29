@@ -24,8 +24,11 @@ unsigned int seed);			/* Optional seed. Non-zero re-initialized with that seed *
 /* Return a random integer in the range min to max inclusive */
 int i_rand(int min, int max);
 
-/* Return a random double in the range min to max inclusive */
+/* Return a uniform random double in the range min to max inclusive */
 double d_rand(double min, double max);
+
+/* Return a squared distribution random double in the range min to max inclusive */
+double d2_rand(double min, double max);
 
 /* Return a random floating point number with a gausian/normal */
 /* distribution, centered about 0.0, with standard deviation 1.0 */
@@ -61,8 +64,11 @@ unsigned int seed);			/* Optional seed. Non-zero re-initialized with that seed *
 /* Return a random integer in the range min to max inclusive */
 int i_rand_th(rand_state *p, int min, int max);
 
-/* Return a random double in the range min to max inclusive */
+/* Return a uniform random double in the range min to max inclusive */
 double d_rand_th(rand_state *p, double min, double max);
+
+/* Return a squared distribution random double in the range min to max inclusive */
+double d2_rand_th(rand_state *p, double min, double max);
 
 /* Return a random floating point number with a gausian/normal */
 /* distribution, centered about 0.0, with standard deviation 1.0 */

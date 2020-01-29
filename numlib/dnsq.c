@@ -112,6 +112,7 @@ int dnsqe(
 		info = 4;
 	if (info == 0)
 		warning("dnsqe: invalid input parameter.");
+
 	return info;
 } /* dnsqe */
 

@@ -697,6 +697,9 @@ static int delayed_beep(void *pp) {
 # endif
 #else	/* UNIX */
 	/* Linux is pretty lame in this regard... */
+	/* Maybe we could write an 8Khz 8 bit sample to /dev/dsp, or /dev/audio ? */
+	/* The ALSA system is the modern way for audio output. */
+	/* Also check out what sox does: <http://sox.sourceforge.net/> */
 	fprintf(stdout, "\a"); fflush(stdout);
 #endif 
 	return 0;

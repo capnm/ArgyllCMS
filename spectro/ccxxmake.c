@@ -228,8 +228,8 @@ int main(int argc, char *argv[]) {
 	int comno = COMPORT;				/* COM port used */
 	flow_control fc = fc_nc;			/* Default flow control */
 	int highres = 0;					/* High res mode if available */
-	int dtype = 0;						/* Display kind, 0 = default, 1 = CRT, 2 = LCD, etc */
-	int sdtype = -1;					/* Spectro display kind, -1 = use dtype */
+	int ditype = 0;						/* Display kind selector, 0 = default */
+	int sditype = -1;					/* Spectro display kind, -1 = use ditype */
 	int refrmode = -1;					/* Refresh mode */
 	double refrate = 0.0;				/* 0.0 = default, > 0.0 = override refresh rate */ 
 	int cbid = 0;						/* Calibration base display mode ID */
@@ -411,7 +411,9 @@ int main(int argc, char *argv[]) {
 			} else if (argv[fa][1] == 'y') {
 				fa = nfa;
 				if (na == NULL) usage(0,"Parameter expected after -y");
-				dtype = na[0];
+				ditype = na[0];
+				if (ditype == '_' && na[1] != '\000')
+					ditype = ditype << 8 | na[1];
 
 				/* For ccss, set a default */
 				if (na[0] == 'r') {
@@ -424,7 +426,7 @@ int main(int argc, char *argv[]) {
 			} else if (argv[fa][1] == 'z') {
 				fa = nfa;
 				if (na == NULL) usage(0,"Parameter expected after -z");
-				sdtype = na[0];
+				sditype = na[0];
 
 			/* Test patch offset and size */
 			} else if (argv[fa][1] == 'P') {
@@ -884,7 +886,7 @@ int main(int argc, char *argv[]) {
 				}
 
 				/* Create a spectral conversion object */
-				if ((sp2cie = new_xsp2cie(icxIT_none, NULL, obType, custObserver, icSigXYZData, icxClamp)) == NULL)
+				if ((sp2cie = new_xsp2cie(icxIT_none, 0.0, NULL, obType, custObserver, icSigXYZData, icxClamp)) == NULL)
 					error("Creation of spectral conversion object failed");
 
 				for (i = 0; i < npat; i++) {
@@ -1260,7 +1262,7 @@ int main(int argc, char *argv[]) {
 
 				/* Should we use current cal rather than native ??? */
 				if ((dr = new_disprd(&errc, icmps->get_path(icmps, comno),
-				                     fc, dtype, sdtype, 1, tele, nadaptive,
+				                     fc, ditype, sditype, 1, tele, nadaptive,
 				                     noinitcal, 0, highres, refrate, 3, NULL, NULL,
 					                 NULL, 0, disp, 0, fullscreen,
 				                     override, webdisp, ccid,
@@ -1318,7 +1320,7 @@ int main(int argc, char *argv[]) {
 
 						if (spec) {
 							/* Create a spectral conversion object */
-							if ((sp2cie = new_xsp2cie(icxIT_none, NULL, obType, custObserver, icSigXYZData, icxClamp)) == NULL)
+							if ((sp2cie = new_xsp2cie(icxIT_none, 0.0, NULL, obType, custObserver, icSigXYZData, icxClamp)) == NULL)
 								error("Creation of spectral conversion object failed");
 						}
 						for (i = 0; i < npat; i++) {	/* For all grid points */

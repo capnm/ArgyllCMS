@@ -1497,8 +1497,8 @@ ss_tmt tm	/* Table mode (Reflectance/Transmission) */
 inst_code ss_do_SetDeviceOnline(ss *p) {
 #ifdef EMSST
 	if (p->tmode != 0)
-		*((char *)0) = 55;
-//	return inst_unsupported;
+//		*((char *)0) = 55;		// Trigger backtrace
+		return inst_unsupported;
 #endif
 	ss_add_ssreq(p, ss_SetDeviceOnline);
 	ss_command(p, DF_TMO);
@@ -1514,7 +1514,8 @@ inst_code ss_do_SetDeviceOnline(ss *p) {
 inst_code ss_do_SetDeviceOffline(ss *p) {
 #ifdef EMSST
 	if (p->tmode != 0)
-		*((char *)0) = 55;
+//		*((char *)0) = 55;		// Trigger backtrace
+		return inst_unsupported;
 #endif
 	ss_add_ssreq(p, ss_SetDeviceOffline);
 	ss_command(p, DF_TMO);
@@ -1559,7 +1560,8 @@ double y	/* Y coord in mm, 0-230.0, accurate to 0.1mm */
 ) {
 #ifdef EMSST
 	if (p->tmode != 0)
-		*((char *)0) = 55;
+//		*((char *)0) = 55;		// Trigger backtrace
+		return inst_unsupported;
 #endif
 	ss_add_ssreq(p, ss_MoveAbsolut);
 	ss_add_1(p, r);
@@ -1581,7 +1583,8 @@ double y	/* Y distance in mm, 0-230.0, accurate to 0.1mm */
 ) {
 #ifdef EMSST
 	if (p->tmode != 0)
-		*((char *)0) = 55;
+//		*((char *)0) = 55;		// Trigger backtrace
+		return inst_unsupported;
 #endif
 	ss_add_ssreq(p, ss_MoveRelative);
 	ss_add_2(p, (int)(x * 10 + 0.5));
@@ -1600,7 +1603,8 @@ ss *p
 ) {
 #ifdef EMSST
 	if (p->tmode != 0)
-		*((char *)0) = 55;
+//		*((char *)0) = 55;		// Trigger backtrace
+		return inst_unsupported;
 #endif
 	ss_add_ssreq(p, ss_MoveHome);
 	ss_command(p, MV_TMO);
@@ -1617,7 +1621,8 @@ ss *p
 ) {
 #ifdef EMSST
 	if (p->tmode != 0)
-		*((char *)0) = 55;
+//		*((char *)0) = 55;		// Trigger backtrace
+		return inst_unsupported;
 #endif
 	ss_add_ssreq(p, ss_MoveUp);
 	ss_command(p, MV_TMO);
@@ -1634,7 +1639,8 @@ ss *p
 ) {
 #ifdef EMSST
 	if (p->tmode != 0)
-		*((char *)0) = 55;
+//		*((char *)0) = 55;		// Trigger backtrace
+		return inst_unsupported;
 #endif
 	ss_add_ssreq(p, ss_MoveDown);
 	ss_command(p, MV_TMO);
@@ -1656,7 +1662,8 @@ ss_zkt *zk	/* Return the Z coordinate (Up/Down) */
 ) {
 #ifdef EMSST
 	if (p->tmode != 0)
-		*((char *)0) = 55;
+//		*((char *)0) = 55;		// Trigger backtrace
+		return inst_unsupported;
 #endif
 	ss_add_ssreq(p, ss_OutputActualPosition);
 	ss_add_1(p, r);
@@ -1680,7 +1687,8 @@ ss_wrpt wrp		/* White Reference Position (Tile1/Tile2) */
 ) {
 #ifdef EMSST
 	if (p->tmode != 0)
-		*((char *)0) = 55;
+//		*((char *)0) = 55;		// Trigger backtrace
+		return inst_unsupported;
 #endif
 	ss_add_ssreq(p, ss_MoveToWhiteRefPos);
 	ss_add_1(p, wrp);
@@ -1749,7 +1757,8 @@ ss_llt ll	/* Transmission light level (Off/Surround/Low) */
 	if (p->tmode != 0)
 		return inst_ok;
 	else
-		*((char *)0) = 55;
+//		*((char *)0) = 55;		// Trigger backtrace
+		return inst_unsupported;
 #endif
 	ss_add_ssreq(p, ss_SetLightLevel);
 	ss_add_1(p, ll);
@@ -1775,7 +1784,8 @@ double y	/* Y coord in mm, 0-230.0, accurate to 0.1mm */
 		p->sby = y;
 		return inst_ok;
 	} else {
-		*((char *)0) = 55;
+//		*((char *)0) = 55;		// Trigger backtrace
+		return inst_unsupported;
 	}
 #endif
 	ss_add_ssreq(p, ss_SetTransmStandbyPos);

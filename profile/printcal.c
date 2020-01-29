@@ -1105,7 +1105,7 @@ int main(int argc, char *argv[]) {
 			}
 
 			/* Create a spectral conversion object to XYZ */
-			if ((sp2cie = new_xsp2cie(illum, &cust_illum, observ, NULL, icSigXYZData, icxClamp)) == NULL)
+			if ((sp2cie = new_xsp2cie(illum, 0.0, &cust_illum, observ, NULL, icSigXYZData, icxClamp)) == NULL)
 				error("Creation of spectral conversion object failed");
 
 			/* To add FWA comp. would have to locate/create spectral white here, */

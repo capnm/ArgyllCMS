@@ -671,7 +671,7 @@ main(int argc, char *argv[]) {
 			}
 
 			/* Create a spectral conversion object */
-			if ((sp2cie = new_xsp2cie(illum, illum == icxIT_none ? NULL : &cust_illum,
+			if ((sp2cie = new_xsp2cie(illum, 0.0, illum == icxIT_none ? NULL : &cust_illum,
 			                          obType, custObserver, icSigLabData, icxClamp)) == NULL)
 				error("Creation of spectral conversion object failed");
 

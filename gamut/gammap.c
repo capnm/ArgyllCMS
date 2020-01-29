@@ -155,6 +155,7 @@ struct {
 #include <fcntl.h>
 #include <string.h>
 #include <math.h>
+#include "aconfig.h"
 #include "icc.h"
 #include "numlib.h"
 #include "xicc.h"
@@ -165,6 +166,7 @@ struct {
 #include "vrml.h"
 #ifdef PLOT_LMAP
 #include "plot.h"
+#include "ui.h"
 #endif
 
 /* Callback context for enhancing the saturation of the clut values */

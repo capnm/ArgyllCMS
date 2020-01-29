@@ -178,14 +178,14 @@ void xspect_plot_w(xspect *sp1, xspect *sp2, xspect *sp3, int wait);
 /* Plot up to 3 spectra & wait for key */
 void xspect_plot(xspect *sp1, xspect *sp2, xspect *sp3);
 
-/* Plot up to 10 spectra in an array */
-void xspect_plot10(xspect *sp, int n);
+/* Plot up to 12 spectra in an array */
+void xspect_plotN(xspect *sp, int n);
 
-/* Plot up to 10 spectra pointed to by an array & wait for key */
-void xspect_plot10p(xspect *sp[10], int n);
+/* Plot up to 12 spectra pointed to by an array & wait for key */
+void xspect_plotNp(xspect *sp[MXGPHS], int n);
 
-/* Plot up to 10 spectra pointed to by an array */
-void xspect_plot10p_w(xspect *sp[10], int n, int wait);
+/* Plot up to 12 spectra pointed to by an array */
+void xspect_plotNp_w(xspect *sp[MXGPHS], int n, int wait);
 
 #endif /* !SALONEINSTLIB*/
 
@@ -223,6 +223,12 @@ typedef enum {
 /* return 0 on sucecss, nz if not matched */
 int standardIlluminant(
 xspect *sp,					/* Xspect to fill in */
+icxIllumeType ilType,		/* Type of illuminant */
+double temp);				/* Optional temperature in degrees kelvin, For Dtemp and Ptemp */
+
+/* Return a string describing the standard illuminant */
+/* (Returns static buffer for temp based) */
+char *standardIlluminant_name(
 icxIllumeType ilType,		/* Type of illuminant */
 double temp);				/* Optional temperature in degrees kelvin, For Dtemp and Ptemp */
 
@@ -326,7 +332,7 @@ struct _xsp2cie {
 
 	/* Convert and also return (possibly corrected) reflectance spectrum */
 	/* Spectrum will be same wlength range and readings as input spectrum */
-	/* Note that the returned XYZ is 0..1 range for reflectanc. */
+	/* Note that the returned XYZ is 0..1 range for reflectance. */
 	/* Emissive spectral values are assumed to be in mW/nm, and sampled */
 	/* rather than integrated if they are not at 1nm spacing. */
 	void (*sconvert) (struct _xsp2cie *p,	/* this */
@@ -397,6 +403,7 @@ struct _xsp2cie {
 
 xsp2cie *new_xsp2cie(
 	icxIllumeType ilType,			/* Observer Illuminant to use */
+	double        temp,				/* Optional temp. in degrees kelvin, if ilType = Dtemp etc */
 	xspect        *custIllum,		/* Custom illuminant if ilType == icxIT_custom */
 
 	icxObserverType obType,			/* Observer */
@@ -491,9 +498,6 @@ xspect *custIllum,		/* Optional custom illuminant */
 xspect *sp				/* Spectrum to be converted */
 );
 
-/* ------------------------------------------------- */
-/* Color temperature and CRI */
-
 /* Given an illuminant definition and an observer model, return */
 /* the normalised XYZ value for that spectrum. */
 /* Return 0 on sucess, 1 on error */
@@ -508,6 +512,9 @@ xspect *custIllum,		/* Optional custom illuminant */
 int abs					/* If nz return absolute value in cd/m^2 or Lux */
 						/* else return Y = 1 normalised value */
 );
+
+/* ------------------------------------------------- */
+/* Color temperature and CRI */
 
 /* Given a choice of temperature dependent illuminant (icxIT_[O]Dtemp or icxIT_[O]Ptemp), */
 /* return the closest correlated color temperature to the given spectrum or XYZ. */

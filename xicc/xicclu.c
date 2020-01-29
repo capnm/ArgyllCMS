@@ -34,8 +34,8 @@
 #include "copyright.h"
 #include "aconfig.h"
 #include "numlib.h"
-#include "xicc.h"
 #include "plot.h"
+#include "xicc.h"
 #include "ui.h"
 
 #undef SPTEST				/* [und] Test (flawed) rspl gamut surface code */

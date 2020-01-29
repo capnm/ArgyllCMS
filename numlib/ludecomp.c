@@ -163,6 +163,7 @@ int      n	/* Dimensionality */
 
 /* Decompose the square matrix A[][] into lower and upper triangles */
 /* NOTE that it returns transposed inverse by normal convention. */
+/* NOTE that rows get swaped by swapping matrix pointers! */ 
 /* Use sym_matrix_trans() to fix this. */
 /* Return 1 if the matrix is singular. */
 int
@@ -260,14 +261,14 @@ double  *rip	/* Row interchange parity, +/- 1.0, used for determinant */
 	return 0;
 }
 
-/* Solve a set of simultaneous equations from the */
+/* Solve a set of simultaneous equations A.x = b from the */
 /* LU decomposition, by back substitution. */
 void
 lu_backsub(
 double **a,		/* A[][] LU decomposed matrix */
 int      n,		/* Dimensionality */
 int     *pivx,	/* Pivoting row permutations record */
-double  *b		/* Input B[] vecor, return X[] */
+double  *b		/* Input B[] vector, return X[] */
 ) {
 	int i, j;
 	int nvi;		/* When >= 0, indicates non-vanishing B[] index */
@@ -441,15 +442,13 @@ int      n	/* Dimensionality */
 }
 
 /* Pseudo-Invert matrix A using lu decomposition */
-/* NOTE that it returns transposed inverse by normal convention. */
-/* Use matrix_trans() to fix this, or use matrix_trans_mult(). */
 /* Return 1 if the matrix is singular, 0 if OK */
 int
 lu_psinvert(
 double **out,	/* Output[0..N-1][0..M-1] */
 double **in,	/*  Input[0..M-1][0..N-1] input matrix */
-int      m,		/* Rows */
-int      n		/* Columns */
+int      m,		/* In Rows */
+int      n		/* In Columns */
 ) {
 	int rv = 0;
 	double **tr;		/* Transpose */
@@ -490,13 +489,73 @@ int      n		/* Columns */
 		}
 		free_dmatrix(sq, 0, m-1, 0, m-1);
 	}
-
 	free_dmatrix(tr, 0, n-1, 0, m-1);
 
 	return rv;
 }
 
 
+/* ----------------------------------------------------------------- */
+
+// ~~~ Hmm. Need to verify this code is correct...
+
+/* Use Cholesky decomposition on a symetric positive-definite matrix. */
+/* Only the upper triangle of the matrix A is accessed. */
+/* L returns the decomposition */
+/* Return nz if A is not positive-definite */
+int llt_decomp(double **L, double **A, int n) {
+	int i, j, k;
+	double sum;
+
+	/* Scan though upper triangle */
+	for (i = 0; i < n; i++) {
+
+		for (j = i; j < n; j++) {
+
+			sum = A[i][j];
+			for (k = i-1; k >= 0; k--) {
+				sum -= A[i][k] * A[j][k];
+			}
+
+			if (i != j) {
+				L[j][i] = sum/L[i][i];
+			} else {
+				if (sum <= 0.0)
+					return 1;
+				L[i][i] = sqrt(sum);
+			}
+		}
+	}
+	return 0;
+}
+
+/* Solve a set of simultaneous equations A.x = b from the */
+/* LLt decomposition, by back substitution. */
+void llt_backsub(
+double **L,			/* A[][] LLt decomposition in lower triangle */
+int n,				/* Dimensionality */
+double *b,			/* Input B[] */
+double *x			/* Return X[] (may be same as B[]) */
+) {
+	int i, k;
+	double sum;
+
+	/* Solve L.y = b, storing y in x. */
+	for (i = 0; i < n; i++) {
+		sum = b[i];
+		for (k = i-1; k >= 0; k--)
+			sum -= L[i][k] * x[k];
+		x[i] = sum/L[i][i];
+	}
+
+	/* Solve Lt.x = y */
+	for (i = n; i >= 0; i--) {
+		sum = x[i];
+		for (k = i+1 ; k < n; k++)
+			sum -= L[k][i] * x[k];
+		x[i] = sum/L[i][i];
+	}
+}
 
 
 

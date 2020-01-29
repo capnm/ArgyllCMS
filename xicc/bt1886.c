@@ -12,7 +12,7 @@
  *
  */
 
-/* BT.1886 stype input offset transfer curve, */
+/* BT.1886 type input offset transfer curve, */
 /* + general gamma + input + output offset curve support. */
 
 #include <sys/types.h>

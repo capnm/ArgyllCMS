@@ -759,7 +759,7 @@ int main(int argc, char *argv[])
 			if (l_observ == icxOT_none)
 				l_observ = icxOT_CIE_1931_2;
 
-			if ((sp2cie = new_xsp2cie(l_illum, l_illum == icxIT_none ? NULL : &cust_illum,
+			if ((sp2cie = new_xsp2cie(l_illum, 0.0, l_illum == icxIT_none ? NULL : &cust_illum,
 			                          l_observ, custObserver, icSigXYZData, icxClamp)) == NULL)
 				error("Creation of spectral conversion object failed");
 

@@ -1080,6 +1080,29 @@ int nch
 	free((char *)(m+nrl-1));
 }
 
+/* In case rows have been swapped, reset the pointers */
+void dmatrix_reset(
+double **m,
+int nrl,	/* Row low index */
+int nrh,	/* Row high index */
+int ncl,	/* Col low index */
+int nch		/* Col high index */
+) {
+	int i;
+	int cols;
+
+	if (nrh < nrl)	/* Prevent failure for 0 dimension */
+		nrh = nrl;
+	if (nch < ncl)
+		nch = ncl;
+
+	cols = nch - ncl + 1;
+
+	m[nrl] = m[nrl-1] - ncl;		/* Set first row address, offset to ncl */
+	for(i = nrl+1; i <= nrh; i++)	/* Set subsequent row addresses */
+		m[i] = m[i-1] + cols;
+}
+
 /* --------------------- */
 /* 2D diagonal half matrix vector malloc/free */
 /* A half matrix must have equal rows and columns, */
@@ -1854,19 +1877,61 @@ int matrix_vect_mult(
 	return 0;
 }
 
+/* Multiply a 0 based transposed matrix by a vector */
+/* d may be same as v */
+int matrix_trans_vect_mult(
+	double *d, int nd,
+	double **m, int nr, int nc,
+	double *v, int nv
+) {
+	int i, j;
+	double *_v = v, vv[20];
+
+	if (d == v) {
+		if (nv <= 20) {
+			_v = vv;
+		} else {
+			_v = dvector(0, nv-1);
+		}
+		for (j = 0; j < nv; j++)
+			_v[j]  = v[j];
+	}
+
+	/* Input vector must match matrix columns */
+	if (nv != nr)
+		return 1;
+
+	/* Output vector must match matrix rows */
+	if (nd != nc)
+		return 1;
+
+	for (i = 0; i < nd; i++) {
+		d[i] = 0.0;  
+		for (j = 0; j < nv; j++)
+			d[i] += m[j][i] * _v[j];
+	}
+
+	if (_v != v && _v != vv)
+		free_dvector(_v, 0, nv-1);
+
+	return 0;
+}
+
 
 /* Set zero based dvector */
 void vect_set(double *d, double v, int len) {
-	int i;
-	for (i = 0; i < len; i++)
-		d[i] = v;
+	if (v == 0.0)
+		memset((char *)d, 0, len * sizeof(double));
+	else {
+		int i;
+		for (i = 0; i < len; i++)
+			d[i] = v;
+	}
 }
 
 /* Copy zero based dvector */
 void vect_cpy(double *d, double *s, int len) {
-	int i;
-	for (i = 0; i < len; i++)
-		d[i] = s[i];
+	memmove((char *)d, (char *)s, len * sizeof(double));
 }
 
 
@@ -1898,6 +1963,35 @@ void vect_sub(
 	int i;
 	for (i = 0; i < len; i++)
 		d[i] -= v[i];
+}
+
+/* Scale a vector, */
+/* d may be same as v */
+void vect_scale(double *d, double *s, double scale, int len) {
+	int i;
+
+	for (i = 0; i < len; i++)
+		d[i] = s[i] * scale;
+}
+
+/* Take dot product of two vectors */
+double vect_dot(double *s1, double *s2, int len) {
+	int i;
+	double rv = 0.0;
+	for (i = 0; i < len; i++)
+		rv += s1[i] * s2[i];
+	return rv;
+}
+
+/* Return the vectors magnitude */
+double vect_mag(double *s, int len) {
+	int i;
+	double rv = 0.0;
+
+	for (i = 0; i < len; i++)
+		rv += s[i] * s[i];
+
+	return sqrt(rv);
 }
 
 
@@ -2017,6 +2111,85 @@ void adump_svector(a1log *log, char *id, char *pfx, short *a, int nc) {
 	for (i = 0; i < nc; i++)
 		a1logd(g_log, 0, "%d%s",a[i], i < (nc-1) ? ", " : "");
 	a1logd(g_log, 0, "\n");
+}
+
+/* ============================================================================ */
+/* C matrix support */
+
+/* Clip a vector to the range 0.0 .. 1.0 */
+/* and return any clipping margine */
+double vect_ClipNmarg(int n, double *out, double *in) {
+	int j;
+	double tt, marg = 0.0;
+	for (j = 0; j < n; j++) {
+		out[j] = in[j];
+		if (out[j] < 0.0) {
+			tt = 0.0 - out[j];
+			out[j] = 0.0;
+			if (tt > marg)
+				marg = tt;
+		} else if (out[j] > 1.0) {
+			tt = out[j] - 1.0;
+			out[j] = 1.0;
+			if (tt > marg)
+				marg = tt;
+		}
+	}
+	return marg;
+}
+
+/* 
+
+  mat     in    out
+
+[     ]   []    []
+[     ]   []    []
+[     ] * [] => []
+[     ]   []    []
+[     ]   []    []
+
+ */
+
+/* Multiply N vector by NxN transform matrix */
+/* Organization is mat[out][in] */
+void vect_MulByNxN(int n, double *out, double *mat, double *in) {
+	int i, j;
+	double _tt[20], *tt = _tt;
+
+	if (n > 20)
+		tt = dvector(0, n-1);
+
+	for (i = 0; i < n; i++) {
+		tt[i] = 0.0;
+		for (j = 0; j < n; j++)
+			tt[i] += mat[i * n + j] * in[j];
+	}
+
+	for (i = 0; i < n; i++)
+		out[i] = tt[i];
+
+	if (n > 20)
+		free_dvector(tt, 0, n-1);
+}
+
+/* Transpose an NxN matrix */
+void matrix_TransposeNxN(int n, double *out, double *in) {
+	int i, j;
+
+	if (in != out) {
+		for (i = 0; i < n; i++)
+			for (j = 0; j < n; j++)
+				out[i * n + j] = in[j * n + i];
+	} else {
+		for (i = 0; i < n; i++) {
+			for (j = i+1; j < n; j++) {
+				double tt;
+				tt = out[i * n + j];
+				out[i * n + j] = out[j * n + i];
+				out[j * n + i] = tt;
+			}
+		}
+	}
 }
 
 /* Print C double matrix to g_log debug */
@@ -2694,9 +2867,9 @@ char *debPiv(int di, int *p) {
 	return buf[ix];
 }
 
-/* Print a double color vector to a string. */
+/* Print a double color vector to a string with format. */
 /* Returned static buffer is re-used every 5 calls. */
-char *debPdv(int di, double *p) {
+char *debPdvf(int di, char *fmt, double *p) {
 	static char buf[5][DEB_MAX_CHAN * 100];
 	static int ix = 0;
 	int e;
@@ -2704,6 +2877,9 @@ char *debPdv(int di, double *p) {
 
 	if (p == NULL)
 		return "(null)";
+
+	if (fmt == NULL)
+		fmt = "%.8f";
 
 	if (++ix >= 5)
 		ix = 0;
@@ -2715,9 +2891,15 @@ char *debPdv(int di, double *p) {
 	for (e = 0; e < di; e++) {
 		if (e > 0)
 			*bp++ = ' ';
-		sprintf(bp, "%.8f", p[e]); bp += strlen(bp);
+		sprintf(bp, fmt, p[e]); bp += strlen(bp);
 	}
 	return buf[ix];
+}
+
+/* Print a double color vector to a string. */
+/* Returned static buffer is re-used every 5 calls. */
+char *debPdv(int di, double *p) {
+	return debPdvf(di, NULL, p);
 }
 
 /* Print a float color vector to a string. */

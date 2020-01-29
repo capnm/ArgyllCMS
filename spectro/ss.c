@@ -54,10 +54,11 @@
 	You should be able to use the table enter key anywhere the user
 	is asked to hit a key.
 
-	The corner positioning could be smarter.
+	The corner positioning could be smarter (i.e. move to the anticipated corned
+	automatically).
 
 	The SpectroscanT transmission cal. merely reminds the user (via verbose)
-	that it is assuming the correct apatture, rather than given them
+	that it is assuming the correct apature, rather than given them
 	a chance to change it.
 
  */

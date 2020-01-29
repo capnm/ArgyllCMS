@@ -20,7 +20,7 @@
 
 #undef DEBUG
 
-int dhsx_debug = 1;
+int dhsx_debug = 0;
 
 static void simplexinit(int di, double *cp, double **p, double *r, double sv, int ii);
 static double trypoint(int di,double *cp, double **p, double *y, int hix, double hpfac,
@@ -92,9 +92,15 @@ void *fdata				/* Data needed by function */
 			lox = i;
 	}
 	tryy = (*funk)(fdata, cp);	/* Value at initial point */
+#ifdef DEBUG
+	if (dhsx_debug) printf(" initial point %s = %e\n",debPdv(di,cp),tryy);
+#endif /* DEBUG */
 
 	/* If our initial point is better than any of the simplex verticies */
 	if (y[lox] > tryy) {
+#ifdef DEBUG
+		if (dhsx_debug) printf(" initial point is better than surrounding simplex\n");
+#endif /* DEBUG */
 		/* Move all the verticies to match moving lox to cp */
 		for (i = 0; i < nsp; i++) {
 			if (i == lox)
@@ -263,6 +269,9 @@ void *fdata				/* Data needed by function */
 				for (j = 0; j < di; j++)
 					cp[j] = p[lox][j];
 			}
+#ifdef DEBUG
+			else if (dhsx_debug) printf("C point val %f is best\n",tryy);
+#endif
 			free_dvector(y2, 0, nsp-1);
 			free_dmatrix(p2, 0, nsp-1, 0, di-1);
 			free_dvector(y, 0, nsp-1);

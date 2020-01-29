@@ -53,7 +53,7 @@
     This is intended for conversion of reflective measurements to XYZ -
 	there is no illuminant for emissive values.
 
-	L*a*b* is always D50.
+	L*a*b* is always D50, since it is intended for ICC profile construction.
 
  */
 
@@ -133,10 +133,10 @@ main(int argc, char *argv[])
 	int ci, mi, yi, ki;				/* Indexes of device values */
 	int fwacomp = 0;				/* FWA compensation */
 	int doplot = 0;					/* Plot each patches spectrum */
-	char* illum_str = "D50";
 	icxIllumeType tillum = icxIT_none;	/* Target/simulated instrument illuminant, if set. */ 
 	xspect cust_tillum, *tillump = NULL; /* Custom target/simulated illumination spectrum */
 	                                     /* if tillum == icxIT_custom */
+	char* illum_str = "D50";
 	icxIllumeType illum = icxIT_none;	/* CIE calc. illuminant spectrum, and FWA inst. */
 										/* illuminant if tillum not set. */
 	xspect cust_illum;				/* Custom CIE illumination spectrum if illum == icxIT_custom */
@@ -148,6 +148,8 @@ main(int argc, char *argv[])
 
 	icxObserverType obType = icxOT_none;
 	xspect custObserver[3];			/* Custom observer CMF's */
+
+	icmXYZNumber ill_wp_XYZ;		/* if ill_wp != NULL, same as ill_wp */
 
 	int npat;						/* Number of patches */
 	int ti;							/* Field index */
@@ -654,10 +656,11 @@ main(int argc, char *argv[])
 		int Xi, Yi, Zi, Li, ai, bi;		/* CGATS indexes for each field */
 		int spi[XSPECT_MAX_BANDS];		/* CGATS indexes for each wavelength */
 		int oXi, oYi, oZi, oLi, oai, obi;	/* CGATS indexes for each ouput field */
+		int oL2i, oa2i, ob2i;				/* For illuminant wp L*a*b* output */
 		xsp2cie *sp2cie;				/* Spectral conversion object */
 		xspect sp;
 		double XYZ[3];
-		double Lab[3];
+		double Lab[3], Lab2[3];
 		char buf[100];
 							/* These are only set if fwa is needed */
 		xspect rmwsp;		/* Raw medium white spectrum */
@@ -710,6 +713,17 @@ main(int argc, char *argv[])
 		}
 
 
+		/* If CIE calculation illuminant is not standard, compute it's white point */
+		if (illum != icxIT_D50 && illum != icxIT_none) {
+			ill_wp = _ill_wp;
+
+			/* Compute normalised XYZ of illuminant */
+			if (icx_ill_sp2XYZ(ill_wp, obType, custObserver, illum, 0.0, &cust_illum, 0) != 0) 
+				error("icx_ill_sp2XYZ returned error");
+
+			icmAry2XYZ(ill_wp_XYZ, ill_wp);
+		}
+
 		/* copy fields to output file (except spectral if nospec) */
 		for (i = 0; i < icg->t[0].nfields; i++) {
 
@@ -758,27 +772,51 @@ main(int argc, char *argv[])
 		oai = ai;
 		obi = bi;
 
-		/* allocate elements */
+		/* If non-standard illuminant is being used, add extra LAB fields */
+		/* to show illuminant relative values (Not used for profiling!) */
+		if (ill_wp != NULL) {
+			char buf[50] = { '\000' }, *cp;
 
+			strncpy(buf, illum_str, 40);
+
+			/* Replace spaces */
+			for (cp = buf; *cp != '\000'; cp++) {
+				if (*cp == ' ')
+					*cp = '_';
+			}
+			/* Remove extension */
+			for (; cp >= buf; cp--) {
+				if (*cp == '.') {
+					*cp = '\000';
+					break;
+				}
+			}
+			strcat(buf, "LAB");
+			cp = buf + strlen(buf);
+			cp[0] = '_';
+
+			cp[1] = 'L';
+			if ((oL2i = ocg->add_field(ocg, 0, buf, r_t)) < 0)
+				error ("Cannot add field to table");
+
+			cp[1] = 'A';
+			if ((oa2i = ocg->add_field(ocg, 0, buf, r_t)) < 0)
+				error ("Cannot add field to table");
+
+			cp[1] = 'B';
+			if ((ob2i = ocg->add_field(ocg, 0, buf, r_t)) < 0)
+				error ("Cannot add field to table");
+		}
+
+		/* allocate elements */
 		if ((elems = (cgats_set_elem *)
-			 calloc(ocg->t[0].nfields, sizeof(cgats_set_elem))) == NULL)
-		{
+			 calloc(ocg->t[0].nfields, sizeof(cgats_set_elem))) == NULL) {
 			error("Out of memory");
 		}
 
-		/* If CIE calculation illuminant is not standard, compute it's white point */
-		if (illum != icxIT_D50 && illum != icxIT_none) {
-			ill_wp = _ill_wp;
-
-			/* Compute normalised XYZ of illuminant */
-			if (icx_ill_sp2XYZ(ill_wp, obType, custObserver, illum, 0.0, &cust_illum, 0) != 0) 
-				error("icx_ill_sp2XYZ returned error");
-		}
-
 		/* Create a spectral conversion object */
-		if ((sp2cie = new_xsp2cie(illum, &cust_illum, obType, custObserver,
-			                              icSigXYZData, icxClamp)) == NULL)
-		{
+		if ((sp2cie = new_xsp2cie(illum, 0.0, &cust_illum, obType, custObserver,
+			                              icSigXYZData, icxClamp)) == NULL) {
 			error ("Creation of spectral conversion object failed");
 		}
 
@@ -921,14 +959,15 @@ main(int argc, char *argv[])
 			ocg->add_kword(ocg, 0, "ILLUMINANT_WHITE_POINT_XYZ",buf, NULL);
 		}
 
-		/* Transform patches from spectral to CIE */
+		/* Transform patches from spectral to CIE, */
+		/* after correcting the spectrum for possible XRGA and FWA. */
 		for (i = 0; i < npat; i++) {
-			xspect corr_sp;
 
 			/* copy all input colums to output (except spectral if nospec) */
 			for (jj = j = 0; j < icg->t[0].nfields; j++) {
 
 				if (nospec) {
+
 					/* See if this is a spectral field */
 					for (k = 0; nospec && k < sp.spec_n; k++) {
 						if (spi[k] == j)
@@ -963,38 +1002,26 @@ main(int argc, char *argv[])
 			}
 
 			/* Read the spectral values for this patch */
-			for (j = 0; j < sp.spec_n; j++) {
+			for (j = 0; j < sp.spec_n; j++)
 				sp.spec[j] = *((double *)icg->t[0].fdata[i][spi[j]]);
-			}
+
 			if (calstdo != xcalstd_none)
 				xspec_convert_xrga(&sp, &sp, calpol, calstdo, calstdi);
 
+			/* Convert it to CIE space */
 			if (fwacomp) {
-				corr_sp = sp;		/* Copy spectrum */
-
-				/* Convert it to CIE space */
-				sp2cie->sconvert (sp2cie, &corr_sp, XYZ, &sp);
-
-				/* Write the corrected spectral values for this patch */
-				if (nospec == 0) {
-					for (j = 0; j < sp.spec_n; j++) {
-						elems[spi[j]].d = sp.spec[j] = corr_sp.spec[j];
-					}
-				}
+				sp2cie->sconvert(sp2cie, &sp, XYZ, &sp);
+			} else {
+				sp2cie->convert(sp2cie, XYZ, &sp);
 			}
 
-			/* No FWA comp */
-			else {
-				/* Convert it to CIE space */
-				sp2cie->convert (sp2cie, XYZ, &sp);
-
-			}
-
-			/* Could use sp2cie->get_cie_il() to get CIE white point */
-			/* if we wanted to return L*a*b* relative to that. */
-			/* We would have to mark that in the .ti3 though. */
-			/* This won't work for emmisive though, since get_cie_il() will return 'E' */
+			/* Standard pseudo-absolute D50 ICC Lab */
 			icmXYZ2Lab(&icmD50, Lab, XYZ);
+
+			/* Illuminant relative Lab */
+			if (ill_wp != NULL) {
+				icmXYZ2Lab(&ill_wp_XYZ, Lab2, XYZ);
+			}
 
 #ifdef ALLOW_PLOT
 			if (doplot) {
@@ -1018,13 +1045,27 @@ main(int argc, char *argv[])
 				do_plot(xx,y1,NULL,NULL,ii);
 			}
 #endif
+			/* Write the corrected spectral values for this patch */
+			if (nospec == 0
+			 && (calstdo != xcalstd_none || fwacomp)) {
+				for (j = 0; j < sp.spec_n; j++) {
+					elems[spi[j]].d = sp.spec[j];
+				}
+			}
+
 			elems[oXi].d = XYZ[0] * 100.0;
 			elems[oYi].d = XYZ[1] * 100.0;
 			elems[oZi].d = XYZ[2] * 100.0;
-
+	
 			elems[oLi].d = Lab[0];
 			elems[oai].d = Lab[1];
 			elems[obi].d = Lab[2];
+
+			if (ill_wp != NULL) {
+				elems[oL2i].d = Lab2[0];
+				elems[oa2i].d = Lab2[1];
+				elems[ob2i].d = Lab2[2];
+			}
 
 			ocg->add_setarr(ocg, 0, elems);
 		}

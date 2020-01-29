@@ -647,6 +647,10 @@ if $(NT)
 						Wbemuuid.lib
 						Version.lib
 						;
+		if $(MSVCVER) >= 8 {
+			STDLIBS += psapi.lib ;
+		}
+
 		SHSTDLIBS		?= $(STDLIBS) ;
 		LINKFLAG		?= ;						
 		STDHDRS			?= $(MSNTSDK)\\Include ;

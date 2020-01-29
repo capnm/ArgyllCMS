@@ -21,6 +21,8 @@
 
 /* TTBD
  *
+ *  Add option to automatically read continuously, until stopped. (A bit like -O)
+
  *	Make -V average the spectrum too (if present), and allow it to
  *  be saved to a .sp file.
  *
@@ -45,19 +47,19 @@
 #include <time.h>
 #include <string.h>
 #ifndef SALONEINSTLIB
-#include "copyright.h"
-#include "aconfig.h"
-#include "numlib.h"
-#include "cgats.h"
-#include "xicc.h"
-#include "conv.h"
-#include "plot.h"
-#include "ui.h"
+# include "copyright.h"
+# include "aconfig.h"
+# include "numlib.h"
+# include "cgats.h"
+# include "xicc.h"
+# include "conv.h"
+# include "plot.h"
+# include "ui.h"
 #else /* SALONEINSTLIB */
-#include "sa_config.h"
-#include "numsup.h"
-#include "xspect.h"
-#include "conv.h"
+# include "sa_config.h"
+# include "numsup.h"
+# include "xspect.h"
+# include "conv.h"
 #endif /* SALONEINSTLIB */
 #include "inst.h"
 #include "icoms.h"
@@ -252,7 +254,7 @@ static inst_code uicallback(void *cntx, inst_ui_purp purp) {
 
          ABCDEFGHIJKLMNOPQRSTUVWXYZ
   upper     ... .  .  .. . .. ...  
-  lower  . .... ..      .  .. . .. 
+  lower  . .... ..      .  .. .... 
 
 */
 
@@ -332,6 +334,9 @@ usage(char *diag, ...) {
 	fprintf(stderr,"    u                  U.V. Cut\n");
 	fprintf(stderr," -E extrafilterfile   Apply extra filter compensation file\n");
 	fprintf(stderr," -A N|A|X|G           XRGA conversion (default N)\n");
+#ifndef SALONEINSTLIB
+	fprintf(stderr," -w                   Use -i param. illuminant for comuting L*a*b*\n");
+#endif
 	fprintf(stderr," -x                   Display Yxy instead of Lab\n");
 	fprintf(stderr," -h                   Display LCh instead of Lab\n");
 #ifndef SALONEINSTLIB
@@ -413,7 +418,7 @@ int main(int argc, char *argv[]) {
 	icompaths *icmps = NULL;
 	int comport = COMPORT;				/* COM port used */
 	icompath *ipath = NULL;
-	int dtype = 0;					/* Display type selection charater */
+	int ditype = 0;					/* Display type selection character(s) */
 	inst_mode cap = inst_mode_none;		/* Instrument mode capabilities */
 	inst2_capability cap2 = inst2_none;	/* Instrument capabilities 2 */
 	inst3_capability cap3 = inst3_none;	/* Instrument capabilities 3 */
@@ -430,7 +435,10 @@ int main(int argc, char *argv[]) {
 	int illum_set = 0;				/* User asked for custom illuminant spectrum */
 	icxIllumeType illum = icxIT_D50;	/* Spectral defaults */
 	xspect cust_illum;				/* Custom illumination spectrum */
-	icxObserverType obType = icxOT_default;
+	int labwpillum = 0;				/* nz to use illum WP for L*a*b* conversion */
+	icmXYZNumber labwp = { icmD50_100.X, icmD50_100.Y, icmD50_100.Z };	/* Lab conversion wp */
+	char labwpname[100] = "D50";	/* Name of Lab conversion wp */
+	icxObserverType obType = icxOT_default;		/* Default is 1931_2 */
 	xspect custObserver[3];			/* If obType = icxOT_custom */
 	xspect sp;						/* Last spectrum read */
 	xspect rsp;						/* Reference spectrum */
@@ -519,7 +527,9 @@ int main(int argc, char *argv[]) {
 			} else if (argv[fa][1] == 'y') {
 				fa = nfa;
 				if (na == NULL) usage("Paramater expected following -y");
-				dtype = na[0];
+				ditype = na[0];
+				if (ditype == '_' && na[1] != '\000')
+					ditype = ditype << 8 | na[1];
 
 #ifndef SALONEINSTLIB
 			/* Simulated instrument illumination (FWA) */
@@ -619,6 +629,12 @@ int main(int argc, char *argv[]) {
 				} else
 					usage("Unrecognised illuminant '%s'",na);
 #endif /* SALONEINSTLIB */
+
+#ifndef SALONEINSTLIB
+			/* Use -i illuminant for L*a*b* conversion */
+			} else if (argv[fa][1] == 'w') {
+				labwpillum = 1;
+#endif /* !SALONEINSTLIB */
 
 			/* Spectral Observer type */
 			} else if (argv[fa][1] == 'Q') {
@@ -901,11 +917,29 @@ int main(int argc, char *argv[]) {
 	}
 
 	/* Check for some user mistakes */
-
-	if ((tillum_set || illum_set) && emiss)
+	if ((tillum_set || illum_set) && emiss )
 		warning("-I or -i parameter makes no sense with emissive or ambient measurement!");
 
+	if (illum_set && labwpillum && emiss) {
+		warning("-w for emissive is ignored!");
+		labwpillum = 0;
+	}
+
 	/* - - - - - - - - - - - - - - - - - - -  */
+	/* Setup Lab conversion wp if not D50 */
+	if (illum_set && labwpillum && !emiss) {
+		double xyz[3];
+
+		strcpy(labwpname, standardIlluminant_name(illum, 0.0));
+
+		if (icx_ill_sp2XYZ(xyz, obType, custObserver, illum, 0.0, &cust_illum, 0))     
+			error("Looking up W.P. of illuminant failed");
+
+		icmScale3(xyz, xyz, 100.0);
+		icmAry2XYZ(labwp, xyz);
+
+	}
+
 	if ((icmps = new_icompaths(g_log)) == NULL)
 		error("Finding instrument paths failed");
 	if ((ipath = icmps->get_path(icmps, comport)) == NULL)
@@ -1204,12 +1238,12 @@ int main(int argc, char *argv[]) {
 		}
 
 		/* Set displaytype or calibration mode */
-		if (dtype != 0) {
+		if (ditype != 0) {
 			if (cap2 & inst2_disptype) {
 				int ix;
-				if ((ix = inst_get_disptype_index(it, dtype, 0)) < 0) {
+				if ((ix = inst_get_disptype_index(it, ditype, 0)) < 0) {
 					it->del(it);
-					usage("Failed to locate display type matching '%c'",dtype);
+					usage("Failed to locate display type matching '%s'",inst_distr(ditype));
 				}
 	
 				if ((rv = it->set_disptype(it, ix)) != inst_ok) {
@@ -1547,7 +1581,7 @@ int main(int argc, char *argv[]) {
 			illum = icxIT_none;
 
 		/* Create a spectral conversion object */
-		if ((sp2cie = new_xsp2cie(illum, &cust_illum, obType, custObserver, icSigXYZData,
+		if ((sp2cie = new_xsp2cie(illum, 0.0, &cust_illum, obType, custObserver, icSigXYZData,
 			                           refstats ? icxNoClamp : icxClamp)) == NULL)
 			error("Creation of spectral conversion object failed");
 
@@ -1593,9 +1627,9 @@ int main(int argc, char *argv[]) {
 			for (j = 0; j < 3; j++)
 				rXYZ[j] *= 100.0;		/* 0..100 scale */
 		}
-		icmXYZ2Lab(&icmD50_100, rLab, rXYZ);
+		icmXYZ2Lab(&labwp, rLab, rXYZ);
 		if (verb)
-			printf("Preset ref. XYZ %f %f %f, Lab %f %f %f\n", rXYZ[0], rXYZ[1], rXYZ[2], rLab[0], rLab[1], rLab[2]);
+			printf("Preset ref. XYZ %f %f %f, %s Lab %f %f %f\n", rXYZ[0], rXYZ[1], rXYZ[2], labwpname, rLab[0], rLab[1], rLab[2]);
 	}
 #endif
 
@@ -2315,7 +2349,7 @@ int main(int argc, char *argv[]) {
 
 			/* Creat the base conversion object */
 			if (sp2cief[fidx] == NULL) {
-				if ((sp2cief[fidx] = new_xsp2cie(illum, &cust_illum, obType,
+				if ((sp2cief[fidx] = new_xsp2cie(illum, 0.0, &cust_illum, obType,
 				            custObserver, icSigXYZData, refstats ? icxNoClamp : icxClamp)) == NULL)
 					error("Creation of spectral conversion object failed");
 			}
@@ -2520,8 +2554,8 @@ int main(int argc, char *argv[]) {
 					vdt_sn = -1.0;
 			}
 
-			/* Compute D50 Lab from XYZ */
-			icmXYZ2Lab(&icmD50_100, Lab, XYZ);
+			/* Compute D50 (or other) Lab from XYZ */
+			icmXYZ2Lab(&labwp, Lab, XYZ);
 
 			/* Compute Yxy from XYZ */
 			icmXYZ2Yxy(Yxy, XYZ);
@@ -2529,7 +2563,7 @@ int main(int argc, char *argv[]) {
 			/* Compute LCh from Lab */
 			icmLab2LCh(LCh, Lab);
 
-			/* Compute D50 Yuv from XYZ */
+			/* Compute Yuv from XYZ */
 			icmXYZ21976UCS(Yuv, XYZ);
 
 #else /* SALONEINSTLIB */
@@ -2547,8 +2581,8 @@ int main(int argc, char *argv[]) {
 				if (wXYZ[0] < 0.0) {		/* If we haven't save a white ref. yet */
 					if (XYZ[1] < 10.0)
 						error ("White of XYZ %f %f %f doesn't seem reasonable",XYZ[0], XYZ[1], XYZ[2]);
-					printf("\n Making result XYZ: %f %f %f, D50 Lab: %f %f %f white reference.\n",
-					XYZ[0], XYZ[1], XYZ[2], Lab[0], Lab[1], Lab[2]);
+					printf("\n Making result XYZ: %f %f %f, %s Lab: %f %f %f white reference.\n",
+					XYZ[0], XYZ[1], XYZ[2], labwpname, Lab[0], Lab[1], Lab[2]);
 					wXYZ[0] = XYZ[0];
 					wXYZ[1] = XYZ[1];
 					wXYZ[2] = XYZ[2];
@@ -2576,7 +2610,7 @@ int main(int argc, char *argv[]) {
 				}
 
 				/* recompute Lab */
-				icmXYZ2Lab(&icmD50_100, Lab, XYZ);
+				icmXYZ2Lab(&labwp, Lab, XYZ);
 
 				/* recompute Yxy from XYZ */
 				icmXYZ2Yxy(Yxy, XYZ);
@@ -2625,8 +2659,8 @@ int main(int argc, char *argv[]) {
 #endif
 				} else {
 					/* Print out the XYZ and Lab */
-					printf("\n Result is XYZ: %f %f %f, D50 Lab: %f %f %f\n",
-					XYZ[0], XYZ[1], XYZ[2], Lab[0], Lab[1], Lab[2]);
+					printf("\n Result is XYZ: %f %f %f, %s Lab: %f %f %f\n",
+					XYZ[0], XYZ[1], XYZ[2], labwpname, Lab[0], Lab[1], Lab[2]);
 				}
 			}
 

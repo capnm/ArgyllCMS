@@ -29,12 +29,14 @@
 #include <math.h>
 #include <sys/types.h>
 #include <time.h>
+# include "aconfig.h"
 #ifndef SALONEINSTLIB
-#include "numlib.h"
-#include "icc.h"
+# include "numlib.h"
+# include "icc.h"
+#  include "plot.h"			/* For debugging */
 #else
-#include "numsup.h"
-#include "sa_conv.h"
+# include "numsup.h"
+# include "sa_conv.h"
 #endif
 #include "cgats.h"
 #include "xspect.h"

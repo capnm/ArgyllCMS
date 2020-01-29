@@ -160,23 +160,20 @@ void xspec_convert_xrga(xspect *dst, xspect *srcp, xcalpol pol, xcalstd dsp, xca
 	xspect tmp, *src = srcp;
 
 	/* If no conversion and no copy needed */
-	if ((ssp == xcalstd_native || dsp == xcalstd_native || dsp == ssp)
-	  && dst == src)
+	if (!XCALSTD_NEEDED(ssp, dsp) && dst == src)
 		return;
 
-	/* If no conversion needed */
-	if (ssp == xcalstd_native || dsp == xcalstd_native || dsp == ssp) {
+	/* If no conversion needed  */
+	if (!XCALSTD_NEEDED(ssp, dsp)) {
 		*dst = *src;		/* Struct copy */
 		return;
 	}
 
-	/* If the dest is the same as the src, make a temporary copy */
+	/* If the dest is the same as the src, make a temporary copy, */
+	/* since convert_xrga() needs them to be distinct */
 	if (dst == src) {
 		tmp = *src;			/* Struct copy */
 		src = &tmp;
-
-	} else {
-		XSPECT_COPY_INFO(dst, src);		/* Copy parameters */
 	}
 
 	eq = &xrga_equations[pol][ssp][dsp];
@@ -210,7 +207,7 @@ void ipatch_convert_xrga(ipatch *vals, int nvals,
 		/* Re-compute XYZ */
 		if (vals[i].XYZ_v) {
 			if (conv == NULL) {
-				conv = new_xsp2cie(icxIT_D50, NULL, icxOT_CIE_1931_2,
+				conv = new_xsp2cie(icxIT_D50, 0.0, NULL, icxOT_CIE_1931_2,
 				                   NULL, icSigXYZData, (icxClamping)clamp);
 			}
 			conv->convert(conv, vals[i].XYZ, &vals[i].sp);

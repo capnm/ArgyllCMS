@@ -49,9 +49,9 @@ inst_code setup_display_calibrate(
 int disprd_calibration(
 icompath *ipath,	/* Instrument path to open, &icomFakeDevice == fake */
 flow_control fc,	/* Serial flow control */
-int dtype,			/* Display type, 0 = unknown, 1 = CRT, 2 = LCD */
-int sdtype,			/* Spectro dtype, use dtype if -1 */
-int docbid,			/* NZ to only allow cbid dtypes */
+int ditype,			/* Display type selection character(s) */
+int sditype,		/* Spectro ditype, use ditype if -1 */
+int docbid,			/* NZ to only allow cbid ditypes */
 int tele,			/* NZ for tele mode */
 int nadaptive,		/* NZ for non-adaptive mode */
 int noinitcal,		/* NZ to disable initial instrument calibration */
@@ -116,9 +116,9 @@ struct _disprd {
 	baud_rate br;
 	flow_control fc;
 	inst *it;			/* Instrument */
-	int dtype;			/* Display type, 0 = unknown, 1 = CRT, 2 = LCD */
-	int sdtype;			/* Spectro dtype */
-	int docbid;			/* NZ to only allow cbid dtypes */
+	int ditype;			/* Display type selection character(s) */
+	int sditype;		/* Spectro ditype */
+	int docbid;			/* NZ to only allow cbid ditypes */
 	int refrmode;		/* Refresh display mode, -1 if unknow, 0 = if no, 1 if yes */
 	int cbid;			/* The current Calibration Base display mode ID, 0 if unknown */
 	int tele;			/* NZ for tele mode */
@@ -229,9 +229,9 @@ disprd *new_disprd(
 int *errc,			/* Error code. May be NULL */ 
 icompath *ipath,	/* Instrument path to open, &icomFakeDevice == fake */
 flow_control fc,	/* Serial flow control */
-int dtype,			/* Display type, 0 = unknown, 1 = CRT, 2 = LCD */
-int sdtype,			/* Spectro dtype, use dtype if -1 */
-int docbid,			/* NZ to only allow cbid dtypes */
+int ditype,			/* Display type selection character(s) */
+int sditype,		/* Spectro ditype, use ditype if -1 */
+int docbid,			/* NZ to only allow cbid ditypes */
 int tele,			/* NZ for tele mode */
 int nadaptive,		/* NZ for non-adaptive mode */
 int noinitcal,		/* No initial instrument calibration */

@@ -181,6 +181,18 @@
 #include "gammap.h"
 #include "vrml.h"
 
+/* flag usage:
+
+    0123456789
+       .      
+
+    abcdefghijklmnopqrstuvwxyz
+    ....... . .. ....... ..   
+
+    ABCDEFGHIJKLMNOPQRSTUVWXYZ
+    . ....... . . ..  .. .    
+*/
+
 void usage(char *diag, ...) {
 	int i;
 	fprintf(stderr,"Link ICC profiles, Version %s\n",ARGYLL_VERSION_STR);
@@ -211,6 +223,7 @@ void usage(char *diag, ...) {
 	fprintf(stderr," -p absprof      Include abstract profile in link\n");
 	fprintf(stderr," -a file.cal     Apply calibration curves to link output and append linear\n");
 	fprintf(stderr," -H file.cal     Append calibration curves to 3dlut\n");
+	fprintf(stderr," -O file.cal     Use just calibration curves as link and append linear\n");
 	fprintf(stderr," -s              Simple Mode (default)\n");
 	fprintf(stderr," -g [src.gam]    Gamut Mapping Mode [optional source image gamut]\n");
 	fprintf(stderr," -G [src.gam]    Gamut Mapping Mode using inverse outprofile A2B\n");
@@ -219,7 +232,7 @@ void usage(char *diag, ...) {
 	fprintf(stderr,"                 s = saturation, a = absolute colorimetric\n");
 	fprintf(stderr," -o out_intent   p = perceptual, r = relative colorimetric,\n");
 	fprintf(stderr,"                 s = saturation, a = absolute colorimetric\n");
-	fprintf(stderr," Gamut Mapping   Mode Options:\n");
+	fprintf(stderr," Gamut Mapping Mode Options:\n");
 	fprintf(stderr," -i intent       set linking intent from the following choice:\n");
 	for (i = 0; ; i++) {
 		icxGMappingIntent gmi;
@@ -381,6 +394,8 @@ struct _clink {
 	int addcal;		/* 1 = apply cal to 3dLut and set linear MadVR cal1 */ 
 					/* 2 = set MadVR cal1 to cal */ 
 	xcal *cal; 		/* Calibration to apply, NULL if none */
+
+	int calonly;	/* calibration curve only - no ICC profile linking */
 
 					/* (We current assume that xyzscale can't be used with gmi) */
 	double xyzscale;	/* < 1.0 if Y is to be scaled in destination XYZ space */
@@ -1057,558 +1072,567 @@ void devip_devop(void *cntx, double *out, double *in) {
 #endif
 	}
 
-	/* Do DevIn' -> PCS */
-	switch(p->in.alg) {
-	    case icmMonoFwdType: {
-			icxLuMono *lu = (icxLuMono *)p->in.luo;	/* Safe to coerce */
+	if (p->calonly) {
 
-			if (p->in.nocurve) {	/* No explicit curve, so do implicit here */
-				rv |= lu->fwd_curve(lu, pcsv, win);
-				rv |= lu->fwd_map(lu, pcsv, pcsv);
-			} else {
-				rv |= lu->fwd_map(lu, pcsv, win);
-			}
-			rv |= lu->fwd_abs(lu, pcsv, pcsv);
-			break;
-		}
-	    case icmMatrixFwdType: {
-			icxLuMatrix *lu = (icxLuMatrix *)p->in.luo;	/* Safe to coerce */
-			icmLuMatrix *plu = (icmLuMatrix *)lu->plu;	/* Safe to coerce */
+		vect_cpy(out, win, p->cal->devchan);
 
-			if (p->in.nocurve) {	/* No explicit curve, so do implicit here */
+	} else {
 
-				if (p->in.tvenc == 8 || p->in.tvenc == 9) {	/* xvYCC */
-					if (p->in.bt1886)
-						bt1886_fwd_curve(&p->in.bt, pcsv, win);
-					else
-						xvYCC_fwd_curve(pcsv, win);			/* Allow for overrange values */
-					xvYCC_fwd_matrix(pcsv, pcsv);			/* Rec709 primaries */
+		/* Do DevIn' -> PCS */
+		switch(p->in.alg) {
+		    case icmMonoFwdType: {
+				icxLuMono *lu = (icxLuMono *)p->in.luo;	/* Safe to coerce */
+
+				if (p->in.nocurve) {	/* No explicit curve, so do implicit here */
+					rv |= lu->fwd_curve(lu, pcsv, win);
+					rv |= lu->fwd_map(lu, pcsv, pcsv);
 				} else {
-					if (p->in.bt1886)
-						bt1886_fwd_curve(&p->in.bt, pcsv, win);
-					else
-						rv |= lu->fwd_curve(lu, pcsv, win);
-					rv |= lu->fwd_matrix(lu, pcsv, pcsv);
+					rv |= lu->fwd_map(lu, pcsv, win);
 				}
-			} else {
-				if (p->in.tvenc == 8 || p->in.tvenc == 9) 	/* xvYCC */
-					xvYCC_fwd_matrix(pcsv, pcsv);			/* Rec709 primaries */
-				else
-					rv |= lu->fwd_matrix(lu, pcsv, win);
+				rv |= lu->fwd_abs(lu, pcsv, pcsv);
+				break;
 			}
-#ifdef DEBUG
-	DEBUGCND printf("After matrix PCS' XYZ %s Lab %s\n",icmPdv(p->in.chan, pcsv), icmPLab(pcsv));
-#endif
-			if (p->in.bt1886) {
-				bt1886_wp_adjust(&p->in.bt, pcsv, pcsv);
-#ifdef DEBUG
-	DEBUGCND printf("After bt1886 PCS' XYZ %s Lab %s\n",icmPdv(p->in.chan, pcsv), icmPLab(pcsv));
-#endif
-			}
+		    case icmMatrixFwdType: {
+				icxLuMatrix *lu = (icxLuMatrix *)p->in.luo;	/* Safe to coerce */
+				icmLuMatrix *plu = (icmLuMatrix *)lu->plu;	/* Safe to coerce */
 
-			rv |= lu->fwd_abs(lu, pcsv, pcsv);
+				if (p->in.nocurve) {	/* No explicit curve, so do implicit here */
 
-			break;
-		}
-	    case icmLutType: {
-			icxLuLut *lu = (icxLuLut *)p->in.luo;	/* Safe to coerce */
-			if (p->in.nocurve) {	/* No explicit curve, so we've got Dev */
-				/* Since not PCS, in_abs and matrix cannot be valid, */
-				/* so input curve on own is ok to use. */
-				rv |= lu->input(lu, pcsv, win);		/* Dev  -> Dev' */
-				rv |= lu->clut(lu, pcsv, pcsv);		/* Dev' -> PCS' */
-			} else {	/* We've got Dev' */
-				rv |= lu->clut(lu, pcsv, win);		/* Dev' -> PCS' */
-			}
-			/* We've got the input profile PCS' at this point. */
-
-			/* If we're transfering the K value from the input profile to the */
-			/* output, copy it into locus[], which will be given to the inverse */
-			/* lookup function, else the inverse lookup will generate a K using */
-			/* the curve parameters. */  
-//printf("~1 out.inking = %d\n",p->out.inking);
-			if (p->out.inking == 0 || p->out.inking == 6) {
-				if (p->out.locus) {
-					/* Converts PCS' to K locus proportion */
-					lu->clut_locus(lu, locus, pcsv, win);	/* Compute possible locus values */
-//printf("~1 looked up locus value\n");
-				} else {
-					for (i = 0; i < p->in.chan; i++)		/* Target is K input value */
-						locus[i] = win[i];
-					/* Convert K' to K value ready for aux target */
-					if (!p->in.nocurve) {	/* we have an input curve, so convert Dev' -> Dev */
-						lu->inv_input(lu, locus, locus);
+					if (p->in.tvenc == 8 || p->in.tvenc == 9) {	/* xvYCC */
+						if (p->in.bt1886)
+							bt1886_fwd_curve(&p->in.bt, pcsv, win);
+						else
+							xvYCC_fwd_curve(pcsv, win);			/* Allow for overrange values */
+						xvYCC_fwd_matrix(pcsv, pcsv);			/* Rec709 primaries */
+					} else {
+						if (p->in.bt1886)
+							bt1886_fwd_curve(&p->in.bt, pcsv, win);
+						else
+							rv |= lu->fwd_curve(lu, pcsv, win);
+						rv |= lu->fwd_matrix(lu, pcsv, pcsv);
 					}
-//printf("~1 copied win to locus\n");
+				} else {
+					if (p->in.tvenc == 8 || p->in.tvenc == 9) 	/* xvYCC */
+						xvYCC_fwd_matrix(pcsv, pcsv);			/* Rec709 primaries */
+					else
+						rv |= lu->fwd_matrix(lu, pcsv, win);
 				}
 #ifdef DEBUG
-				DEBUGCND printf("Got possible K %s of %f %f %f %f\n",p->out.locus ? "locus" : "value", locus[0],locus[1],locus[2],locus[3]);
+		DEBUGCND printf("After matrix PCS' XYZ %s Lab %s\n",icmPdv(p->in.chan, pcsv), icmPLab(pcsv));
 #endif
-			}
-			rv |= lu->output(lu, pcsv, pcsv);	/* PCS' ->     */
-			rv |= lu->out_abs(lu, pcsv, pcsv);	/*         PCS */
-			break;
-		}
-		default:
-			error("Unexpected algorithm type %d in devip of devip_devop()",p->in.alg);
-	}
+				if (p->in.bt1886) {
+					bt1886_wp_adjust(&p->in.bt, pcsv, pcsv);
+#ifdef DEBUG
+		DEBUGCND printf("After bt1886 PCS' XYZ %s Lab %s\n",icmPdv(p->in.chan, pcsv), icmPLab(pcsv));
+#endif
+				}
 
-	/* At this point, the PCS is:
-	 *
-	 *	If not gamut mapped:
-	 *		Lab in the intent selected for the source profile
-	 *	If gamut mapped:
-	 *		either
-	 *			Absolute Lab
-	 *		or
-	 *			Jab derived from absolute XYZ via the in/out viewing conditions
+				rv |= lu->fwd_abs(lu, pcsv, pcsv);
+
+				break;
+			}
+		    case icmLutType: {
+				icxLuLut *lu = (icxLuLut *)p->in.luo;	/* Safe to coerce */
+				if (p->in.nocurve) {	/* No explicit curve, so we've got Dev */
+					/* Since not PCS, in_abs and matrix cannot be valid, */
+					/* so input curve on own is ok to use. */
+					rv |= lu->input(lu, pcsv, win);		/* Dev  -> Dev' */
+					rv |= lu->clut(lu, pcsv, pcsv);		/* Dev' -> PCS' */
+				} else {	/* We've got Dev' */
+					rv |= lu->clut(lu, pcsv, win);		/* Dev' -> PCS' */
+				}
+				/* We've got the input profile PCS' at this point. */
+
+				/* If we're transfering the K value from the input profile to the */
+				/* output, copy it into locus[], which will be given to the inverse */
+				/* lookup function, else the inverse lookup will generate a K using */
+				/* the curve parameters. */  
+//printf("~1 out.inking = %d\n",p->out.inking);
+				if (p->out.inking == 0 || p->out.inking == 6) {
+					if (p->out.locus) {
+						/* Converts PCS' to K locus proportion */
+						lu->clut_locus(lu, locus, pcsv, win);	/* Compute possible locus values */
+//printf("~1 looked up locus value\n");
+					} else {
+						for (i = 0; i < p->in.chan; i++)		/* Target is K input value */
+							locus[i] = win[i];
+						/* Convert K' to K value ready for aux target */
+						if (!p->in.nocurve) {	/* we have an input curve, so convert Dev' -> Dev */
+							lu->inv_input(lu, locus, locus);
+						}
+//printf("~1 copied win to locus\n");
+					}
+#ifdef DEBUG
+					DEBUGCND printf("Got possible K %s of %f %f %f %f\n",p->out.locus ? "locus" : "value", locus[0],locus[1],locus[2],locus[3]);
+#endif
+				}
+				rv |= lu->output(lu, pcsv, pcsv);	/* PCS' ->     */
+				rv |= lu->out_abs(lu, pcsv, pcsv);	/*         PCS */
+				break;
+			}
+			default:
+				error("Unexpected algorithm type %d in devip of devip_devop()",p->in.alg);
+		}
+
+		/* At this point, the PCS is:
+		 *
+		 *	If not gamut mapped:
+		 *		Lab in the intent selected for the source profile
+		 *	If gamut mapped:
+		 *		either
+		 *			Absolute Lab
+		 *		or
+		 *			Jab derived from absolute XYZ via the in/out viewing conditions
      *
      *	and locus[] contains any auxiliar target values if the
-	 *  auxiliary is not being created by a rule applied to the PCS.
-	 */
+		 *  auxiliary is not being created by a rule applied to the PCS.
+		 */
 
-	/*
-	 * The order to do this intermediate processing is hard to figure out,
-	 * as is the interaction between such elements. How should the
-	 * abstract profile be properly handled ?
-	 * what should we do if the wphack/rgbbkhack is on and Y scaling is on ?
-	 */
+		/*
+		 * The order to do this intermediate processing is hard to figure out,
+		 * as is the interaction between such elements. How should the
+		 * abstract profile be properly handled ?
+		 * what should we do if the wphack/rgbbkhack is on and Y scaling is on ?
+		 */
 
 #ifdef DEBUG
-	DEBUGCND printf("PCS before map %f %f %f\n",pcsv[0], pcsv[1], pcsv[2]);
+		DEBUGCND printf("PCS before map %f %f %f\n",pcsv[0], pcsv[1], pcsv[2]);
 #endif
 
-	if (p->wphack) {
-		int e;
-		double dd = 0.0;
-		for (e = 0; e < 3; e++) {			/* Does this match the input white point ? */
-			double tt;
-			tt = pcsv[e] - p->in.wp[e];
-			dd += tt * tt;
-		}
-		dd = sqrt(dd);
-
-		if (dd < 1.0) {		/* Triggered withing 1 delta E */
-			if (clip == 0)			/* Don't count zero's white caused by video input clipping */
-				p->wphacked++;
-			wptrig = 1;
-			if (p->wphack == 2) {
-				for (e = 0; e < 3; e++)		/* Map input white to given white */
-					pcsv[e] = p->hwp[e];
-			} else {
-				for (e = 0; e < 3; e++)		/* Map input white to output white */
-					pcsv[e] = p->out.wp[e];
+		if (p->wphack) {
+			int e;
+			double dd = 0.0;
+			for (e = 0; e < 3; e++) {			/* Does this match the input white point ? */
+				double tt;
+				tt = pcsv[e] - p->in.wp[e];
+				dd += tt * tt;
 			}
+			dd = sqrt(dd);
+
+			if (dd < 1.0) {		/* Triggered withing 1 delta E */
+				if (clip == 0)			/* Don't count zero's white caused by video input clipping */
+					p->wphacked++;
+				wptrig = 1;
+				if (p->wphack == 2) {
+					for (e = 0; e < 3; e++)		/* Map input white to given white */
+						pcsv[e] = p->hwp[e];
+				} else {
+					for (e = 0; e < 3; e++)		/* Map input white to output white */
+						pcsv[e] = p->out.wp[e];
+				}
 
 #ifndef DEBUG
-			if (p->verb)
+				if (p->verb)
 #endif
-			{
-				printf("White point hack mapped %f %f %f to %f %f %f, hit withing %f\n",
+				{
+					printf("White point hack mapped %f %f %f to %f %f %f, hit withing %f\n",
     		    p->in.wp[0],p->in.wp[1],p->in.wp[2],pcsv[0], pcsv[1], pcsv[2],dd);
-				fflush(stdout);
+					fflush(stdout);
+				}
 			}
 		}
-	}
 
-	/* Do luminence scaling if requested */
-	if (wptrig == 0 && p->xyzscale < 1.0) {
-		double xyz[3];
+		/* Do luminence scaling if requested */
+		if (wptrig == 0 && p->xyzscale < 1.0) {
+			double xyz[3];
 
 //printf("~1 got xyzscale = %f\n",p->xyzscale);
 //printf("PCS %f %f %f\n",pcsv[0], pcsv[1], pcsv[2]);
 
-		/* Convert our PCS to XYZ */
-		if (p->pcsor == icxSigJabData) {
-			/* We're being bad in delving inside the xluo, but we'll fix it latter */
-			p->out.luo->cam->cam_to_XYZ(p->out.luo->cam, xyz, pcsv);
-		} else
-			error("Internal :- not setup to handle Y scaling and non-Jab PCS");
+			/* Convert our PCS to XYZ */
+			if (p->pcsor == icxSigJabData) {
+				/* We're being bad in delving inside the xluo, but we'll fix it latter */
+				p->out.luo->cam->cam_to_XYZ(p->out.luo->cam, xyz, pcsv);
+			} else
+				error("Internal :- not setup to handle Y scaling and non-Jab PCS");
 
 //printf("XYZ %f %f %f\n",xyz[0], xyz[1], xyz[2]);
-		/* Scale it */
-		xyz[0] *= p->xyzscale;
-		xyz[1] *= p->xyzscale;
-		xyz[2] *= p->xyzscale;
+			/* Scale it */
+			xyz[0] *= p->xyzscale;
+			xyz[1] *= p->xyzscale;
+			xyz[2] *= p->xyzscale;
 
 //printf("scaled XYZ %f %f %f\n",xyz[0], xyz[1], xyz[2]);
-		/* Convert back to PCS */
-		if (p->pcsor == icxSigJabData) {
-			/* We're being bad in delving inside the xluo, but we'll fix it latter */
-			p->out.luo->cam->XYZ_to_cam(p->out.luo->cam, pcsv, xyz);
-		} else
-			error("Internal :- not setup to handle Y scaling and non-Jab PCS");
+			/* Convert back to PCS */
+			if (p->pcsor == icxSigJabData) {
+				/* We're being bad in delving inside the xluo, but we'll fix it latter */
+				p->out.luo->cam->XYZ_to_cam(p->out.luo->cam, pcsv, xyz);
+			} else
+				error("Internal :- not setup to handle Y scaling and non-Jab PCS");
 
 //printf("scaled PCS %f %f %f\n",pcsv[0], pcsv[1], pcsv[2]);
 #ifdef DEBUG
-		DEBUGCND printf("PCS after Y scale %f %f %f\n",pcsv[0], pcsv[1], pcsv[2]);
+			DEBUGCND printf("PCS after Y scale %f %f %f\n",pcsv[0], pcsv[1], pcsv[2]);
 #endif
-	}
-
-
-	/* Do gamut mapping */
-	if (wptrig == 0 && p->mode > 0 && p->gmi.usemap) {
-		/* We've used pcsor to ensure PCS space is appropriate */
-		
-		/* Doing XXXK -> XXXK */
-		if (p->nhack == 2) {
-			/* Ideally we would create a 4D PCSK -> PCSK gamut mapping */
-			/* to smoothly and accurately cope with the changing source */
-			/* and destination gamuts acording to their degree of "K onlyness". */
-			/* In practice we're going to simply interpolated between */
-			/* two extremes: unrestricted gamut and K only black gamut. */
-			double map0[3], map1[3];
-
-			/* Compute blend of normal gamut map and Konly to Konly gamut map */	
-			{
-				p->map->domap(p->map, map0, pcsv);
-				p->Kmap->domap(p->Kmap, map1, pcsv);
-				icmBlend3(pcsvm, map0, map1, konlyness);
-			}
-
-#ifdef DEBUG
-			DEBUGCND printf("PCS after map0 %f %f %f map1 %f %f %f\n", map0[0], map0[1], map0[2], map1[0], map1[1], map1[2]);
-#endif
-
-		/* Normal gamut mapping */
-		} else {
-			{
-				p->map->domap(p->map, pcsvm, pcsv);
-			}
 		}
 
 
+		/* Do gamut mapping */
+		if (wptrig == 0 && p->mode > 0 && p->gmi.usemap) {
+			/* We've used pcsor to ensure PCS space is appropriate */
+			
+			/* Doing XXXK -> XXXK */
+			if (p->nhack == 2) {
+				/* Ideally we would create a 4D PCSK -> PCSK gamut mapping */
+				/* to smoothly and accurately cope with the changing source */
+				/* and destination gamuts acording to their degree of "K onlyness". */
+				/* In practice we're going to simply interpolated between */
+				/* two extremes: unrestricted gamut and K only black gamut. */
+				double map0[3], map1[3];
+
+				/* Compute blend of normal gamut map and Konly to Konly gamut map */	
+				{
+					p->map->domap(p->map, map0, pcsv);
+					p->Kmap->domap(p->Kmap, map1, pcsv);
+					icmBlend3(pcsvm, map0, map1, konlyness);
+				}
+
 #ifdef DEBUG
-		DEBUGCND printf("PCS after map %f %f %f\n",pcsvm[0], pcsvm[1], pcsvm[2]);
+				DEBUGCND printf("PCS after map0 %f %f %f map1 %f %f %f\n", map0[0], map0[1], map0[2], map1[0], map1[1], map1[2]);
 #endif
-	} else {
-		pcsvm[0] = pcsv[0];
-		pcsvm[1] = pcsv[1];
-		pcsvm[2] = pcsv[2];
-	}
 
-	/* Gamut mapped PCS value is now in pcsvm[] */
+			/* Normal gamut mapping */
+			} else {
+				{
+					p->map->domap(p->map, pcsvm, pcsv);
+				}
+			}
 
-	/* Abstract profile transform, PCS -> PCS */
-	/* pcsor -> abstract -> pcsor conversion */
-	/* We're applying any abstract profile after gamut mapping, */
-	/* on the assumption is primarily being used to "correct" the */
-	/* output device. Ideally the gamut mapping should take the change */
-	/* the abstract profile has on the output device into account, but */
-	/* currently we're not doing this... */
-	if (wptrig == 0 && p->abs_luo != NULL) {
-		/* Abstract profile is either absolute or relative.  */
-		/* We need to convert the current PCS into something compatible. */
-		/* This is more ugly than it really should be, so we're ignoring it. */
-		/* We should really run the source through the abstract profile before */
-		/* creating the gamut mapping, to be able to use abstract with gamut */
-		/* mapping properly. */
-		p->abs_luo->lookup(p->abs_luo, pcsvm, pcsvm);
+
 #ifdef DEBUG
-		DEBUGCND printf("PCS after abstract %f %f %f\n",pcsvm[0], pcsvm[1], pcsvm[2]);
+			DEBUGCND printf("PCS after map %f %f %f\n",pcsvm[0], pcsvm[1], pcsvm[2]);
 #endif
-	}
+		} else {
+			pcsvm[0] = pcsv[0];
+			pcsvm[1] = pcsv[1];
+			pcsvm[2] = pcsv[2];
+		}
 
-	/* If we're using the existing B2A inking to determine K, */
-	/* lookup the output profiles K value for this PCS */
-	if (p->mode >= 2 && p->out.inking == 7) {
-		double tdevv[MAX_CHAN];	
+		/* Gamut mapped PCS value is now in pcsvm[] */
+
+		/* Abstract profile transform, PCS -> PCS */
+		/* pcsor -> abstract -> pcsor conversion */
+		/* We're applying any abstract profile after gamut mapping, */
+		/* on the assumption is primarily being used to "correct" the */
+		/* output device. Ideally the gamut mapping should take the change */
+		/* the abstract profile has on the output device into account, but */
+		/* currently we're not doing this... */
+		if (wptrig == 0 && p->abs_luo != NULL) {
+			/* Abstract profile is either absolute or relative.  */
+			/* We need to convert the current PCS into something compatible. */
+			/* This is more ugly than it really should be, so we're ignoring it. */
+			/* We should really run the source through the abstract profile before */
+			/* creating the gamut mapping, to be able to use abstract with gamut */
+			/* mapping properly. */
+			p->abs_luo->lookup(p->abs_luo, pcsvm, pcsvm);
+#ifdef DEBUG
+			DEBUGCND printf("PCS after abstract %f %f %f\n",pcsvm[0], pcsvm[1], pcsvm[2]);
+#endif
+		}
+
+		/* If we're using the existing B2A inking to determine K, */
+		/* lookup the output profiles K value for this PCS */
+		if (p->mode >= 2 && p->out.inking == 7) {
+			double tdevv[MAX_CHAN];	
 
 //printf("~1 dealing with out.inking = %d\n",p->out.inking);
-		if (p->out.alg != icmLutType || p->out.c->header->colorSpace != icSigCmykData)
-			error ("Attempting to use non-CMYK output profile to determine K inking");
+			if (p->out.alg != icmLutType || p->out.c->header->colorSpace != icSigCmykData)
+				error ("Attempting to use non-CMYK output profile to determine K inking");
 
-		/* Lookup PCS in B2A of output profile to get target K value */  
+			/* Lookup PCS in B2A of output profile to get target K value */  
 //printf("~1 looking up pcs %f %f %f in B2A\n", pcsvm[0], pcsvm[1], pcsvm[2]);
-		p->out.b2aluo->lookup(p->out.b2aluo, tdevv, pcsvm);
+			p->out.b2aluo->lookup(p->out.b2aluo, tdevv, pcsvm);
 //printf("~1 resulting dev %f %f %f %f\n", tdevv[0], tdevv[1], tdevv[2], tdevv[3]);
 
-		if (p->out.locus) {
-			double tpcsv[MAX_CHAN];	
-			icxLuLut *lu = (icxLuLut *)p->out.luo;		/* Safe to coerce */
+			if (p->out.locus) {
+				double tpcsv[MAX_CHAN];	
+				icxLuLut *lu = (icxLuLut *)p->out.luo;		/* Safe to coerce */
 
-			/* Convert PCS to PCS' ready for locus lookup */
-			lu->in_abs(lu, tpcsv, pcsvm);
-			lu->matrix(lu, tpcsv, tpcsv);
-			lu->input(lu, tpcsv, tpcsv);
-			lu->clut_locus(lu, locus, tpcsv, tdevv);	/* Compute locus values */
-		} else {
-			for (i = 0; i < p->out.chan; i++)		/* Target is K value */
-				locus[i] = tdevv[i];
-		}
+				/* Convert PCS to PCS' ready for locus lookup */
+				lu->in_abs(lu, tpcsv, pcsvm);
+				lu->matrix(lu, tpcsv, tpcsv);
+				lu->input(lu, tpcsv, tpcsv);
+				lu->clut_locus(lu, locus, tpcsv, tdevv);	/* Compute locus values */
+			} else {
+				for (i = 0; i < p->out.chan; i++)		/* Target is K value */
+					locus[i] = tdevv[i];
+			}
 #ifdef DEBUG
-		DEBUGCND printf("Got possible K %s of %f %f %f %f\n",p->out.locus ? "locus" : "value", locus[0],locus[1],locus[2],locus[3]);
+			DEBUGCND printf("Got possible K %s of %f %f %f %f\n",p->out.locus ? "locus" : "value", locus[0],locus[1],locus[2],locus[3]);
 #endif
-	}
+		}
 
-	/* Do PCS -> DevOut' */
-	if (p->nhack == 3		/* All to K only */
-	 || ntrig	 			/* Neutral or K only to K only hack has triggered */
-	 || cmytrig				/* 100% CMY rough hack has triggered */
-	 || rgbbktrig) {		/* RGB black inpu thas triggered */
+		/* Do PCS -> DevOut' */
+		if (p->nhack == 3		/* All to K only */
+		 || ntrig	 			/* Neutral or K only to K only hack has triggered */
+		 || cmytrig				/* 100% CMY rough hack has triggered */
+		 || rgbbktrig) {		/* RGB black inpu thas triggered */
 
-		if (p->nhack == 3 || ntrig) { /* Neutral to K only hack has triggered */
-			co pp;
-			pp.p[0] = pcsvm[0];					/* Input L value */
-			p->pcs2k->interp(p->pcs2k, &pp);	/* L -> K' */
-			if (pp.v[0] < 0.0)		/* rspl might have extrapolated */
-				pp.v[0] = 0.0;
-			else if (pp.v[0] > 1.0)
-				pp.v[0] = 1.0;
-			out[0] = out[1] = out[2] = 0.0;		/* We know output is CMYK' */
-			out[3] = pp.v[0];
+			if (p->nhack == 3 || ntrig) { /* Neutral to K only hack has triggered */
+				co pp;
+				pp.p[0] = pcsvm[0];					/* Input L value */
+				p->pcs2k->interp(p->pcs2k, &pp);	/* L -> K' */
+				if (pp.v[0] < 0.0)		/* rspl might have extrapolated */
+					pp.v[0] = 0.0;
+				else if (pp.v[0] > 1.0)
+					pp.v[0] = 1.0;
+				out[0] = out[1] = out[2] = 0.0;		/* We know output is CMYK' */
+				out[3] = pp.v[0];
 
 #ifndef DEBUG
-			if (p->verb)
+				if (p->verb)
 #endif
-			if (ntrig) {
-				printf("Neutral hack mapped %s to 0 0 0 %f\n", icmPdv(p->in.chan,win), out[3]); 
-				fflush(stdout);
-			}
-		} else if (cmytrig) { /* 100% CMY rough hack has triggered */
-			if (cmytrig & 1) {
-				out[0] = 1.0;
-				out[1] = out[2] = out[3] = 0.0;
-			}
-			if (cmytrig & 2) {
-				out[1] = 1.0;
-				out[0] = out[2] = out[3] = 0.0;
-			}
-			if (cmytrig & 4) {
-				out[2] = 1.0;
-				out[0] = out[1] = out[3] = 0.0;
-			}
+				if (ntrig) {
+					printf("Neutral hack mapped %s to 0 0 0 %f\n", icmPdv(p->in.chan,win), out[3]); 
+					fflush(stdout);
+				}
+			} else if (cmytrig) { /* 100% CMY rough hack has triggered */
+				if (cmytrig & 1) {
+					out[0] = 1.0;
+					out[1] = out[2] = out[3] = 0.0;
+				}
+				if (cmytrig & 2) {
+					out[1] = 1.0;
+					out[0] = out[2] = out[3] = 0.0;
+				}
+				if (cmytrig & 4) {
+					out[2] = 1.0;
+					out[0] = out[1] = out[3] = 0.0;
+				}
 
 #ifndef DEBUG
-			if (p->verb)
+				if (p->verb)
 #endif
-			if (cmytrig != 0) {
-				if (p->in.chan == 4) 
-					printf("CMY hack mapped %s to %s\n",icmPdv(p->in.chan, win), icmPdv(p->out.chan, out));
-				fflush(stdout);
+				if (cmytrig != 0) {
+					if (p->in.chan == 4) 
+						printf("CMY hack mapped %s to %s\n",icmPdv(p->in.chan, win), icmPdv(p->out.chan, out));
+					fflush(stdout);
+				}
+			} else if (rgbbktrig) {
+				out[0] = out[1] = out[2] = 0.0;
 			}
-		} else if (rgbbktrig) {
-			out[0] = out[1] = out[2] = 0.0;
-		}
 #ifdef DEBUG
-		DEBUGCND printf("DevOut' after hack trigger %s\n\n",icmPdv(p->out.chan, out));
+			DEBUGCND printf("DevOut' after hack trigger %s\n\n",icmPdv(p->out.chan, out));
 #endif
-	} else {	/* Various hacks haven't triggered */
+		} else {	/* Various hacks haven't triggered */
 
-		switch(p->out.alg) {
-		    case icmMonoBwdType: {
-				icxLuMono *lu = (icxLuMono *)p->out.luo;	/* Safe to coerce */
+			switch(p->out.alg) {
+			    case icmMonoBwdType: {
+					icxLuMono *lu = (icxLuMono *)p->out.luo;	/* Safe to coerce */
 
-				rv |= lu->bwd_abs(lu, pcsvm, pcsvm);
-				rv |= lu->bwd_map(lu, out, pcsvm);
-				if (p->out.nocurve) {	/* No explicit curve, so do implicit here */
-					rv |= lu->bwd_curve(lu, out, out);
-				}
-				break;
-			}
-		    case icmMatrixBwdType: {
-				icxLuMatrix *lu = (icxLuMatrix *)p->out.luo;	/* Safe to coerce */
-
-				rv |= lu->bwd_abs(lu, pcsvm, pcsvm);
-				rv |= lu->bwd_matrix(lu, out, pcsvm);
-				if (p->out.nocurve) {	/* No explicit curve, so do implicit here */
-					rv |= lu->bwd_curve(lu, out, out);
-				}
-				break;
-			}
-		    case icmLutType: {
-				icxLuLut *lu = (icxLuLut *)p->out.luo;	/* Safe to coerce */
-
-				if (p->mode < 2) {	/* Using B2A table */
-					rv |= lu->in_abs(lu, pcsvm, pcsvm);
-					rv |= lu->matrix(lu, pcsvm, pcsvm);
-					rv |= lu->input(lu, pcsvm, pcsvm);
-					rv |= lu->clut(lu, out, pcsvm);
+					rv |= lu->bwd_abs(lu, pcsvm, pcsvm);
+					rv |= lu->bwd_map(lu, out, pcsvm);
 					if (p->out.nocurve) {	/* No explicit curve, so do implicit here */
-						rv |= lu->output(lu, out, out);
+						rv |= lu->bwd_curve(lu, out, out);
 					}
+					break;
+				}
+			    case icmMatrixBwdType: {
+					icxLuMatrix *lu = (icxLuMatrix *)p->out.luo;	/* Safe to coerce */
 
-				} else {	/* Use inverse A2B table */
-					int i;
+					rv |= lu->bwd_abs(lu, pcsvm, pcsvm);
+					rv |= lu->bwd_matrix(lu, out, pcsvm);
+					if (p->out.nocurve) {	/* No explicit curve, so do implicit here */
+						rv |= lu->bwd_curve(lu, out, out);
+					}
+					break;
+				}
+			    case icmLutType: {
+					icxLuLut *lu = (icxLuLut *)p->out.luo;	/* Safe to coerce */
+
+					if (p->mode < 2) {	/* Using B2A table */
+						rv |= lu->in_abs(lu, pcsvm, pcsvm);
+						rv |= lu->matrix(lu, pcsvm, pcsvm);
+						rv |= lu->input(lu, pcsvm, pcsvm);
+						rv |= lu->clut(lu, out, pcsvm);
+						if (p->out.nocurve) {	/* No explicit curve, so do implicit here */
+							rv |= lu->output(lu, out, out);
+						}
+
+					} else {	/* Use inverse A2B table */
+						int i;
 #ifdef USE_MERGE_CLUT_OPT
 # pragma message("!!!!!!!!!!!! USE_MERGE_CLUT_OPT turned on  !!!!!!!!!")
-					/* Because we have used the ICX_MERGE_CLUT flag, we don't need */
-					/* to call inv_out_abs() and inv_output() */
+						/* Because we have used the ICX_MERGE_CLUT flag, we don't need */
+						/* to call inv_out_abs() and inv_output() */
 #else
-					rv |= lu->inv_out_abs(lu, pcsvm, pcsvm);
-					rv |= lu->inv_output(lu, pcsvm, pcsvm);
+						rv |= lu->inv_out_abs(lu, pcsvm, pcsvm);
+						rv |= lu->inv_output(lu, pcsvm, pcsvm);
 #endif
 
 #ifdef DEBUG
-					DEBUGCND printf("Calling inv_clut with K aux targets %f %f %f %f and pcsvm %f %f %f %f\n",
-					locus[0],locus[1],locus[2],locus[3],pcsvm[0],pcsvm[1],pcsvm[2],pcsvm[3]);
+						DEBUGCND printf("Calling inv_clut with K aux targets %f %f %f %f and pcsvm %f %f %f %f\n",
+						locus[0],locus[1],locus[2],locus[3],pcsvm[0],pcsvm[1],pcsvm[2],pcsvm[3]);
 #endif
 
-					/* locus[] contains possible K target or locus value, */
-					/* so copy it to out[] so that inv_clut will use it. */
-					for (i = 0; i < p->out.chan; i++)
-						out[i] = locus[i];
+						/* locus[] contains possible K target or locus value, */
+						/* so copy it to out[] so that inv_clut will use it. */
+						for (i = 0; i < p->out.chan; i++)
+							out[i] = locus[i];
 
-					rv |= lu->inv_clut(lu, out, pcsvm);
+						rv |= lu->inv_clut(lu, out, pcsvm);
 #ifdef DEBUG
-					DEBUGCND printf("Got result %f %f %f %f\n", out[0],out[1],out[2],out[3]);
+						DEBUGCND printf("Got result %f %f %f %f\n", out[0],out[1],out[2],out[3]);
 #endif
 
-					
-					if (p->out.nocurve) {	/* No explicit curve, so do implicit here */
-						rv |= lu->inv_input(lu, out, out);
+						
+						if (p->out.nocurve) {	/* No explicit curve, so do implicit here */
+							rv |= lu->inv_input(lu, out, out);
+						}
 					}
+					break;
 				}
-				break;
+
+				default:
+					error("Unexpected algorithm type %d in devop of devip_devop()",p->out.alg);
+			}
+			if (rv >= 2)
+				error("icc lookup failed: %d, %s",p->in.c->errc,p->in.c->err);
+#ifdef DEBUG
+			DEBUGCND printf("DevOut' after PCS->Dev %s\n\n",icmPdv(p->out.chan, out));
+#endif
+		}
+
+		/* Apply calibration curve */
+		if (p->cal != NULL && p->addcal == 1 && p->out.nocurve) {
+			p->cal->interp(p->cal, out, out);
+#ifdef DEBUG
+			DEBUGCND printf("DevOut' after cal curve %s\n\n",icmPdv(p->out.chan, out));
+#endif
+		}
+
+		/* Video encode */
+		if (p->out.nocurve && p->out.tvenc != 0) {
+			for (i = 0; i < p->out.chan; i++) {
+				if (out[i] < 0.0)
+					out[i] = 0.0;
+				else if (out[i] > 1.0)
+					out[i] = 1.0;
+			}
+			if (p->out.tvenc == 1) {				/* Video 16-235 range */
+				icmRGB_2_VidRGB(out, out);
+			} else if (p->out.tvenc == 3) {			/* Rec601 YCbCr */
+				icmRec601_RGBd_2_YPbPr(out, out);
+				icmRecXXX_YPbPr_2_YCbCr(out, out);
+			} else if (p->out.tvenc == 4) {			/* Rec709 1150/60/2:1 YCbCr */
+				icmRec709_RGBd_2_YPbPr(out, out);
+				icmRecXXX_YPbPr_2_YCbCr(out, out);
+			} else if (p->out.tvenc == 5) {			/* Rec709 1250/50/2:1 YCbCr */
+				icmRec709_50_RGBd_2_YPbPr(out, out);
+				icmRecXXX_YPbPr_2_YCbCr(out, out);
+			} else if (p->out.tvenc == 6) {			/* Rec2020 Non-constant Luminance YCbCr encoding */
+				icmRec2020_NCL_RGBd_2_YPbPr(out, out);
+				icmRecXXX_YPbPr_2_YCbCr(out, out);
+			} else if (p->out.tvenc == 7) {			/* Rec2020 Constant Luminance YCbCr encoding */
+				icmRec2020_CL_RGBd_2_YPbPr(out, out);
+				icmRecXXX_YPbPr_2_YCbCr(out, out);
 			}
 
-			default:
-				error("Unexpected algorithm type %d in devop of devip_devop()",p->out.alg);
-		}
-		if (rv >= 2)
-			error("icc lookup failed: %d, %s",p->in.c->errc,p->in.c->err);
-#ifdef DEBUG
-		DEBUGCND printf("DevOut' after PCS->Dev %s\n\n",icmPdv(p->out.chan, out));
-#endif
-	}
-
-	if (p->cal != NULL && p->addcal == 1 && p->out.nocurve) {
-		p->cal->interp(p->cal, out, out);
-#ifdef DEBUG
-		DEBUGCND printf("DevOut' after cal curve %s\n\n",icmPdv(p->out.chan, out));
-#endif
-	}
-
-	/* Video encode */
-	if (p->out.nocurve && p->out.tvenc != 0) {
-		for (i = 0; i < p->out.chan; i++) {
-			if (out[i] < 0.0)
-				out[i] = 0.0;
-			else if (out[i] > 1.0)
-				out[i] = 1.0;
-		}
-		if (p->out.tvenc == 1) {				/* Video 16-235 range */
-			icmRGB_2_VidRGB(out, out);
-		} else if (p->out.tvenc == 3) {			/* Rec601 YCbCr */
-			icmRec601_RGBd_2_YPbPr(out, out);
-			icmRecXXX_YPbPr_2_YCbCr(out, out);
-		} else if (p->out.tvenc == 4) {			/* Rec709 1150/60/2:1 YCbCr */
-			icmRec709_RGBd_2_YPbPr(out, out);
-			icmRecXXX_YPbPr_2_YCbCr(out, out);
-		} else if (p->out.tvenc == 5) {			/* Rec709 1250/50/2:1 YCbCr */
-			icmRec709_50_RGBd_2_YPbPr(out, out);
-			icmRecXXX_YPbPr_2_YCbCr(out, out);
-		} else if (p->out.tvenc == 6) {			/* Rec2020 Non-constant Luminance YCbCr encoding */
-			icmRec2020_NCL_RGBd_2_YPbPr(out, out);
-			icmRecXXX_YPbPr_2_YCbCr(out, out);
-		} else if (p->out.tvenc == 7) {			/* Rec2020 Constant Luminance YCbCr encoding */
-			icmRec2020_CL_RGBd_2_YPbPr(out, out);
-			icmRecXXX_YPbPr_2_YCbCr(out, out);
-		}
-
 #ifdef NEVER
-		 else if (p->out.tvenc == 8) {			/* SD xvYCC with Rec601 YCbCr encoding */
-			icmRec601_RGBd_2_YPbPr(out, out);
-			icmRecXXX_YPbPr_2_YCbCr(out, out);
-		} else if (p->out.tvenc == 9) {			/* HD xvYCC with Rec709 YCbCr encoding */
-			icmRec709_RGBd_2_YPbPr(out, out);
-			icmRecXXX_YPbPr_2_YCbCr(out, out);
-		}
+			 else if (p->out.tvenc == 8) {			/* SD xvYCC with Rec601 YCbCr encoding */
+				icmRec601_RGBd_2_YPbPr(out, out);
+				icmRecXXX_YPbPr_2_YCbCr(out, out);
+			} else if (p->out.tvenc == 9) {			/* HD xvYCC with Rec709 YCbCr encoding */
+				icmRec709_RGBd_2_YPbPr(out, out);
+				icmRecXXX_YPbPr_2_YCbCr(out, out);
+			}
 #endif /* NEVER */
 
 #ifdef DEBUG
-		DEBUGCND printf("DevOut' after TVenc %s\n",icmPdv(p->out.chan, out));
+			DEBUGCND printf("DevOut' after TVenc     %s\n",icmPdv(p->out.chan, out));
 #endif
-	}
+		}
 
-	if (clip && p->out.nocurve && p->out.tvenc != 0) {
+		if (clip && p->out.nocurve && p->out.tvenc != 0) {
 
-		/* For RGB encoding, unscale +ve clip to preserve hue */
-		if (p->out.tvenc == 1) {				/* RGB Video 16-235 range */
+			/* For RGB encoding, unscale +ve clip to preserve hue */
+			if (p->out.tvenc == 1) {				/* RGB Video 16-235 range */
 
-			if (!p->in.tvclip && scale > 1.0) {		/* We got +ve clipping */
+				if (!p->in.tvclip && scale > 1.0) {		/* We got +ve clipping */
 
-				/* Re-scale all non-black values */
-				for (i = 0; i < 3; i++) {
-					if (out[i] > (16.0/255.0))
-						out[i] = (out[i] - 16.0/255.0) * scale + 16.0/255.0;
+					/* Re-scale all non-black values */
+					for (i = 0; i < 3; i++) {
+						if (out[i] > (16.0/255.0))
+							out[i] = (out[i] - 16.0/255.0) * scale + 16.0/255.0;
+					}
 				}
-			}
 
-			/* Deal with -ve clipping and sync */
-			for (i = 0; i < 3; i++) {
-				if (clip & (1 << i)) {
+				/* Deal with -ve clipping and sync */
+				for (i = 0; i < 3; i++) {
+					if (clip & (1 << i)) {
 
-					if (full[i] == 0.0) {	/* Only extrapolate in black direction */
+						if (full[i] == 0.0) {	/* Only extrapolate in black direction */
+							double ifull = 1.0 - full[i];	/* Opposite limit to full */
+			
+							/* Do simple extrapolation (Not perfect though) */
+							out[i] = ifull + (out[i] - ifull) * (uci[i] - ifull)/(cin[i] - ifull);
+						}
+		
+						/* Clip or pass sync through */
+						if (out[i] < 0.0 || out[i] > 1.0		/* clip */
+#ifdef PRESERVE_SYNC
+						 || fabs(uci[i] - full[i]) < 1e-6		/* or input is at sync level */
+#endif
+						)
+							out[i] = full[i];
+					}
+				}
+
+			/* For YCrCb, do simple linear extrapolation of out of range input. */
+			/* (Note we should really change this to preserve hue instead !) */
+			} else {
+				for (i = 0; i < 3; i++) {
+					if (clip & (1 << i)) {
 						double ifull = 1.0 - full[i];	/* Opposite limit to full */
 		
 						/* Do simple extrapolation (Not perfect though) */
 						out[i] = ifull + (out[i] - ifull) * (uci[i] - ifull)/(cin[i] - ifull);
+		
+						if (out[i] < 0.0 || out[i] > 1.0		/* clip */
+#ifdef PRESERVE_SYNC
+						 || fabs(uci[i] - full[i]) < 1e-6		/* or input is at sync level */
+#endif
+						)
+							out[i] = full[i];
 					}
-	
-					/* Clip or pass sync through */
-					if (out[i] < 0.0 || out[i] > 1.0		/* clip */
-#ifdef PRESERVE_SYNC
-					 || fabs(uci[i] - full[i]) < 1e-6		/* or input is at sync level */
-#endif
-					)
-						out[i] = full[i];
 				}
 			}
-
-		/* For YCrCb, do simple linear extrapolation of out of range input. */
-		/* (Note we should really change this to preserve hue instead !) */
-		} else {
-			for (i = 0; i < 3; i++) {
-				if (clip & (1 << i)) {
-					double ifull = 1.0 - full[i];	/* Opposite limit to full */
-	
-					/* Do simple extrapolation (Not perfect though) */
-					out[i] = ifull + (out[i] - ifull) * (uci[i] - ifull)/(cin[i] - ifull);
-	
-					if (out[i] < 0.0 || out[i] > 1.0		/* clip */
-#ifdef PRESERVE_SYNC
-					 || fabs(uci[i] - full[i]) < 1e-6		/* or input is at sync level */
+#ifdef DEBUG
+			DEBUGCND printf("DevOut' after TVenc un-clip %s\n",icmPdv(p->out.chan, out));
 #endif
-					)
-						out[i] = full[i];
+		}
+
+		/* For eeColor and Full range RGB, make sure that the cLUT output maps to 1.0 */
+		/* The output curve will correct this, irrespective of out.nocurve */
+		if (p->tdlut == 1) {		/* eeColor encoded input */
+			/* ~~ it's not clear if this re-scaling would help with other */
+			/* encodings like xvYCC ? */ 
+			if (p->out.tvenc == 0) {			/* Full range RGB */
+				for (i = 0; i < 3; i++) {
+					out[i] /= p->coscale[i];
+					if (out[i] > 1.0)
+						out[i] = 1.0;
 				}
+#ifdef DEBUG
+				DEBUGCND printf("DevOut' after eeColor de-scale %s\n\n",icmPdv(p->out.chan, out));
+#endif
 			}
 		}
-#ifdef DEBUG
-		DEBUGCND printf("DevOut' after TVenc un-clip %s\n",icmPdv(p->out.chan, out));
-#endif
-	}
 
-	/* For eeColor and Full range RGB, make sure that the cLUT output maps to 1.0 */
-	/* The output curve will correct this, irrespective of out.nocurve */
-	if (p->tdlut == 1) {		/* eeColor encoded input */
-		/* ~~ it's not clear if this re-scaling would help with other */
-		/* encodings like xvYCC ? */ 
-		if (p->out.tvenc == 0) {			/* Full range RGB */
-			for (i = 0; i < 3; i++) {
-				out[i] /= p->coscale[i];
-				if (out[i] > 1.0)
-					out[i] = 1.0;
-			}
+		/* lcurve is incompatible with coscale and tvenc ?? */
+		if (p->out.lcurve) { 		/* Apply Y to L* to make output perceptual */
 #ifdef DEBUG
-			DEBUGCND printf("DevOut' after eeColor de-scale %s\n\n",icmPdv(p->out.chan, out));
+			DEBUGCND printf("DevOut' before y2l_curve %s\n\n",icmPdv(p->out.chan, out));
 #endif
+			y2l_curve(out, out, p->out.lcurve == 2);
 		}
-	}
-
-	/* lcurve is incompatible with coscale and tvenc ?? */
-	if (p->out.lcurve) { 		/* Apply Y to L* to make output perceptual */
-#ifdef DEBUG
-		DEBUGCND printf("DevOut' before y2l_curve %s\n\n",icmPdv(p->out.chan, out));
-#endif
-		y2l_curve(out, out, p->out.lcurve == 2);
-	}
 
 #ifdef DEBUG
-	DEBUGCND printf("DevIn'->DevOut' ret %s\n\n",icmPdv(p->out.chan, out));
+		DEBUGCND printf("DevIn'->DevOut' ret %s\n\n",icmPdv(p->out.chan, out));
 #endif
 
+
+	} /* Not calonly */
 
 	if (p->verb) {		/* Output percent intervals */
 		int pc;
@@ -1694,6 +1718,7 @@ void devop_devo(void *cntx, double *out, double *in) {
 #ifdef DEBUG
 		DEBUGCND printf("After output curve %s\n",icmPdv(p->out.chan, out));
 #endif
+
 		/* Apply calibration curve */
 		if (p->cal != NULL && p->addcal == 1) {
 			p->cal->interp(p->cal, out, out);
@@ -1711,7 +1736,15 @@ void devop_devo(void *cntx, double *out, double *in) {
 			DEBUGCND printf("After Video encode %s\n",icmPdv(p->out.chan, out));
 		}
 #endif
+
+	/* Apply calibration curve */
+	} else if (p->calonly && p->cal != NULL && p->addcal == 1) {
+			p->cal->interp(p->cal, out, out);
+#ifdef DEBUG
+			DEBUGCND printf("After calibration curve %s\n",icmPdv(p->out.chan, out));
+#endif
 	}
+
 #ifdef DEBUG
 	DEBUGCND printf("DevOut'->DevOut ret %s\n",icmPdv(p->out.chan, out));
 #endif
@@ -1841,13 +1874,13 @@ int write_cube_3DLut(clink *li, icc *icc, char *fname);
 int
 main(int argc, char *argv[]) {
 	int fa, nfa, mfa;				/* argument we're looking at */
-	char in_name[MAXNAMEL+1];
+	char in_name[MAXNAMEL+1] = "\000";
 	char sgam_name[MAXNAMEL+1] = "\000";	/* Source gamut name */
 	char abs_name[MAXNAMEL+1] = "\000";		/* Abstract profile name */
 	char cal_name[MAXNAMEL+1] = "\000";		/* Calibration filename */
-	char out_name[MAXNAMEL+1];
-	char link_name[MAXNAMEL+1];
-	char tdlut_name[MAXNAMEL+1];
+	char out_name[MAXNAMEL+1] = "\000";
+	char link_name[MAXNAMEL+1] = "\000";
+	char tdlut_name[MAXNAMEL+1] = "\000";
 	int verify = 0;				/* Do verify pass */
 	int outinkset = 0;			/* The user specfied an output inking */
 	int intentset = 0;			/* The user specified an intent */
@@ -1855,6 +1888,7 @@ main(int argc, char *argv[]) {
 	int modeset = 0;			/* The gamut mapping mode was set by the user */
 	int addcal = 0;				/* 1 = Incorporate cal. curves in 3dLUT and set linear MadVR cal1 */
 								/* 2 = Set 3dLut MadVR cal1 to calibration curves */
+	int calonly = 0;			/* calibration curve only - no ICC profile linking */
 	int rv = 0;
 	icxViewCond ivc, ovc;		/* Viewing Condition Overrides for in and out profiles */
 	int ivc_e = -1, ovc_e = -1;	/* Enumerated viewing condition */
@@ -1946,7 +1980,7 @@ main(int argc, char *argv[]) {
 
 	/* Process the arguments */
 	mfa = 3;        /* Minimum final arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1; fa < argc; fa++) {
 		nfa = fa;					/* skip to nfa if next argument is used */
 
 		if (argv[fa][0] == '-')	{	/* Look for any flags */
@@ -2100,10 +2134,23 @@ main(int argc, char *argv[]) {
 
 			/* Calibration curves */
 			else if (argv[fa][1] == 'a'
+			     || argv[fa][1] == 'O'
 			     || argv[fa][1] == 'H') {
 				addcal = 1;
 				if (argv[fa][1] == 'H')
 					addcal = 2;
+				if (argv[fa][1] == 'O') {
+					calonly = 1;
+
+					/* Hmm. Make on the fly change to mfa... */
+					mfa = 1;
+					if (na == NULL && (fa+1+mfa) < argc) {
+						if (argv[fa+1][0] != '-') {
+							nfa = fa + 1;
+							na = argv[nfa];		/* next is seperate non-flag argument */
+						}
+					}
+				}
 				if (na == NULL) usage("Expected calibration filename after -%c",argv[fa][1]);
 				fa = nfa;
 				strncpy(cal_name,na,MAXNAMEL); cal_name[MAXNAMEL] = '\000';
@@ -2577,12 +2624,21 @@ main(int argc, char *argv[]) {
 	}
 #endif
 
-	if (fa >= argc || argv[fa][0] == '-') usage("Missing input profile");
-	strncpy(in_name,argv[fa++],MAXNAMEL); in_name[MAXNAMEL] = '\000';
+	/* Is this a link created just from a calibration file ? */
+	if (calonly) {	/* yes */
+		li.calonly = calonly;
 
-	if (fa >= argc || argv[fa][0] == '-') usage("Missing output profile");
-	strncpy(out_name,argv[fa++],MAXNAMEL); out_name[MAXNAMEL] = '\000';
+	/* no */
+	} else {
+		/* Get the ICC source & destination profile names */
+		if (fa >= argc || argv[fa][0] == '-') usage("Missing input profile");
+		strncpy(in_name,argv[fa++],MAXNAMEL); in_name[MAXNAMEL] = '\000';
+	
+		if (fa >= argc || argv[fa][0] == '-') usage("Missing output profile");
+		strncpy(out_name,argv[fa++],MAXNAMEL); out_name[MAXNAMEL] = '\000';
+	}
 
+	/* Get the resulting link profile name */
 	if (fa >= argc || argv[fa][0] == '-') usage("Missing result profile");
 	strncpy(link_name,argv[fa++],MAXNAMEL); link_name[MAXNAMEL] = '\000';
 
@@ -2910,68 +2966,6 @@ main(int argc, char *argv[]) {
 		usage("Can't use 'white point hack' and Luminence scaling intent together");
 
 	/* - - - - - - - - - - - - - - - - - - - */
-	/* Open up the input device profile for reading, and read header etc. */
-	if ((li.in.c = read_embedded_icc(in_name)) == NULL)
-		error ("Can't open file '%s'",in_name);
-	li.in.h = li.in.c->header;
-
-	/* Check that it is a suitable device input icc */
-	if (li.in.h->deviceClass != icSigInputClass
-	 && li.in.h->deviceClass != icSigDisplayClass
-	 && li.in.h->deviceClass != icSigOutputClass
-	 && li.in.h->deviceClass != icSigColorSpaceClass)	/* For sRGB etc. */
-		error("Input profile '%s' isn't a device profile",in_name);
-
-	/* Wrap with an expanded icc */
-	if ((li.in.x = new_xicc(li.in.c)) == NULL)
-		error ("Creation of input profile xicc failed");
-
-	/* Set the default ink limits if not set on command line */
-	icxDefaultLimits(li.in.x, &li.in.ink.tlimit, li.in.ink.tlimit, &li.in.ink.klimit, li.in.ink.klimit);
-
-	if (li.verb) {
-		if (li.in.ink.tlimit >= 0.0)
-			printf("Input total ink limit assumed is %3.0f%%\n",100.0 * li.in.ink.tlimit);
-		if (li.in.ink.klimit >= 0.0)
-			printf("Input black ink limit assumed is %3.0f%%\n",100.0 * li.in.ink.klimit);
-	}
-
-	/* - - - - - - - - - - - - - - - - - - - */
-	/* Open up the abstract profile if requested */
-	if (abs_name[0] != '\000') {
-		if ((li.abs_fp = new_icmFileStd_name(abs_name,"r")) == NULL)
-			error ("Can't open abstract profile file '%s'",abs_name);
-		
-		if ((li.abs_icc = new_icc()) == NULL)
-			error ("Creation of Abstract profile ICC object failed");
-
-		/* Read header etc. */
-		if ((rv = li.abs_icc->read(li.abs_icc,li.abs_fp,0)) != 0)
-			error ("%d, %s",rv,li.abs_icc->err);
-
-		if (li.abs_icc->header->deviceClass != icSigAbstractClass)
-			error("Abstract profile isn't an abstract profile");
-
-		/* Take intended abstract intent from profile itself */
-		if ((li.abs_intent = li.abs_icc->header->renderingIntent) != icAbsoluteColorimetric)
-			li.abs_intent = icRelativeColorimetric;
-
-		/* Wrap with an expanded icc */
-		if ((li.abs_xicc = new_xicc(li.abs_icc)) == NULL)
-			error ("Creation of abstract profile xicc failed");
-	}
-	/* - - - - - - - - - - - - - - - - - - - */
-	/* Open up the output device output profile for reading, and read header etc. */
-	if ((li.out.c = read_embedded_icc(out_name)) == NULL)
-		error ("Can't open file '%s'",out_name);
-	li.out.h = li.out.c->header;
-
-	if (li.out.h->deviceClass != icSigInputClass
-	 && li.out.h->deviceClass != icSigDisplayClass
-	 && li.out.h->deviceClass != icSigOutputClass
-	 && li.out.h->deviceClass != icSigColorSpaceClass)	/* For sRGB etc. */
-		error("Output profile isn't a device profile");
-
 	/* Grab the calibration if requested */
 	if (addcal) {
 		if ((li.cal = new_xcal()) == NULL)
@@ -2986,194 +2980,261 @@ main(int argc, char *argv[]) {
 		/* and we don't currently have a way of detecting this */
 	}
 
-	/* Wrap with an expanded icc */
-	if ((li.out.x = new_xicc(li.out.c)) == NULL)
-		error ("Creation of output profile xicc failed");
+	if (!calonly) {
 
-	/* Set the default ink limits if not set on command line */
-	icxDefaultLimits(li.out.x, &li.out.ink.tlimit, li.out.ink.tlimit, &li.out.ink.klimit, li.out.ink.klimit);
+		/* Open up the input device profile for reading, and read header etc. */
+		if ((li.in.c = read_embedded_icc(in_name)) == NULL)
+			error ("Can't open file '%s'",in_name);
+		li.in.h = li.in.c->header;
 
-	if (li.verb) {
-		if (li.out.ink.tlimit >= 0.0)
-			printf("Output total ink limit assumed is %3.0f%%\n",100.0 * li.out.ink.tlimit);
-		if (li.out.ink.klimit >= 0.0)
-			printf("Output black ink limit assumed is %3.0f%%\n",100.0 * li.out.ink.klimit);
-	}
+		/* Check that it is a suitable device input icc */
+		if (li.in.h->deviceClass != icSigInputClass
+		 && li.in.h->deviceClass != icSigDisplayClass
+		 && li.in.h->deviceClass != icSigOutputClass
+		 && li.in.h->deviceClass != icSigColorSpaceClass)	/* For sRGB etc. */
+			error("Input profile '%s' isn't a device profile",in_name);
 
-	/* deal with output black generation. */
-	/* Ink limits will have been set in option parsing */
+		/* Wrap with an expanded icc */
+		if ((li.in.x = new_xicc(li.in.c)) == NULL)
+			error ("Creation of input profile xicc failed");
 
-	switch (li.out.inking) {
-		case 0:			/* Use input profile K level or locus */
-			/* Sanity check */
-			if (li.in.h->colorSpace != li.out.h->colorSpace)
-				error("Can't transfer black ink in & out unless the same colorspaces");
-			li.out.ink.k_rule = li.out.locus ? icxKlocus : icxKvalue;	/* Given as aux parameter in PCS -> Device */
-			break;
-		case 7:			/* Use output profile K level or locus */
-			li.out.ink.k_rule = li.out.locus ? icxKlocus : icxKvalue;	/* Given as aux parameter in PCS -> Device */
-			break;
-		case 1:			/* Minimum K */
-			li.out.ink.k_rule = li.out.locus ? icxKluma5 : icxKluma5k;
-			li.out.ink.c.Kstle = 0.0;
-			li.out.ink.c.Kstpo = 0.0;
-			li.out.ink.c.Kenpo = 1.0;
-			li.out.ink.c.Kenle = 0.0;
-			li.out.ink.c.Kshap = 1.0;
-			break;
-		case 2:			/* 0.5 K */
-			li.out.ink.k_rule = li.out.locus ? icxKluma5 : icxKluma5k;
-			li.out.ink.c.Kstle = 0.5;
-			li.out.ink.c.Kstpo = 0.0;
-			li.out.ink.c.Kenpo = 1.0;
-			li.out.ink.c.Kenle = 0.5;
-			li.out.ink.c.Kshap = 1.0;
-			break;
-		case 3:			/* Maximum K */
-			li.out.ink.k_rule = li.out.locus ? icxKluma5 : icxKluma5k;
-			li.out.ink.c.Kstle = 1.0;
-			li.out.ink.c.Kstpo = 0.0;
-			li.out.ink.c.Kenpo = 1.0;
-			li.out.ink.c.Kenle = 1.0;
-			li.out.ink.c.Kshap = 1.0;
-			break;
-		case 4:			/* Ramp K */
-			li.out.ink.k_rule = li.out.locus ? icxKluma5 : icxKluma5k;
-			li.out.ink.c.Kstle = 0.0;
-			li.out.ink.c.Kstpo = 0.0;
-			li.out.ink.c.Kenpo = 1.0;
-			li.out.ink.c.Kenle = 1.0;
-			li.out.ink.c.Kshap = 1.0;
-			break;
-		case 5:			/* Curve */
-			li.out.ink.k_rule = li.out.locus ? icxKluma5 : icxKluma5k;
-			break;		/* Other params already set by options */
-		case 6:			/* Use input profile K locus + dual curve limits */
-			/* Sanity check */
-			if (li.in.h->colorSpace != li.out.h->colorSpace)
-				error("Can't transfer black ink in & out unless the same colorspaces");
-			li.out.ink.k_rule = li.out.locus ? icxKl5l : icxKl5lk;	/* Aux param in PCS -> Device */
-			break;		/* Other params already set by options */
-	}
+		/* Set the default ink limits if not set on command line */
+		icxDefaultLimits(li.in.x, &li.in.ink.tlimit, li.in.ink.tlimit, &li.in.ink.klimit, li.in.ink.klimit);
 
-	for (i = 0; i < 2; i++) {
-		xicc *x;
-		icxViewCond *v, *vc;
-		int es;
-		int *set;
-
-		if (i == 0) {
-			v = &ivc;			/* Override parameters */
-			vc = &li.in.vc;		/* Target parameters */
-			set = &li.in.vc_set;
-			es = ivc_e;
-			x = li.in.x;		/* xicc */
-		} else {
-			v = &ovc;			/* Override parameters */
-			vc = &li.out.vc;	/* Target parameters */
-			set = &li.out.vc_set;
-			es = ovc_e;
-			x = li.out.x;		/* xicc */
-		}
-		
-		/* Set the default viewing conditions */
-		xicc_enum_viewcond(x, vc, -1, NULL, 0, NULL);
-
-		/* Override the default viewing conditions. */
-		/* (?? Could move this code into xicc_enum_viewcond() as an option ??) */
-		/* First any enumerated selection */
-		if (es != -1) {
-			if (xicc_enum_viewcond(x, vc, es, NULL, 0, NULL) == -999)
-				error ("%d, %s",x->errc, x->err);
-			*set = 1;
-		}
-		/* Then any individual paramaters */
-		if (v->Ev >= 0) {
-			vc->Ev = v->Ev;
-			*set = 1;
-		}
-		if (v->Wxyz[0] >= 0.0 && v->Wxyz[1] > 0.0 && v->Wxyz[2] >= 0.0) {
-			/* Normalise XYZ to current media white */
-			vc->Wxyz[0] = v->Wxyz[0]/v->Wxyz[1] * vc->Wxyz[1];
-			vc->Wxyz[2] = v->Wxyz[2]/v->Wxyz[1] * vc->Wxyz[1];
-			*set = 1;
-		} 
-		if (v->Wxyz[0] >= 0.0 && v->Wxyz[1] >= 0.0 && v->Wxyz[2] < 0.0) {
-			/* Convert Yxy to XYZ */
-			double x = v->Wxyz[0];
-			double y = v->Wxyz[1];	/* If Y == 1.0, then X+Y+Z = 1/y */
-			double z = 1.0 - x - y;
-			vc->Wxyz[0] = x/y * vc->Wxyz[1];
-			vc->Wxyz[2] = z/y * vc->Wxyz[1];
-			*set = 1;
-		}
-		if (v->La >= 0.0) {
-			vc->La = v->La;
-			*set = 1;
-		}
-		if (v->Yb >= 0.0) {
-			vc->Yb = v->Yb;
-			*set = 1;
-		}
-		if (v->Lv >= 0.0) {
-			vc->Lv = v->Lv;
-			*set = 1;
-		}
-		if (v->Yf >= 0.0) {
-			vc->Yf = v->Yf;
-			*set = 1;
-		}
-		if (v->Yg >= 0.0) {
-			vc->Yg = v->Yg;
-			*set = 1;
-		}
-		if (v->Gxyz[0] >= 0.0 && v->Gxyz[1] > 0.0 && v->Gxyz[2] >= 0.0) {
-			/* Normalise XYZ to current media white */
-			vc->Gxyz[0] = v->Gxyz[0]/v->Gxyz[1] * vc->Gxyz[1];
-			vc->Gxyz[2] = v->Gxyz[2]/v->Gxyz[1] * vc->Gxyz[1];
-			*set = 1;
-		}
-		if (v->Gxyz[0] >= 0.0 && v->Gxyz[1] >= 0.0 && v->Gxyz[2] < 0.0) {
-			/* Convert Yxy to XYZ */
-			double x = v->Gxyz[0];
-			double y = v->Gxyz[1];	/* If Y == 1.0, then X+Y+Z = 1/y */
-			double z = 1.0 - x - y;
-			vc->Gxyz[0] = x/y * vc->Gxyz[1];
-			vc->Gxyz[2] = z/y * vc->Gxyz[1];
-			*set = 1;
+		if (li.verb) {
+			if (li.in.ink.tlimit >= 0.0)
+				printf("Input total ink limit assumed is %3.0f%%\n",100.0 * li.in.ink.tlimit);
+			if (li.in.ink.klimit >= 0.0)
+				printf("Input black ink limit assumed is %3.0f%%\n",100.0 * li.in.ink.klimit);
 		}
 
-		if (v->hkscale >= 0.0) {
-			vc->hkscale = v->hkscale;
-			*set = 1;
+		/* - - - - - - - - - - - - - - - - - - - */
+		/* Open up the abstract profile if requested */
+		if (abs_name[0] != '\000') {
+			if ((li.abs_fp = new_icmFileStd_name(abs_name,"r")) == NULL)
+				error ("Can't open abstract profile file '%s'",abs_name);
+			
+			if ((li.abs_icc = new_icc()) == NULL)
+				error ("Creation of Abstract profile ICC object failed");
+
+			/* Read header etc. */
+			if ((rv = li.abs_icc->read(li.abs_icc,li.abs_fp,0)) != 0)
+				error ("%d, %s",rv,li.abs_icc->err);
+
+			if (li.abs_icc->header->deviceClass != icSigAbstractClass)
+				error("Abstract profile isn't an abstract profile");
+
+			/* Take intended abstract intent from profile itself */
+			if ((li.abs_intent = li.abs_icc->header->renderingIntent) != icAbsoluteColorimetric)
+				li.abs_intent = icRelativeColorimetric;
+
+			/* Wrap with an expanded icc */
+			if ((li.abs_xicc = new_xicc(li.abs_icc)) == NULL)
+				error ("Creation of abstract profile xicc failed");
 		}
-		if (v->mtaf >= 0.0) {
-			vc->mtaf = v->mtaf;
-			*set = 1;
+		/* - - - - - - - - - - - - - - - - - - - */
+		/* Open up the output device output profile for reading, and read header etc. */
+		if ((li.out.c = read_embedded_icc(out_name)) == NULL)
+			error ("Can't open file '%s'",out_name);
+		li.out.h = li.out.c->header;
+
+		if (li.out.h->deviceClass != icSigInputClass
+		 && li.out.h->deviceClass != icSigDisplayClass
+		 && li.out.h->deviceClass != icSigOutputClass
+		 && li.out.h->deviceClass != icSigColorSpaceClass)	/* For sRGB etc. */
+			error("Output profile isn't a device profile");
+
+		/* Wrap with an expanded icc */
+		if ((li.out.x = new_xicc(li.out.c)) == NULL)
+			error ("Creation of output profile xicc failed");
+
+		/* Set the default ink limits if not set on command line */
+		icxDefaultLimits(li.out.x, &li.out.ink.tlimit, li.out.ink.tlimit, &li.out.ink.klimit, li.out.ink.klimit);
+
+		if (li.verb) {
+			if (li.out.ink.tlimit >= 0.0)
+				printf("Output total ink limit assumed is %3.0f%%\n",100.0 * li.out.ink.tlimit);
+			if (li.out.ink.klimit >= 0.0)
+				printf("Output black ink limit assumed is %3.0f%%\n",100.0 * li.out.ink.klimit);
 		}
-		if (v->Wxyz2[0] >= 0.0 && v->Wxyz2[1] > 0.0 && v->Wxyz2[2] >= 0.0) {
-			/* Normalise XYZ */
-			vc->Wxyz2[0] = v->Wxyz2[0]/v->Wxyz2[1] * vc->Wxyz2[1];
-			vc->Wxyz2[2] = v->Wxyz2[2]/v->Wxyz2[1] * vc->Wxyz2[1];
-			*set = 1;
+
+		/* deal with output black generation. */
+		/* Ink limits will have been set in option parsing */
+
+		switch (li.out.inking) {
+			case 0:			/* Use input profile K level or locus */
+				/* Sanity check */
+				if (li.in.h->colorSpace != li.out.h->colorSpace)
+					error("Can't transfer black ink in & out unless the same colorspaces");
+				li.out.ink.k_rule = li.out.locus ? icxKlocus : icxKvalue;	/* Given as aux parameter in PCS -> Device */
+				break;
+			case 7:			/* Use output profile K level or locus */
+				li.out.ink.k_rule = li.out.locus ? icxKlocus : icxKvalue;	/* Given as aux parameter in PCS -> Device */
+				break;
+			case 1:			/* Minimum K */
+				li.out.ink.k_rule = li.out.locus ? icxKluma5 : icxKluma5k;
+				li.out.ink.c.Kstle = 0.0;
+				li.out.ink.c.Kstpo = 0.0;
+				li.out.ink.c.Kenpo = 1.0;
+				li.out.ink.c.Kenle = 0.0;
+				li.out.ink.c.Kshap = 1.0;
+				break;
+			case 2:			/* 0.5 K */
+				li.out.ink.k_rule = li.out.locus ? icxKluma5 : icxKluma5k;
+				li.out.ink.c.Kstle = 0.5;
+				li.out.ink.c.Kstpo = 0.0;
+				li.out.ink.c.Kenpo = 1.0;
+				li.out.ink.c.Kenle = 0.5;
+				li.out.ink.c.Kshap = 1.0;
+				break;
+			case 3:			/* Maximum K */
+				li.out.ink.k_rule = li.out.locus ? icxKluma5 : icxKluma5k;
+				li.out.ink.c.Kstle = 1.0;
+				li.out.ink.c.Kstpo = 0.0;
+				li.out.ink.c.Kenpo = 1.0;
+				li.out.ink.c.Kenle = 1.0;
+				li.out.ink.c.Kshap = 1.0;
+				break;
+			case 4:			/* Ramp K */
+				li.out.ink.k_rule = li.out.locus ? icxKluma5 : icxKluma5k;
+				li.out.ink.c.Kstle = 0.0;
+				li.out.ink.c.Kstpo = 0.0;
+				li.out.ink.c.Kenpo = 1.0;
+				li.out.ink.c.Kenle = 1.0;
+				li.out.ink.c.Kshap = 1.0;
+				break;
+			case 5:			/* Curve */
+				li.out.ink.k_rule = li.out.locus ? icxKluma5 : icxKluma5k;
+				break;		/* Other params already set by options */
+			case 6:			/* Use input profile K locus + dual curve limits */
+				/* Sanity check */
+				if (li.in.h->colorSpace != li.out.h->colorSpace)
+					error("Can't transfer black ink in & out unless the same colorspaces");
+				li.out.ink.k_rule = li.out.locus ? icxKl5l : icxKl5lk;	/* Aux param in PCS -> Device */
+				break;		/* Other params already set by options */
 		}
-		if (v->Wxyz2[0] >= 0.0 && v->Wxyz2[1] >= 0.0 && v->Wxyz2[2] < 0.0) {
-			/* Convert Yxy to XYZ */
-			double x = v->Wxyz2[0];
-			double y = v->Wxyz2[1];	/* If Y == 1.0, then X+Y+Z = 1/y */
-			double z = 1.0 - x - y;
-			vc->Wxyz2[0] = x/y * vc->Wxyz2[1];
-			vc->Wxyz2[2] = z/y * vc->Wxyz2[1];
-			*set = 1;
+
+		/* Deal with source & dest viewing conditions */
+		for (i = 0; i < 2; i++) {
+			xicc *x;
+			icxViewCond *v, *vc;
+			int es;
+			int *set;
+
+			if (i == 0) {
+				v = &ivc;			/* Override parameters */
+				vc = &li.in.vc;		/* Target parameters */
+				set = &li.in.vc_set;
+				es = ivc_e;
+				x = li.in.x;		/* xicc */
+			} else {
+				v = &ovc;			/* Override parameters */
+				vc = &li.out.vc;	/* Target parameters */
+				set = &li.out.vc_set;
+				es = ovc_e;
+				x = li.out.x;		/* xicc */
+			}
+			
+			/* Set the default viewing conditions */
+			xicc_enum_viewcond(x, vc, -1, NULL, 0, NULL);
+
+			/* Override the default viewing conditions. */
+			/* (?? Could move this code into xicc_enum_viewcond() as an option ??) */
+			/* First any enumerated selection */
+			if (es != -1) {
+				if (xicc_enum_viewcond(x, vc, es, NULL, 0, NULL) == -999)
+					error ("%d, %s",x->errc, x->err);
+				*set = 1;
+			}
+			/* Then any individual paramaters */
+			if (v->Ev >= 0) {
+				vc->Ev = v->Ev;
+				*set = 1;
+			}
+			if (v->Wxyz[0] >= 0.0 && v->Wxyz[1] > 0.0 && v->Wxyz[2] >= 0.0) {
+				/* Normalise XYZ to current media white */
+				vc->Wxyz[0] = v->Wxyz[0]/v->Wxyz[1] * vc->Wxyz[1];
+				vc->Wxyz[2] = v->Wxyz[2]/v->Wxyz[1] * vc->Wxyz[1];
+				*set = 1;
+			} 
+			if (v->Wxyz[0] >= 0.0 && v->Wxyz[1] >= 0.0 && v->Wxyz[2] < 0.0) {
+				/* Convert Yxy to XYZ */
+				double x = v->Wxyz[0];
+				double y = v->Wxyz[1];	/* If Y == 1.0, then X+Y+Z = 1/y */
+				double z = 1.0 - x - y;
+				vc->Wxyz[0] = x/y * vc->Wxyz[1];
+				vc->Wxyz[2] = z/y * vc->Wxyz[1];
+				*set = 1;
+			}
+			if (v->La >= 0.0) {
+				vc->La = v->La;
+				*set = 1;
+			}
+			if (v->Yb >= 0.0) {
+				vc->Yb = v->Yb;
+				*set = 1;
+			}
+			if (v->Lv >= 0.0) {
+				vc->Lv = v->Lv;
+				*set = 1;
+			}
+			if (v->Yf >= 0.0) {
+				vc->Yf = v->Yf;
+				*set = 1;
+			}
+			if (v->Yg >= 0.0) {
+				vc->Yg = v->Yg;
+				*set = 1;
+			}
+			if (v->Gxyz[0] >= 0.0 && v->Gxyz[1] > 0.0 && v->Gxyz[2] >= 0.0) {
+				/* Normalise XYZ to current media white */
+				vc->Gxyz[0] = v->Gxyz[0]/v->Gxyz[1] * vc->Gxyz[1];
+				vc->Gxyz[2] = v->Gxyz[2]/v->Gxyz[1] * vc->Gxyz[1];
+				*set = 1;
+			}
+			if (v->Gxyz[0] >= 0.0 && v->Gxyz[1] >= 0.0 && v->Gxyz[2] < 0.0) {
+				/* Convert Yxy to XYZ */
+				double x = v->Gxyz[0];
+				double y = v->Gxyz[1];	/* If Y == 1.0, then X+Y+Z = 1/y */
+				double z = 1.0 - x - y;
+				vc->Gxyz[0] = x/y * vc->Gxyz[1];
+				vc->Gxyz[2] = z/y * vc->Gxyz[1];
+				*set = 1;
+			}
+
+			if (v->hkscale >= 0.0) {
+				vc->hkscale = v->hkscale;
+				*set = 1;
+			}
+			if (v->mtaf >= 0.0) {
+				vc->mtaf = v->mtaf;
+				*set = 1;
+			}
+			if (v->Wxyz2[0] >= 0.0 && v->Wxyz2[1] > 0.0 && v->Wxyz2[2] >= 0.0) {
+				/* Normalise XYZ */
+				vc->Wxyz2[0] = v->Wxyz2[0]/v->Wxyz2[1] * vc->Wxyz2[1];
+				vc->Wxyz2[2] = v->Wxyz2[2]/v->Wxyz2[1] * vc->Wxyz2[1];
+				*set = 1;
+			}
+			if (v->Wxyz2[0] >= 0.0 && v->Wxyz2[1] >= 0.0 && v->Wxyz2[2] < 0.0) {
+				/* Convert Yxy to XYZ */
+				double x = v->Wxyz2[0];
+				double y = v->Wxyz2[1];	/* If Y == 1.0, then X+Y+Z = 1/y */
+				double z = 1.0 - x - y;
+				vc->Wxyz2[0] = x/y * vc->Wxyz2[1];
+				vc->Wxyz2[2] = z/y * vc->Wxyz2[1];
+				*set = 1;
+			}
 		}
-	}
+
+	}	/* Not calonly */
 
 	if (li.verb)
 		printf("Configured options\n");
 
 	/* - - - - - - - - - - - - - - - - - - - */
 	/* Setup the profile color lookup information */
-	{
+	if (!calonly) {
 		icmLuAlgType oalg;				/* Native output algorithm */
 		icColorSpaceSignature natpcs;	/* Underlying native output PCS */
 		int flb = 0, fl = 0;			/* luobj flags */
@@ -3542,9 +3603,23 @@ main(int argc, char *argv[]) {
 	}
 
 	/* - - - - - - - - - - - - - - - - - - - */
-	/* Sanity checking */
+	if (calonly) {		/* Fudge the in & out settings */
+		li.in.csp = li.cal->colspace; 
+		li.in.chan = li.cal->devchan; 
+		li.in.nocurve = 1;
+		li.in.lcurve = 0;
+		li.in.bt1886 = 0;
 
-	if (li.cal != NULL) {
+		li.out.csp = li.cal->colspace; 
+		li.out.chan = li.cal->devchan; 
+		li.out.nocurve = 1;
+		li.out.lcurve = 0;
+		li.out.bt1886 = 0;
+
+		li.mode = 0;		/* Simple mode */
+
+	/* Sanity checking */
+	} else if (li.cal != NULL) {
 		if (li.cal->colspace != li.out.csp) {
 			error("Calibration space %s doesn't match output profile %s",
 			             icm2str(icmColorSpaceSignature, li.cal->colspace),
@@ -3905,12 +3980,14 @@ main(int argc, char *argv[]) {
 			if (li.in.tvenc >= 3) {
 				wh->colorSpace  = icSigYCbCrData;			/* Use YCbCr encoding */
 			} else {
-				wh->colorSpace  = li.in.h->colorSpace;		/* Input profile device space */
+//				wh->colorSpace  = li.in.h->colorSpace;		/* Input profile device space */
+				wh->colorSpace  = li.in.csp;				/* Input profile device space */
 			}
 			if (li.out.tvenc >= 3) {
 				wh->pcs         = icSigYCbCrData;			/* Use YCbCr encoding */
 			} else {
-				wh->pcs         = li.out.h->colorSpace;		/* Output profile device space */
+//				wh->pcs         = li.out.h->colorSpace;		/* Output profile device space */
+				wh->pcs         = li.out.csp;		/* Output profile device space */
 			}
 			if (li.mode > 0) {
 				wh->renderingIntent = li.gmi.icci;			/* Closest ICC intent */
@@ -4009,8 +4086,21 @@ main(int argc, char *argv[]) {
 			wo->allocate((icmBase *)wo);/* Allocate space */
 			strcpy(wo->desc, dst);		/* Copy the string in */
 		}
+
 		/* ProfileSequenceDescTag: */
-		{
+		if (li.calonly) {	/* Fake one up */
+			unsigned int i;
+			icmProfileSequenceDesc *wo;
+			if ((wo = (icmProfileSequenceDesc *)wr_icc->add_tag(
+			           wr_icc, icSigProfileSequenceDescTag, icSigProfileSequenceDescType)) == NULL) 
+				return 1;
+
+			wo->count = 2; 		/* Number of descriptions in sequence */
+			if (wo->allocate((icmBase *)wo) != 0)	/* Allocate space for all the DescStructures */
+				error("allocate failed: %d, %s",wr_icc->errc,wr_icc->err);
+
+		/* Real one */
+		} else {
 			unsigned int i;
 			icmProfileSequenceDesc *wo;
 			if ((wo = (icmProfileSequenceDesc *)wr_icc->add_tag(
@@ -4107,7 +4197,7 @@ main(int argc, char *argv[]) {
 			}
 		}
 		/* ColorantTable: */
-		{
+		if (!li.calonly) {
 			int i;
 			unsigned int j;
 			int repclip = 0;
@@ -4560,8 +4650,10 @@ main(int argc, char *argv[]) {
 #endif /* USE_APXLS */
 				0,
 				&li,						/* Context */
-				li.in.h->colorSpace,		/* Input color space */
-				li.out.h->colorSpace,		/* Output color space */
+//				li.in.h->colorSpace,		/* Input color space */
+				li.in.csp,					/* Input color space */
+//				li.out.h->colorSpace,		/* Output color space */
+				li.out.csp,					/* Output color space */
 				devi_devip,					/* Input transfer tables devi->devi' */
 				NULL, NULL,					/* Use default input colorspace range */
 				devip_devop,				/* devi' -> devo' transfer function */
@@ -4840,15 +4932,21 @@ main(int argc, char *argv[]) {
 		li.cal->del(li.cal);
 	}
 
-	li.in.luo->del(li.in.luo);
-	li.in.x->del(li.in.x);
-	li.in.c->del(li.in.c);
+	if (li.in.luo != NULL)
+		li.in.luo->del(li.in.luo);
+	if (li.in.x != NULL)
+		li.in.x->del(li.in.x);
+	if (li.in.c != NULL)
+		li.in.c->del(li.in.c);
 
 	if (li.out.b2aluo != NULL)
 		li.out.b2aluo->del(li.out.b2aluo);
-	li.out.luo->del(li.out.luo);
-	li.out.x->del(li.out.x);
-	li.out.c->del(li.out.c);
+	if (li.out.luo != NULL)
+		li.out.luo->del(li.out.luo);
+	if (li.out.x != NULL)
+		li.out.x->del(li.out.x);
+	if (li.out.c != NULL)
+		li.out.c->del(li.out.c);
 
 	return 0;
 }

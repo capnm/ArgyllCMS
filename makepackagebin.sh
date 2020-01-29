@@ -177,11 +177,18 @@ if [ X$USETAR = "Xtrue" ] ; then
 	fi
 	# tar -xzf to extract
 	# tar -tzf to list
+	# to update a file:
+	#  gzip -d archive.tgz
+	#  tar -uf application.tar file
+	#  gzip application.tar
+	#  mv application.tar.gz application.tgz
+	# or "tgzupdate.sh application"
 	# Should we use "COPYFILE_DISABLE=1 tar .." on OS X ??
 else
 	zip -9 -r $PACKAGE $TOPDIR
 	# unzip to extract
 	# unzip -l to list
+	# zip archive.zip file to update
 fi
 rm -rf $TOPDIR
 echo "Done GNU Argyll binary distribution $PACKAGE"

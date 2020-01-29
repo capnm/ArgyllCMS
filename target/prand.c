@@ -26,6 +26,7 @@
 #if defined(__IBMC__)
 #include <float.h>
 #endif
+#include "aconfig.h"
 #include "numlib.h"
 #include "sort.h"
 #include "icc.h"

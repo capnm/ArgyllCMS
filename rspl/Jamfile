@@ -69,7 +69,7 @@ if ( $(HOME) = "D:\\usr\\graeme" && $(PWD) = "/src/argyll/rspl" )
 	Main lchw_solve : lchw_solve.c : : : ../h ../numlib ../icc ../plot : : ../plot/libplot ../icc/libicc ../numlib/libui ../numlib/libnum ;
 	Main lchw_deriv : lchw_deriv.c : : : ../h ../numlib ../icc ../plot : : ../plot/libplot ../icc/libicc ../numlib/libui ../numlib/libnum ;
 	Main lchw_2deriv : lchw_2deriv.c : : : ../h ../numlib ../icc ../plot : : ../plot/libplot ../icc/libicc ../numlib/libui ../numlib/libnum ;
-	Main crossv : crossv.c : : : ../numlib ../plot : : ../plot/libplot ../numlib/libui ../numlib/libnum ;
+	Main crossv : crossv.c : : : ../h ../numlib ../plot : : ../plot/libplot ../numlib/libui ../numlib/libnum ;
 
 }
 if $(BUILD_JUNK) {

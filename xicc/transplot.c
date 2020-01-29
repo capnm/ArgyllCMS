@@ -25,6 +25,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <math.h>
+#include "aconfig.h"
 #include "icc.h"
 #include "numlib.h"
 #include "plot.h"

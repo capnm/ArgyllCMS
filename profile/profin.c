@@ -37,6 +37,7 @@
 #define verbo stdout
 
 #include <stdio.h>
+#include "aconfig.h"
 #include "counters.h"
 #include "numlib.h"
 #include "icc.h"
@@ -786,7 +787,7 @@ make_input_icc(
 				illum = icxIT_none;
 				cust_illum = NULL;
 			}
-			if ((sp2cie = new_xsp2cie(illum, cust_illum, obType, custObserver,
+			if ((sp2cie = new_xsp2cie(illum, 0.0, cust_illum, obType, custObserver,
 			                          wantLab ? icSigLabData : icSigXYZData, icxClamp)) == NULL)
 				error("Creation of spectral conversion object failed");
 

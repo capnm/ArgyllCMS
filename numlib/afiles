@@ -4,6 +4,8 @@ afiles
 Jamfile
 dnsq.c
 dnsq.h
+gnewt.c
+gnewt.h
 dnsqtest.c
 numlib.h
 numsup.c
@@ -11,6 +13,7 @@ numsup.h
 powell.h
 powell.c
 tpowell.c
+tconjgrad.c
 varmet.h
 varmet.c
 dhsx.h
@@ -35,5 +38,7 @@ aatree.c
 quadprog.h
 quadprog.c
 qptest.c
+roots.h
+roots.c
 ui.h
 ui.c

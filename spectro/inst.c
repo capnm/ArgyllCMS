@@ -41,11 +41,11 @@
 #ifndef SALONEINSTLIB
 #include "copyright.h"
 #include "aconfig.h"
+#include "rand.h"
 #else
 #include "sa_config.h"
 #endif /* !SALONEINSTLIB */
 #include "numsup.h"
-#include "rand.h"
 #include "cgats.h"
 #include "xspect.h"
 #include "conv.h"
@@ -881,6 +881,12 @@ static inst_disptypesel *expand_dlist(inst_disptypesel *list, int nlist, int *na
 	than any aliases that come after it, and the
 	aliases as more important than the fallback list,
 	so we need to do three passes through all the selections.
+
+	If we run out of single letter selectors (i.e. K10),
+	then we switch to the two letter prefixed selector "_X".
+
+	NOTE that we assume that we cannot exaust the single letter
+	selectors via hard coded, ccmx or ccss calibrations.
 */
 
 /* Create the display type list */
@@ -892,8 +898,8 @@ int doccss,						/* Add installed ccss files */
 int doccmx						/* Add matching installed ccmx files */
 ) {
 	inst_disptypesel *list = NULL;
-	int i, j, k, nlist = 0, nalist = 0;
-	char usels[256];			/* Used selectors */
+	int i, j, k, k2, nlist = 0, nalist = 0;
+	char usels[256];			/* Used selectors 1 */
 	static char *asels = "123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 	int fail = 0;
 
@@ -902,8 +908,9 @@ int doccmx						/* Add matching installed ccmx files */
 	*pdtlist = NULL;
 	*pndtlist = 0;
 
-	for (i = 0; i < 256; i++)
-		usels[i] = ((char)-1);
+	for (j = 0; j < 256; j++)
+		usels[j] = ((char)-1);
+	k2 = 0;		/* Single letter selector */
 	k = 0;		/* Next selector index */
 
 	/* First create a list of calibrations and their desired selectors: */
@@ -1031,26 +1038,42 @@ int doccmx						/* Add matching installed ccmx files */
 
 	/* Set remaining from fallback */
 	for (i = 0; i < nlist; i++) {
-		disptechs_set_sel(2, i, list[i].sel, list[i].isel, usels, &k, asels);
-		if (list[i].sel[0] == '\000')
-			fail = 1;
+		if (k2 == 0) {		/* Single letter selector */
+			disptechs_set_sel(2, i, list[i].sel, list[i].isel, usels, &k, asels);
+			if (list[i].sel[0] == '\000') {	/* Switch to two letter */
+				for (j = 0; j < 256; j++)
+					usels[j] = ((char)-1);
+				k2 = 1;		/* Two letter selector */
+				k = 0;		/* Next selector index */
+			}
+		} 
+		if (k2 == 1) {		/* Two letter selector */
+			list[i].sel[0] = '_';
+			disptechs_set_sel(2, i, &list[i].sel[1], list[i].isel, usels, &k, asels);
+			if (list[i].sel[0] == '\000') {	/* Ran out of two letter selectors! */
+				fail = 1;
+				break;
+			}
+		}
 	}
 
 	/* Any calibrations that failed to find a character will be left as a nul string */
 
 	/* Add alternate selectors if they are free. */
-	for (;;) {
-		int more = 0;
-		for (i = 0; i < nlist; i++) {
-			/* Add unused secondaries */
-			disptechs_set_sel(3, i, list[i].sel, list[i].isel, usels, &k, asels);
-
-			if (list[i].isel[0] != '\000') {		/* Still more secondaries available */
-				more = 1;
+	if (k2 == 0) {		/* If not run out of 1 letter selectors */
+		for (;;) {
+			int more = 0;
+			for (i = 0; i < nlist; i++) {
+				/* Add unused secondaries */
+				disptechs_set_sel(3, i, list[i].sel, list[i].isel, usels, &k, asels);
+	
+				if (list[i].isel[0] != '\000') {		/* Still more secondaries available */
+					more = 1;
+				}
 			}
+			if (!more)
+				break;
 		}
-		if (!more)
-			break;
 	}
 
 	if (pndtlist != NULL)

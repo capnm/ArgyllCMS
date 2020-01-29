@@ -30,14 +30,16 @@
 #include <time.h>
 #include <string.h>
 #include <math.h>
+# include "aconfig.h"
 #ifndef SALONEINSTLIB
 # include "numlib.h"
-# include "cgats.h"
-# include "plot.h"			/* For debugging */
+#  include "plot.h"			/* For debugging */
+#  include "ui.h"
 #else
 # include "numsup.h"
 # include "sa_conv.h"
 #endif
+#include "cgats.h"
 #include "conv.h"
 #include "xspect.h"
 
@@ -614,7 +616,6 @@ static xspect il_F8 = {
 };
 
 
- 
 /* CIE F10 */
 /* Fluorescent, Narrow band 5000K, CRI 81 */
 static xspect il_F10 = {
@@ -747,6 +748,61 @@ double temp					/* Optional temperature in degrees kelvin, for Dtemp and Ptemp *
 			return planckian_il(sp, temp);
 	}
 	return 1;
+}
+
+/* Return a string describing the standard illuminant */
+/* (Returns static buffer for temp based) */
+char *standardIlluminant_name(
+icxIllumeType ilType,	/* Type of illuminant */
+double temp				/* Optional temperature in degrees kelvin, For Dtemp and Ptemp */
+) {
+	static char buf[50];
+	switch (ilType) {
+	    case icxIT_none:
+			return "None";
+	    case icxIT_custom:
+			return "Custom";
+	    case icxIT_A:
+			return "A";
+	    case icxIT_C:
+			return 0;
+	    case icxIT_default:
+	    case icxIT_D50:
+			return 0;
+	    case icxIT_D50M2:
+			return 0;
+	    case icxIT_D55:
+			return "D55";
+	    case icxIT_D65:
+			return "D65";
+	    case icxIT_D75:
+			return "D75";
+	    case icxIT_E:
+			return "E";
+#ifndef SALONEINSTLIB
+	    case icxIT_F5:
+			return "F5";
+	    case icxIT_F8:
+			return "F8";
+	    case icxIT_F10:
+			return "F10";
+		case icxIT_Spectrocam:
+			return "Spectrocam";
+#endif 
+		case icxIT_ODtemp:
+			sprintf(buf, "OD%d",(int)(temp+0.5));
+			return buf;
+		case icxIT_Dtemp:
+			sprintf(buf, "D%d",(int)(temp+0.5));
+			return buf;
+		case icxIT_OPtemp:
+			sprintf(buf, "OP%d",(int)(temp+0.5));
+			return buf;
+		case icxIT_Ptemp:
+			sprintf(buf, "P%d",(int)(temp+0.5));
+			return buf;
+	}
+	return "Unknown";
 }
 
 /* ------------- */
@@ -3514,6 +3570,8 @@ static xspect FWA1_emit = {
  
 #endif /* STOCKFWA */
 
+#endif /* !SALONEINSTLIB */
+
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 /* Return a string describing the inst_meas_type */
 char *meas_type2str(inst_meas_type mt) {
@@ -3901,7 +3959,6 @@ int read_cmf(xspect sp[3], char *fname) {
 }
 
 /* ------------- */
-#endif /* !SALONEINSTLIB */
 
 
 /* Get a raw 3rd order polinomial interpolated spectrum value. */
@@ -4353,15 +4410,15 @@ void xspect_plot(xspect *sp1, xspect *sp2, xspect *sp3) {
 	xspect_plot_w(sp1, sp2, sp3, 1);
 }
 
-/* Plot up to 10 spectra in an array */
-void xspect_plot10(xspect *sp, int n) {
+/* Plot up to 12 spectra in an array, and wait for key */
+void xspect_plotN(xspect *sp, int n) {
 	double xx[XSPECT_MAX_BANDS];
-	double *yp[10];
-	double yy[10][XSPECT_MAX_BANDS];
+	double *yp[MXGPHS];
+	double yy[MXGPHS][XSPECT_MAX_BANDS];
 	double wl, wlshort, wllong;
 	int i, j;
 
-	for (i = 0; i < 10; i++)
+	for (i = 0; i < MXGPHS; i++)
 		yp[i] = NULL;
 
 	if (sp == NULL)
@@ -4370,7 +4427,7 @@ void xspect_plot10(xspect *sp, int n) {
 	wlshort = sp->spec_wl_short;
 	wllong = sp->spec_wl_long;
 
-	for (i = 0; i < n; i++) {
+	for (i = 0; i < n && i < MXGPHS; i++) {
 		if (sp[i].spec_wl_short < wlshort)
 			wlshort = sp[i].spec_wl_short;
 		if (sp[i].spec_wl_long > wllong)
@@ -4386,24 +4443,23 @@ void xspect_plot10(xspect *sp, int n) {
 		gcc_bug_fix(j);
 #endif
 		xx[j] = wl;
-		for (i = 0; i < n; i++) {
+		for (i = 0; i < n && i < MXGPHS; i++) {
 			yp[i] = yy[i];
 			yy[i][j] = value_xspect(&sp[i], wl);
 		}
 	}
-	do_plot10(xx, yp[0], yp[1], yp[2], yp[3], yp[4],
-	              yp[5], yp[6], yp[7], yp[8], yp[9], j, 0);
+	do_plotNpwz(xx, yp, j, NULL, NULL, 0, 1, 0);
 }
 
-/* Plot up to 10 spectra pointed to by an array */
-void xspect_plot10p_w(xspect *sp[10], int n, int wait) {
+/* Plot up to 12 spectra pointed to by an array, with optional wait */
+void xspect_plotNp_w(xspect *sp[MXGPHS], int n, int wait) {
 	double xx[XSPECT_MAX_BANDS];
-	double *yp[10];
-	double yy[10][XSPECT_MAX_BANDS];
+	double *yp[MXGPHS];
+	double yy[MXGPHS][XSPECT_MAX_BANDS];
 	double wl, wlshort, wllong;
 	int i, j;
 
-	for (i = 0; i < 10; i++)
+	for (i = 0; i < MXGPHS; i++)
 		yp[i] = NULL;
 
 	if (sp == NULL)
@@ -4412,7 +4468,7 @@ void xspect_plot10p_w(xspect *sp[10], int n, int wait) {
 	wlshort = 1e6;
 	wllong = -1e6;
 
-	for (i = 0; i < n; i++) {
+	for (i = 0; i < n && i < MXGPHS; i++) {
 		if (sp[i] == NULL)
 			continue;
 		if (sp[i]->spec_wl_short < wlshort)
@@ -4433,20 +4489,19 @@ void xspect_plot10p_w(xspect *sp[10], int n, int wait) {
 		gcc_bug_fix(j);
 #endif
 		xx[j] = wl;
-		for (i = 0; i < n; i++) {
+		for (i = 0; i < n && i < MXGPHS; i++) {
 			if (sp[i] == NULL)
 				continue;
 			yp[i] = yy[i];
 			yy[i][j] = value_xspect(sp[i], wl);
 		}
 	}
-	do_plot10pw(xx, yp[0], yp[1], yp[2], yp[3], yp[4],
-	                yp[5], yp[6], yp[7], yp[8], yp[9], j, NULL, NULL, 0, wait);
+	do_plotNpwz(xx, yp, j, NULL, NULL, 0, wait, 0);
 }
 
 /* Plot up to 10 spectra pointed to by an array * wait for a key */
-void xspect_plot10p(xspect *sp[10], int n) {
-	xspect_plot10p_w(sp, n, 1);
+void xspect_plotNp(xspect *sp[MXGPHS], int n) {
+	xspect_plotNp_w(sp, n, 1);
 }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -5084,7 +5139,7 @@ double *FWAc) {
 /* rather than integrated if they are not at 1nm spacing. */
 static void xsp2cie_fwa_sconvert(
 xsp2cie *p,			/* this */
-xspect *sout,		/* Return corrected input spectrum (may be NULL, or same as imput) */
+xspect *sout,		/* Return corrected input spectrum (may be NULL, or same as input) */
 double *out,		/* Return XYZ or D50 Lab value (may be NULL) */
 xspect *in			/* Spectrum to be converted */
 ) {
@@ -5605,13 +5660,13 @@ xspect *in				/* Colorant reflectance to be applied */
 /* rather than integrated if they are not at 1nm spacing. */
 static void xsp2cie_photo2rad(
 xsp2cie *p,			/* this */
-double *routp,		/* Return total lumens */
-double *poutp,		/* Return total mW */
+double *loutp,		/* Return total lumens (photometric) */
+double *mwoutp,		/* Return total mW (radiometric) */
 xspect *sout,		/* Return input spectrum converted to lm/nm */
 xspect *in			/* Spectrum to be converted */
 ) {
-	double rscale = 0.0;
-	double rout, pout;
+	double lscale = 0.0;
+	double lout, mwout;
 	double ww;
 
 	/* Compute the Y value (normalised to 1.0) */
@@ -5623,40 +5678,41 @@ xspect *in			/* Spectrum to be converted */
 	/* ANSI CGATS.5-1993 spec. If illumninant or material spectra */
 	/* values are truncated at the extremes, then the last valid values */
 	/* are used, also consistent with CIE and ANSI CGATS recommendations. */
-	rout = 0.0;
-	pout = 0.0;
+	/* Also intergate the radiometric total. */
+	lout = 0.0;
+	mwout = 0.0;
 	for (ww = p->spec_wl_short; ww <= p->spec_wl_long; ww += p->spec_bw) {
 		double I = 1.0, O, S;
 		if (!p->isemis)
 			getval_xspec(&p->illuminant, &I, ww);
 		getval_xspec(&p->observer[1], &O, ww);
 		getval_xspec(in, &S, ww);
-		rscale += I * O;			/* Integrate Y illuminant * observer values */
-		rout += I * O * S;
-		pout += S;
+		lscale += I * O;			/* Integrate Y illuminant * observer values */
+		lout += I * O * S;
+		mwout += S;
 	}
 
 	if (p->isemis) {
-		// Hmm. Should we really make rscale += O for this case and then
-		// rscale = 0.683002/rscale ??
-		rscale = 0.683002;	/* Convert from mW/m^2 to Lumens/m^2 */
+		// Hmm. Should we really make lscale += O for this case and then
+		// lscale = 0.683002/lscale ??
+		lscale = 0.683002;	/* Convert from mW/m^2 to Lumens/m^2 */
 							/* (== 683 Luments/Watt/m^2) */
 	} else {
-		rscale *= p->spec_bw;	/* Scale for integration interval */
-		rscale = 1.0/rscale;
+		lscale *= p->spec_bw;	/* Scale for integration interval */
+		lscale = 1.0/lscale;
 	}
 	/* Scale for illuminant/observer normalisation of Y */
-	rout *= rscale;
+	lout *= lscale;
 #ifdef CLAMP_XYZ
-	if (p->clamp && rout < 0.0)
-		rout = 0.0;		/* Just to be sure we don't get silly values */
+	if (p->clamp && lout < 0.0)
+		lout = 0.0;		/* Just to be sure we don't get silly values */
 #endif /* CLAMP_XYZ */
-	if (routp != NULL)
-		*routp = rout;
+	if (loutp != NULL)
+		*loutp = lout;
 
-	pout *= p->spec_bw; /* Scale for integration interval */
-	if (poutp != NULL)
-		*poutp = pout;
+	mwout *= p->spec_bw; /* Scale for integration interval */
+	if (mwoutp != NULL)
+		*mwoutp = mwout;
 
 	/* Compute phometric output spectrum. For reflective/transmissive, this is */
 	/* the illuminant times the reflectivity/transmissitivity times Y weighting, */
@@ -5675,7 +5731,7 @@ xspect *in			/* Spectrum to be converted */
 				getval_xspec(&p->illuminant, &I, ww);
 			getval_xspec(&p->observer[1], &O, ww);
 			getval_xspec(in, &S, ww);
-			sout->spec[i] = rscale * I * O * S;
+			sout->spec[i] = lscale * I * O * S;
 		}
 	}
 }
@@ -5787,6 +5843,7 @@ xsp2cie *p
 /* Create and return a new spectral conversion object */
 xsp2cie *new_xsp2cie(
 icxIllumeType ilType,			/* Illuminant */
+double         temp,			/* Optional temperature in degrees kelvin, if ilType = Dtemp etc. */
 xspect        *custIllum,		/* Custom illuminant if ilType == icxIT_custom */
 icxObserverType obType,			/* Observer */
 xspect        custObserver[3],	/* Custom observer if obType == icxOT_custom */
@@ -5801,119 +5858,38 @@ icxClamping clamp				/* NZ to clamp XYZ/Lab to be +ve */
 		return NULL;
 
 	p->isemis = 0;
-	switch (ilType) {
-	    case icxIT_none:
-			p->illuminant = il_none;			/* Emissive */
-			p->isemis = 1;
-			break;
-	    case icxIT_custom:
-			p->illuminant = *custIllum;			/* Struct copy */
-			break;
-	    case icxIT_A:
-			p->illuminant = il_A;
-			break;
-	    case icxIT_C:
-			p->illuminant = il_C;
-			break;
-	    case icxIT_default:
-	    case icxIT_D50:
-			p->illuminant = il_D50;
-			break;
-	    case icxIT_D50M2:
-			if (il_D50M2.spec_n == 0)
-				uv_filter(&il_D50M2, &il_D50);
-			p->illuminant = il_D50M2;
-			break;
-	    case icxIT_D55:
-			daylight_il(&p->illuminant, 5500.0);
-			break;
-	    case icxIT_D65:
-			p->illuminant = il_D65;
-			break;
-	    case icxIT_D75:
-			daylight_il(&p->illuminant, 7500.0);
-	    case icxIT_E:
-			p->illuminant = il_none;
-			break;
-#ifndef SALONEINSTLIB
-	    case icxIT_F5:
-			p->illuminant = il_F5;
-			break;
-	    case icxIT_F8:
-			p->illuminant = il_F8;
-			break;
-	    case icxIT_F10:
-			p->illuminant = il_F10;
-			break;
-		case icxIT_Spectrocam:
-			p->illuminant = il_Spectrocam;
-			break;
-#endif /* !SALONEINSTLIB */
-		default:
+
+	if (ilType == icxIT_custom) {
+		p->illuminant = *custIllum;
+
+	} else if (ilType == icxIT_none) {
+		p->isemis = 1;
+		p->illuminant = il_none;		/* Not used */ 
+
+	} else {
+		if (standardIlluminant(&p->illuminant, ilType, temp) != 0) {
 			DBGF((DBGA,"new_xsp2cie() unrecognised illuminant 0x%x\n",ilType));
 			free(p);
 			return NULL;
+		}
 	}
 
-	/* Do 3 structure copies to record observer sensitivity curves */
-	switch (obType) {
-    	case icxOT_custom:
-			p->observer[0] = custObserver[0];
-			p->observer[1] = custObserver[1];
-			p->observer[2] = custObserver[2];
-			break;
-    	case icxOT_default:
-    	case icxOT_CIE_1931_2:
-			p->observer[0] = ob_CIE_1931_2[0];
-			p->observer[1] = ob_CIE_1931_2[1];
-			p->observer[2] = ob_CIE_1931_2[2];
-			break;
-    	case icxOT_CIE_1964_10:
-			p->observer[0] = ob_CIE_1964_10[0];
-			p->observer[1] = ob_CIE_1964_10[1];
-			p->observer[2] = ob_CIE_1964_10[2];
-			break;
-    	case icxOT_CIE_2012_2:
-			p->observer[0] = ob_CIE_2012_2[0];
-			p->observer[1] = ob_CIE_2012_2[1];
-			p->observer[2] = ob_CIE_2012_2[2];
-			break;
-    	case icxOT_CIE_2012_10:
-			p->observer[0] = ob_CIE_2012_10[0];
-			p->observer[1] = ob_CIE_2012_10[1];
-			p->observer[2] = ob_CIE_2012_10[2];
-			break;
-#ifndef SALONEINSTLIB
-    	case icxOT_Stiles_Burch_2:
-			p->observer[0] = ob_Stiles_Burch_2[0];
-			p->observer[1] = ob_Stiles_Burch_2[1];
-			p->observer[2] = ob_Stiles_Burch_2[2];
-			break;
-    	case icxOT_Judd_Voss_2:
-			p->observer[0] = ob_Judd_Voss_2[0];
-			p->observer[1] = ob_Judd_Voss_2[1];
-			p->observer[2] = ob_Judd_Voss_2[2];
-			break;
-    	case icxOT_CIE_1964_10c:
-			p->observer[0] = ob_CIE_1964_10c[0];
-			p->observer[1] = ob_CIE_1964_10c[1];
-			p->observer[2] = ob_CIE_1964_10c[2];
-			break;
-    	case icxOT_Shaw_Fairchild_2:
-			p->observer[0] = ob_Shaw_Fairchild_2[0];
-			p->observer[1] = ob_Shaw_Fairchild_2[1];
-			p->observer[2] = ob_Shaw_Fairchild_2[2];
-			break;
-    	case icxOT_EBU_2012:
-			p->observer[0] = ob_EBU_2012[0];
-			p->observer[1] = ob_EBU_2012[1];
-			p->observer[2] = ob_EBU_2012[2];
-			break;
-#endif /* !SALONEINSTLIB */
-		default:
+	/* Get copies of the 3 observer curves */
+	if (obType == icxOT_custom) {
+		p->observer[0] = custObserver[0];
+		p->observer[1] = custObserver[1];
+		p->observer[2] = custObserver[2];
+	} else {
+		xspect *sp3[3];
+
+		if (standardObserver(sp3, obType)) {
 			DBGF((DBGA,"new_xsp2cie() unrecognised observer type 0x%x\n",obType));
 			free(p);
 			return NULL;
+		}
+		p->observer[0] = *sp3[0];
+		p->observer[1] = *sp3[1];
+		p->observer[2] = *sp3[2];
 	}
 
 	if (rcs == icSigXYZData)
@@ -8166,15 +8142,9 @@ double ct,				/* Input temperature in degrees K */
 xspect *custIllum,		/* Optional custom illuminant */
 xspect *sp				/* Spectrum to be converted */
 ) {
-	xspect ill;			/* Xspect to fill in */
 	xsp2cie *conv;		/* Means of converting spectrum to XYZ */
 
-	if (ilType == icxIT_custom)
-		ill = *custIllum;
-	else if (standardIlluminant(&ill, ilType, ct) != 0)
-		return 1;
-
-	if ((conv = new_xsp2cie(icxIT_custom, &ill, obType, custObserver, icSigXYZData, 1)) == NULL)
+	if ((conv = new_xsp2cie(ilType, ct, custIllum, obType, custObserver, icSigXYZData, 1)) == NULL)
 		return 1;
 
 	conv->convert(conv, xyz, sp);
@@ -8208,7 +8178,7 @@ int abs					/* If nz return absolute value in cd/m^2 or Lux */
 	else if (standardIlluminant(&sp, ilType, ct) != 0)
 		return 1;
 
-	if ((conv = new_xsp2cie(icxIT_none, NULL, obType, custObserver, icSigXYZData, 1)) == NULL)
+	if ((conv = new_xsp2cie(icxIT_none, 0.0, NULL, obType, custObserver, icSigXYZData, 1)) == NULL)
 		return 1;
 
 	conv->convert(conv, xyz, &sp);
@@ -8381,7 +8351,7 @@ int viscct				/* nz to use visual CIEDE2000, 0 to use CCT CIE 1960 UCS. */
 		return -1.0;
 	x.ilType = ilType;
 
-	if ((x.conv = new_xsp2cie(icxIT_none, NULL, obType, custObserver, icSigXYZData, 1)) == NULL)
+	if ((x.conv = new_xsp2cie(icxIT_none, 0.0, NULL, obType, custObserver, icSigXYZData, 1)) == NULL)
 		return -1;
 
 	if (xyz == NULL) {
@@ -8496,7 +8466,7 @@ xspect *sample			/* Illuminant sample to compute CRI of */
 	
 //DBGF((DBGA,"icx_CIE1995_CRI called\n"));
 
-	if ((tocie = new_xsp2cie(icxIT_none, NULL, icxOT_CIE_1931_2, NULL, icSigXYZData, 1)) == NULL)
+	if ((tocie = new_xsp2cie(icxIT_none, 0.0, NULL, icxOT_CIE_1931_2, NULL, icSigXYZData, 1)) == NULL)
 		return -1.0;   
 
 	/* Compute the XYZ of the sample */
@@ -8561,7 +8531,7 @@ if (dc > 0.0054) DBGF((DBGA,"CRI is invalid\n"));
 	}
 		
 	/* Check out the delta E for each reflective sample */
-	if ((tocie = new_xsp2cie(icxIT_custom, &wts, icxOT_CIE_1931_2, NULL, icSigXYZData, 1)) == NULL) {
+	if ((tocie = new_xsp2cie(icxIT_custom, 0.0, &wts, icxOT_CIE_1931_2, NULL, icSigXYZData, 1)) == NULL) {
 		sample->norm = sampnorm;		/* Restore this */
 		return -1.0;   
 	}
@@ -8575,7 +8545,7 @@ if (dc > 0.0054) DBGF((DBGA,"CRI is invalid\n"));
 	}
 	tocie->del(tocie);
 
-	if ((tocie = new_xsp2cie(icxIT_custom, sample, icxOT_CIE_1931_2, NULL, icSigXYZData, 1)) == NULL) {
+	if ((tocie = new_xsp2cie(icxIT_custom, 0.0, sample, icxOT_CIE_1931_2, NULL, icSigXYZData, 1)) == NULL) {
 		sample->norm = sampnorm;		/* Restore this */
 		return -1.0;   
 	}
@@ -8720,7 +8690,7 @@ xspect *sample			/* Illuminant sample to compute TLCI of */
 //DBGF((DBGA,"icx_EBU2012_TLCI called\n"));
 
 	/* Create spectral to XYZ for UCS space delta */
-	if ((tocie = new_xsp2cie(icxIT_none, NULL, icxOT_CIE_1931_2, NULL, icSigXYZData, 1)) == NULL) {
+	if ((tocie = new_xsp2cie(icxIT_none, 0.0, NULL, icxOT_CIE_1931_2, NULL, icSigXYZData, 1)) == NULL) {
 //DBGF((DBGA,"Ref new_xsp2cie failed\n"));
 		return -1.0;   
 	}
@@ -8822,12 +8792,12 @@ if (dc > 0.0054) DBGF((DBGA,"TLCI is invalid\n"));
 	/* Note that xsp2cie will normalise the values such that the "Y" value */
 	/* (actually G here) to be 1.0 for the perfect diffusor for the given illuminant, */
 	/* but that the white balancing scaling would do this anyway. */
-	if ((reftoRGB = new_xsp2cie(icxIT_custom, &wts, icxOT_EBU_2012, NULL, icSigXYZData, 1)) == NULL) {
+	if ((reftoRGB = new_xsp2cie(icxIT_custom, 0.0, &wts, icxOT_EBU_2012, NULL, icSigXYZData, 1)) == NULL) {
 //DBGF((DBGA,"new_xsp2cie for ref failed\n"));
 		sample->norm = sampnorm;		/* Restore this */
 		return -1.0;   
 	}
-	if ((satoRGB = new_xsp2cie(icxIT_custom, sample, icxOT_EBU_2012, NULL, icSigXYZData, 1)) == NULL) {
+	if ((satoRGB = new_xsp2cie(icxIT_custom, 0.0, sample, icxOT_EBU_2012, NULL, icSigXYZData, 1)) == NULL) {
 //DBGF((DBGA,"new_xsp2cie for samp failed\n"));
 		sample->norm = sampnorm;		/* Restore this */
 		reftoRGB->del(reftoRGB);

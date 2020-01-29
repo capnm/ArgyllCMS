@@ -7886,9 +7886,9 @@ munki_code munki_conv2XYZ(
 	double sms;			/* Weighting */
 
 	if (s->emiss)
-		conv = new_xsp2cie(icxIT_none, NULL, icxOT_CIE_1931_2, NULL, icSigXYZData, (icxClamping)clamp);
+		conv = new_xsp2cie(icxIT_none, 0.0, NULL, icxOT_CIE_1931_2, NULL, icSigXYZData, (icxClamping)clamp);
 	else
-		conv = new_xsp2cie(icxIT_D50, NULL, icxOT_CIE_1931_2, NULL, icSigXYZData, (icxClamping)clamp);
+		conv = new_xsp2cie(icxIT_D50, 0.0, NULL, icxOT_CIE_1931_2, NULL, icSigXYZData, (icxClamping)clamp);
 	if (conv == NULL)
 		return MUNKI_INT_CIECONVFAIL;
 

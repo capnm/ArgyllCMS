@@ -29,12 +29,13 @@
 
 #include <stdio.h>
 #include <math.h>
+#include "aconfig.h"
+#include "numlib.h"
 #include "cgats.h"
 #include "xspect.h"
-#include "numlib.h"
 #ifdef DOPLOT
-#include "plot.h"
-#include "ui.h"
+# include "plot.h"
+# include "ui.h"
 #endif
 
 
@@ -631,11 +632,11 @@ main(void) {
 				standardIlluminant(&sill, matilum[m][ss].ill, 0);		/* Instrument */
 
 			/* Create two conversions for the target/check illuminant */
-			if ((pcon = new_xsp2cie(icxIT_custom, &pill, icxOT_Shaw_Fairchild_2,
+			if ((pcon = new_xsp2cie(icxIT_custom, 0.0, &pill, icxOT_Shaw_Fairchild_2,
 			                       NULL, icSigLabData, 1)) == NULL)
 				error ("Creating conversion failed");
 
-			if ((scon = new_xsp2cie(icxIT_custom, &pill, icxOT_Shaw_Fairchild_2,
+			if ((scon = new_xsp2cie(icxIT_custom, 0.0, &pill, icxOT_Shaw_Fairchild_2,
 			                       NULL, icSigLabData, 1)) == NULL)
 				error ("Creating conversion failed");
 

@@ -39,10 +39,16 @@ double ranno(void) {
 	return rand32_th(NULL, 0) / 4294967295.0;
 }
 
-/* Return a random double in the range min to max */
+/* Return a uniform random double in the range min to max */
 double
 d_rand(double min, double max) {
 	return d_rand_th(NULL, min, max);
+}
+
+/* Return a squared distribution random double in the range min to max */
+double
+d2_rand(double min, double max) {
+	return d2_rand_th(NULL, min, max);
 }
 
 /* Return a random integer in the range min to max inclusive */
@@ -81,6 +87,7 @@ unsigned int seed		/* Optional seed. Non-zero re-initialized with that seed */
 		p = &g_rand;
 
 	if (seed != 0) {
+//printf("~1 rand 0x%x seed 0x%x\n",p,seed);
 		p->pvs_inited = 0;
 		p->ran = seed;
 	}
@@ -98,19 +105,27 @@ unsigned int seed		/* Optional seed. Non-zero re-initialized with that seed */
 	p->last = p->pvs[i];					/* Value generated */
   	p->pvs[i] = p->ran = PSRAND32(p->ran);	/* New value */
 
+//printf("~1 rand 0x%x ret 0x%x\n",p,p->last-1);
 	return p->last-1;
 }
 
 /* return a random number between 0.0 and 1.0 */
 /* based on rand32 */
 double ranno_th(rand_state *p) {
-	return rand32_th(NULL, 0) / 4294967295.0;
+	return rand32_th(p, 0) / 4294967295.0;
 }
 
-/* Return a random double in the range min to max */
+/* Return a uniform random double in the range min to max */
 double
 d_rand_th(rand_state *p, double min, double max) {
 	return min + (max - min) * ranno_th(p);
+}
+
+/* Return a squared distribution random double in the range min to max */
+double
+d2_rand_th(rand_state *p, double min, double max) {
+	double val = ranno_th(p);
+	return min + (max - min) * val * val;
 }
 
 /* Return a random integer in the range min to max inclusive */
