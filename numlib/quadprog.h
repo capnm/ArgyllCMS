@@ -43,6 +43,12 @@ s.t.
  References: D. Goldfarb, A. Idnani. A numerically stable dual method for solving
              strictly convex quadratic programs. Mathematical Programming 27 (1983) pp. 1-33.
 
+ NOTE that this function doesn't work if the objective function (i.e. G + g0) has lower dimension
+ than n. Using dummy terms doesn't seem to work around this.
+
+ It only works with convex problems - i.e. those where it is possible to reach
+ the optimum starting anywhere on the constraint surface.
+
 */
 
 #define QP_INFEASIBLE 1.0E300

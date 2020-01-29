@@ -463,16 +463,6 @@ double ref_rate) {
 	return inst_unsupported;
 }
 
-/* Insert a compensation filter in the instrument readings */
-/* This is typically needed if an adapter is being used, that alters */     
-/* the spectrum of the light reaching the instrument */                     
-/* To remove the filter, pass NULL for the filter filename */               
-static inst_code comp_filter(											        
-inst *p,
-char *filtername) {		/* File containing compensating filter */
-	return inst_unsupported;
-}
-
 /* Insert a colorimetric correction matrix in the instrument XYZ readings */
 /* This is only valid for colorimetric instruments. */
 /* To remove the matrix, pass NULL for the matrix */
@@ -701,6 +691,8 @@ void *cntx			/* Context for callback */
 		p = (inst *)new_spyd2(icom, itype);
 	else if (itype == instSpyder5)
 		p = (inst *)new_spyd2(icom, itype);
+	else if (itype == instSpyderX)
+		p = (inst *)new_spydX(icom, itype);
 	else if (itype == instEX1)
 		p = (inst *)new_ex1(icom, itype);
 	if (itype == instHuey)
@@ -790,8 +782,6 @@ void *cntx			/* Context for callback */
 		p->get_refr_rate = get_refr_rate;
 	if (p->set_refr_rate == NULL)
 		p->set_refr_rate = set_refr_rate;
-	if (p->comp_filter == NULL)
-		p->comp_filter = comp_filter;
 	if (p->col_cor_mat == NULL)
 		p->col_cor_mat = col_cor_mat;
 	if (p->col_cal_spec_set == NULL)
@@ -2137,6 +2127,52 @@ int sym_to_inst_mode(inst_mode *mode, const char *sym) {
 	}
 
 	return rv;
+}
+
+/* ============================================================= */
+/* Custom filter support */
+
+/* Apply a custom filer to an array of ipatch's */
+/* Spetral values are divided by filter spectrum and XYZ recomputed */
+void ipatch_convert_custom_filter(ipatch *vals, int nvals, xspect *filt, int clamp) {
+	xspect tmp;
+	xsp2cie *conv = NULL;	/* Spectral to XYZ conversion object */
+	int i, j;
+
+	/* If no conversion needed */
+	if (filt->spec_n == 0)
+		return;
+
+	for (i = 0; i < nvals; i++) {
+		if ((   vals[i].mtype != inst_mrt_emission
+		     && vals[i].mtype != inst_mrt_ambient
+		     && vals[i].mtype != inst_mrt_emission_flash
+		     && vals[i].mtype != inst_mrt_ambient_flash)
+		 || vals[i].sp.spec_n <= 0) {
+			continue;
+		}
+
+		/* Apply the filter compensation values */
+		for (j = 0; j < vals[i].sp.spec_n; j++) {
+			double nm = XSPECT_XWL(&vals[i].sp, j);
+			double fw;
+			getval_xspec(filt, &fw, nm);		/* Gets interp/extrap normalized value */
+			vals[i].sp.spec[j] /= fw;
+		}
+
+		/* Re-compute XYZ */
+		if (vals[i].XYZ_v) {
+			if (conv == NULL) {
+				conv = new_xsp2cie(icxIT_none, 0.0, NULL, icxOT_CIE_1931_2,
+				                   NULL, icSigXYZData, (icxClamping)clamp);
+			}
+			conv->convert(conv, vals[i].XYZ, &vals[i].sp);
+			vals[i].XYZ_v = 1;
+			vals[i].sp.norm = 1.0;
+		}
+	}
+	if (conv != NULL)
+		conv->del(conv);
 }
 
 

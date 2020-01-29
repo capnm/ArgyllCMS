@@ -78,6 +78,7 @@ static int cgats_read(cgats *p, cgatsFile *fp);
 static int find_kword(cgats *p, int table, const char *ksym);
 static int find_field(cgats *p, int table, const char *fsym);
 static int add_table(cgats *p, table_type tt, int oi);
+static int set_table_type(cgats *p, int table, table_type tt, int oi);
 static int set_table_flags(cgats *p, int table, int sup_id, int sup_kwords, int sup_fields);
 static int set_cgats_type(cgats *p, const char *osym);
 static int add_other(cgats *p, const char *osym);
@@ -130,6 +131,7 @@ cgatsAlloc *al			/* memory allocator */
 	p->find_field = find_field;
 	p->read       = cgats_read;
 	p->add_table  = add_table;
+	p->set_table_type = set_table_type;
 	p->set_table_flags = set_table_flags;
 	p->set_cgats_type  = set_cgats_type;
 	p->add_other  = add_other;
@@ -858,6 +860,17 @@ add_table(cgats *p, table_type tt, int oi) {
 	t->oi = oi;
 
 	return p->ntables-1;
+}
+
+/* Override the table type */
+static int
+set_table_type(cgats *p, int table, table_type tt, int oi) {
+	cgats_table *t = &p->t[table];
+
+	t->tt = tt;
+	t->oi = oi;
+
+	return 0;
 }
 
 /* set or reset table flags */

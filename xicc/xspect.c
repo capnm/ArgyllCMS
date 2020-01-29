@@ -30,8 +30,8 @@
 #include <time.h>
 #include <string.h>
 #include <math.h>
-# include "aconfig.h"
 #ifndef SALONEINSTLIB
+# include "aconfig.h"
 # include "numlib.h"
 #  include "plot.h"			/* For debugging */
 #  include "ui.h"
@@ -366,8 +366,9 @@ static int daylight_old_il(xspect *sp, double ct) {
 
 
 /* General temperature Daylight spectra from CIE 15.2004 Appendix C. */
-/* - uses improved interpolation. Assumes 1931 observer & 1 nm spacing. */
-/* 300 - 830nm ub 5nm intervals. */
+/* ## uses improved interpolation rather than CIE 15.2004 Section 3.1 ## */
+/* Assumong 1931 observer & 5 nm spacing. (Need Lagrange interpolated S0, S1 for 1nm) */
+/* i.e. 300 - 830nm at 5nm intervals. */
 /* Fill in the given xspect with the specified daylight illuminant */
 /* Return nz if temperature is out of range */
 static int daylight_il(xspect *sp, double ct) {
@@ -472,8 +473,8 @@ static int daylight_il(xspect *sp, double ct) {
 
 	int i;
 	double xd, yd;
+	int sint = 1;		/* 5nm */
 	int obs = 0;		/* 1931 */
-	int sint = 0;		/* 1nm */
 	double m1, m2;
 
 	if (ct < 2500.0 || ct > 25000.0) {		/* Only accurate down to about 4000 */
@@ -499,15 +500,15 @@ static int daylight_il(xspect *sp, double ct) {
 		sp->spec[i] = s0[i] + m1 * s1[i] + m2 * s2[i];
 	}
 
-	sp->spec_n = 107;
+	sp->spec_n = 107;			/* 5nm spacing */
 	sp->spec_wl_short = 300.0;
 	sp->spec_wl_long = 830;
-	sp->norm = 100.0;		/* Arbitrary */
+	sp->norm = 100.0;			/* Arbitrary */
 
 	return 0;
 }
 
-/* General temperature Planckian (black body) spectra using CIE 15:2004 */
+/* General temperature Planckian (black body) spectra using CIE 15:2004 (exp 1.4388e-2) */
 /* Fill in the given xspect with the specified Planckian illuminant */
 /* normalised so that 560nm = 100. */
 /* Return nz if temperature is out of range */
@@ -537,7 +538,7 @@ static int planckian_il(xspect *sp, double ct) {
 	return 0;
 }
 
-/* General temperature Planckian (black body) spectra using older formulation */
+/* General temperature Planckian (black body) spectra using older formulation (exp 1.4350e-2) */
 /* Fill in the given xspect with the specified Planckian illuminant */
 /* normalised so that 560nm = 100. */
 /* Return nz if temperature is out of range */
@@ -4248,10 +4249,10 @@ static int getval_raw_xspec(xspect *sp, double *rv, double wl) {
 	}
 }
 
-/* Get a (normalised) linearly or poly interpolated spectrum value. */
+/* Get a (normalised) linearly or poly interpolated/extrapolated spectrum value. */
 /* Return NZ if value is valid, Z and last valid value */
 /* if outside the range */
-static int getval_xspec(xspect *sp, double *rv, double wl) {
+int getval_xspec(xspect *sp, double *rv, double wl) {
 	int sv = getval_raw_xspec(sp, rv, wl);
 	*rv /= sp->norm;
 	return sv;
@@ -4343,6 +4344,18 @@ void xspect_dump(xspect *sp) {
 			printf("\n");
 	}
 	printf("\n");
+}
+
+/* Dump a spectra to a1log */
+void xspect_dump_log(a1log *log, int lev, xspect *sp) {
+	int i;
+
+	a1logd(log, lev, "%d, %f, %f",sp->spec_n,sp->spec_wl_short,sp->spec_wl_long);
+	a1logd(log, lev,"%f",sp->norm);
+
+	for (i = 0; i < sp->spec_n; i++) {
+		a1logd(log, lev,"%d: %f", i, sp->spec[i]);
+	}
 }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -5167,7 +5180,7 @@ xspect *in			/* Spectrum to be converted */
 	tsout.spec_wl_long = 0.0;
 	tsout.norm = 0.0;
 
-#define MIN_ILLUM 1e-8		/* Minimum assumed illumination level at wavelength */
+#define MIN_ILLUM 1e-7		/* Minimum assumed illumination level at wavelength */
 #define MIN_REFL  1e-6		/* Minimum assumed reflectance at wavelength */
 
 	/* With colorant, estimate stimulation level of FWA for instrument illuminant */
@@ -5281,7 +5294,10 @@ xspect *in			/* Spectrum to be converted */
 			Rcch = (-Kc + sqrt(Kc * Kc + 4.0 * Ii * Ii * Rmb * Rc))/(2.0 * Ii * Rmb);
 
 		/* Estimated corrected reflectance */
-		Rct = ((It * Rcch * Rmb + Kct) * Rcch)/It;
+		if (It <= MIN_ILLUM)	/* Hmm */
+			Rct = Rmb;
+		else
+			Rct = ((It * Rcch * Rmb + Kct) * Rcch)/It;
 
 		DBGF((DBGA,"at %.1fnm, Rmb %f, Rc %f, Rch %f, Rcch %f, Ii %f, It %f, Kct %f, Rct %f\n",ww,Rmb,Rc,sqrt(Rc),Rcch,Ii,It,Kct,Rct));
 
@@ -5315,7 +5331,7 @@ xspect *in			/* Spectrum to be converted */
 	}
 	if (p->isemis) {
 		scale = 0.683002;		/* Convert from mW/m^2 to Lumens/m^2 */
-								/* (== 683 Luments/Watt/m^2) */
+								/* (== 683 Lumens/Watt/m^2) */
 		scale *= p->spec_bw;	/* Scale for integration interval */
 	} else {
 		scale = 1.0/scale;
@@ -5396,7 +5412,10 @@ xspect *in			/* Spectrum to be converted */
 			else
 				Rcch = (-Kc + sqrt(Kc * Kc + 4.0 * Ii * Ii * Rmb * Rc))/(2.0 * Ii * Rmb);
 	
-			Rct = ((It * Rcch * Rmb + Kct) * Rcch)/It;
+			if (It <= MIN_ILLUM)	/* Hmm */
+				Rct = Rmb;
+			else
+				Rct = ((It * Rcch * Rmb + Kct) * Rcch)/It;
 
 			if (p->insteqtarget)		/* Ignore FWA corrected value if same illuminant */
 				Rct = Rc;
@@ -7748,6 +7767,198 @@ int icx_outside_spec_locus(xslpoly *p, double xyz[3]) {
 
 /* -------------------------------------------------------- */
 
+/* ISO Visual, Type 1 & Type 2 Densities */
+static xspect denISO[3] = {
+	{
+		44, 340.0, 770.0,	/* 44 bands from 340 to 770 nm in 10nm steps */
+		1.0,				/* Log10 Scale factor */
+		{
+			-10.0,
+			-10.0, -10.0, -10.0, -10.0, -10.0,
+			0.500, 1.332, 1.914, 2.447, 2.881,
+			3.090, 3.346, 3.582, 3.818, 4.041,
+			4.276, 4.513, 4.702, 4.825, 4.905,
+			4.957, 4.989, 5.000, 4.989, 4.956,
+			4.902, 4.827, 4.731, 4.593, 4.433,
+			4.238, 4.013, 3.749, 3.490, 3.188,
+			2.901, 2.622, 2.334, 2.041, 1.732,
+			1.431, 1.146, 0.500
+		}
+	},
+	{
+		44, 340.0, 770.0,	/* 44 bands from 340 to 770 nm in 10nm steps */
+		1.0,				/* Log10 Scale factor */
+		{
+			-10.0,
+			-10.0, 0.500, 1.640, 2.860, 4.460,
+			5.000, 4.460, 2.860, 1.640, 0.500,
+			-10.0, -10.0, -10.0, -10.0, -10.0,
+			-10.0, -10.0, -10.0, -10.0, -10.0,
+			-10.0, -10.0, -10.0, -10.0, -10.0,
+			-10.0, -10.0, -10.0, -10.0, -10.0,
+			-10.0, -10.0, -10.0, -10.0, -10.0,
+			-10.0, -10.0, -10.0, -10.0, -10.0,
+			-10.0, -10.0, -10.0
+		}
+	},
+	{
+		44, 340.0, 770.0,	/* 44 bands from 340 to 770 nm in 10nm steps */
+		1.0,				/* Log10 Scale factor */
+		{
+			0.500,
+			2.708, 4.280, 4.583, 4.760, 4.851,
+			4.916, 4.956, 4.988, 5.000, 4.990,
+			4.951, 4.864, 4.743, 4.582, 4.351,
+			3.993, 3.402, 2.805, 2.211, 0.500,
+			-10.0, -10.0, -10.0, -10.0, -10.0,
+			-10.0, -10.0, -10.0, -10.0, -10.0,
+			-10.0, -10.0, -10.0, -10.0, -10.0,
+			-10.0, -10.0, -10.0, -10.0, -10.0,
+			-10.0, -10.0, -10.0
+		}
+	}
+};
+
+/* Status A */
+static xspect denA[3] = {
+	{
+		36, 400.0, 750.0,	/* 36 bands from 400 to 750 nm in 10nm steps */
+		1.0,				/* Log10 Scale factor */
+		{
+			-51.432, -48.732, -46.032, -43.332, -40.632,
+			-37.932, -35.232, -32.532, -29.832, -27.132,
+			-24.432, -21.732, -19.032, -16.332, -13.632,
+			-10.932, -8.232, -5.532, -2.832, -0.132,
+			2.568, 4.638, 5.000, 4.871, 4.604,
+			4.286, 3.900, 3.551, 3.165, 2.776,
+			2.383, 1.970, 1.551, 1.141, 0.741,
+			0.341
+		}
+	},
+	{
+		36, 400.0, 750.0,	/* 36 bands from 400 to 750 nm in 10nm steps */
+		1.0,				/* Log10 Scale factor */
+		{
+			-20.350, -18.150, -15.950, -13.750, -11.550,
+			-9.350, -7.150, -4.950, -2.750, -0.550,
+			1.650, 3.822, 4.782, 5.000, 4.906,
+			4.644, 4.221, 3.609, 2.766, 1.579,
+			-0.121, -1.821, -3.521, -5.221, -6.921,
+			-8.621, -10.321, -12.021, -13.721, -15.421,
+			-17.121, -18.821, -20.521, -22.221, -23.921,
+			-25.621
+		}
+	},
+	{
+		36, 400.0, 750.0,	/* 36 bands from 400 to 750 nm in 10nm steps */
+		1.0,				/* Log10 Scale factor */
+		{
+			-3.998, -0.198, 3.602, 4.819, 5.000,
+			4.912, 4.620, 4.040, 2.898, 1.566,
+			0.165, -1.235, -2.635, -4.035, -5.435,
+			-6.835, -8.235, -9.635, -11.035, -12.435,
+			-13.835, -15.235, -16.635, -18.035, -19.435,
+			-20.835, -22.235, -23.635, -25.035, -26.435,
+			-27.835, -29.235, -30.635, -32.035, -33.435,
+			-34.835
+		}
+	},
+};
+
+/* Status M */
+static xspect denM[3] = {
+	{
+		38, 400.0, 770.0,	/* 38 bands from 400 to 770 nm in 10nm steps */
+		1.0,				/* Log10 Scale factor */
+		{
+			-55.091, -52.491, -49.891, -47.291, -44.691,
+			-42.091, -39.491, -36.891, -34.291, -31.691,
+			-29.091, -26.491, -23.891, -21.291, -18.691,
+			-16.091, -13.491, -10.891, -8.291, -5.691,
+			-3.091, -0.491, 2.109, 4.479, 5.000,
+			4.899, 4.578, 4.252, 3.875, 3.491,
+			3.099, 2.687, 2.269, 1.859, 1.449,
+			1.054, 0.654, 0.254,
+		}
+	},
+	{
+		38, 400.0, 770.0,	/* 38 bands from 400 to 770 nm in 10nm steps */
+		1.0,				/* Log10 Scale factor */
+		{
+			-6.268, -5.208, -4.148, -3.088, -2.028,
+			-0.968, 0.092, 1.152, 2.207, 3.156,
+			3.804, 4.272, 4.626, 4.872, 5.000,
+			4.995, 4.818, 4.458, 3.915, 3.172,
+			2.239, 1.070, -0.130, -1.330, -2.530,
+			-3.730, -4.930, -6.130, -7.330, -8.530,
+			-9.730, -10.930, -12.130, -13.330, -14.530,
+			-15.730, -16.930, -18.130
+
+		}
+	},
+	{
+		38, 400.0, 770.0,	/* 38 bands from 400 to 770 nm in 10nm steps */
+		1.0,				/* Log10 Scale factor */
+		{
+			-0.397, 2.103, 4.111, 4.632, 4.871,
+			5.000, 4.955, 4.743, 4.343, 3.743,
+			2.990, 1.852, -0.348, -2.548, -4.748,
+			-6.948, -9.148, -11.348, -13.548, -15.748,
+			-17.948, -20.148, -22.348, -24.548, -26.748,
+			-28.948, -31.148, -33.348, -35.548, -37.748,
+			-39.948, -42.148, -44.348, -46.548, -48.748,
+			-50.948, -53.148, -55.348
+		}
+	},
+};
+
+/* Status E */
+static xspect denE[3] = {
+	{
+		36, 370.0, 720.0,	/* 36 bands from 370 to 720 nm in 10nm steps */
+		1.0,				/* Log10 Scale factor */
+		{
+			-10.0, -10.0, -10.0,
+			-10.0, -10.0, -10.0, -10.0, -10.0,
+			-10.0, -10.0, -10.0, -10.0, -10.0,
+			-10.0, -10.0, -10.0, -10.0, -10.0,
+			-10.0, 0.500, 1.778, 2.653, 4.477,
+			5.000, 4.929, 4.740, 4.398, 4.000,
+			3.699, 3.176, 2.699, 2.477, 2.176,
+			1.699, 1.000, 0.500
+		}
+	},
+	{
+		36, 370.0, 720.0,	/* 36 bands from 370 to 720 nm in 10nm steps */
+		1.0,				/* Log10 Scale factor */
+		{
+			-10.0, -10.0, -10.0,
+			-10.0, -10.0, -10.0, -10.0, -10.0,
+			-10.0, -10.0, 0.500, 3.000, 3.699,
+			4.447, 4.833, 4.964, 5.000, 4.944,
+			4.820, 4.623, 4.342, 3.954, 3.398,
+			2.845, 1.954, 1.000, 0.500, -10.0,
+			-10.0, -10.0, -10.0, -10.0, -10.0,
+			-10.0, -10.0, -10.0, -10.0, -10.0,
+			-10.0, -10.0, -10.0, -10.0, -10.0,
+			-10.0, -10.0, -10.0, -10.0,
+		}
+	},
+	{
+		36, 370.0, 720.0,	/* 36 bands from 370 to 720 nm in 10nm steps */
+		1.0,				/* Log10 Scale factor */
+		{
+			1.000, 2.431, 3.431,
+			4.114, 4.477, 4.778, 4.914, 5.000,
+			4.959, 4.881, 4.672, 4.255, 3.778,
+			2.903, 1.699, 1.000, -10.0, -10.0,
+			-10.0, -10.0, -10.0, -10.0, -10.0,
+			-10.0, -10.0, -10.0, -10.0, -10.0,
+			-10.0, -10.0, -10.0, -10.0, -10.0,
+			-10.0, -10.0, -10.0
+		}
+	},
+};
 
 /* Status T log10 weightings */
 /* CMY + ISO V */
@@ -7818,14 +8029,53 @@ static xspect denT[4] = {
 	}
 };
 
-
 /* Given a reflectance or transmition spectral product, (Relative */
-/* to the scale factor), return status T CMYV log10 density values */
-void xsp_Tdensity(
-double *out,			/* Return CMYV density */
-xspect *in				/* Spectral product to be converted */
+/* to the scale factor), return CMYV log10 density values */
+void xsp_density(
+double out[4],			/* Return CMYV density */
+xspect *in,				/* Spectral product to be converted */
+icxDensityType dt		/* Density type */
 ) {
+	xspect *dw[4];
 	int j;
+
+	switch (dt) {
+		case icxDT_ISO:
+			dw[0] = &denISO[0];
+			dw[1] = &denISO[1];
+			dw[2] = &denISO[2];
+			dw[3] = &denT[3];
+			break;
+		case icxDT_A:
+			dw[0] = &denA[0];
+			dw[1] = &denA[1];
+			dw[2] = &denA[2];
+			dw[3] = &denT[3];
+			break;
+		case icxDT_M:
+			dw[0] = &denM[0];
+			dw[1] = &denM[1];
+			dw[2] = &denM[2];
+			dw[3] = &denT[3];
+			break;
+		case icxDT_T:
+			dw[0] = &denT[0];
+			dw[1] = &denT[1];
+			dw[2] = &denT[2];
+			dw[3] = &denT[3];
+			break;
+		case icxDT_E:
+			dw[0] = &denE[0];
+			dw[1] = &denE[1];
+			dw[2] = &denE[2];
+			dw[3] = &denT[3];
+			break;
+		default:
+			for (j = 0; j < 4; j++)
+				out[j] = 0.0;
+			/* Should return error */
+			return;
+	}
 
 	/* Compute the CMYV values (normalised to 1.0) */
 	for (j = 0; j < 4; j++) {
@@ -7834,10 +8084,10 @@ xspect *in				/* Spectral product to be converted */
 
 		/* Integrate at 1nm intervals */
 		sum = out[j] = 0.0;
-		for (ww = denT[j].spec_wl_short; ww <= denT[j].spec_wl_long; ww += 1.0) {
+		for (ww = dw[j]->spec_wl_short; ww <= dw[j]->spec_wl_long; ww += 1.0) {
 			double W, S;
 
-			getval_xspec(&denT[j], &W, ww);
+			getval_xspec(dw[j], &W, ww);
 			getval_xspec(in, &S, ww);
 			W = pow(10.0, W);			/* Convert from log to linear weighting */
 			sum += W;					/* Sum of weightings */
@@ -7851,6 +8101,27 @@ xspect *in				/* Spectral product to be converted */
 
 		out[j] = -log10(out[j]);		/* Convert to density */
 	}
+}
+
+/* Return a string describing the type of density */
+char *xsp_density_desc(
+icxDensityType dt		/* Density type */
+) {
+	switch (dt) {
+		case icxDT_none:
+			return "None";
+		case icxDT_ISO:
+			return "ISO Visual, Type 1, Type 2, Visual";
+		case icxDT_A:
+			return "Status A CMYV";
+		case icxDT_M:
+			return "Status M CMYV";
+		case icxDT_T:
+			return "Status T CMYV";
+		case icxDT_E:
+			return "Status E CMYV";
+	}
+	return "Unknown";
 }
 
 /* XYZ to status T density aproximate conversion matrix */
@@ -8879,8 +9150,6 @@ if (dc > 0.0054) DBGF((DBGA,"TLCI is invalid\n"));
 	sample->norm = sampnorm;		/* Restore this */
 	return tlci;
 }
-
-#undef ANDROID // ~~~~9999
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - */
 /* Compute Australian Radiation Protection and Nuclear Safety Agency (ARPANSA) */

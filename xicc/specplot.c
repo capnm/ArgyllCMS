@@ -39,10 +39,12 @@
 static int do_spec(
 	char name[MAXGRAPHS][200],
 	xspect *sp,
-	int nsp,			/* Number of sp */
-	inst_meas_type mt,	/* Measurement type */
-	int dozero,			/* Include zero in the range */
-	int douv,			/* Do variation of added UV test */
+	int nsp,				/* Number of sp */
+	inst_meas_type mt,		/* Measurement type */
+	int dozero,				/* Include zero in the range */
+	int noplot,				/* Don't actually plot */
+	icxDensityType dens,	/* Density type to print */
+	int douv,				/* Do variation of added UV test */
 	double uvmin,
 	double uvmax
 ) {
@@ -175,6 +177,7 @@ static int do_spec(
 			} else if (mt == inst_mrt_none
 			 || mt == inst_mrt_reflective
 			 || mt == inst_mrt_transmissive) {
+				double cmyv[4];
 	
 				printf("CIE values under D50 illuminant:\n");
 
@@ -187,16 +190,11 @@ static int do_spec(
 				printf("XYZ = %f %f %f, x,y = %f %f\n", xyz[0], xyz[1], xyz[2], Yxy[1], Yxy[2]);
 				printf("D50 L*a*b* = %f %f %f\n", Lab[0], Lab[1], Lab[2]);
 				
-#ifndef NEVER
-				/* Test density */
-				{
-					double dens[4];
-	
-					xsp_Tdensity(dens, &tsp);
-	
-					printf("CMYV density = %f %f %f %f\n", dens[0], dens[1], dens[2], dens[3]);
+				if (dens != icxDT_none) {
+					/* Density */
+					xsp_density(cmyv, &tsp, dens);
+					printf("CMYV %s = %f %f %f %f\n", xsp_density_desc(dens), cmyv[0], cmyv[1], cmyv[2], cmyv[3]);
 				}
-#endif
 	
 			} else {
 				printf("Unhandled measurement type '%s'\n",meas_type2str(mt));
@@ -213,9 +211,12 @@ static int do_spec(
 				yy[(m + k + j) % 10][i] = value_xspect(&tsp, ww);
 			}
 			yp[(m + k + j) % 10] = &yy[(m + k + j) % 10][0];
+			printf("\n");
 		}
 	}
-	do_plot10(xx, yp[0], yp[1], yp[2], yp[3], yp[4], yp[5], yp[6], yp[7], yp[8], yp[9], XRES, dozero);
+	if (!noplot) {
+		do_plot10(xx, yp[0], yp[1], yp[2], yp[3], yp[4], yp[5], yp[6], yp[7], yp[8], yp[9], XRES, dozero);
+	}
 
 
 	return 0;
@@ -229,6 +230,8 @@ void usage(void) {
 	fprintf(stderr," -v               verbose\n");
 	fprintf(stderr," -c               combine multiple files into one plot\n");
 	fprintf(stderr," -z               don't make range cover zero\n");
+	fprintf(stderr," -s               don't plot spectra\n");
+	fprintf(stderr," -d I|A|M|T|E     print density values\n");
 	fprintf(stderr," -u level         plot effect of adding estimated UV level\n");
 	fprintf(stderr," -U               plot effect of adding range of estimated UV level\n");
 	fprintf(stderr," [infile.sp ...]  spectrum files to plot\n");
@@ -246,6 +249,8 @@ main(
 	int verb = 0;
 	int comb = 0;
 	int zero = 1;
+	int noplot = 0;
+	icxDensityType dens = icxDT_none;
 	double temp;
 	xspect sp[MAXGRAPHS];
 	icxIllumeType ilType;
@@ -290,14 +295,45 @@ main(
 			}
 
 			/* Verbosity */
-			else if (argv[fa][1] == 'v' || argv[fa][1] == 'V') {
+			else if (argv[fa][1] == 'v') {
 				verb = 1;
 
-			} else if (argv[fa][1] == 'c' || argv[fa][1] == 'C') {
+			} else if (argv[fa][1] == 'c') {
 				comb = 1;
 
-			} else if (argv[fa][1] == 'z' || argv[fa][1] == 'Z') {
+			} else if (argv[fa][1] == 'z') {
 				zero = 0;
+
+			} else if (argv[fa][1] == 's') {
+				noplot = 1;
+
+			} else if (argv[fa][1] == 'd') {
+				if (na == NULL)
+					usage();
+
+				switch(na[0]) {
+					case 'N':
+						dens = icxDT_none;
+						break;
+					case 'I':
+						dens = icxDT_ISO;
+						break;
+					case 'A':
+						dens = icxDT_A;
+						break;
+					case 'M':
+						dens = icxDT_M;
+						break;
+					case 'T':
+						dens = icxDT_T;
+						break;
+					case 'E':
+						dens = icxDT_E;
+						break;
+					default:
+						usage();
+				}
+				fa = nfa;
 
 			} else {
 				usage();
@@ -328,7 +364,7 @@ main(
 			/* or at least one and there are no more files */
 			if (nsp >= MAXGRAPHS || (nsp > 0 && ((!comb && soff == 0) || fa >= argc))) {
 				/* Plot what we've got */
-				do_spec(buf, sp, nsp, mt, zero, douv, uvmin, uvmax);
+				do_spec(buf, sp, nsp, mt, zero, noplot, dens, douv, uvmin, uvmax);
 				nsp = 0;
 			}
 
@@ -392,7 +428,7 @@ main(
 				error ("standardIlluminant returned error for %d (%s)",ilType,inm);
 		
 			strcpy(buf[0],inm);
-			do_spec(buf, sp, 1, inst_mrt_ambient, zero, douv, uvmin, uvmax);
+			do_spec(buf, sp, 1, inst_mrt_ambient, zero, noplot, dens, douv, uvmin, uvmax);
 		}
 
 		/* For each material and illuminant */
@@ -414,7 +450,7 @@ main(
 		
 				sprintf(buf[0], "%s at %f", k == 0 ? "Daylight" : "Black body", temp);
 	
-				do_spec(buf, sp, 1, inst_mrt_ambient, zero, douv, uvmin, uvmax);
+				do_spec(buf, sp, 1, inst_mrt_ambient, zero, noplot, dens, douv, uvmin, uvmax);
 			}
 		}
 

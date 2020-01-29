@@ -18,7 +18,7 @@
 
 #include "numsup.h"
 
-#undef DEBUG
+#define DEBUG
 
 int dhsx_debug = 0;
 

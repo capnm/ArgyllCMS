@@ -63,9 +63,10 @@
 #include "icoms.h"
 #include "inst.h"
 #include "ccast.h"
-#include "dispwin.h"
 #include "ui.h"
+#include "dispwin.h"
 #include "webwin.h"
+#include "dummywin.h"
 #ifdef NT
 # include "madvrwin.h"
 #endif
@@ -161,9 +162,10 @@ usage(int flag, char *diag, ...) {
 		}
 	}
 #ifdef NT
-	fprintf(stderr," -dmadvr           Display via MadVR Video Renderer\n");
+	fprintf(stderr," -d madvr          Display via MadVR Video Renderer\n");
 #endif
-//	fprintf(stderr," -d fake           Use a fake display device for testing, fake%s if present\n",ICC_FILE_EXT);
+	fprintf(stderr," -d dummy          Dummy (non-existant, invisible) display\n");
+//	fprintf(stderr," -d fake           Use a fake (ICC profile) display device for testing, fake%s if present\n",ICC_FILE_EXT);
 	fprintf(stderr," -p                Use telephoto mode (ie. for a projector) (if available)\n");
 	cap = inst_show_disptype_options(stderr, " -y c|l                 ", icmps, 1);
 	fprintf(stderr," -z disptype       Different display type for spectrometer (see -y)\n");
@@ -243,6 +245,7 @@ int main(int argc, char *argv[]) {
 #ifdef NT
 	int madvrdisp = 0;					/* NZ for MadVR display */
 #endif
+	int dummydisp = 0;					/* NZ for dummy display */
 	char *ccallout = NULL;				/* Change color Shell callout */
 	int msteps = DEFAULT_MSTEPS;		/* Patch surface size */
 	int npat = 0;						/* Number of patches/colors */
@@ -347,6 +350,10 @@ int main(int argc, char *argv[]) {
 					madvrdisp = 1;
 					fa = nfa;
 #endif
+				} else if (strncmp(na,"dummy",5) == 0
+				 || strncmp(na,"DUMMY",5) == 0) {
+					dummydisp = 1;
+					fa = nfa;
 				} else {
 #if defined(UNIX_X11)
 					int ix, iv;
@@ -1010,6 +1017,7 @@ int main(int argc, char *argv[]) {
 #ifdef NT
 		 && madvrdisp == 0
 #endif
+		 && dummydisp == 0
 		 && webdisp == 0
 		 && ccdisp == 0
 		 && disp == NULL) {
@@ -1269,7 +1277,7 @@ int main(int argc, char *argv[]) {
 #ifdef NT
 					                 madvrdisp,
 #endif
-					                 ccallout, NULL, 0,
+									 dummydisp, ccallout, NULL, 0,
 					                 100.0 * hpatscale, 100.0 * vpatscale, ho, vo,
 					                 disptech_unknown, 0, NULL, NULL, 0, 2, icxOT_default, NULL, 
 				                     0, 0, "fake" ICC_FILE_EXT, g_log)) == NULL) {

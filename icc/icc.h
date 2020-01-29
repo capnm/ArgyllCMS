@@ -171,7 +171,7 @@
 #endif /* !ORD32 */
 
 /* =========================================================== */
-#include "iccV42.h"	/* ICC Version 4.2 definitions. */ 
+#include "iccV43.h"	/* ICC Version 4.3 definitions. */ 
 
 /* Note that the prefix icm is used for the native Machine */
 /* equivalents of the ICC binary file structures, and other icclib */
@@ -353,6 +353,9 @@ typedef int icmSig;	/* Otherwise un-enumerated 4 byte signature */
 #define icmSig_nix ((icPlatformSignature) icmMakeTag('*','n','i','x'))
 
 /* Non-standard Color Space Signatures - will be incompatible outside icclib! */
+
+/* Y'u'v' perceptual CIE 1976 UCS diagram Yu'v' */
+#define icmSigYuvData ((icColorSpaceSignature) icmMakeTag('Y','u','v',' '))
 
 /* A monochrome CIE L* space */
 #define icmSigLData ((icColorSpaceSignature) icmMakeTag('L',' ',' ',' '))
@@ -1432,7 +1435,14 @@ struct _icmLuNamed {
 
 }; typedef struct _icmLuNamed icmLuNamed;
 
-/* ---------------------------------------------------------- */
+/* ========================================================== */
+
+/* A table entry that maps a signature to the possible tag types */
+struct _sig2type {
+	icTagSignature      sig;
+	icTagTypeSignature  ttypes[6];			/* Arbitrary max of 6 */
+}; typedef struct _sig2type sig2type;
+
 /* A tag */
 typedef struct {
     icTagSignature      sig;			/* The tag signature */
@@ -1617,6 +1627,9 @@ struct _icc {
     icmTag          *data;    			/* The tagTable and tagData */
 	icmICCVersion    ver;				/* Version class, see icmICCVersion enum */
 
+	/* sig to valid types for current ver */ 
+	sig2type *sigtypetable;
+
 	}; typedef struct _icc icc;
 
 /* ========================================================== */
@@ -1781,7 +1794,13 @@ extern ICCLIB_API unsigned int icmCSSig2chanNames( icColorSpaceSignature sig, ch
 #define icmSet3(d_ary, s_val) ((d_ary)[0] = (s_val), (d_ary)[1] = (s_val), \
                               (d_ary)[2] = (s_val))
 
-/* Copy a 2 vector */
+/* Set a 3 vector to 3 values */
+#define icmInit3(d_ary, s1, s2, s3) ((d_ary)[0] = (s1), (d_ary)[1] = (s2), \
+                              (d_ary)[2] = (s3))
+
+/* Some 2 vector macros: */
+#define icmSet2(d_ary, s_val) ((d_ary)[0] = (s_val), (d_ary)[1] = (s_val))
+
 #define icmCpy2(d_ary, s_ary) ((d_ary)[0] = (s_ary)[0], (d_ary)[1] = (s_ary)[1])
 
 #define icmAdd2(d_ary, s1_ary, s2_ary) ((d_ary)[0] = (s1_ary)[0] + (s2_ary)[0], \
@@ -1826,11 +1845,20 @@ void icmMul3(double out[3], double in1[3], double in2[3]);
 
 #define ICMMUL3(o, i, j) ((o)[0] = (i)[0] * (j)[0], (o)[1] = (i)[1] * (j)[1], (o)[2] = (i)[2] * (j)[2])
 
-/* Take values to power */
+/* Take (signed) values to power */
 void icmPow3(double out[3], double in[3], double p);
+
+/* Square values */
+void icmSqr3(double out[3], double in[3]);
+
+/* Suqare root of values */
+void icmSqrt3(double out[3], double in[3]);
 
 /* Take absolute of a 3 vector */
 void icmAbs3(double out[3], double in[3]);
+
+/* Compute sum of the vectors components */
+#define icmSum3(vv) ((vv)[0] + (vv)[1] + (vv)[2]) 
 
 /* Compute the dot product of two 3 vectors */
 double icmDot3(double in1[3], double in2[3]);
@@ -1858,7 +1886,7 @@ void icmScale3(double out[3], double in[3], double rat);
 /* Scale a 3 vector by the given ratio and add it */
 void icmScaleAdd3(double out[3], double in2[3], double in1[3], double rat);
 
-/* Compute a blend between in0 and in1 */
+/* Compute a blend between in0 and in1 for bl 0..1 */
 void icmBlend3(double out[3], double in0[3], double in1[3], double bf);
 
 /* Clip a vector to the range 0.0 .. 1.0 */
@@ -2046,7 +2074,7 @@ int icmInverse2x2(double out[2][2], double in[2][2]);
 /* Multiply 2 array by 2x2 transform matrix */
 void icmMulBy2x2(double out[2], double mat[2][2], double in[2]);
 
-/* Compute a blend between in0 and in1 */
+/* Compute a blend between in0 and in1 for bl 0..1 */
 void icmBlend2(double out[2], double in0[2], double in1[2], double bf);
 
 /* Scale a 2 vector by the given ratio */
@@ -2097,6 +2125,13 @@ extern ICCLIB_API void icmLCh2Lab(double *out, double *in);
 extern ICCLIB_API void icmLab2LCh(double *out, double *in);
 
 
+/* CIE XYZ to perceptual Luv */
+extern ICCLIB_API void icmXYZ2Luv(icmXYZNumber *w, double *out, double *in);
+
+/* Perceptual Luv to CIE XYZ */
+extern ICCLIB_API void icmLuv2XYZ(icmXYZNumber *w, double *out, double *in);
+
+
 /* XYZ to Yxy */
 extern ICCLIB_API void icmXYZ2Yxy(double *out, double *in);
 
@@ -2110,13 +2145,6 @@ extern ICCLIB_API void icmXYZ2xy(double *out, double *in);
 extern ICCLIB_API void icmY_xy2XYZ(double *out, double *xy, double Y);
 
 
-/* CIE XYZ to perceptual Luv */
-extern ICCLIB_API void icmXYZ2Luv(icmXYZNumber *w, double *out, double *in);
-
-/* Perceptual Luv to CIE XYZ */
-extern ICCLIB_API void icmLuv2XYZ(icmXYZNumber *w, double *out, double *in);
-
-
 /* CIE XYZ to perceptual CIE 1976 UCS diagram Yu'v'*/
 /* (Yu'v' is a better linear chromaticity space than Yxy) */
 extern ICCLIB_API void icmXYZ21976UCS(double *out, double *in);
@@ -2127,6 +2155,15 @@ extern ICCLIB_API void icm1976UCS2XYZ(double *out, double *in);
 /* CIE XYZ to perceptual CIE 1976 UCS diagram u'v'*/
 /* (u'v' is a better linear chromaticity space than xy) */
 extern ICCLIB_API void icmXYZ21976UCSuv(double *out, double *in);
+
+/* CIE 1976 UCS diagram Y & u'v' to XYZ */
+extern ICCLIB_API void icm1976UCSY_uv2XYZ(double *out, double *uv, double Y);
+
+/* Aliases for above */
+#define icmXYZ2Yuv   icmXYZ21976UCS
+#define icmYuv2XYZ   icm1976UCS2XYZ
+#define icmXYZ2uv    icmXYZ21976UCSuv
+#define icmY_uv2XYZ  icm1976UCSY_uv2XYZ
 
 
 /* CIE XYZ to perceptual CIE 1960 UCS */

@@ -58,6 +58,7 @@
 
 
 
+
       &nbsp;&nbsp;&nbsp;&nbsp; Verbose mode<br>
       &nbsp;</small><font size="-1"><a style="font-family: monospace;"
         href="#display">-display displayname</a><span
@@ -76,6 +77,7 @@ a
 different
 display
 m
+
 
 
 
@@ -160,95 +162,32 @@ list
 
 
 
+
         (default 1)</span></font><small style="font-family: monospace;"><br>
-    </small><span style="font-family: monospace;">&nbsp;<a href="#dweb">-dweb[:port]</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-      Display via a web server at port (default 8080)</span><br>
-    <span style="font-family: monospace;">&nbsp;<a href="#dmadvr">-dmadvr</a>
-      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    </small><span style="font-family: monospace;">&nbsp;<a href="#dweb">-d
+        web[:port]</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Display
+      via a web server at port (default 8080)</span><br>
+    <span style="font-family: monospace;">&nbsp;<tt><a href="#dcc">-d
+          cc[:n]</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      </tt><tt>Display via n'th ChromeCast (default 1, ? for list)<br>
+      </tt></span>&nbsp; <span style="font-family: monospace;"><a
+        href="#dmadvr">-d madvr</a>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
       [MSWin] Display via MadVR Video Renderer</span><br>
-    <tt>&nbsp;</tt><tt><a href="#dcc">-dcc[:n]</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-
-
-
-
-
-
-
-
-
-    </tt><tt>Display via n'th ChromeCast (default 1, ? for list)</tt><br>
-    <small style="font-family: monospace;"> <span style="font-family:
-        monospace;">&nbsp;</span><a style="font-family: monospace;"
-        href="#c">-c listno</a><span style="font-family: monospace;">
-        &nbsp; &nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Set
-        communication port from the following list (default 1)<br>
+    <span style="font-family: monospace;"><span style="font-family:
+        monospace;">&nbsp;<span style="font-family: monospace;"><a
+            href="#dummy">-d dummy</a>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+          Dummy (non-existant, invisible) display<br>
+        </span></span></span><small style="font-family: monospace;"><span
+        style="font-family: monospace;">&nbsp;</span><a
+        style="font-family: monospace;" href="#c">-c listno</a><span
+        style="font-family: monospace;"> &nbsp; &nbsp;
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Set communication port from
+        the following list (default 1)<br>
       </span></small><font size="-1"><span style="font-family:
         monospace;">&nbsp;<a href="#p">-p</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -329,10 +268,12 @@ Display
 
 
 
+
         type - instrument specific list to choose from.</span></font><br>
     <small style="font-family: monospace;">&nbsp;<span
         style="text-decoration: underline;">-</span><a href="#k">k
         file.cal</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -412,6 +353,7 @@ Apply
 
 
 
+
       calibration file to test values while reading</small><br>
     <tt>&nbsp;<a href="#V">-V</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
@@ -432,8 +374,10 @@ Apply
 
 
 
+
       [MSWin] Enable MadVR color management (3dLut)</tt><br>
     <small style="font-family: monospace;">&nbsp;<a href="#s">-s</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -521,6 +465,7 @@ center,
 
 
 
+
       1.0 = right/bottom etc.<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 ss:
@@ -567,8 +512,10 @@ normal,
 
 
 
+
       2.0 = double etc.<br>
     </font><font size="-1"><span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -640,10 +587,12 @@ normal,
 
 
 
+
         Fill whole screen with black background</span></font><br>
     <font size="-1"><span style="font-family: monospace;">&nbsp;</span></font><font
       size="-1"><span style="font-family: monospace;"><a href="#E">-E</a>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -693,11 +642,13 @@ normal,
 
 
 
+
       </span></font><small><span style="font-family: monospace;">Quantize
 test
 values
 to
 fit
+
 
 
 
@@ -726,6 +677,7 @@ Don't
 set
 override
 redirect
+
 
 
 
@@ -803,9 +755,11 @@ redirect
 
 
 
+
       &nbsp;&nbsp;&nbsp;&nbsp; Run calibration first</small><br>
     <font size="-1"><span style="font-family: monospace;">&nbsp;<a
           href="#N">-N</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -898,9 +852,11 @@ Y
 
 
 
+
         100</span></font><small><span style="font-family: monospace;"></span></small><br>
     &nbsp; <font size="-1"><span style="font-family: monospace;"><a
           href="#X1">-X file.ccmx</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -944,6 +900,7 @@ Y
 Use
 Colorimeter
 Calibration
+
 
 
 
@@ -1026,10 +983,12 @@ Calibration
 
 
 
+
         &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 1931_2 </span></small><small><span
         style="font-family: monospace;">(def.)</span></small><small><span
         style="font-family: monospace;">, 1964_10, </span></small><small><span
         style="font-family: monospace;"><tt><small>2012_2, 2012_10, </small></tt>S&amp;B
+
 
         1955_2, shaw, J&amp;V 1978_2, 1964_10c or file.cmf</span></small><br>
     <small><span style="font-family: monospace;">&nbsp;<a
@@ -1041,6 +1000,7 @@ Black:
 White:
 -Iw,
 Both:
+
 
 
 
@@ -1095,7 +1055,9 @@ Both:
 
 
 
+
             R:<i>rate</i></a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -1117,6 +1079,7 @@ Both:
         monospace;" href="#YA">-<font size="-1">Y</font> A</a><span
         style="font-family: monospace;">
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -1169,6 +1132,7 @@ Take
 
 
 
+
         manually entered XYZ values</span></small><br>
     <font size="-1"><span style="font-family: monospace;">&nbsp;<a
           href="#W">-W n|h|x</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
@@ -1216,11 +1180,13 @@ n
 
 
 
+
         none, h = HW, x = Xon/Xoff</span></font><br>
     <small style="font-family: monospace;">&nbsp;<a href="#D">-D [level]</a>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Print debug
       diagnostics to stderr</small><br>
     <small style="font-family: monospace;">&nbsp;<a href="#p1"><i>inoutfile</i></a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -1362,6 +1328,7 @@ n
 
 
 
+
       1,2</span> . Some experimentation may be needed using <a
       href="dispwin.html">dispwin</a> on such systems, to discover what
     screen has access to the VideoLUT hardware, and which screens the
@@ -1398,14 +1365,6 @@ n
     See the <a href="dispcal.html#o">-o</a> flag for an explanation of
     the implications of having no access to the VideoLUTs.<br>
     <br>
-    <a name="dmadvr"></a><span style="font-weight: bold;">-dmadvr</span>
-    [MSWin only] causes test patches to be displayed using the MadVR
-    video renderer. Note that will have to start <b>MadTPG</b> before
-    running dispread, and that while you can adjust the "Test Pattern
-    Configuration" controls, you should <u>not</u> normally alter the
-    "Existing Calibration" controls, as dispread will set these
-    appropriately. See also <tt><a href="dispread.html#V">-V</a> flag.</tt><br>
-    <br>
     <a name="dcc"></a><span style="font-weight: bold;">-dcc</span> or <b>-dcc:<i>no</i></b>
     causes test patches to be displayed using and available <a
       href="http://en.wikipedia.org/wiki/Chromecast">ChromeCast</a> to
@@ -1423,8 +1382,24 @@ n
 
 
 
+
       instructions</a> for your platform).<br>
     <br>
+    <a name="dmadvr"></a><span style="font-weight: bold;">-dmadvr</span>
+    [MSWin only] causes test patches to be displayed using the MadVR
+    video renderer. Note that will have to start <b>MadTPG</b> before
+    running dispread, and that while you can adjust the "Test Pattern
+    Configuration" controls, you should <u>not</u> normally alter the
+    "Existing Calibration" controls, as dispread will set these
+    appropriately. See also <tt><a href="#V">-V</a> flag.<br>
+    </tt><br>
+    <a name="dummy"></a><span style="font-weight: bold;">-ddummy</span>
+    causes test patches not to be displayed at all. This is useful when
+    used with the these appropriately. This is useful when patch values
+    are going to be displayed via the <a href="#C">-<span
+        style="font-weight: bold;">C</span></a><span style="font-weight:
+      bold;"> </span>option.<br>
+    <tt> </tt> <br>
     <a name="c"></a> <span style="font-weight: bold;">-c</span>: The
     instrument is assumed to communicate through a USB or serial
     communication port, and the port can be selected with the <b>-c</b>

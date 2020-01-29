@@ -28,7 +28,7 @@
 	V[]'s columns and rows are orthonormal.
 	V[]'s columns corresponding to non-zero W[] are the orthonormal vectors that span
 	the (output) RANGE space. 
-	v[]'s columns corresponding to zero W[] are the (output) othonormal vectors that span
+	V[]'s columns corresponding to zero W[] are the (output) othonormal vectors that span
 	the NULL space.
 	The inverse of V[] is its transpose.
 
@@ -46,8 +46,8 @@
 
 /* Compute Singular Value Decomposition of A = U.W.Vt */
 /* Return status value: */
-/* 0 - no error */
-/* 1 - m < n error */
+/* 0 = no error */
+/* 1 - Too many itterations */
 int svdecomp(
 double **a,		/* A[0..m-1][0..n-1], return U[0..m-1][0..n-1] */
 double  *w,		/* return W[0..n-1] = singular values */

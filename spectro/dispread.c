@@ -154,9 +154,10 @@ void usage(int flag, char *diag, ...) {
 		}
 	}
 #ifdef NT
-	fprintf(stderr," -dmadvr              Display via MadVR Video Renderer\n");
+	fprintf(stderr," -d madvr             Display via MadVR Video Renderer\n");
 #endif
-//	fprintf(stderr," -d fake              Use a fake display device for testing, fake%s if present\n",ICC_FILE_EXT);
+	fprintf(stderr," -d dummy             Dummy (non-existant, invisible) display\n");
+//	fprintf(stderr," -d fake              Use a fake (ICC Profile) display device for testing, fake%s if present\n",ICC_FILE_EXT);
 	fprintf(stderr," -c listno            Set communication port from the following list (default %d)\n",COMPORT);
 	if ((icmps = new_icompaths(g_log)) != NULL) {
 		icompath **paths;
@@ -260,6 +261,7 @@ int main(int argc, char *argv[]) {
 #ifdef NT
 	int madvrdisp = 0;					/* NZ for MadVR display */
 #endif
+	int dummydisp = 0;					/* NZ for dummy display */
 	char *ccallout = NULL;				/* Change color Shell callout */
 	char *mcallout = NULL;				/* Measure color Shell callout */
 	int xtern = 0;						/* Use external (user supplied) values rather than */
@@ -366,6 +368,10 @@ int main(int argc, char *argv[]) {
 					madvrdisp = 1;
 					fa = nfa;
 #endif
+				} else if (strncmp(na,"dummy",5) == 0
+				 || strncmp(na,"DUMMY",5) == 0) {
+					dummydisp = 1;
+					fa = nfa;
 				} else {
 #if defined(UNIX_X11)
 					int ix, iv;
@@ -630,6 +636,7 @@ int main(int argc, char *argv[]) {
 #ifdef NT
 	 && madvrdisp == 0
 #endif
+	 && dummydisp == 0
 	 && webdisp == 0
 	 && ccdisp == 0
 	 && disp == NULL) {
@@ -708,7 +715,7 @@ int main(int argc, char *argv[]) {
 #ifdef NT
 			                         madvrdisp,
 #endif
-			                         out_tvenc, fullscreen, override,
+			                         dummydisp, out_tvenc, fullscreen, override,
 			                         100.0 * hpatscale, 100.0 * vpatscale, ho, vo,
 		                             g_log)) != 0) {
 			error("docalibration failed with return value %d\n",rv);
@@ -927,7 +934,7 @@ int main(int argc, char *argv[]) {
 #ifdef NT
 						 madvrdisp,
 #endif
-		                 ccallout, mcallout, xtern,
+		                 dummydisp, ccallout, mcallout, xtern,
 		                 100.0 * hpatscale, 100.0 * vpatscale, ho, vo,
 	                     ccs != NULL ? ccs->dtech : cmx != NULL ? cmx->dtech : disptech_unknown,
 	                     cmx != NULL ? cmx->cc_cbid : 0,

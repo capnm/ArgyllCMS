@@ -45,6 +45,7 @@
 #include "spyd2.h"
 #include "dispwin.h"
 #include "webwin.h"
+#include "dummywin.h"
 #include "ccast.h"
 #include "ccwin.h"
 #ifdef NT
@@ -135,6 +136,14 @@ inst_code setup_display_calibrate(
 						return inst_other_error; 
 					}
 #endif /* NT */
+				} else if (dwi->dummydisp != 0) {{
+					if ((dwi->_dw = new_dummywin(dwi->hpatsize, dwi->vpatsize,
+					             dwi->ho, dwi->vo, 0, 0, NULL, NULL, dwi->out_tvenc,
+						         dwi->fullscreen, dwi->override, p->log->debug)) == NULL) {
+						a1logd(p->log,1,"inst_handle_calibrate failed to create test window 0x%x\n",inst_other_error);
+						return inst_other_error; 
+					}
+				}
 				} else {
 					if ((dwi->_dw = new_dispwin(dwi->disp, dwi->hpatsize, dwi->vpatsize,
 					             dwi->ho, dwi->vo, 0, 0, NULL, NULL, dwi->out_tvenc,
@@ -215,8 +224,9 @@ disppath *disp,			/* display to calibrate. */
 int webdisp,			/* If nz, port number for web display */
 ccast_id *ccid,	 		/* non-NULL for ChromeCast */
 #ifdef NT
-int madvrdisp,		/* NZ for MadVR display */
+int madvrdisp,			/* NZ for MadVR display */
 #endif
+int dummydisp,			/* NZ for dummy display */
 int out_tvenc,			/* 1 = use RGB Video Level encoding */
 int fullscreen,			/* NZ if whole screen should be filled with black */
 int override,			/* Override_redirect on X11 */
@@ -243,6 +253,7 @@ a1log *log				/* Verb, debug & error log */
 #ifdef NT
 	dwi.madvrdisp = madvrdisp; 
 #endif
+	dwi.dummydisp = dummydisp; 
 	dwi.disp = disp; 
 	dwi.out_tvenc = out_tvenc;
 	dwi.fullscreen = fullscreen;
@@ -2384,6 +2395,7 @@ ccast_id *ccid,	 	/* non-NULL for ChromeCast */
 #ifdef NT
 int madvrdisp,		/* NZ for MadVR display */
 #endif
+int dummydisp,		/* NZ for dummy display */
 char *ccallout,		/* Shell callout on set color */
 char *mcallout,		/* Shell callout on measure color (forced fake) */
 //char *scallout,		/* Shell callout on results of measure color */
@@ -2613,6 +2625,14 @@ a1log *log      	/* Verb, debug & error log */
 			return NULL;
 		}
 #endif
+	} else if (dummydisp != 0) {
+		if ((p->dw = new_dummywin(hpatsize, vpatsize, ho, vo, 0, native, noramdac, nocm, out_tvenc,
+			                                  0, p->log->verb, p->log->debug)) == NULL) {
+			a1logd(log,1,"new_disprd failed because new_dummywin failed\n");
+			p->del(p);
+			if (errc != NULL) *errc = 3;
+			return NULL;
+		}
 	} else {
 		/* Don't do tvenc on test values if we are going to do it with RAMDAC curve */
 		if (out_tvenc && (p->native & 1) == 0 && p->cal[0][0] >= 0.0) {

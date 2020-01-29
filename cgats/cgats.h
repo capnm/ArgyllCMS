@@ -126,6 +126,8 @@ struct _cgats {
 											/* Return the index of the table */
 											/* Return -2, set errc & err on system error */
 											/* if tt is tt_other, io sets the other index */
+	int (*set_table_type)(struct _cgats *p, int table, table_type tt, int oi);
+						/* Override the table type */
 	int (*set_table_flags)(struct _cgats *p, int table, int sup_id,int sup_kwords,int sup_fields);
 						/* Set or reset table output suppresion flags */
 						/* Return -ve, set errc & err on error */

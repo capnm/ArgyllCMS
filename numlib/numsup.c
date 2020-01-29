@@ -1929,11 +1929,6 @@ void vect_set(double *d, double v, int len) {
 	}
 }
 
-/* Copy zero based dvector */
-void vect_cpy(double *d, double *s, int len) {
-	memmove((char *)d, (char *)s, len * sizeof(double));
-}
-
 
 /* Negate and copy a vector, d = -v */
 /* d may be same as v */
@@ -1955,6 +1950,15 @@ void vect_add(
 		d[i] += v[i];
 }
 
+/* Add two vectors, d = s1 + s2 */
+void vect_add3(
+	double *d, double *s1, double *s2, int len
+) {
+	int i;
+	for (i = 0; i < len; i++)
+		d[i] = s1[i] + s2[i];
+}
+
 /* Subtract two vectors, d -= v */
 /* d may be same as v */
 void vect_sub(
@@ -1963,6 +1967,22 @@ void vect_sub(
 	int i;
 	for (i = 0; i < len; i++)
 		d[i] -= v[i];
+}
+
+/* Subtract two vectors, d = s1 - s2 */
+void vect_sub3(
+	double *d, double *s1, double *s2, int len
+) {
+	int i;
+	for (i = 0; i < len; i++)
+		d[i] = s1[i] - s2[i];
+}
+
+/* Invert and copy a vector, d = 1/s */
+void vect_invert(double *d, double *s, int len) {
+	int i;
+	for (i = 0; i < len; i++)
+		d[i] = 1.0/s[i];
 }
 
 /* Scale a vector, */
@@ -1974,6 +1994,22 @@ void vect_scale(double *d, double *s, double scale, int len) {
 		d[i] = s[i] * scale;
 }
 
+/* Blend between s0 and s1 for bl 0..1 */
+void vect_blend(double *d, double *s0, double *s1, double bl, int len) {
+	int i;
+
+	for (i = 0; i < len; i++)
+		d[i] = (1.0 - bl) * s0[i] + bl * s1[i];
+}
+
+/* Scale s and add to d */
+void vect_scaleadd(double *d, double *s, double scale, int len) {
+	int i;
+
+	for (i = 0; i < len; i++)
+		d[i] += s[i] * scale;
+}
+
 /* Take dot product of two vectors */
 double vect_dot(double *s1, double *s2, int len) {
 	int i;
@@ -1983,7 +2019,7 @@ double vect_dot(double *s1, double *s2, int len) {
 	return rv;
 }
 
-/* Return the vectors magnitude */
+/* Return the vectors magnitude (norm) */
 double vect_mag(double *s, int len) {
 	int i;
 	double rv = 0.0;
@@ -1992,6 +2028,98 @@ double vect_mag(double *s, int len) {
 		rv += s[i] * s[i];
 
 	return sqrt(rv);
+}
+
+/* Return the magnitude (norm) of the difference between two vectors */
+double vect_diffmag(double *s1, double *s2, int len) {
+	int i;
+	double rv = 0.0;
+
+	for (i = 0; i < len; i++) {
+		double tt = s1[i] - s2[i];
+		rv += tt * tt;
+	}
+
+	return sqrt(rv);
+}
+
+/* Return the normalized vectors */
+/* Return nz if norm is zero */
+int vect_normalize(double *d, double *s, int len) {
+	int i;
+	double nv = 0.0;
+	int rv = 0;
+
+	for (i = 0; i < len; i++)
+		nv += s[i] * s[i];
+	nv = sqrt(nv);
+
+	if (nv < 1e-9) {
+		nv = 1.0;
+		rv = 0;
+	}
+
+	for (i = 0; i < len; i++)
+		d[i] = s[i]/nv;
+
+	return rv;
+}
+
+/* Return the vectors elements maximum magnitude (+ve) */
+double vect_max(double *s, int len) {
+	int i;
+	double rv = 0.0;
+
+	for (i = 0; i < len; i++) {
+		double tt = fabs(s[i]);
+		if (tt > rv)
+			rv = tt;
+	}
+
+	return rv;
+}
+
+/* Take absolute of each element */
+void vect_abs(double *d, double *s, int len) {
+	int i;
+
+	for (i = 0; i < len; i++)
+		d[i] = fabs(s[i]);
+}
+
+/* Take individual elements to signed power */
+void vect_spow(double *d, double *s, double pv, int len) {
+	int i;
+
+	for (i = 0; i < len; i++) {
+		/* pow() isn't guaranteed to behave ... */
+		if (pv != 0.0) {
+			if (pv < 0.0) {
+				if (s[i] < 0.0)
+					d[i] = 1.0/-pow(-s[i], -pv);
+				else
+					d[i] = 1.0/pow(s[i], -pv);
+			} else {
+				if (s[i] < 0.0)
+					d[i] = -pow(-s[i], pv);
+				else
+					d[i] = pow(s[i], pv);
+			}
+		}
+	}
+}
+
+/* - - - - - - - - - - - - - - - - - - - - - - */
+
+/* Set zero based ivector */
+void ivect_set(int *d, int v, int len) {
+	if (v == 0)
+		memset((char *)d, 0, len * sizeof(int));
+	else {
+		int i;
+		for (i = 0; i < len; i++)
+			d[i] = v;
+	}
 }
 
 
@@ -2059,6 +2187,27 @@ void adump_smatrix(a1log *log, char *id, char *pfx, short **a, int nr,  int nc) 
 			a1logd(g_log, 0, "%d%s",a[j][i], i < (nc-1) ? ", " : "");
 		a1logd(g_log, 0, "\n");
 	}
+}
+
+/* Format double matrix as C code to FILE */
+/* id is variable name */
+/* pfx used at start of each line */
+/* hb sets horizontal element limit to wrap */
+/* Assumed indexed from 0 */
+void acode_dmatrix(FILE *fp, char *id, char *pfx, double **a, int nr,  int nc, int hb) {
+	int i, j;
+	fprintf(fp, "%sdouble %s[%d][%d] = {\n",pfx,id,nr,nc);
+
+	for (j = 0; j < nr; j++) {
+		fprintf(fp, "%s\t{ ",pfx);
+		for (i = 0; i < nc; i++) {
+			fprintf(fp, "%f%s",a[j][i], i < (nc-1) ? ", " : "");
+			if ((i % hb) == (hb-1))
+				fprintf(fp, "\n%s\t  ",pfx);
+		}
+		fprintf(fp, " }%s\n", j < (nr-1) ? "," : "");
+	}
+	fprintf(fp, "%s};\n",pfx);
 }
 
 /* Print double vector to g_log debug */
@@ -2171,6 +2320,74 @@ void vect_MulByNxN(int n, double *out, double *mat, double *in) {
 	if (n > 20)
 		free_dvector(tt, 0, n-1);
 }
+
+/* 
+
+  mat         in    out
+     N       
+              []    
+  [     ]     []    []
+M [     ] * N [] => [] M
+  [     ]     []    []
+              []    
+
+ */
+
+/* Multiply N vector by MxN transform matrix to make M vector */
+/* Organization is mat[out=M][in=N] */
+void vect_MulByMxN(int n, int m, double *out, double *mat, double *in) {
+	int i, j;
+	double _tt[20], *tt = _tt;
+
+	if (m > 20)
+		tt = dvector(0, m-1);
+
+	for (i = 0; i < m; i++) {
+		tt[i] = 0.0;
+		for (j = 0; j < n; j++)
+			tt[i] += mat[i * n + j] * in[j];
+	}
+
+	for (i = 0; i < m; i++)
+		out[i] = tt[i];
+
+	if (m > 20)
+		free_dvector(tt, 0, m-1);
+}
+
+/*
+   in         mat       out
+               M   
+            [     ]    
+   N        [     ]      M
+[     ] * N [     ] => [   ]
+            [     ]  
+            [     ]    
+
+ */
+
+/* Multiply N vector by transposed NxM transform matrix to make M vector */
+/* Organization is mat[in=N][out=M] */
+void vect_MulByNxM(int n, int m, double *out, double *mat, double *in) {
+	int i, j;
+	double _tt[20], *tt = _tt;
+
+	if (m > 20)
+		tt = dvector(0, m-1);
+
+	for (i = 0; i < m; i++) {
+		tt[i] = 0.0;
+		for (j = 0; j < n; j++)
+			tt[i] += mat[j * m + i] * in[j];
+	}
+
+	for (i = 0; i < m; i++)
+		out[i] = tt[i];
+
+	if (m > 20)
+		free_dvector(tt, 0, m-1);
+}
+
 
 /* Transpose an NxN matrix */
 void matrix_TransposeNxN(int n, double *out, double *in) {
@@ -2839,7 +3056,7 @@ double usec_time() {
 /* Debug convenience functions */
 /*******************************/
 
-#define DEB_MAX_CHAN 15
+#define DEB_MAX_CHAN 24
 
 /* Print an int vector to a string. */
 /* Returned static buffer is re-used every 5 calls. */
@@ -2870,7 +3087,7 @@ char *debPiv(int di, int *p) {
 /* Print a double color vector to a string with format. */
 /* Returned static buffer is re-used every 5 calls. */
 char *debPdvf(int di, char *fmt, double *p) {
-	static char buf[5][DEB_MAX_CHAN * 100];
+	static char buf[5][DEB_MAX_CHAN * 50];
 	static int ix = 0;
 	int e;
 	char *bp;
@@ -2905,7 +3122,7 @@ char *debPdv(int di, double *p) {
 /* Print a float color vector to a string. */
 /* Returned static buffer is re-used every 5 calls. */
 char *debPfv(int di, float *p) {
-	static char buf[5][DEB_MAX_CHAN * 100];
+	static char buf[5][DEB_MAX_CHAN * 50];
 	static int ix = 0;
 	int e;
 	char *bp;

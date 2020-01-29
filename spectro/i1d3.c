@@ -2068,20 +2068,31 @@ static inst_code i1d3_decode_extEE(
 
 	rchsum = buf2short(buf + 2);
 
-	/* For the "A-01" revsions the checksum is from 4 to 0x179a */
-	/* The "A-02" seems to have abandoned reliable checksums ?? */
-	for (chsum = 0, i = 4; i < 0x179a; i++) {
+	/* For the "A-01" revsions the checksum is from 0x4 to 0x179a */
+	/* The "A-02" & B seems to have abandoned reliable checksums ?? */
+	/* (Some seem to work between 0x4 - 0x178e or 0xf - 0x1792) */
+	for (chsum = 0, i = 4; i < 0x179a; i++)
 		chsum += buf[i];
-	}
-
 	chsum &= 0xffff;
 
 	if (rchsum != chsum) {
-		a1logd(p->log, 3, "i1d3_decode_extEE: checksum failed, is 0x%x, should be 0x%x\n",chsum,rchsum);
-		if (strcmp(p->vers_no, "A-01") == 0) 
-			return i1d3_interp_code((inst *)p, I1D3_BAD_EX_CHSUM);
 
-		/* Else ignore checksum error */
+		if (strcmp(p->vers_no, "A-01") == 0) { 
+			a1logd(p->log, 1, "i1d3_decode_extEE: checksum failed, is 0x%x, should be 0x%x\n",chsum,rchsum);
+			return i1d3_interp_code((inst *)p, I1D3_BAD_EX_CHSUM);
+		}
+
+		/* Hmm. Try alternate range */ 
+		for (chsum = 0, i = 4; i < 0x178e; i++)
+			chsum += buf[i];
+		chsum &= 0xffff;
+
+		if (rchsum != chsum) {
+			a1logd(p->log, 3, "i1d3_decode_extEE: '%s' checksum failed, is 0x%x, should be 0x%x\n",p->vers_no,chsum,rchsum);
+		} else {
+			a1logd(p->log, 3, "i1d3_decode_extEE: '%s' alternate checksum succeded!\n",p->vers_no);
+		}
+		/* Ignore checksum error */
 	}
 		
 	/* Read 3 x sensor spectral sensitivits */

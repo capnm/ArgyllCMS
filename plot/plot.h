@@ -23,6 +23,17 @@ typedef struct {
 	float rgb[3];
 } plot_col;
 
+/* Plot Symbol type */
+typedef enum {
+    plotNoSym	    = 0,
+    plotDiagCross	= 1,
+    plotOrthCross	= 2,
+    plotSquare		= 3,
+    plotDiamond		= 4,
+    plotUpTriang	= 5, 
+    plotDownTriang	= 6 
+} plot_sym;
+
 /* Plot up to 3 X/Y Graphs. return when the user closes the window */
 /* return 0 on success, -1 on error */
 int do_plot(double *x, double *y1, double *y2, double *y3, int n);
@@ -128,6 +139,49 @@ int do_plot_vec3(double xmin, double xmax, double ymin, double ymax,
          int dowait,
 		 double *x3, double *y3, plot_col *mcols, char **mtext, int m,
 		 double *x4, double *y4, double *x5, double *y5, plot_col *ocols, int o);
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+/* General plot */
+
+int do_plot_gen(
+double ixmin, double ixmax, double iymin, double iymax,		/* Graph range, */
+						/* xmin == xmax, ymin == ymax for auto bound on data */
+double ratio, 			/* X/Y graph ratio */
+int zero,				/* Force ymin to be zero */
+int dowait,				/* Wait for user key */
+double *x1, double *y1, double *x2, double *y2, plot_col *ocols, int o,		/* Line segments */
+double *x3, double *y3, plot_sym *tp, plot_col *pcols, char **ptext, int p	/* Symbols */
+);
+
+/* General plot helpers */
+
+typedef struct {
+	double *x1, *y1, *x2, *y2;
+	plot_col *ocols;
+	int o, oa;
+
+	double *x3, *y3;
+	plot_sym *tp;
+	plot_col *pcols;
+	char **ptext;
+	int p, pa;
+} plot_g;
+
+/* rgb, text may be NULL for default/none */
+/* Have to clear list after do_plot_g() */
+void init_g(plot_g *g);
+void add_vec_g(plot_g *g, double x1, double y1, double x2, double y2, float *rgb);
+void add_sym_g(plot_g *g, double x3, double y3, plot_sym st, float *rgb, char *ptext);
+int get_xy_g(plot_g *g, double xy[2], int ix);
+int set_xy_g(plot_g *g, double xy[2], int ix);
+int get_vxyix_g(plot_g *g);
+void do_plot_g(plot_g *g,
+ double xmin, double xmax, double ymin, double ymax,
+         double ratio, int zero, int dowait);
+void clear_g(plot_g *g);
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
 
 #define PLOT_H
 #endif /* PLOT_H */

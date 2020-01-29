@@ -22,6 +22,7 @@
 "Spyder3 (Argyll)"              = LIBUSB0_DEV, USB\VID_085C&PID_0300
 "Spyder4 (Argyll)"              = LIBUSB0_DEV, USB\VID_085C&PID_0400
 "Spyder5 (Argyll)"              = LIBUSB0_DEV, USB\VID_085C&PID_0500
+"SpyderX (Argyll)"              = LIBUSB0_DEV, USB\VID_085C&PID_0A00
 
 [GM_X_Rite_Devices#PLAT#]
 "Eye-One Pro (Argyll)"          = LIBUSB0_DEV, USB\VID_0971&PID_2000

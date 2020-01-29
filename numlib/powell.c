@@ -609,14 +609,24 @@ void *pdata				/* Opaque data needed by prog() */
 	}
 
 	CDBG(("conjgrad with di %d\n", di))
+	CDBG((" cp = %s\n", debPdv(di,cp)))
+	CDBG(("  s = %s\n", debPdv(di,s)))
 
 	if (prog != NULL)		/* Report initial progress */
 		prog(pdata, pc);
 
 	/* Initial function and gradient evaluation */
+	CDBG((" calling dfunc\n"))
 	retv = (*dfunc)(fdata, svec, cp);
-	if (retv == DFUNC_NRV) 
+
+	CDBG((" returned %e and d %s\n",retv,debPdv(di,svec)))
+
+	if (retv == DFUNC_NRV) { 
+		CDBG((" calling func\n"))
 		retv = (*func)(fdata, cp);
+	} else {
+		CDBG((" dfunc returns func value %f\n",retv))
+	}
 
 	/* svec[] seems to be large after this. Compute scaled version that */
 	/* has maximum of s[] so that line search is guided by the search radius. */
@@ -625,11 +635,17 @@ void *pdata				/* Opaque data needed by prog() */
 		if (rat > brat)
 			brat = rat;
 	}
-	svec_sca = 1.0/brat;
+
+	svec_sca = 1.0;
+	if (brat > DBL_EPSILON) 
+		svec_sca /= brat;
+
+	CDBG((" svec_sca = %f\n",svec_sca))
 
 	/* Initial vector setup */
 	for (i = 0; i < di; i++) {
-		svec[i] = gvec[i] = hvec[i] = -svec[i];			/* Inverse gradient */
+		gvec[i] = -svec[i];
+		svec[i] = hvec[i] = gvec[i];	/* Set G & H to -ve gradient */
 		ssvec[i] = svec[i] * svec_sca;	/* Scale the search vector to s[] size */
 	}
 
@@ -681,12 +697,13 @@ void *pdata				/* Opaque data needed by prog() */
 
 		/* Compute gamma */
 		for (gamnum = gamden = 0.0, i = 0; i < di; i++) {
-			gamnum += svec[i] * (gvec[i] + svec[i]);
 			gamden += gvec[i] * gvec[i];
+//			gamnum += svec[i] * svec[i];						/* Flecher-Reeves */
+			gamnum += svec[i] * (gvec[i] + svec[i]);			/* Polak-Ribiere */
 		}
 
 		CDBG((" gamnum = %f, gamden = %f\n", gamnum,gamden));
-		if (gamden == 0.0) {		/* Gradient is exactly zero */
+		if (fabs(gamden) < DBL_EPSILON) {		/* Gradient is exactly zero */
 			CDBG(("conjrad: gradient is exactly zero\n"))
 			break;
 		}

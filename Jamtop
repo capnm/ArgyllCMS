@@ -47,7 +47,7 @@ USE_VTPGLUT = false ;
 USE_PRINTER = false ;
 
 # enable CMF Measurement device support
-USE_CMFM = false ;	
+USE_CMFM = true ;	
 
 # Use ArgyllCMS version of libusb (deprecated - don't use)
 USE_LIBUSB = false ;
@@ -78,9 +78,10 @@ if $(UNIX) {
 	if $(OS) = MACOSX {
 		LINKFLAGS += -framework IOKit ;
 		LINKFLAGS += -framework CoreFoundation ;
-		LINKFLAGS += -framework AudioToolbox ;
 		LINKFLAGS += -framework AppKit ;
+		LINKFLAGS += -framework AudioToolbox ;
 
+	# Hmm. Would be nice to use pkg-config here, if system has it.
 	} else {
 		if [ GLOB /usr/X11R6/include/X11 : X.h ] {
 			LibWinH = /usr/X11R6/include ;

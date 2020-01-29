@@ -123,7 +123,7 @@ mxmlFindElement(mxml_node_t *node,	/* I - Current node */
  * considered a wildcard for one or more levels of elements.  For example,
  * "foo/one/two", "bar/two/one", "*\/one", and so forth.
  *
- * @since Mini-XML 2.7@
+ * Added by GWG
  */
 
 mxml_node_t *				/* O - Found node or NULL */

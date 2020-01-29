@@ -18,10 +18,9 @@
 
 /* TTBD:
 
-	Should add option to create just surface test patches.
-
-	Should add an option to generate grey and near grey
-	or other PCS based pattern test points based on the previous profile.
+	Should add an option to generate other PCS based pattern
+	test points based on the previous profile. (i.e. near neutral
+	clusters ?)
 	How about an option to read in an CGATS file containing
 	PCS or device values ? How is the black level chosen for PCS though ?
 
@@ -871,7 +870,9 @@ usage(int level, char *diag, ...) {
 	fprintf(stderr," -B patches       Black test patches (default 4 Grey/RGB, else 0)\n");
 	fprintf(stderr," -s steps         Single channel steps (default grey 50, color 0)\n");
 	fprintf(stderr," -g steps         Grey axis RGB or CMY steps (default 0)\n");
+	fprintf(stderr," -n steps         Neutral axis steps (based on profile, default 0)\n");
 	fprintf(stderr," -m steps         Multidimensional device space cube steps (default 0)\n");
+	fprintf(stderr," -M steps         Multidimensional device space cube surface steps (default 0)\n");
 	fprintf(stderr," -b steps         Multidimensional body centered cubic steps (default 0)\n");
 	fprintf(stderr," -f patches       Add iterative & adaptive full spread patches to total (default grey 0, color 836)\n");
 	fprintf(stderr,"                  Default is Optimised Farthest Point Sampling (OFPS)\n");
@@ -944,7 +945,9 @@ int main(int argc, char *argv[]) {
 	int ssteps = -1;		/* Single channel steps */
 	double xpow = 1.0;		/* Power to apply to all device values created */
 	int gsteps = -1;		/* Composite grey wedge steps */
+	int nsteps = -1;		/* Neutral wedge steps */
 	int msteps = 0;			/* Regular grid multidimensional steps */
+	int msurf = 0;			/* If nz, make msteps just on device surface */
 	int bsteps = 0;			/* Regular body centered cubic grid multidimensional steps */
 	int fsteps = -1;		/* Fitted Multidimensional patches */
 	int uselat = 0;			/* Use incremental far point alg. for full spread points */
@@ -1073,6 +1076,14 @@ int main(int argc, char *argv[]) {
 					ssteps = tt;
 				fa = nfa;
 			}
+			/* PCS based neutral wedge steps */
+			else if (argv[fa][1] == 'n') {
+				int tt;
+				if (na == NULL) usage(0,"Expect argument after -n");
+				if ((tt = atoi(na)) >= 0)
+					nsteps = tt;
+				fa = nfa;
+			}
 			/* RGB or CMY grey wedge steps */
 			else if (argv[fa][1] == 'g') {
 				int tt;
@@ -1082,7 +1093,8 @@ int main(int argc, char *argv[]) {
 				fa = nfa;
 			}
 			/* Multidimentional cube steps */
-			else if (argv[fa][1] == 'm') {
+			else if (argv[fa][1] == 'm'
+			      || argv[fa][1] == 'M') {
 				int tt;
 				if (na == NULL) usage(0,"Expect argument after -m");
 				if ((tt = atoi(na)) >= 0) {
@@ -1090,6 +1102,8 @@ int main(int argc, char *argv[]) {
 					if (msteps == 1)
 						msteps = 2;
 				}
+				if (argv[fa][1] == 'M')
+					msurf = 1;
 				fa = nfa;
 			}
 			/* Multidimentional body centered cube steps */
@@ -1303,6 +1317,8 @@ int main(int argc, char *argv[]) {
 		esteps = 4;
 	if (gsteps < 0)
 		gsteps = 0;
+	if (nsteps < 0)
+		nsteps = 0;
 
 	if (Bsteps < 0) {
 		if (xmask == ICX_W || xmask == ICX_K || xmask == ICX_RGB || xmask == ICX_IRGB)
@@ -1331,11 +1347,17 @@ int main(int argc, char *argv[]) {
 			warning ("Composite grey steps ignored for monochrome output");
 			gsteps = 0;
 		}
+		if (nsteps > 0) {
+			warning ("Neutral steps ignored for monochrome output");
+			nsteps = 0;
+		}
 	} else if (di == 3) {
-			if (ssteps == 0 && fsteps == 0 && msteps == 0 && bsteps == 0 && gsteps == 0)
+			if (ssteps == 0 && fsteps == 0 && msteps == 0 && bsteps == 0
+			 && gsteps == 0 && nsteps == 0)
 				error ("Must have some single or multi dimensional RGB or CMY steps");
 		} else {
-			if (ssteps == 0 && fsteps == 0 && msteps == 0 && bsteps == 0 && gsteps == 0)
+			if (ssteps == 0 && fsteps == 0 && msteps == 0 && bsteps == 0
+			    && gsteps == 0 && nsteps == 0)
 				error ("Must have some single or multi dimensional steps");
 		}
 
@@ -1362,11 +1384,17 @@ int main(int argc, char *argv[]) {
 			if (ssteps > 0)
 				printf("Single channel steps = %d\n",ssteps);
 			if (gsteps > 0)
-				printf("Compostie Grey steps = %d\n",gsteps);
+				printf("Composite Grey steps = %d\n",gsteps);
+			if (nsteps > 0)
+				printf("Neutral steps = %d\n",nsteps);
 			if (fsteps > 0)
 				printf("Full spread patches = %d\n",fsteps);
-			if (msteps > 0)
-				printf("Multi-dimention cube steps = %d\n",msteps);
+			if (msteps > 0) {
+				if (msurf)
+					printf("Multi-dimention cube surface steps = %d\n",msteps);
+				else
+					printf("Multi-dimention cube steps = %d\n",msteps);
+			}
 			if (bsteps > 0)
 				printf("Multi-dimention body centered cube steps = %d\n",bsteps);
 			if (ilimit >= 0.0)
@@ -1793,6 +1821,87 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
+	/* Neutral wedge steps */
+	if (nsteps > 0) {
+		double lab[3];
+
+		sprintf(buf,"%d",nsteps);
+		pp->add_kword(pp, 0, "NEUTRAL_STEPS",buf, NULL);
+
+		lab[1] = lab[2] = 0.0;
+		for (i = 0; i < nsteps; i++) {
+			int addp, e;
+			double sum, val[MXTD], XYZ[3];
+			cgats_set_elem ary[1 + MXTD + 3];
+
+			addp = 1;			/* Default add the point */
+
+			lab[0] = 100.0 * (double)i/(nsteps-1);
+
+			pdata->rLab_to_dev(pdata, val, lab);
+
+			/* Apply general filter */
+			if (filter && dofilt(pdata, filt, val))
+				addp = 0;
+
+			/* Check if over ink limit */
+			for (sum = 0.0, e = 0; e < di; e++)
+				sum += val[e];
+			if (sum > uilimit)
+				addp = 0;
+
+			/* See if it is already in the fixed list */
+			if (!dontdedupe && fxlist != NULL) {
+				int k;
+				for (k = 0; k < fxno; k++) {
+					for (e = 0; e < di; e++) {
+						double tt;
+						tt = fabs(fxlist[k].p[e] - val[e]);
+						if (tt > MATCH_TOLL)
+							break;			/* Not identical */
+					}
+					if (e >= di)
+						break;				/* Was identical */
+				}
+				if (k < fxno)				/* Found an identical patch */
+					addp = 0;				/* Don't add the point */
+			}
+
+			if (addp) {
+	
+				sprintf(buf,"%d",id++);
+				ary[0].c = buf;
+
+				if (xmask == nmask) {
+					for (e = 0; e < di; e++)
+						ary[1 + e].d = 100.0 * val[e];
+				} else {
+					for (e = 0; e < di; e++)
+						ary[1 + e].d = 100.0 * (1.0 - val[e]);
+				}
+
+				pdata->dev_to_XYZ(pdata, XYZ, val);		/* Add expected XYZ */
+				ary[1 + di + 0].d = 100.0 * XYZ[0];
+				ary[1 + di + 1].d = 100.0 * XYZ[1];
+				ary[1 + di + 2].d = 100.0 * XYZ[2];
+
+				pp->add_setarr(pp, 0, ary);
+	
+				if (fxlist != NULL) {		/* Note in fixed list */
+					if (fxno >= fxlist_a) {
+						fxlist_a *= 2;
+						if ((fxlist = (fxpos *)realloc(fxlist, sizeof(fxpos) * fxlist_a)) == NULL)
+							error ("Failed to malloc fxlist");
+					}
+					for (e = 0; e < di; e++)
+						fxlist[fxno].p[e] = val[e];
+					fxlist[fxno].eloc = -1;
+					fxno++;
+				}
+			}
+		}
+	}
+
 	/* Regular Gridded Multi dimension steps */
 	if (msteps > 0) {
 		int gc[MXTD];			/* Grid coordinate */
@@ -1806,6 +1915,16 @@ int main(int argc, char *argv[]) {
 		for (;;) {	/* For all grid points */
 			double sum, val[MXTD], XYZ[3];
 			int addp, e;
+
+			/* If just surface points, reject points not on (2D) surface */
+			if (msurf) {
+				for (k = e = 0; e < di; e++) {
+					if (gc[e] != 0 && gc[e] != (msteps-1))
+						k++;
+				}
+				if (k > 2)
+					goto next_point;
+			}
 
 			addp = 1;			/* Default add the point */
 
@@ -1879,6 +1998,7 @@ int main(int argc, char *argv[]) {
 			}
 
 			/* Increment grid index and position */
+		  next_point:;
 			for (j = 0; j < di; j++) {
 				gc[j]++;
 				if (gc[j] < msteps)

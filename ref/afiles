@@ -18,6 +18,8 @@ CMP_Digital_Target-4.cht
 CMP_Digital_Target-4.ti2
 CMP_Digital_Target-4.cie
 CMP_Digital_Target-7.cht
+CMP_Digital_Target-2019.cht
+CMP_Digital_Target_Studio.cht
 ColorChecker.cht
 ColorChecker.cie
 ColorChecker.ti2
@@ -39,6 +41,10 @@ FograStrip3.ti1
 FograStrip3_3.ti2
 Hutchcolor.cht
 LaserSoftDCPro.cht
+ISO12641_2_1.cht
+ISO12641_2_3_1.cht
+ISO12641_2_3_2.cht
+ISO12641_2_3_3.cht
 QPcard_201.cht
 QPcard_201.cie
 QPcard_202.cht
@@ -48,6 +54,7 @@ i1_RGB_Scan_1.4.ti2
 it8.cht
 linear.cal
 strange.cal
+flat.sp
 3dap5k.sp
 F1.sp
 F5.sp

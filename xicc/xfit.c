@@ -18,6 +18,8 @@
 /*
  * TTBD:
  *
+ *		[ This is probably key to fixing L*a*b* B2A black bumpiness. ]
+ *
  *		Need to use this for B2A tables rather than inverting
  *		A2B curves. Need to add grid sizing to cover just gamut range
  *      (including level axis gamut, but watch out for devices that

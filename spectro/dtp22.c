@@ -594,7 +594,8 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 	val->duration = 0.0;
 
 	if (p->mode & inst_mode_spectral
-	 || XCALSTD_NEEDED(p->target_calstd, p->native_calstd)) {
+	 || XCALSTD_NEEDED(p->target_calstd, p->native_calstd)
+	 || p->custfilt_en) {
 		int j;
 		char *fmt;
 
@@ -624,6 +625,10 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 
 	/* Apply any XRGA conversion */
 	ipatch_convert_xrga(val, 1, xcalstd_nonpol, p->target_calstd, p->native_calstd, clamp);
+
+	/* Apply custom filter compensation */
+	if (p->custfilt_en)
+		ipatch_convert_custom_filter(val, 1, &p->custfilt, clamp);
 
 	if (user_trig)
 		return inst_user_trig;
@@ -1097,6 +1102,42 @@ dtp22_get_set_opt(inst *pp, inst_opt_type m, ...)
 		else
 			*standard = p->target_calstd;		/* Overidden std. */
 
+		return inst_ok;
+	}
+
+	if (m == inst_opt_set_custom_filter) {
+		va_list args;
+		xspect *sp = NULL;
+
+		va_start(args, m);
+
+		sp = va_arg(args, xspect *);
+
+		va_end(args);
+
+		if (sp == NULL || sp->spec_n == 0) {
+			p->custfilt_en = 0;
+			p->custfilt.spec_n = 0;
+		} else {
+			p->custfilt_en = 1;
+			p->custfilt = *sp;			/* Struct copy */
+		}
+		return inst_ok;
+	}
+
+	if (m == inst_stat_get_custom_filter) {
+		va_list args;
+		xspect *sp = NULL;
+
+		va_start(args, m);
+		sp = va_arg(args, xspect *);
+		va_end(args);
+
+		if (p->custfilt_en) {
+			*sp = p->custfilt;			/* Struct copy */
+		} else {
+			sp = NULL;
+		}
 		return inst_ok;
 	}
 

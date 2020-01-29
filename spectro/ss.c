@@ -883,6 +883,10 @@ ipatch *vals) { 		/* Pointer to array of values */
 	                   p->filt == ss_aft_PolFilter ? xcalstd_pol : xcalstd_nonpol,
 	                   p->target_calstd, p->native_calstd, instClamp);
 
+	/* Apply custom filter compensation */
+	if (p->custfilt_en)
+		ipatch_convert_custom_filter(vals, npatch, &p->custfilt, instClamp);
+
 	return rv;
 }
 
@@ -1216,89 +1220,6 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 		val->XYZ_v = 1;
 		val->mtype = inst_mrt_transmissive;
 	 
-
-	/* Using filter compensation */
-	/* This isn't applicable to emulated transmission mode, because */
-	/* the filter will be calibrated out in the illuminant measurement. */
-	} else if (p->compen != 0) {
-		ss_cst rct;
-		ss_st rst;		/* Return Spectrum Type (Reflectance/Density) */
-		ss_rvt rvf;		/* Return Reference Valid Flag */
-		ss_aft af;		/* Return filter being used (None/Pol/D65/UV/custom */
-		ss_ilt it;
-		ss_ot  ot;
-		ss_wbt wb;		/* Return white base (Paper/Absolute) */
-#ifdef NEVER
-		double norm;	/* Y normalisation factor */
-#endif
-		double XYZ[3];
-		int j, tix = 0;	/* Default 2 degree */
-
-		/* Get the XYZ */
-		if ((rv = so_do_CParameterRequest(p, ss_cst_XYZ, &rct, col, &rvf,
-		     &af, &wb, &it, &ot)) != inst_ok)
-			return rv;
-
-		/* Get the spectrum */
-		if ((rv = so_do_SpecParameterRequest(p, ss_st_LinearSpectrum,
-		          &rst, spec, &rvf, &af, &wb)) != inst_ok)
-			return rv;
-
-		/* Multiply by the filter compensation values to do correction */
-		for (i = 0; i < 36; i++) {
-			spec[i] *= p->comp[i];
-		}
-
-		/* Return the results */
-		if (p->mode & inst_mode_spectral) {
-			val->sp.spec_n = 36;
-			val->sp.spec_wl_short = 380;
-			val->sp.spec_wl_long = 730;
-			if ((p->mode & inst_mode_illum_mask) == inst_mode_emission) {
-				val->sp.norm = 1.0;
-				for (i = 0; i < val->sp.spec_n; i++)
-					val->sp.spec[i] = (double)spec[i];
-			} else {
-				val->sp.norm = 100.0;
-				for (i = 0; i < val->sp.spec_n; i++)
-					val->sp.spec[i] = 100.0 * (double)spec[i];
-			}
-		}
-
-		/* Convert to desired illuminant XYZ */
-		if (p->obsv == ss_ot_TenDeg)
-			tix = 1;
-
-		/* Compute XYZ */
-		for (j = 0; j < 3; j++)
-			XYZ[j] = 0.0;
-		for (i = 0; i < 36; i++)
-			for (j = 0; j < 3; j++)
-				XYZ[j] += obsv[tix][j][i] * spec[i];
-
-		/* This may not change anything since instrument may clamp */
-		if (clamp)
-			icmClamp3(XYZ, XYZ);
-
-		if ((p->mode & inst_mode_illum_mask) == inst_mode_emission) {
-			/* Emission XYZ seems to be Luminous Watts, so */
-			/* convert to cd/m^2 */
-			val->XYZ_v = 1;
-			val->XYZ[0] = XYZ[0] * 683.002;
-			val->XYZ[1] = XYZ[1] * 683.002;
-			val->XYZ[2] = XYZ[2] * 683.002;
-			val->mtype = inst_mrt_emission;
-		} else {
-			val->XYZ_v = 1;
-			val->XYZ[0] = XYZ[0];
-			val->XYZ[1] = XYZ[1];
-			val->XYZ[2] = XYZ[2];
-			if ((p->mode & inst_mode_illum_mask) == inst_mode_transmission)
-				val->mtype = inst_mrt_transmissive;
-			else
-				val->mtype = inst_mrt_reflective;
-		}
-
 	/* Normal instrument values */
 	} else {
 		ss_cst rct;
@@ -1686,43 +1607,6 @@ char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 	return ss_calibrate_imp(p, calt, calc, idtype, id);
 }
 
-/* Insert a compensation filter in the instrument readings */
-/* This is typically needed if an adapter is being used, that alters */
-/* the spectrum of the light reaching the instrument */
-/* To remove the filter, pass NULL for the filter filename */
-inst_code ss_comp_filter(
-struct _inst *pp,
-char *filtername
-) {
-	ss *p = (ss *)pp;
-	
-	if (!p->gotcoms)
-		return inst_no_coms;
-	if (!p->inited)
-		return inst_no_init;
-
-#ifndef SALONEINSTLIB
-	if (filtername == NULL) {
-		p->compen = 0;
-	} else {
-		xspect sp;
-		int i;
-		if (read_xspect(&sp, NULL, filtername) != 0) {
-			return inst_wrong_setup;
-		}
-		if (sp.spec_n != 36 || sp.spec_wl_short != 380.0 || sp.spec_wl_long != 730.0) {
-			return inst_wrong_setup;
-		}
-		for (i = 0; i < 36; i++)
-			p->comp[i] = sp.spec[i];
-		p->compen = 1;
-	}
-	return inst_ok;
-#else /* SALONEINSTLIB */
-	return inst_unsupported; 
-#endif /* SALONEINSTLIB */
-}
-
 /* Instrument specific error codes interpretation */
 static char *
 ss_interp_error(inst *pp, int ec) {
@@ -2023,6 +1907,25 @@ ss_get_set_opt(inst *pp, inst_opt_type m, ...) {
 		}
 		return inst_unsupported;
 
+	} else if (m == inst_opt_set_custom_filter) {
+		va_list args;
+		xspect *sp = NULL;
+
+		va_start(args, m);
+
+		sp = va_arg(args, xspect *);
+
+		va_end(args);
+
+		if (sp == NULL || sp->spec_n == 0) {
+			p->custfilt_en = 0;
+			p->custfilt.spec_n = 0;
+		} else {
+			p->custfilt_en = 1;
+			p->custfilt = *sp;			/* Struct copy */
+		}
+		return inst_ok;
+
 	/* Set the current xcalstd */
 	} else if (m == inst_opt_set_xcalstd) {
 		xcalstd standard;
@@ -2105,6 +2008,22 @@ ss_get_set_opt(inst *pp, inst_opt_type m, ...) {
 			default:
 				*filt = inst_opt_filter_unknown;
 				break;
+		}
+		return inst_ok;
+	}
+
+	if (m == inst_stat_get_custom_filter) {
+		va_list args;
+		xspect *sp = NULL;
+
+		va_start(args, m);
+		sp = va_arg(args, xspect *);
+		va_end(args);
+
+		if (p->custfilt_en) {
+			*sp = p->custfilt;			/* Struct copy */
+		} else {
+			sp = NULL;
 		}
 		return inst_ok;
 	}
@@ -2205,7 +2124,6 @@ extern ss *new_ss(icoms *icom, instType dtype) {
 	p->read_sample 	    = ss_read_sample;
 	p->get_n_a_cals     = ss_get_n_a_cals;
 	p->calibrate    	= ss_calibrate;
-	p->comp_filter    	= ss_comp_filter;
 	p->interp_error 	= ss_interp_error;
 	p->del          	= ss_del;
 

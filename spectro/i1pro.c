@@ -844,6 +844,44 @@ i1pro_get_set_opt(inst *pp, inst_opt_type m, ...) {
 		return inst_ok;
 	}
 
+	if (m == inst_opt_set_custom_filter) {
+		i1proimp *imp = (i1proimp *)p->m;
+		va_list args;
+		xspect *sp = NULL;
+
+		va_start(args, m);
+
+		sp = va_arg(args, xspect *);
+
+		va_end(args);
+
+		if (sp == NULL || sp->spec_n == 0) {
+			imp->custfilt_en = 0;
+			imp->custfilt.spec_n = 0;
+		} else {
+			imp->custfilt_en = 1;
+			imp->custfilt = *sp;			/* Struct copy */
+		}
+		return inst_ok;
+	}
+
+	if (m == inst_stat_get_custom_filter) {
+		i1proimp *imp = (i1proimp *)p->m;
+		va_list args;
+		xspect *sp = NULL;
+
+		va_start(args, m);
+		sp = va_arg(args, xspect *);
+		va_end(args);
+
+		if (imp->custfilt_en) {
+			*sp = imp->custfilt;			/* Struct copy */
+		} else {
+			sp = NULL;
+		}
+		return inst_ok;
+	}
+
 	/* Return the white calibration tile spectrum */
 	/* (We always return the normal rez. reference values) */
 	if (m == inst_opt_get_cal_tile_sp) {

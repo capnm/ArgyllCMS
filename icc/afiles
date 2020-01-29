@@ -12,7 +12,7 @@ afiles
 icc.c
 iccstd.c
 icc.h
-iccV42.h
+iccV43.h
 iccdump.c
 icclu.c
 iccrw.c

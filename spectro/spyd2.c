@@ -2,7 +2,7 @@
 /* 
  * Argyll Color Correction System
  *
- * Datacolor/ColorVision Spyder 2/3/4 related software.
+ * Datacolor/ColorVision Spyder 2/3/4/5 related software.
  *
  * Author: Graeme W. Gill
  * Date:   17/9/2007
@@ -3446,6 +3446,7 @@ spyd2_interp_code(inst *pp, int ec) {
 			return inst_internal_error | ec;
 
 		case SPYD2_COMS_FAIL:
+		case SPYD2_DATA_PARSE_ERROR:
 		case SPYD2_BADREADSIZE:
 		case SPYD2_TRIGTIMEOUT:
 		case SPYD2_BADSTATUS:

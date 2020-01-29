@@ -117,8 +117,9 @@ void usage(char *diag, ...) {
 	fprintf(stderr," -K parameters   Same as -k, but target is K locus rather than K value itself\n");
 	fprintf(stderr," -l tlimit       override total ink limit, 0 - 400%% (default from .ti3)\n");
 	fprintf(stderr," -L klimit       override black ink limit, 0 - 100%% (default from .ti3)\n");
-	fprintf(stderr," -a lxXgsmGS     Algorithm type override\n");
-	fprintf(stderr,"                 l = Lab cLUT (def.), x = XYZ cLUT, X = display XYZ cLUT + matrix\n");
+	fprintf(stderr," -a lxXYgsmGS    Algorithm type override\n");
+	fprintf(stderr,"                 l = Lab cLUT (def.), x = XYZ cLUT,\n");
+	fprintf(stderr,"                 X = display XYZ cLUT + matrix, Y = display XYZ cLUT + debug matrix\n");
 	fprintf(stderr,"                 g = gamma+matrix, s = shaper+matrix, m = matrix only,\n");
 	fprintf(stderr,"                 G = single gamma+matrix, S = single shaper+matrix\n");
 //  Development - not supported
@@ -236,7 +237,8 @@ int main(int argc, char *argv[]) {
 	cgats *icg;					/* input cgats structure */
 	int dti, ti;				/* Device type index, Temporary CGATs index */
 	prof_atype ptype = prof_default;	/* Default for each type of device */
-	int mtxtoo = 0;				/* NZ if matrix tags should be created for Display XYZ cLUT */
+	int mtxtoo = 0;				/* 1 if matrix tags should be created for Display XYZ cLUT */
+								/* 2 if debug matrix tags should be created for Display XYZ cLUT */
 	icmICCVersion iccver = icmVersionDefault;	/* ICC profile version to create */
 	profxinf xpi;		/* Extra profile information */
 
@@ -595,10 +597,15 @@ int main(int argc, char *argv[]) {
 					case 'L':
 						ptype = prof_clutLab;
 						break;
+					case 'x':
+						ptype = prof_clutXYZ;
+						break;
 					case 'X':
 						mtxtoo = 1;
-						/* Fall though */
-					case 'x':
+						ptype = prof_clutXYZ;
+						break;
+					case 'Y':
+						mtxtoo = 2;
 						ptype = prof_clutXYZ;
 						break;
 					case 'g':

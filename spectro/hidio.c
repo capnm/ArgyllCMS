@@ -546,6 +546,7 @@ char **pnames			/* List of process names to try and kill before opening */
 #if defined(NT) 
 		{
 			int tries = 0;
+			int last_err = 0;
 
 			for (tries = 0; retries >= 0; retries--, tries++) {
 				/* Open the device */
@@ -559,7 +560,9 @@ char **pnames			/* List of process names to try and kill before opening */
 						return ICOM_SYS;
 					}
 					break;
-				}
+				} else
+					last_err = GetLastError();
+
 				if (tries > 0 && pnames != NULL) {
 					/* Open failed. This could be the i1ProfileTray.exe */
 					kill_nprocess(pnames, p->log);		/* Try and kill it once */
@@ -568,7 +571,7 @@ char **pnames			/* List of process names to try and kill before opening */
 			}
 			if (p->hidd->fh == INVALID_HANDLE_VALUE) {
 				a1loge(p->log, ICOM_SYS, "hid_open_port: Failed to open "
-				                     "path '%s' with err %d\n",p->hidd->dpath, GetLastError());
+				                     "path '%s' with err %d\n",p->hidd->dpath, last_err);
 				return ICOM_SYS;
 			}
 		}

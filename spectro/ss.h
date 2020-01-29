@@ -85,9 +85,9 @@ struct _ss {
 	double tref[36];			/* White reference spectrum */
 	double cill[36];			/* Colorimetry illuminant */
 
-	/* telescopic adapter compensation */
-	int compen;					/* Compensation filter enabled */
-	double comp[36];			/* Compensation filter */
+	/* Custom compensation filter */
+	int custfilt_en;			/* Custom filter enabled */
+	xspect custfilt;			/* Custom filter */
 
 	xcalstd native_calstd;		/* Instrument native calibration standard */
 	xcalstd target_calstd;		/* Returned calibration standard */

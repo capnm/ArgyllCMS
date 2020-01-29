@@ -52,79 +52,8 @@
 		since some pathalogical cases don't work.
  */
 
-/*
-
-	!!!!! This has all been fixed ? !!!!!!
-
-	NOTE :- an alternative to the way display profile absolute is handled here
-	would be to always chromatically adapt the illuminant to D50, and encode
-	that in the Chromatic adapation tag. To make absolute colorimetric
-	do anything useful though, the chromatic adapation tag would
-    have to be used for absolute intent.
-	This may be the way of improving compatibility with other systems,
-	and is needed for V4, but would break compatibility with existing
-	Argyll profiles, unless special measures are taken:
-
-	ie. 
-
-		1) if (display profile & using chromatic adaptation tag)
-			Create Bradford chromatic adapation matrix and store it in tag
-			Adapt all the readings using Bradford
-			Create white point and store it in tag (white point will be D50)
-			Adapt all the readings to the white point using wrong Von-Kries (== NOOP)	
-			Store relative colorimetric cLUT 
-			Set version >= 2.4
-
-		else
-			2) if (display scheme A or using Argyll historical printer scheme) 
-				Create white point and store it in tag
-				Adapt all the readings to the white point using Bradford
-				Store relative colorimetric tag
-				Set version < 2.4 for V2 profile
-				Add private Absolute Transform Matrix (labels V4 profile)
-
-			3) else (display scheme B or strict ICC printer compatibility)
-				Create white point and store it in tag
-				Adapt all the readings to the white point using Wrong Von-Kries
-				Store relative colorimetric tag
-				Set version >= 2.4
-
-
-	Argyll Processing for each type
-
-		1) if display and chromatic adapation matrix
-			Un-adapt matrix or cLUT using wrong Von-Kries from white point
-			Un-adapt matrix or cLUT using chromatic matrix
-			Un-adapt apparant white point & black point using chromatic transform
-
-			if (not absolute intent)
-				Create Bradford transfor from white to PCS D50
-				Adapt all matrix or cLUT
-		else
-			2) if (display scheme A or using Argyll < V2.4. profile
-			       or find Absolute Transform Matrix) 
-				if (absolute intent)
-					Un-adapt matrix or cLUT using Bradford from white point
-			
-			3) else (display scheme B or !Argyll profile or ( >= V2.4 profile
-			       and !Absolute Transform Matrix)) 
-				Un-adapt matrix or cLUT using wrong Von-Kries from white point
-	
-				if (not absolute intent)
-					Create Bradford transfor from white to PCS D50
-					Adapt all matrix or cLUT to white
-
-
-	The problem with this is that it wouldn't do the right thing on old Argyll
-	type profiles that weren't labeled or recognized.
-
-	Is there a way of recognizing Bradford Absolute transform Matricies if
-	the color chromaticities are given ?
-
- */
-
 /* 
-	A similar condrum is that it seems that an unwritten convention for
+	An ICC condrum is that it seems that an unwritten convention for
  	V2 profiles is to scale the black point of the perceptual and
 	saturation tables to 0 (Part of the V4 spec is to scale to Y = 3.1373).
 
@@ -179,6 +108,9 @@
 #define JCCWEIGHT	2.0			/* [2.0] Amount to emphasize J delta E in in computing clip */
 #define CCCWEIGHT	1.0			/* [1.0] Amount to emphasize C delta E in in computing clip */
 #define HCCWEIGHT	2.2			/* [2.2] Amount to emphasize H delta E in in computing clip */
+
+#define KLOCUS2BLACKONLY		/* [def] Make K locus inking rules from zero to max */
+								/*       rather than min to max of locus */
 
 /*
  * TTBD:
@@ -1250,7 +1182,13 @@ double *in		/* Function input values to invert (== clut output' values) */
 
 					for (e = 0; e < p->clutTable->di; e++) {
 						if (p->auxm[e] != 0) {
+#ifdef KLOCUS2BLACKONLY
+							/* Select between zero to max locus */
+							upp.p[e] = pp[0].p[e] = rv * max[e];
+#else
+							/* Select between min to max locus */
 							upp.p[e] = pp[0].p[e] = min[e] + rv * (max[e] - min[e]);
+#endif
 						}
 					}
 					DBR(("inv_clut_aux: aux %f from locus %f min %f max %f\n",pp[0].p[3],rv,min[3],max[3]))
@@ -1296,7 +1234,13 @@ double *in		/* Function input values to invert (== clut output' values) */
 									ii = 1.0;
 								ii = (1.0 - ii) * rv + ii * rv2;/* Blend between locus rule curves */
 								/* Out ink from output locus */
+#ifdef KLOCUS2BLACKONLY
+								/* Select between zero to max locus */
+								upp.p[e] = pp[0].p[e] = ii * max[e];
+#else
+								/* Select between min to max locus */
 								upp.p[e] = pp[0].p[e] = min[e] + ii * (max[e] - min[e]);
+#endif
 							} else {
 								double iv;
 								iv = out[e];				/* Input K level */

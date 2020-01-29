@@ -789,7 +789,7 @@ static void read_PCSNumber(icc *icp, icColorSpaceSignature csig, double pcs[3], 
 	if (csig == icmSigPCSData)
 		csig = icp->header->pcs;
 	if (csig == icSigLabData) {
-		if (icp->ver >= icmVersion4_1)
+		if (icp->header->majv >= 4)
 			csig = icmSigLabV4Data;
 		else
 			csig = icmSigLabV2Data;
@@ -834,7 +834,7 @@ static int write_PCSNumber(icc *icp, icColorSpaceSignature csig, double pcs[3], 
 	if (csig == icmSigPCSData)
 		csig = icp->header->pcs;
 	if (csig == icSigLabData) {
-		if (icp->ver >= icmVersion4_1)
+		if (icp->header->majv >= 4)
 			csig = icmSigLabV4Data;
 		else
 			csig = icmSigLabV2Data;
@@ -1665,6 +1665,8 @@ static const char *string_ColorSpaceSignature(icColorSpaceSignature sig) {
 			return "15 Color";
 
 		/* Non-standard and Pseudo spaces */
+		case icmSigYuvData:
+			return "Yu'v'";
 		case icmSigYData:
 			return "Y";
 		case icmSigLData:
@@ -10996,12 +10998,12 @@ static int icmHeader_read(
     p->creator = read_SInt32Number(buf + 80);	/* Profile creator */
 
 	for (tt = 0; tt < 16; tt++)					/* Profile ID */
-		p->id[tt] = icp->ver >= icmVersion4_1 ? read_UInt8Number(buf + 84 + tt) : 0;
+		p->id[tt] = icp->header->majv >= 4 ? read_UInt8Number(buf + 84 + tt) : 0;
 
 	icp->al->free(icp->al, buf);
 
 #ifndef ENABLE_V4
-	if (icp->ver >= icmVersion4_1) {
+	if (icp->header->majv >= 4) {
 		sprintf(icp->err,"icmHeader_read: ICC V4 not supported!");
 		return icp->errc = 1;
 	}
@@ -11128,7 +11130,7 @@ static int icmHeader_write(
 		icp->al->free(icp->al, buf);
 		return icp->errc = rv;
 	}
-	if (doid == 0 && icp->ver >= icmVersion4_1) {	/* ID is V4.0+ feature */
+	if (doid == 0 && icp->header->majv >= 4) {	/* ID is V4.0+ feature */
 		for (tt = 0; tt < 16; tt++) {
 		    if ((rv = write_UInt8Number(p->id[tt], buf + 84 + tt)) != 0) { /* Profile ID */
 				sprintf(icp->err,"icmHeader_write: UInt8Number creator");
@@ -11174,7 +11176,7 @@ static void icmHeader_dump(
 	op->gprintf(op,"  Rndrng Intnt = %s\n", string_RenderingIntent(p->renderingIntent));
 	op->gprintf(op,"  Illuminant   = %s\n", string_XYZNumber_and_Lab(&p->illuminant));
 	op->gprintf(op,"  Creator      = %s\n", tag2str(p->creator));	/* ~~~ */
-	if (p->icp->ver >= icmVersion4_1) {	/* V4.0+ feature */
+	if (p->icp->header->majv >= 4) {	/* V4.0+ feature */
 		for (i = 0; i < 16; i++) {		/* Check if ID has been set */
 			if (p->id[i] != 0)
 				break;
@@ -11216,53 +11218,59 @@ static icmHeader *new_icmHeader(
 }
 
 /* ---------------------------------------------------------- */
-/* Type vector table. Match the Tag type against the object creator */
+/* Type vector table. Match the Tag type against the object creation function */
 static struct {
 	icTagTypeSignature  ttype;			/* The tag type signature */
 	icmBase *              (*new_obj)(icc *icp);
 } typetable[] = {
-	{icSigColorantTableType,       new_icmColorantTable},
-	{icmSigAltColorantTableType,   new_icmColorantTable},
-	{icSigCrdInfoType,             new_icmCrdInfo},
-	{icSigCurveType,               new_icmCurve},
-	{icSigDataType,                new_icmData},
-	{icSigDateTimeType,            new_icmDateTimeNumber},
-	{icSigLut16Type,               new_icmLut},
-	{icSigLut8Type,                new_icmLut},
-	{icSigMeasurementType,         new_icmMeasurement},
-	{icSigNamedColorType,          new_icmNamedColor},
-	{icSigNamedColor2Type,         new_icmNamedColor},
-	{icSigProfileSequenceDescType, new_icmProfileSequenceDesc},
-	{icSigS15Fixed16ArrayType,     new_icmS15Fixed16Array},
-	{icSigScreeningType,           new_icmScreening},
-	{icSigSignatureType,           new_icmSignature},
-	{icSigTextDescriptionType,     new_icmTextDescription},
-	{icSigTextType,                new_icmText},
-	{icSigU16Fixed16ArrayType,     new_icmU16Fixed16Array},
-	{icSigUcrBgType,               new_icmUcrBg},
-	{icSigVideoCardGammaType,      new_icmVideoCardGamma},
-	{icSigUInt16ArrayType,         new_icmUInt16Array},
-	{icSigUInt32ArrayType,         new_icmUInt32Array},
-	{icSigUInt64ArrayType,         new_icmUInt64Array},
-	{icSigUInt8ArrayType,          new_icmUInt8Array},
-	{icSigViewingConditionsType,   new_icmViewingConditions},
-	{icSigXYZArrayType,            new_icmXYZArray},
+	{icSigColorantTableType,         new_icmColorantTable},
+	{icmSigAltColorantTableType,     new_icmColorantTable},
+	{icSigCrdInfoType,               new_icmCrdInfo},
+	{icSigCurveType,                 new_icmCurve},
+	{icSigDataType,                  new_icmData},
+	{icSigDateTimeType,              new_icmDateTimeNumber},
+	{icSigLut16Type,                 new_icmLut},
+	{icSigLut8Type,                  new_icmLut},
+	{icSigLutAToBType,               new_icmLut},
+	{icSigLutBToAType,               new_icmLut},
+	{icSigMeasurementType,           new_icmMeasurement},
+	{icSigMultiLocalizedUnicodeType, new_icmTextDescription},
+	{icSigNamedColorType,            new_icmNamedColor},
+	{icSigNamedColor2Type,           new_icmNamedColor},
+	{icSigParametricCurveType,       new_icmCurve},
+	{icSigProfileSequenceDescType,   new_icmProfileSequenceDesc},
+	{icSigS15Fixed16ArrayType,       new_icmS15Fixed16Array},
+	{icSigScreeningType,             new_icmScreening},
+	{icSigSignatureType,             new_icmSignature},
+	{icSigTextDescriptionType,       new_icmTextDescription},
+	{icSigTextType,                  new_icmText},
+	{icSigU16Fixed16ArrayType,       new_icmU16Fixed16Array},
+	{icSigUcrBgType,                 new_icmUcrBg},
+	{icSigVideoCardGammaType,        new_icmVideoCardGamma},
+	{icSigUInt16ArrayType,           new_icmUInt16Array},
+	{icSigUInt32ArrayType,           new_icmUInt32Array},
+	{icSigUInt64ArrayType,           new_icmUInt64Array},
+	{icSigUInt8ArrayType,            new_icmUInt8Array},
+	{icSigViewingConditionsType,     new_icmViewingConditions},
+	{icSigXYZArrayType,              new_icmXYZArray},
+
+/*	To be added:
+	icSigMultiProcessElementsType
+*/
 	{icMaxEnumType,                NULL}
 }; 
 
-/* Table that lists the legal Types for each Tag Signature */
-static struct {
-	icTagSignature      sig;
-	icTagTypeSignature  ttypes[4];			/* Arbitrary max of 4 */
-} sigtypetable[] = {
-	{icSigAToB0Tag,					{icSigLut8Type,icSigLut16Type,icMaxEnumType}},
-	{icSigAToB1Tag,					{icSigLut8Type,icSigLut16Type,icMaxEnumType}},
-	{icSigAToB2Tag,					{icSigLut8Type,icSigLut16Type,icMaxEnumType}},
+/* Table that lists the legal Types for each Tag Signature for V2 profiles */
+/* Default Type is first */
+static sig2type sigtypetableV2[] = {
+	{icSigAToB0Tag,					{icSigLut16Type,icSigLut8Type,icMaxEnumType}},
+	{icSigAToB1Tag,					{icSigLut16Type,icSigLut8Type,icMaxEnumType}},
+	{icSigAToB2Tag,					{icSigLut16Type,icSigLut8Type,icMaxEnumType}},
 	{icSigBlueColorantTag,			{icSigXYZType,icMaxEnumType}},
 	{icSigBlueTRCTag,				{icSigCurveType,icMaxEnumType}},
-	{icSigBToA0Tag,					{icSigLut8Type,icSigLut16Type,icMaxEnumType}},
-	{icSigBToA1Tag,					{icSigLut8Type,icSigLut16Type,icMaxEnumType}},
-	{icSigBToA2Tag,					{icSigLut8Type,icSigLut16Type,icMaxEnumType}},
+	{icSigBToA0Tag,					{icSigLut16Type,icSigLut8Type,icMaxEnumType}},
+	{icSigBToA1Tag,					{icSigLut16Type,icSigLut8Type,icMaxEnumType}},
+	{icSigBToA2Tag,					{icSigLut16Type,icSigLut8Type,icMaxEnumType}},
 	{icSigCalibrationDateTimeTag,	{icSigDateTimeType,icMaxEnumType}},
 	{icSigChromaticAdaptationTag,	{icSigS15Fixed16ArrayType,icMaxEnumType}},
 	{icSigCharTargetTag,			{icSigTextType,icMaxEnumType}},
@@ -11306,6 +11314,87 @@ static struct {
 	{icSigViewingConditionsTag,		{icSigViewingConditionsType,icMaxEnumType}},
 
 	{icmSigAbsToRelTransSpace,		{icSigS15Fixed16ArrayType,icMaxEnumType}},
+
+	{icMaxEnumTag,					{icMaxEnumType}}
+}; 
+
+/* Table that lists the legal Types for each Tag Signature for V4 profiles. */
+/* Default Type is first */
+static sig2type sigtypetableV4[] = {
+	{icSigAToB0Tag,					{icSigLutAToBType, icSigLut16Type,icSigLut8Type,
+	                                                                 icMaxEnumType}},
+	{icSigAToB1Tag,					{icSigLutAToBType, icSigLut16Type,icSigLut8Type,
+	                                                                 icMaxEnumType}},
+	{icSigAToB2Tag,					{icSigLutAToBType, icSigLut16Type,icSigLut8Type,
+	                                                                 icMaxEnumType}},
+	{icSigBlueColorantTag,			{icSigXYZType,icMaxEnumType}},
+	{icSigBlueTRCTag,				{icSigParametricCurveType,icSigCurveType,icMaxEnumType}},
+	{icSigBToA0Tag,					{icSigLutBToAType, icSigLut16Type,icSigLut8Type,
+	                                                                 icMaxEnumType}},
+	{icSigBToA1Tag,					{icSigLutBToAType, icSigLut16Type,icSigLut8Type,
+	                                                                 icMaxEnumType}},
+	{icSigBToA2Tag,					{icSigLutBToAType, icSigLut16Type,icSigLut8Type,
+	                                                                 icMaxEnumType}},
+	{icSigCalibrationDateTimeTag,	{icSigDateTimeType,icMaxEnumType}},
+	{icSigChromaticAdaptationTag,	{icSigS15Fixed16ArrayType,icMaxEnumType}},
+	{icSigCharTargetTag,			{icSigTextType,icMaxEnumType}},
+	{icSigColorantTableTag,         {icSigColorantTableType,icmSigAltColorantTableType,
+									                                     icMaxEnumType}},
+	{icSigColorantTableOutTag,      {icSigColorantTableType,icmSigAltColorantTableType,
+									                                     icMaxEnumType}},
+	{icSigCopyrightTag,				{icSigMultiLocalizedUnicodeType,icMaxEnumType}},
+	{icSigCrdInfoTag,				{icSigCrdInfoType,icMaxEnumType}},
+	{icSigDeviceMfgDescTag,			{icSigMultiLocalizedUnicodeType,icMaxEnumType}},
+	{icSigDeviceModelDescTag,		{icSigMultiLocalizedUnicodeType,icMaxEnumType}},
+	{icSigGamutTag,					{icSigLutBToAType,icSigLut16Type,icSigLut8Type,icMaxEnumType}},
+	{icSigGrayTRCTag,				{icSigParametricCurveType,icSigCurveType,icMaxEnumType}},
+	{icSigGreenColorantTag,			{icSigXYZType,icMaxEnumType}},
+	{icSigGreenTRCTag,				{icSigParametricCurveType,icSigCurveType,icMaxEnumType}},
+	{icSigLuminanceTag,				{icSigXYZType,icMaxEnumType}},
+	{icSigMeasurementTag,			{icSigMeasurementType,icMaxEnumType}},
+	{icSigMediaBlackPointTag,		{icSigXYZType,icMaxEnumType}},
+	{icSigMediaWhitePointTag,		{icSigXYZType,icMaxEnumType}},
+	{icSigNamedColorTag,			{icSigNamedColorType,icMaxEnumType}},
+	{icSigNamedColor2Tag,			{icSigNamedColor2Type,icMaxEnumType}},
+	{icSigPreview0Tag,				{icSigLutAToBType,icSigLutBToAType,icSigLut16Type,
+	                                                      icSigLut8Type,icMaxEnumType}},
+	{icSigPreview1Tag,				{icSigLutBToAType,icSigLut16Type, icSigLut8Type,icMaxEnumType}},
+	{icSigPreview2Tag,				{icSigLutBToAType,icSigLut16Type, icSigLut8Type,icMaxEnumType}},
+	{icSigProfileDescriptionTag,	{icSigMultiLocalizedUnicodeType,icMaxEnumType}},
+	{icSigProfileSequenceDescTag,	{icSigProfileSequenceDescType,icMaxEnumType}},
+	{icSigPs2CRD0Tag,				{icSigDataType,icMaxEnumType}},
+	{icSigPs2CRD1Tag,				{icSigDataType,icMaxEnumType}},
+	{icSigPs2CRD2Tag,				{icSigDataType,icMaxEnumType}},
+	{icSigPs2CRD3Tag,				{icSigDataType,icMaxEnumType}},
+	{icSigPs2CSATag,				{icSigDataType,icMaxEnumType}},
+	{icSigPs2RenderingIntentTag,	{icSigDataType,icMaxEnumType}},
+	{icSigRedColorantTag,			{icSigXYZType,icMaxEnumType}},
+	{icSigRedTRCTag,				{icSigParametricCurveType,icSigCurveType,icMaxEnumType}},
+	{icSigScreeningDescTag,			{icSigMultiLocalizedUnicodeType,icMaxEnumType}},
+	{icSigScreeningTag,				{icSigScreeningType,icMaxEnumType}},
+	{icSigTechnologyTag,			{icSigSignatureType,icMaxEnumType}},
+	{icSigUcrBgTag,					{icSigUcrBgType,icMaxEnumType}},
+	{icSigVideoCardGammaTag,		{icSigVideoCardGammaType,icMaxEnumType}},
+	{icSigViewingCondDescTag,		{icSigMultiLocalizedUnicodeType,icMaxEnumType}},
+	{icSigViewingConditionsTag,		{icSigViewingConditionsType,icMaxEnumType}},
+
+	{icmSigAbsToRelTransSpace,		{icSigS15Fixed16ArrayType,icMaxEnumType}},
+
+/*	To be added:
+
+	icSigBToD0Tag
+	icSigBToD1Tag
+	icSigBToD2Tag
+	icSigBToD3Tag
+		icSigMultiProcessElementsType
+
+	icSigDToB0Tag
+	icSigDToB1Tag
+	icSigDToB2Tag
+	icSigDToB3Tag
+		icSigMultiProcessElementsType
+
+*/
 
 	{icMaxEnumTag,					{icMaxEnumType}}
 }; 
@@ -11512,6 +11601,12 @@ static int icc_set_version(icc *p, icmICCVersion ver) {
 			sprintf(p->err,"icc_set_version: Unsupported version 0x%x",ver);
 			return p->errc = 1;
 	}
+
+	if (p->header->majv >= 4)
+		p->sigtypetable = sigtypetableV4;
+	else
+		p->sigtypetable = sigtypetableV2;
+
 	return 0;
 }
 
@@ -12306,7 +12401,7 @@ static int icc_write_x(
 
 	/* If V4.0+, Compute the MD5 id for the profile. */
 	/* We do this by writing to a fake icmFile */
-	if (p->ver >= icmVersion4_1) {
+	if (p->header->majv >= 4) {
 		icmMD5 *md5 = NULL;
 		icmFile *ofp, *dfp = NULL;
 
@@ -12465,11 +12560,11 @@ static icmBase *icc_add_tag(
 	if (ttype != icmSigUnknownType) {   /* Check only for possibly known types */
 
 		/* Check that a known signature has an acceptable type */
-		for (i = 0; sigtypetable[i].sig != icMaxEnumType; i++) {
-			if (sigtypetable[i].sig == sig) {	/* recognized signature */
+		for (i = 0; p->sigtypetable[i].sig != icMaxEnumType; i++) {
+			if (p->sigtypetable[i].sig == sig) {	/* recognized signature */
 				ok = 0;
-				for (j = 0; sigtypetable[i].ttypes[j] != icMaxEnumType; j++) {
-					if (sigtypetable[i].ttypes[j] == ttype)	/* recognized type */
+				for (j = 0; p->sigtypetable[i].ttypes[j] != icMaxEnumType; j++) {
+					if (p->sigtypetable[i].ttypes[j] == ttype)	/* recognized type */
 						ok = 1;
 				}
 				break;
@@ -12576,11 +12671,11 @@ static icmBase *icc_link_tag(
 	}
 
 	/* Check that a known signature has an acceptable type */
-	for (i = 0; sigtypetable[i].sig != icMaxEnumType; i++) {
-		if (sigtypetable[i].sig == sig) {	/* recognized signature */
+	for (i = 0; p->sigtypetable[i].sig != icMaxEnumType; i++) {
+		if (p->sigtypetable[i].sig == sig) {	/* recognized signature */
 			ok = 0;
-			for (j = 0; sigtypetable[i].ttypes[j] != icMaxEnumType; j++) {
-				if (sigtypetable[i].ttypes[j] == p->data[exi].ttype)	/* recognized type */
+			for (j = 0; p->sigtypetable[i].ttypes[j] != icMaxEnumType; j++) {
+				if (p->sigtypetable[i].ttypes[j] == p->data[exi].ttype)	/* recognized type */
 					ok = 1;
 			}
 			break;
@@ -12810,11 +12905,11 @@ static int icc_rename_tag(
 	}
 
 	/* Check that a known new signature has an acceptable type */
-	for (i = 0; sigtypetable[i].sig != icMaxEnumType; i++) {
-		if (sigtypetable[i].sig == sigNew) {	/* recognized signature */
+	for (i = 0; p->sigtypetable[i].sig != icMaxEnumType; i++) {
+		if (p->sigtypetable[i].sig == sigNew) {	/* recognized signature */
 			ok = 0;
-			for (j = 0; sigtypetable[i].ttypes[j] != icMaxEnumType; j++) {
-				if (sigtypetable[i].ttypes[j] == p->data[k].ttype)	/* recognized type */
+			for (j = 0; p->sigtypetable[i].ttypes[j] != icMaxEnumType; j++) {
+				if (p->sigtypetable[i].ttypes[j] == p->data[k].ttype)	/* recognized type */
 					ok = 1;
 			}
 			break;
@@ -13378,12 +13473,20 @@ static struct {
 	ICC encoding. The end result is simple enough though:
 
 	ICC V2 Lab encoding should be used in all PCS encodings in
-	a icSigLut16Type or icSigNamedColor2Type tag, and can be used
-	for device space Lab encoding for these tags.
+	the following tags:
+		icSigLut16Type
+		icSigNamedColor2Type
+
+	and can be used for device space Lab encoding for these tags.
 
 	ICC V4 Lab encoding should be used in all PCS encodings in
 	all other situations, and can be used for device space Lab encoding
 	for all other situtaions.
+
+	Tags that seem to the default ICC V4 Lab encoding in V4 files:
+		icSigColorantTableType
+		icSigLutAToBType
+		icSigLutBToAType
 
 	[ Since the ICC spec. doesn't cover device spaces labeled as Lab,
       these are ripe for mis-matches between different implementations.]
@@ -13411,10 +13514,12 @@ static int getNormFunc(
 		csig = icmSigLab8Data;
 	}
 	if (csig == icSigLabData) {
-		if (tagType == icSigLut16Type)	/* Lut16 retains legacy encoding */
+		if (tagType == icSigLut16Type			/* Lut16 retains legacy encoding */
+		 || tagType == icSigNamedColorType		/* NamedColor retains legacy encoding */
+		 || tagType == icSigNamedColor2Type)	/* NamedColor retains legacy encoding */
 			csig = icmSigLabV2Data;
 		else {							/* Other tag types use version specific encoding */
-			if (icp->ver >= icmVersion4_1)
+			if (icp->header->majv >= 4)
 				csig = icmSigLabV4Data;
 			else
 				csig = icmSigLabV2Data;
@@ -13516,7 +13621,7 @@ static int getRange(
 		if (tagType == icSigLut16Type)	/* Lut16 retains legacy encoding */
 			csig = icmSigLabV2Data;
 		else {							/* Other tag types use version specific encoding */
-			if (icp->ver >= icmVersion4_1)
+			if (icp->header->majv >= 4)
 				csig = icmSigLabV4Data;
 			else
 				csig = icmSigLabV2Data;
@@ -13595,7 +13700,7 @@ void icmMul3(double out[3], double in1[3], double in2[3]) {
 	out[2] = in1[2] * in2[2];
 }
 
-/* Take values to power */
+/* Take (signed) values to power */
 void icmPow3(double out[3], double in[3], double p) {
 	int i;
 
@@ -13605,6 +13710,22 @@ void icmPow3(double out[3], double in[3], double p) {
 		else
 			out[i] = pow(in[i], p);
 	}
+}
+
+/* Square values */
+void icmSqr3(double out[3], double in[3]) {
+	int i;
+
+	for (i = 0; i < 3; i++)
+		out[i] = in[i] * in[i];
+}
+
+/* Suqare root of values */
+void icmSqrt3(double out[3], double in[3]) {
+	int i;
+
+	for (i = 0; i < 3; i++)
+		out[i] = sqrt(in[i]);
 }
 
 /* Take absolute of a 3 vector */
@@ -14718,7 +14839,7 @@ int icmParmLineIntersect2(double res[2], double aprm[2], double p1[2], double p2
 	return 0;
 }
 
-/* Compute a blend between in0 and in1 */
+/* Compute a blend between in0 and in1 for bl 0..1 */
 void icmBlend2(double out[2], double in0[2], double in1[2], double bf) {
 	out[0] = (1.0 - bf) * in0[0] + bf * in1[0];
 	out[1] = (1.0 - bf) * in0[1] + bf * in1[1];
@@ -14826,7 +14947,7 @@ icmLab2XYZ(icmXYZNumber *w, double *out, double *in) {
  *
  * Differences to L*a*b* and IPT:
  *	Using inverse CIE 2012 2degree LMS to XYZ matrix instead of Hunt-Pointer-Estevez.
- *  Von Kries chromatic adapation in LMS space.
+ *  Von Kries chromatic adapation in LMS cone space.
  *  Using L* compression rather than IPT pure 0.43 power.
  *  Tweaked LMS' to IPT matrix to account for change in XYZ to LMS matrix.
  *  Output scaled to L*a*b* type ranges, to maintain 1 JND scale.
@@ -14946,6 +15067,60 @@ void icmLab2LCh(double *out, double *in) {
 	out[2] = h;
 }
 
+/* CIE XYZ to perceptual CIE 1976 L*u*v* */
+extern ICCLIB_API void icmXYZ2Luv(icmXYZNumber *w, double *out, double *in) {
+	double X = in[0], Y = in[1], Z = in[2];
+	double un, vn, u, v, fl, fu, fv;
+
+	un = (4.0 * w->X) / (w->X + 15.0 * w->Y + 3.0 * w->Z);
+	vn = (9.0 * w->Y) / (w->X + 15.0 * w->Y + 3.0 * w->Z);
+	u = (4.0 * X) / (X + 15.0 * Y + 3.0 * Z);
+	v = (9.0 * Y) / (X + 15.0 * Y + 3.0 * Z);
+	
+	Y /= w->Y;
+
+	if (Y > 0.008856451586)
+		fl = pow(Y,1.0/3.0);
+	else
+		fl = 7.787036979 * Y + 16.0/116.0;
+
+	fu = u - un;
+	fv = v - vn;
+
+	out[0] = 116.0 * fl - 16.0;
+	out[1] = 13.0 * out[0] * fu;
+	out[2] = 13.0 * out[0] * fv;
+}
+
+/* Perceptual CIE 1976 L*u*v* to CIE XYZ */
+extern ICCLIB_API void icmLuv2XYZ(icmXYZNumber *w, double *out, double *in) {
+	double un, vn, u, v, fl, fu, fv, sum, X, Y, Z;
+
+	fl = (in[0] + 16.0)/116.0;
+	fu = in[1] / (13.0 * in[0]);
+	fv = in[2] / (13.0 * in[0]);
+
+	un = (4.0 * w->X) / (w->X + 15.0 * w->Y + 3.0 * w->Z);
+	vn = (9.0 * w->Y) / (w->X + 15.0 * w->Y + 3.0 * w->Z);
+
+	u = fu + un;
+	v = fv + vn;
+
+	if (fl > 24.0/116.0)
+		Y = pow(fl,3.0);
+	else
+		Y = (fl - 16.0/116.0)/7.787036979;
+	Y *= w->Y;
+
+	sum = (9.0 * Y)/v;
+	X = (u * sum)/4.0;
+	Z = (sum - X - 15.0 * Y)/3.0;
+
+	out[0] = X;
+	out[1] = Y;
+	out[2] = Z;
+}
+
 /* XYZ to Yxy */
 extern ICCLIB_API void icmXYZ2Yxy(double *out, double *in) {
 	double sum = in[0] + in[1] + in[2];
@@ -15014,60 +15189,6 @@ extern ICCLIB_API void icmY_xy2XYZ(double *out, double *xy, double Y) {
 	}
 }
 
-/* CIE XYZ to perceptual CIE 1976 L*u*v* */
-extern ICCLIB_API void icmXYZ2Luv(icmXYZNumber *w, double *out, double *in) {
-	double X = in[0], Y = in[1], Z = in[2];
-	double un, vn, u, v, fl, fu, fv;
-
-	un = (4.0 * w->X) / (w->X + 15.0 * w->Y + 3.0 * w->Z);
-	vn = (9.0 * w->Y) / (w->X + 15.0 * w->Y + 3.0 * w->Z);
-	u = (4.0 * X) / (X + 15.0 * Y + 3.0 * Z);
-	v = (9.0 * Y) / (X + 15.0 * Y + 3.0 * Z);
-	
-	Y /= w->Y;
-
-	if (Y > 0.008856451586)
-		fl = pow(Y,1.0/3.0);
-	else
-		fl = 7.787036979 * Y + 16.0/116.0;
-
-	fu = u - un;
-	fv = v - vn;
-
-	out[0] = 116.0 * fl - 16.0;
-	out[1] = 13.0 * out[0] * fu;
-	out[2] = 13.0 * out[0] * fv;
-}
-
-/* Perceptual CIE 1976 L*u*v* to CIE XYZ */
-extern ICCLIB_API void icmLuv2XYZ(icmXYZNumber *w, double *out, double *in) {
-	double un, vn, u, v, fl, fu, fv, sum, X, Y, Z;
-
-	fl = (in[0] + 16.0)/116.0;
-	fu = in[1] / (13.0 * in[0]);
-	fv = in[2] / (13.0 * in[0]);
-
-	un = (4.0 * w->X) / (w->X + 15.0 * w->Y + 3.0 * w->Z);
-	vn = (9.0 * w->Y) / (w->X + 15.0 * w->Y + 3.0 * w->Z);
-
-	u = fu + un;
-	v = fv + vn;
-
-	if (fl > 24.0/116.0)
-		Y = pow(fl,3.0);
-	else
-		Y = (fl - 16.0/116.0)/7.787036979;
-	Y *= w->Y;
-
-	sum = (9.0 * Y)/v;
-	X = (u * sum)/4.0;
-	Z = (sum - X - 15.0 * Y)/3.0;
-
-	out[0] = X;
-	out[1] = Y;
-	out[2] = Z;
-}
-
 /* CIE XYZ to perceptual CIE 1976 UCS diagram Yu'v'*/
 /* (Yu'v' is a better linear chromaticity space than Yxy) */
 extern ICCLIB_API void icmXYZ21976UCS(double *out, double *in) {
@@ -15097,6 +15218,25 @@ extern ICCLIB_API void icm1976UCS2XYZ(double *out, double *in) {
 	Y = in[0];
 	u = in[1];
 	v = in[2];
+
+	if (v < 1e-9) {
+		X = Y = Z = 0.0;
+	} else {
+		X = ((9.0 * u * Y)/(4.0 * v));
+		Z = -(((20.0 * v + 3.0 * u - 12.0) * Y)/(4.0 * v));
+	}
+
+	out[0] = X;
+	out[1] = Y;
+	out[2] = Z;
+}
+
+/* CIE 1976 UCS diagram Y & u'v' to XYZ */
+extern ICCLIB_API void icm1976UCSY_uv2XYZ(double *out, double *uv, double Y) {
+	double u, v, fl, fu, fv, sum, X, Z;
+
+	u = uv[0];
+	v = uv[1];
 
 	if (v < 1e-9) {
 		X = Y = Z = 0.0;
@@ -19651,7 +19791,8 @@ icmAlloc *al			/* Memory allocator */
 	if ((p = (icc *) al->calloc(al, 1,sizeof(icc))) == NULL) {
 		return NULL;
 	}
-	p->ver = icmVersionDefault;		/* default is V2.2.0 profile */
+	p->ver = icmVersionDefault;				/* default is V2.2.0 profile */
+	p->sigtypetable = sigtypetableV2;		/* Default V2 tag types */
 
 	p->al = al;			/* Heap allocator */
 

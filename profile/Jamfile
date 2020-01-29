@@ -6,7 +6,7 @@ PREF_LINKFLAGS	+= $(LINKDEBUGFLAG) ;
 
 #Products
 Libraries = libprof ;
-Executables = cb2ti3 kodak2ti3 txt2ti3 ls2ti3 splitti3 mppcheck mppprof
+Executables = cb2ti3 kodak2ti3 txt2ti3 cxf2ti3 ls2ti3 splitti3 mppcheck mppprof
               profcheck invprofcheck colverify colprof printcal applycal ;
 Headers = prof.h ;
 Samples = example.sp example121.sp 3dap5k.sp GTIPlus.sp Office.sp Trulux.sp TruluxPlus.sp
@@ -46,6 +46,9 @@ LINKLIBS = ../xicc/libxicc ../spectro/libinsttypes ../spectro/libdisptechs ../xi
 
 #Gretag/Logo raw CMYK profile data to Argyll CGATS format converter
 Main txt2ti3 : txt2ti3.c ;
+
+#CxF to Argyll CGATS format
+Main cxf2ti3 : cxf2ti3.c : : : ../xml : : ../xml/libmxml ;
 
 #LightSpace to Argyll CGATS format
 Main ls2ti3 : ls2ti3.c : : : ../xml : : ../xml/libmxml ;

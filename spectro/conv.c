@@ -840,6 +840,27 @@ athread *new_athread(
 	p->wait = athread_wait;
 	p->del = athread_del;
 
+#if defined(UNIX_APPLE)
+	{
+		pthread_attr_t stackSzAtrbt;
+
+		/* Default stack size is 512K - this is a bit small - raise it to 4MB */
+		if ((rv = pthread_attr_init(&stackSzAtrbt)) != 0
+		 || (rv = pthread_attr_setstacksize(&stackSzAtrbt, 4 * 1024 * 1024)) != 0) {
+			fprintf(stderr,"new_athread: thread_attr_setstacksize failed with %d\n",rv);
+			return NULL;
+		}
+
+		/* Create a thread */
+		rv = pthread_create(&p->thid, &stackSzAtrbt, threadproc, (void *)p);
+		if (rv != 0) {
+			a1loge(g_log, 1, "new_athread: pthread_create failed with %d\n",rv);
+			athread_del(p);
+			return NULL;
+		}
+	}
+#else	/* !APPLE */
+
 	/* Create a thread */
 	rv = pthread_create(&p->thid, NULL, threadproc, (void *)p);
 	if (rv != 0) {
@@ -847,6 +868,7 @@ athread *new_athread(
 		athread_del(p);
 		return NULL;
 	}
+#endif /* !APPLE */
 
 	DBG("About to exit new_athread()\n");
 	return p;

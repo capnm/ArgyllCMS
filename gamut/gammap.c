@@ -1155,7 +1155,7 @@ glumknf	= 1.0;
 #ifdef NEVER		/* Dump out the L mapping points */
 			{
 				int i;
-				printf("1D rspl L mapping points:\n");
+				printf("1D rspl L. mapping points:\n");
 				for (i = 0; i < ngreyp; i++)
 					printf("%d %f -> %f (w %f)\n",i,lpnts[i].p[0],lpnts[i].v[0],lpnts[i].w);
 			}
@@ -1195,7 +1195,7 @@ glumknf	= 1.0;
 
 #ifdef VERBOSE
 				if (verb) {
-					printf("Before tuning, L map White/Black is %f %f, should be %f %f\n",
+					printf("Before tuning, L. map White/Black is %f %f, should be %f %f\n",
 					                    cx.awb[1], cx.awb[0], dwL, dbL);
 
 					/* Lookup fine tuned black & white */
@@ -1207,7 +1207,7 @@ glumknf	= 1.0;
 					s->grey->interp(s->grey, &cp);
 					cx.awb[1] = cp.v[0];
 
-					printf("After tuning,  L map White/Black is %f %f, should be %f %f\n",
+					printf("After tuning,  L. map White/Black is %f %f, should be %f %f\n",
 					                    cx.awb[1], cx.awb[0], dwL, dbL);
 				}
 #endif /* VERBOSE */

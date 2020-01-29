@@ -97,11 +97,11 @@
 #define IUSB_REQ_DIR_MASK              0x80
 
 #define IUSB_REQ_TYPE_SHIFT           5
-#define IUSB_REQ_TYPE_STANDARD        (0x00 << IUSB_REQ_TYPE_SHIFT)
-#define IUSB_REQ_TYPE_CLASS           (0x01 << IUSB_REQ_TYPE_SHIFT)
-#define IUSB_REQ_TYPE_VENDOR          (0x02 << IUSB_REQ_TYPE_SHIFT)
-#define IUSB_REQ_TYPE_RESERVED        (0x03 << IUSB_REQ_TYPE_SHIFT)
-#define IUSB_REQ_TYPE_MASK            (0x03 << IUSB_REQ_TYPE_SHIFT)
+#define IUSB_REQ_TYPE_STANDARD        (0x00 << IUSB_REQ_TYPE_SHIFT)		// 0x00
+#define IUSB_REQ_TYPE_CLASS           (0x01 << IUSB_REQ_TYPE_SHIFT)		// 0x20
+#define IUSB_REQ_TYPE_VENDOR          (0x02 << IUSB_REQ_TYPE_SHIFT)		// 0x40
+#define IUSB_REQ_TYPE_RESERVED        (0x03 << IUSB_REQ_TYPE_SHIFT)		// 0x60
+#define IUSB_REQ_TYPE_MASK            (0x03 << IUSB_REQ_TYPE_SHIFT)		// 0x60
 
 #define IUSB_REQ_RECIP_DEVICE          0x00
 #define IUSB_REQ_RECIP_INTERFACE       0x01

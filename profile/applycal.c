@@ -275,7 +275,7 @@ main(int argc, char *argv[]) {
 					             icm2str(icmColorSpaceSignature, cal->colspace),
 					             icm2str(icmColorSpaceSignature, icco->header->pcs));
 				ssigp = linksigs;
-				/* Noe the cal direction */
+				/* Note the cal direction */
 				if (cal->devclass == icSigInputClass)
 					inp = 1;
 				else

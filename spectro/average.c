@@ -263,7 +263,15 @@ int main(int argc, char *argv[]) {
 		*outc++ = '\000';
 		
 		if ((nmask = icx_char2inkmask(buf)) == 0) {
-			error ("File '%s' keyword COLOR_REP has unknown device value '%s'",inps[0].name,buf);
+
+			/* Hmm. This might be an input reference. */
+			if (strcmp(buf, "XYZ") == 0 || strcmp(buf, "LAB") == 0) {
+				if ((nmask = icx_char2inkmask(outc)) == 0) {
+					error ("File '%s' keyword COLOR_REP has unknown device value '%s'",inps[0].name,outc);
+				}
+			} else {
+				error ("File '%s' keyword COLOR_REP has unknown device value '%s'",inps[0].name,buf);
+			}
 		}
 
 		nchan = icx_noofinks(nmask);

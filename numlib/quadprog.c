@@ -752,7 +752,7 @@ INLINE static double scalar_product(double *x, double *y, int n) {
 }
 
 // !!! this doesn't work for semi-definite matricies, ie.
-// they will jave diagonal sum == 0.0 !!!
+// they will have diagonal sum == 0.0 !!!
 static void cholesky_decomposition(double **A, int n) {
 	int i, j, k;
 	double sum;

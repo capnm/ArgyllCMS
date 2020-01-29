@@ -17,6 +17,22 @@
 
 /* TTBD
  *
+ * OS X Night Shift interferes with calibration & profiling. Can it be detected
+ * or turned off progromatically ?
+ * - Seems to be controlled by CoreBrightness Framework.
+ * Decompiled headers are available, i.e.
+ * <https://github.com/w0lfschild/macOS_headers/tree/master/macOS/PrivateFrameworks/CoreBrightness>
+ *	 _BrightnessSystem
+ *	 _BrightnessSystemClient
+ *	 _CBAdaptationClient
+ *	 _CBBlueLightClient
+ *	 _CBClient
+ *
+ * Need to revisit daemon mode, to see if anything has changed with the latest
+ * X servers and XRANDR.
+ *
+ * Should add an option to check/displau X11 root and CRTC atoms.
+ *
  * Should add support for XRandR 1.5 MST support, so that a Monitor driven
  * by multiple CRTCs gets treated as a single item. (How does Xinerama emulation
  * handle this though ?) - i.e. might have to duplicate profile atoms,
@@ -44,6 +60,9 @@
  * For X11/XRANDR, should we check for and save/restore CscMatrix property ??
  * - or should we assumed that the use intends to use this to manually calibrate the display ??
  * See <http://us.download.nvidia.com/XFree86/Linux-x86/364.12/README/xrandrextension.html#CscMatrix>
+ * Can check if we're running under Wayland with XDG_SESSION_TYPE is "wayland" or "X11"
+ *
+ *
  */
 
 #include <stdio.h>
@@ -70,6 +89,7 @@
 #include "dispwin.h"
 #include "ui.h"
 #include "webwin.h"
+#include "dummywin.h"
 #include "ccast.h"
 #include "ccwin.h"
 #ifdef NT
@@ -2528,25 +2548,35 @@ int cd_init = 0;		/* nz if we've looked for colord */
 void *cd_found = NULL;	/* .so handle if we've found colord */
 
 /* Return nz if found colord functions */
-int dispwin_checkfor_colord() {
+int dispwin_checkfor_colord(dispwin *p) {
 
 	if (cd_init)
 		return (cd_found != NULL);
 
 	cd_found = NULL;
 
-	if (getenv("ARGYLL_USE_COLORD") != NULL
-	 && (cd_found = dlopen("libcolordcompat.so", RTLD_LAZY)) != NULL) {
+	debugr2((errout,"dispwin_checkfor_colord called\n"));
 
-		cd_edid_install_profile = dlsym(cd_found, "cd_edid_install_profile");
-		cd_edid_remove_profile = dlsym(cd_found, "cd_edid_remove_profile");
-		cd_edid_get_profile = dlsym(cd_found, "cd_edid_get_profile");
+	if (getenv("ARGYLL_USE_COLORD") != NULL) {
+		if ((cd_found = dlopen("libcolordcompat.so", RTLD_LAZY)) != NULL) {
 
-		if (cd_edid_install_profile == NULL
-		 || cd_edid_remove_profile == NULL
-		 || cd_edid_get_profile == NULL) {
-			cd_found = NULL;
+			cd_edid_install_profile = dlsym(cd_found, "cd_edid_install_profile");
+			cd_edid_remove_profile = dlsym(cd_found, "cd_edid_remove_profile");
+			cd_edid_get_profile = dlsym(cd_found, "cd_edid_get_profile");
+	
+			if (cd_edid_install_profile == NULL
+			 || cd_edid_remove_profile == NULL
+			 || cd_edid_get_profile == NULL) {
+				cd_found = NULL;
+				debugr2((errout,"dispwin_checkfor_colord: found colord support\n"));
+			} else {
+				debugr2((errout,"dispwin_checkfor_colord: didn't find cd_edid_* functions\n"));
+			}
+		} else {
+			debugr2((errout,"dispwin_checkfor_colord: didn't find libcolordcompat.so\n"));
 		}
+	} else {
+		debugr2((errout,"dispwin_checkfor_colord: $ARGYLL_USE_COLORD not set\n"));
 	}
 
 	cd_init = 1;
@@ -2558,8 +2588,7 @@ int dispwin_checkfor_colord() {
 
 
 /* ----------------------------------------------- */
-/* Install a display profile and make */
-/* it the default for this display. */
+/* Install a display profile and make it the default for this display. */
 /* Set the display to the calibration in the profile */
 /* (r == NULL if no calibration) */
 /* (We assume that the caller has checked that it's an ICC profile) */
@@ -3216,6 +3245,7 @@ int dispwin_uninstall_profile(dispwin *p, char *fname, p_scope scope) {
 }
 
 /* Get the currently installed display profile and return it as an icmFile. */
+/* Set the X11 atom to be the profile we just got */ 
 /* Return the name as well, up to mxlen chars, excluding nul. */
 /* Return NULL if failed. */
 icmFile *dispwin_get_profile(dispwin *p, char *name, int mxlen) {
@@ -3393,10 +3423,13 @@ icmFile *dispwin_get_profile(dispwin *p, char *name, int mxlen) {
 
 		debugr2((errout,"dispwin_get_profile called\n"));
 
-		if (cd_found)
+		if (cd_found) {
+			debugr2((errout,"dispwin_get_profile using colord\n"));
 			ev = cd_edid_get_profile(p->edid, p->edid_len, &profile);
-		else
+		} else {
+			debugr2((errout,"dispwin_get_profile using ucmm\n"));
 			ev = ucmm_get_monitor_profile(p->edid, p->edid_len, p->name, &profile);
+		}
 
 		if (ev == ucmm_ok) {
 
@@ -4743,16 +4776,6 @@ int ddebug						/* >0 to print debug statements to stderr */
 #endif
 	fprintf(errout, "new_dispwin called\n");
 
-#if defined(UNIX_X11) && defined(USE_UCMM)
-	dispwin_checkfor_colord();		/* Make colord functions available */
-	if (ddebug) {
-		if (cd_found)
-			fprintf(stderr,"using colord for profile installation\n");
-		else
-			fprintf(stderr,"using ucmm for profile installation\n");
-	}
-#endif
-
 	if ((p = (dispwin *)calloc(sizeof(dispwin), 1)) == NULL) {
 		if (ddebug) fprintf(stderr,"new_dispwin failed because malloc failed\n");
 		return NULL;
@@ -4780,6 +4803,16 @@ int ddebug						/* >0 to print debug statements to stderr */
 	p->del                 = dispwin_del;
 
 	p->rgb[0] = p->rgb[1] = p->rgb[2] = 0.5;	/* Set Grey as the initial test color */
+
+#if defined(UNIX_X11) && defined(USE_UCMM)
+	dispwin_checkfor_colord(p);		/* Make colord functions available */
+	if (ddebug) {
+		if (cd_found)
+			fprintf(stderr,"using colord for profile installation\n");
+		else
+			fprintf(stderr,"using ucmm for profile installation\n");
+	}
+#endif
 
 	dispwin_set_default_delays(p);
 
@@ -5838,6 +5871,147 @@ int ddebug						/* >0 to print debug statements to stderr */
 
 /* ================================================================ */
 #if defined(UNIX_X11)
+
+/* Set the X11 atom and load the appropriate calibrations for all */
+/* the displays. */
+int x11_load_all(disppath *disp, int verb, int ddebug) {
+	char dnbuf[100];
+	Display *mydisplay;
+	char *pp;
+	disppath **dp;
+	ramdac *r = NULL;
+
+	/* Open the base display */
+	strncpy(dnbuf,disp->name,99); dnbuf[99] = '\000';
+	if ((pp = strrchr(dnbuf, ':')) != NULL) {
+		if ((pp = strchr(pp, '.')) == NULL)
+			strcat(dnbuf,".0");
+		else  {
+			if (pp[1] == '\000')
+				strcat(dnbuf,"0");
+			else {
+				pp[1] = '0';
+				pp[2] = '\000';
+			}
+		}
+	}
+
+	if ((mydisplay = XOpenDisplay(dnbuf)) == NULL) {
+		debug2((errout, "x11_load_all: failed to open display '%s'\n",dnbuf));
+		return -1;
+	}
+
+	if (verb) printf("Opened display '%s' and updating all profiles\n",dnbuf);
+
+	dp = get_displays();
+	if (dp == NULL || dp[0] == NULL) {
+		if (verb) printf("Failed to enumerate all the screens for display '%s'\n",dnbuf);
+		return 1;
+	} else {
+		int i, j;
+		dispwin *dw;
+		char calname[MAXNAMEL+1] = "\000";	/* Calibration file name */
+		icmFile *rd_fp = NULL;
+		icc *icco = NULL;
+		icmVideoCardGamma *wo;
+		double iv;
+
+		for (i = 0; ; i++) {
+			if (dp[i] == NULL)
+				break;
+			if (verb) printf("Updating display %d = '%s'\n",i+1,dp[i]->description);
+
+			if ((dw = new_dispwin(dp[i], 0.0, 0.0, 0.0, 0.0, 1, 0, NULL, NULL, 0, 0, 0, ddebug)) == NULL) {
+				if (verb) printf("Failed to access screen %d of display '%s'\n",i+1,dnbuf);
+				continue;
+			}
+			if ((r = dw->get_ramdac(dw)) == NULL) {
+				if (verb) printf("Failed to access VideoLUT of screen %d for display '%s'\n",i+1,dnbuf);
+				dw->del(dw);
+				continue;
+			}
+
+			/* Grab the installed profile from the ucmm */
+			/* (Sets the X11 atom too) */
+			if ((rd_fp = dw->get_profile(dw, calname, MAXNAMEL)) == NULL) {
+				if (verb) printf("Failed to find profile of screen %d for display '%s'\n",i+1,dnbuf);
+				r->del(r);
+				dw->del(dw);
+				continue;
+			}
+
+			if ((icco = new_icc()) == NULL) {
+				if (verb) printf("Failed to create profile object for screen %d for display '%s'\n",i+1,dnbuf);
+				rd_fp->del(rd_fp);
+				r->del(r);
+				dw->del(dw);
+				continue;
+			}
+
+			/* Read header etc. */
+			if (icco->read(icco, rd_fp,0) != 0) {		/* Read ICC OK */
+				if (verb) printf("Failed to read profile for screen %d for display '%s'\n",i+1,dnbuf);
+				icco->del(icco);
+				rd_fp->del(rd_fp);
+				r->del(r);
+				dw->del(dw);
+				continue;
+			}
+
+			if ((wo = (icmVideoCardGamma *)icco->read_tag(icco, icSigVideoCardGammaTag)) == NULL) {
+				if (verb) printf("Failed to find vcgt tagd in profile for screen %d for display '%s' so setting linear\n",i+1,dnbuf);
+				for (j = 0; j < r->nent; j++) {
+					iv = j/(r->nent-1.0);
+					r->v[0][j] = iv;
+					r->v[1][j] = iv;
+					r->v[2][j] = iv;
+				}
+			} else {
+				if (wo->u.table.channels == 3) {
+					for (j = 0; j < r->nent; j++) {
+						iv = j/(r->nent-1.0);
+						r->v[0][j] = wo->lookup(wo, 0, iv);
+						r->v[1][j] = wo->lookup(wo, 1, iv);
+						r->v[2][j] = wo->lookup(wo, 2, iv);
+					}
+				} else if (wo->u.table.channels == 1) {
+					for (j = 0; j < r->nent; j++) {
+						iv = j/(r->nent-1.0);
+						r->v[0][j] = 
+						r->v[1][j] = 
+						r->v[2][j] = wo->lookup(wo, 0, iv);
+					}
+					debug("Got monochrome vcgt calibration\n");
+				} else {
+					if (verb) printf("vcgt tag is unrecognized in profile for screen %d for display '%s'\n",i+1,dnbuf);
+					icco->del(icco);
+					rd_fp->del(rd_fp);
+					r->del(r);
+					dw->del(dw);
+					continue;
+				}
+			}
+			if (dw->set_ramdac(dw,r,1) != 0) {
+				if (verb) printf("Unable to set vcgt tag for screen %d for display '%s'\n",i+1,dnbuf);
+				icco->del(icco);
+				rd_fp->del(rd_fp);
+				r->del(r);
+				dw->del(dw);
+				continue;
+			}
+			if (verb) printf("Loaded profile and calibration for screen %d for display '%s'\n",i+1,dnbuf);
+			icco->del(icco);
+			rd_fp->del(rd_fp);
+			r->del(r);
+			dw->del(dw);
+		}
+	}
+	free_disppaths(dp);
+	XCloseDisplay(mydisplay);
+
+	return 0;
+}
+
 /* Process to continuously monitor XRandR events, */
 /* and load the appropriate calibration and profiles */
 /* for each monitor. */
@@ -5900,7 +6074,9 @@ int x11_daemon_mode(disppath *disp, int verb, int ddebug) {
 				RRScreenChangeNotifyMask
 			|	RRCrtcChangeNotifyMask
 			|	RROutputChangeNotifyMask
-			|	RROutputPropertyNotifyMask
+#ifdef NEVER
+//			|	RROutputPropertyNotifyMask		/* Or our own updates will trigger us! */
+#endif
 		);
 
 		/* Deal with any pending events */
@@ -5941,9 +6117,11 @@ int x11_daemon_mode(disppath *disp, int verb, int ddebug) {
 					else if (rrne->subtype == RRNotify_OutputChange) {
 //						printf("~1 Got RROutputChangeNotify\n");
 					}
+#ifdef NEVER
 					else if (rrne->subtype == RRNotify_OutputProperty) {
 //						printf("~1 Got RROutputPropertyNotify\n");
 					}
+#endif
 				}
 			}
 
@@ -6063,6 +6241,9 @@ int x11_daemon_mode(disppath *disp, int verb, int ddebug) {
 #endif /* randr >= V 1.2 */
 
 	if (verb) printf("XRandR 1.2 is not available - quitting\n");
+
+	XCloseDisplay(mydisplay);
+
 	return -1;
 }
 
@@ -6142,8 +6323,9 @@ static void usage(int flag, char *diag, ...) {
 		}
 	}
 #ifdef NT
-	fprintf(stderr," -dmadvr              Display via MadVR Video Renderer\n");
+	fprintf(stderr," -d madvr             Display via MadVR Video Renderer\n");
 #endif
+	fprintf(stderr," -d dummy             Display via dummy (non-existant, invisible) display\n");
 
 #ifdef ENABLE_VTPGLUT
 	fprintf(stderr," -dvtpg[:n]           Display via n'th Video Test Patch Generator (default 1, ? for list)\n");
@@ -6181,8 +6363,9 @@ static void usage(int flag, char *diag, ...) {
 	fprintf(stderr," -U                   Un-install profile for display\n");
 	fprintf(stderr," -S d                 Specify the install/uninstall scope for OS X [nlu] or X11/Vista [lu]\n");
 	fprintf(stderr,"                      d is one of: n = network, l = local system, u = user (default)\n");
-	fprintf(stderr," -L                   Load installed profiles cal. into Video LUT\n");
+	fprintf(stderr," -L                   Load installed profile & calibration\n");
 #if defined(UNIX_X11)
+	fprintf(stderr," -x                   Load all profiles for given X11 server\n");
 	fprintf(stderr," -X                   Run in daemon loader mode for given X11 server\n");
 #endif /* X11 */
 	fprintf(stderr," -D [level]           Print debug diagnostics to stderr\n");
@@ -6204,6 +6387,7 @@ main(int argc, char *argv[]) {
 #ifdef NT
 	int madvrdisp = 0;			/* NZ for MadVR display */
 #endif
+	int dummydisp = 0;			/* NZ for summy display */
 #ifdef ENABLE_VTPGLUT
 	int vtpgdisp = 0;			 /* NZ for Video Test Pattern Generator, == list index */
 #endif
@@ -6232,7 +6416,8 @@ main(int argc, char *argv[]) {
 	int loadprofile = 0;		/* Load displays profile calibration into LUT */
 	int loadfile = 0;			/* Load given profile into LUT */
 	p_scope scope = p_scope_user;	/* Scope of profile instalation/un-instalation */
-	int daemonmode = 0;			/* X11 daemin loader mode */
+	int daemonmode = 0;			/* 1 = X11 daemon loader mode */
+								/* 2 = X11 loader mode just once */
 	char calname[MAXNAMEL+1] = "\000";	/* Calibration file name */
 	dispwin *dw;
 	unsigned int seed = 0x56781234;
@@ -6308,6 +6493,10 @@ main(int argc, char *argv[]) {
 					madvrdisp = 1;
 					fa = nfa;
 #endif
+				} else if (strncmp(na,"dummy",5) == 0
+				 || strncmp(na,"DUMMY",5) == 0) {
+					dummydisp = 1;
+					fa = nfa;
 #ifdef ENABLE_VTPGLUT
 				} else if (strncmp(na,"vtpg",4) == 0
 				 || strncmp(na,"VTPG",4) == 0) {
@@ -6441,6 +6630,9 @@ main(int argc, char *argv[]) {
 			else if (argv[fa][1] == 'L')
 				loadprofile = 1;
 
+			else if (argv[fa][1] == 'x')
+				daemonmode = 2;
+
 			else if (argv[fa][1] == 'X')
 				daemonmode = 1;
 
@@ -6466,6 +6658,7 @@ main(int argc, char *argv[]) {
 #ifdef NT
 	 && madvrdisp == 0
 #endif
+	 && dummydisp == 0
 	 && webdisp == 0
 	 && ccdisp == 0) {
 		int ix = 0;
@@ -6493,7 +6686,11 @@ main(int argc, char *argv[]) {
 	}
 
 #if defined(UNIX_X11)
-	if (webdisp == 0 && ccdisp == 0 && daemonmode) {
+	if (webdisp == 0 && ccdisp == 0 && daemonmode == 2) {
+		return x11_load_all(disp, verb, ddebug);
+	}
+
+	if (webdisp == 0 && ccdisp == 0 && daemonmode == 1) {
 		return x11_daemon_mode(disp, verb, ddebug);
 	}
 #endif
@@ -6566,6 +6763,12 @@ main(int argc, char *argv[]) {
 			return -1;
 		}
 #endif
+	} else if (dummydisp != 0) {
+		if ((dw = new_dummywin(100.0 * hpatscale, 100.0 * vpatscale, ho, vo, nowin, native,
+			                   &noramdac, &nocm, out_tvenc, fullscreen, verb, ddebug)) == NULL) {
+			printf("Error - new_dummywin failed!\n");
+			return -1;
+		}
 	} else {
 		if (verb) printf("About to open dispwin object on the display\n");
 		if ((dw = new_dispwin(disp, 100.0 * hpatscale, 100.0 * vpatscale, ho, vo, nowin, native,

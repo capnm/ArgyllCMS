@@ -72,7 +72,7 @@ void usage(char *diag) {
 //  fprintf(stderr,"                P = absolute perceptual, S = absolute saturation\n");
 	fprintf(stderr," -o order       n = normal (priority: lut > matrix > monochrome)\n");
 	fprintf(stderr,"                r = reverse (priority: monochrome > matrix > lut)\n");
-	fprintf(stderr," -p oride       x = XYZ_PCS, X = XYZ * 100, l = Lab_PCS, L = LCh, y = Yxy\n");
+	fprintf(stderr," -p oride       x = XYZ_PCS, X = XYZ * 100, l = Lab_PCS, L = LCh, y = Yxy, u = Lu'v'\n");
 	fprintf(stderr,"                j = %s Appearance Jab, J = %s Appearance JCh\n",icxcam_description(cam_default),icxcam_description(cam_default));
 	fprintf(stderr," -s scale       Scale device range 0.0 - scale rather than 0.0 - 1.0\n");
 	fprintf(stderr," -e flag        Video encode device input as:\n");
@@ -203,6 +203,7 @@ main(int argc, char *argv[]) {
 	int merge = 0;
 	int camclip = 0;
 	int repYxy = 0;			/* Report Yxy */
+	int repYuv = 0;			/* Report Yu'v' */
 	int repJCh = 0;			/* Report JCh */
 	int repLCh = 0;			/* Report LCh */
 	int repXYZ100 = 0;		/* Scale XYZ by 10 */
@@ -449,6 +450,7 @@ main(int argc, char *argv[]) {
 						/* (See also absmeas after options) */
 						pcsor = icSigXYZData;
 						repYxy = 0;
+						repYuv = 0;
 						repLCh = 0;
 						repJCh = 0;
 						repXYZ100 = 0;
@@ -456,6 +458,7 @@ main(int argc, char *argv[]) {
 					case 'X':
 						pcsor = icSigXYZData;
 						repYxy = 0;
+						repYuv = 0;
 						repLCh = 0;
 						repJCh = 0;
 						repXYZ100 = 1;
@@ -463,6 +466,7 @@ main(int argc, char *argv[]) {
 					case 'l':
 						pcsor = icSigLabData;
 						repYxy = 0;
+						repYuv = 0;
 						repLCh = 0;
 						repJCh = 0;
 						repXYZ100 = 0;
@@ -470,6 +474,7 @@ main(int argc, char *argv[]) {
 					case 'L':
 						pcsor = icSigLabData;
 						repYxy = 0;
+						repYuv = 0;
 						repLCh = 1;
 						repJCh = 0;
 						repXYZ100 = 0;
@@ -478,6 +483,15 @@ main(int argc, char *argv[]) {
 					case 'Y':
 						pcsor = icSigXYZData;
 						repYxy = 1;
+						repYuv = 0;
+						repLCh = 0;
+						repJCh = 0;
+						repXYZ100 = 0;
+						break;
+					case 'u':
+						pcsor = icSigXYZData;
+						repYxy = 0;
+						repYuv = 1;
 						repLCh = 0;
 						repJCh = 0;
 						repXYZ100 = 0;
@@ -485,6 +499,7 @@ main(int argc, char *argv[]) {
 					case 'j':
 						pcsor = icxSigJabData;
 						repYxy = 0;
+						repYuv = 0;
 						repLCh = 0;
 						repJCh = 0;
 						repXYZ100 = 0;
@@ -492,6 +507,7 @@ main(int argc, char *argv[]) {
 					case 'J':
 						pcsor = icxSigJabData;
 						repYxy = 0;
+						repYuv = 0;
 						repLCh = 0;
 						repJCh = 1;
 						repXYZ100 = 0;
@@ -726,6 +742,7 @@ main(int argc, char *argv[]) {
 	if (absmeas) {
 		pcsor = icSigXYZData;
 		repYxy = 0;
+		repYuv = 0;
 		repLCh = 0;
 		repJCh = 0;
 		repXYZ100 = 0;
@@ -1001,6 +1018,13 @@ main(int argc, char *argv[]) {
 				outs = icSigYxyData; 
 		}
 
+		if (repYuv) {	/* report Yuv rather than XYZ */
+			if (ins == icSigXYZData)
+				ins = icmSigYuvData; 
+			if (outs == icSigXYZData)
+				outs = icmSigYuvData; 
+		}
+
 		if (repJCh) {	/* report JCh rather than Jab */
 			if (ins == icxSigJabData)
 				ins = icxSigJChData; 
@@ -1252,6 +1276,10 @@ main(int argc, char *argv[]) {
 				icmYxy2XYZ(in, in);
 			}
 
+			if (repYuv && ins == icmSigYuvData) {
+				icmYuv2XYZ(in, in);
+			}
+
 			/* JCh -> Jab & LCh -> Lab */
 			if ((repJCh && ins == icxSigJChData) 
 			 || (repLCh && ins == icxSigLChData)) {
@@ -1320,6 +1348,10 @@ main(int argc, char *argv[]) {
 
 			if (repYxy && outs == icSigYxyData) {
 				icmXYZ2Yxy(uout, uout);
+			}
+
+			if (repYuv && outs == icmSigYuvData) {
+				icmXYZ2Yuv(uout, uout);
 			}
 
 			/* Jab -> JCh and Lab -> LCh */

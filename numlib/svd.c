@@ -58,12 +58,12 @@ int      n		/* Number of unknowns */
 ) {	
 	double eps = DBL_EPSILON;		/* 1.0 + eps = 1.0 */
 	double tol = DBL_MIN/eps;		/* Minumum +ve value/eps */
-	double *rv1, RV1[10];
+	double *rv1, RV1[100];
 	double anm;
 	int i, j, k;
 	int its;
 
-	if (n <= 10) 
+	if (n <= 100) 
 		rv1 = RV1;					/* Allocate fast off stack */
 	else
 		rv1 = dvector(0, n-1);
@@ -383,9 +383,9 @@ int      m,		/* Number of equations */
 int      n		/* Number of unknowns */
 ) {
 	int i, j;
-	double *tmp, TMP[10]; /* Intermediate value of B . U-1 . W-1 */
+	double *tmp, TMP[100]; /* Intermediate value of B . U-1 . W-1 */
 
-	if (n <= 10)
+	if (n <= 100)
 		tmp = TMP;
 	else
 		tmp = dvector(0, n-1);
@@ -396,8 +396,19 @@ int      n		/* Number of unknowns */
 	/* Compute B . U-1 . W-1 */
 	for (j = 0; j < n; j++) {
 		if (w[j]) {
-			double s;
-			for (s = 0.0, i = 0; i < m; i++)
+			double s = 0.0;
+			i = 0;
+			for (; i < (m-7); i += 8) {
+				s += b[i+0] * u[i+0][j];
+				s += b[i+1] * u[i+1][j];
+				s += b[i+2] * u[i+2][j];
+				s += b[i+3] * u[i+3][j];
+				s += b[i+4] * u[i+4][j];
+				s += b[i+5] * u[i+5][j];
+				s += b[i+6] * u[i+6][j];
+				s += b[i+7] * u[i+7][j];
+			}
+			for (; i < m; i++)
 				s += b[i] * u[i][j];
 			s /= w[j];
 			tmp[j] = s;
@@ -407,8 +418,19 @@ int      n		/* Number of unknowns */
 	}
 	/* Compute T. V-1 */
 	for (j = 0; j < n; j++) {
-		double s;
-		for (s = 0.0, i = 0; i < n; i++)
+		double s = 0.0;
+		i = 0;
+		for (; i < (n-7); i += 8) {
+			s += v[j][i+0] * tmp[i+0];
+			s += v[j][i+1] * tmp[i+1];
+			s += v[j][i+2] * tmp[i+2];
+			s += v[j][i+3] * tmp[i+3];
+			s += v[j][i+4] * tmp[i+4];
+			s += v[j][i+5] * tmp[i+5];
+			s += v[j][i+6] * tmp[i+6];
+			s += v[j][i+7] * tmp[i+7];
+		}
+		for (; i < n; i++)
 			s += v[j][i] * tmp[i];
 		x[j] = s;
 	}

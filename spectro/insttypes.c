@@ -72,6 +72,7 @@ extern icom_type dev_category(devType dtype) {
 	case instSpyder3:
 	case instSpyder4:
 	case instSpyder5:
+	case instSpyderX:
 	case instHuey:
 	case instSmile:
 	case instEX1:
@@ -153,6 +154,8 @@ char *inst_sname(instType itype) {
 			return "Spyder4";
 		case instSpyder5:
 			return "Spyder5";
+		case instSpyderX:
+			return "SpyderX";
 		case instHuey:
 			return "Huey";
 		case instSmile:
@@ -239,6 +242,8 @@ char *inst_name(instType itype) {
 			return "Datacolor Spyder4";
 		case instSpyder5:
 			return "Datacolor Spyder5";
+		case instSpyderX:
+			return "Datacolor SpyderX";
 		case instHuey:
 			return "GretagMacbeth Huey";
 		case instSmile:
@@ -343,6 +348,8 @@ instType inst_enum(char *name) {
 		return instSpyder4;
 	else if (strcmp(name, "Datacolor Spyder5") == 0)
 		return instSpyder5;
+	else if (strcmp(name, "Datacolor SpyderX") == 0)
+		return instSpyderX;
 	else if (strcmp(name, "GretagMacbeth Huey") == 0)
 		return instHuey;
 	else if (strcmp(name, "ColorMunki Smile") == 0)
@@ -430,6 +437,8 @@ int nep) {					/* Number of end points */
 			return instSpyder4;
 		if (idProduct == 0x0500)	/* DataColor Spyder5 */
 			return instSpyder5;
+		if (idProduct == 0x0A00)	/* DataColor SpyderX */
+			return instSpyderX;
 	}
 
 	if (idVendor == 0x0971) {		/* Gretag Macbeth */
@@ -544,6 +553,7 @@ int inst_illuminant(xspect *sp, instType itype) {
 		case instSpyder3:
 		case instSpyder4:
 		case instSpyder5:
+		case instSpyderX:
 			return 1;										/* Not applicable */
 
 		case instHuey:

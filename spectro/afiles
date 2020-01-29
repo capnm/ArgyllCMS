@@ -21,6 +21,8 @@ madvrwin.h
 madvrwin.c
 ccwin.h
 ccwin.c
+dummywin.h
+dummywin.c
 mongoose.h
 mongoose.c
 insttypes.h
@@ -63,6 +65,8 @@ hcfr.c
 hcfr.h
 spyd2.c
 spyd2.h
+spydX.c
+spydX.h
 specbos.c
 specbos.h
 kleink10.c

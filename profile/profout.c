@@ -18,6 +18,7 @@
  * points, and interpolates them into a gridded
  * forward ICC device profile for an output or display device,
  * using a clut based profle.
+ *
  * It also creates backward tables based on the forward grid.
  *
  * Preview profiles are not currently generated.
@@ -73,17 +74,18 @@
 
 #undef IMP_MONO					/* [Undef] Turn on development code */
 
-#define EMPH_DISP_BLACKPOINT	/* [Define] Increase weight near diplay black point */
-#define IGNORE_DISP_ZEROS	    /* [Define] Ignore points with zero value if not at dev. zero */
-#define NO_B2A_PCS_CURVES		/* [Define] PCS curves seem to make B2A less accurate. Why ? */
-#define USE_CAM_CLIP_OPT		/* [Define] Clip out of gamut in CAM space rather than PCS */
-#define USE_LEASTSQUARES_APROX	/* [Define] Use least squares fitting approximation in B2A */
-//#undef USE_EXTRA_FITTING		/* [Undef] Turn on data point error compensation in A2B */
-//#undef USE_2PASSSMTH			/* [Undef] Turn on Gaussian smoothing in A2B */
-#undef DISABLE_GAMUT_TAG		/* [Undef] To disable gamut tag */
-#undef WARN_CLUT_CLIPPING		/* [Undef] Print warning if setting clut clips */
-#undef COMPARE_INV_CLUT			/* [Undef] Compare result of inv_clut with clut to diag inv probs */
-#undef FILTER_B2ACLIP			/* [Undef] Filter clip area of B2A (Causes reversal problems) */
+#define EMPH_DISP_BLACKPOINT	/* [def] Increase weight near diplay black point */
+#define IGNORE_DISP_ZEROS	    /* [def] Ignore points with zero value if not at dev. zero */
+#define NO_B2A_PCS_CURVES		/* [def] PCS curves seem to make B2A less accurate. Why ? */
+#define USE_CAM_CLIP_OPT		/* [def] Clip out of gamut in CAM space rather than PCS */
+#undef USE_LEASTSQUARES_APROX	/* [und] Use least squares fitting approximation in B2A */
+								/* (This improves robustness ?, but makes it less smooth) */
+//#undef USE_EXTRA_FITTING		/* [und] Turn on data point error compensation in A2B */
+//#undef USE_2PASSSMTH			/* [und] Turn on Gaussian smoothing in A2B */
+#undef DISABLE_GAMUT_TAG		/* [und] To disable gamut tag */
+#undef WARN_CLUT_CLIPPING		/* [und] Print warning if setting clut clips */
+#undef COMPARE_INV_CLUT			/* [und] Compare result of inv_clut with clut to diag inv probs */
+#undef FILTER_B2ACLIP			/* [und] Filter clip area of B2A (Causes reversal problems) */
 #define FILTER_THR_DE 3.0		/* [5.0] Filtering threshold DE */
 #define FILTER_MAX_DE 5.0		/* [10.0] Filtering DE to gamut surface at whit MAX_RAD starts */
 #define FILTER_MAX_RAD 0.1		/* [0.1] Filtering maximum radius in grid */
@@ -658,7 +660,8 @@ static double xyzoptfunc(void *cntx, double *v) {
 void
 make_output_icc(
 	prof_atype ptype,		/* Profile algorithm type */
-	int mtxtoo,				/* NZ if matrix tags should be created for Display XYZ cLUT */
+	int mtxtoo,				/* 1 if matrix tags should be created for Display XYZ cLUT */
+							/* 2 if debug matrix tags should be created for Display XYZ cLUT */
 	icmICCVersion iccver,	/* ICC profile version to create */
 	int verb,				/* Vebosity level, 0 = none */
 	int iquality,			/* A2B table quality, 0..3 */
@@ -1435,7 +1438,8 @@ make_output_icc(
 
 	/* shaper + matrix type tags */
 	if (!isLut
-	|| (   wr_icco->header->deviceClass == icSigDisplayClass
+	|| (   mtxtoo
+	    && wr_icco->header->deviceClass == icSigDisplayClass
 	    && wr_icco->header->pcs == icSigXYZData)) {
 
 		/* Red, Green and Blue Colorant Tags: */
@@ -1461,7 +1465,7 @@ make_output_icc(
 //			wob->data[0].X = 0.0; wob->data[0].Y = 0.0; wob->data[0].Z = 1.0;
 
 			/* Setup deliberately wrong dummy values (channels rotated). */
-			/* icxMatrix may override these later */
+			/* icxMatrix may then override these later with correct values */
 			wor->data[0].X = 0.143066; wor->data[0].Y = 0.060608; wor->data[0].Z = 0.714096;
 			wog->data[0].X = 0.436066; wog->data[0].Y = 0.222488; wog->data[0].Z = 0.013916;
 			wob->data[0].X = 0.385147; wob->data[0].Y = 0.716873; wob->data[0].Z = 0.097076;
@@ -2913,9 +2917,6 @@ make_output_icc(
 			}
 #else /* !DEBUG_ONE */
 
-#ifndef USE_LEASTSQUARES_APROX
-			fprintf(stderr,"!!!!! profile/profout: USE_LEASTSQUARES_APROX undef !!!!!\n");
-#endif
 			if (icmSetMultiLutTables(
 			        cx.ntables,
 			        wo,
@@ -3100,8 +3101,9 @@ make_output_icc(
 
 	}
 	/* Gamma/Shaper + matrix profile */
-	/* or XYZ cLUT with matrix as well. */
-	if (!isLut || mtxtoo) {
+	/* or correct XYZ cLUT with matrix as well. */
+	/* For debug matrix (mtxtoo == 2), leave swapped primaries */
+	if (!isLut || mtxtoo == 1) {
 		xicc *wr_xicc;			/* extention object */
 		icxLuBase *xluo;		/* Forward ixcLu */
 		int flags = 0;
@@ -3121,7 +3123,7 @@ make_output_icc(
 				
 		flags |= ICX_SET_WHITE | ICX_SET_BLACK; 		/* Compute & use white & black */
 
-		if (!mtxtoo)	/* Write matrix white/black/Luminance if no cLUT */
+		if (!isLut)	/* Write matrix white/black/Luminance if no cLUT */
 			flags |= ICX_WRITE_WBL;
 
 		/* Setup Device -> XYZ conversion (Fwd) object from scattered data. */
@@ -3139,7 +3141,7 @@ make_output_icc(
 		xluo->del(xluo);
 
 		/* Set the ColorantTable PCS values */
-		if (!mtxtoo) {
+		if (!isLut) {
 			unsigned int i;
 			icmColorantTable *wo;
 			double dv[MAX_CHAN];

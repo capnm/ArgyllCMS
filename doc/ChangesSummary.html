@@ -16,6 +16,45 @@
     <h1> Summary of Argyll CMS Changes since last release</h1>
     <h3>For a <span style="text-decoration: underline;">complete</span>
       and more detailed list of changes, please see the log.txt file.</h3>
+    <h1>[V2.0.1 -&gt; V2.1.0] 10th April 2019</h1>
+    <ul>
+      <li>Added scanin .cht for Christophe Metairie's Digital Target
+        2019 and Digital Target Studio Edition input charts.<br>
+      </li>
+      <li>Added support for Lasersoft ISO12641-2 reflective and 3 part
+        transmissive charts (recognition files, cxf2ti3 tool, changes to
+        average utility).</li>
+      <li>Changed spotread -E option to work with all the spectral
+        instruments, and now argument should be a transmission spectrum
+        of the filter placed on the instrument.</li>
+      <li>Added targen options -M to generate device space cube surface
+        steps, and -n option to generate neutral axis steps based on a
+        pre-conditioning profile.</li>
+      <li>Added support for SpyderX colorimeter.</li>
+      <li>Improvements and bug fixes to oeminst and oemdnld.</li>
+      <li>Add IES TM-30-15 (Method for Evaluating Light Source Color
+        Rendition) to spotread.</li>
+      <li>Added optional spectrum save file argument to spotread -O
+        option.</li>
+      <li>Changed spotread so that plot option -S doesn't wait for a
+        keystroke before continuing.</li>
+      <li>Fix FWA bugs in spotread - wasn't saving FWA compensated
+        spectra, was double correcting reference spectra.</li>
+      <li>Changed colprof Display profile -ax option to create just XYZ
+        cLUT profiles, rather than including dummy channel swapped
+        matrix as well. This will force the use of the cLUT tags in any
+        application/CMM that uses an unconventional tag priority when
+        dealing with a profile that contains both cLUT and shaper/matrix
+        tags. The -aY option has been added to create a diagnostic cLUT
+        display profile that contains matrix tags with swapped color
+        channels.</li>
+      <li>Change black ink "locus" rules (i.e. -K option) to just scale
+        from zero to maximum possible K, rather than minimum to maximum
+        K. This makes these rules much more usable, since the sharp
+        increase in minimum black near the black point will no longer
+        badly distort the curve shape. This affects colprof, collink and
+        xicclu.</li>
+    </ul>
     <h1>[V2.0.0 -&gt; V2.0.1] 9th July 2018</h1>
     <ul>
       <li>Increased maximum render channels to 16<br>
@@ -1238,6 +1277,8 @@
 
 
 
+
+
         </span>for systems with &gt; 3Gig Ram.</li>
       <li>Add support for the Eye-One Monitor spectrometer.</li>
       <li>Added -L option to <span style="font-weight: bold;">printtarg</span>
@@ -1252,6 +1293,8 @@
     Various bug fixes, the main ones being:<br>
     <ul>
       <li>Fixed some <span style="font-weight: bold;">colprof </span>performance
+
+
 
 
 

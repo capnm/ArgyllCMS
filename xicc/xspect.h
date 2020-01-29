@@ -25,9 +25,9 @@
  */
 
 #ifndef SALONEINSTLIB
-#include "icc.h"		/* icclib ICC definitions */ 
+# include "icc.h"		/* icclib ICC definitions */ 
 #else /* SALONEINSTLIB */
-#include "sa_conv.h"		/* fake icclib ICC definitions */ 
+# include "sa_conv.h"		/* fake icclib ICC definitions */ 
 #endif /* SALONEINSTLIB */
 
 #ifdef __cplusplus
@@ -45,7 +45,7 @@ typedef enum {						/* XYZ units,      Spectral units */
 	inst_mrt_ambient_flash  = 4,	/* Lux.s           mW.s/(m^2.nm) */
 	inst_mrt_reflective     = 5,	/* %,              %/nm */
 	inst_mrt_transmissive   = 6,	/* %,              %/nm */
-	inst_mrt_sensitivity    = 7,	/* %,              %/nm */
+	inst_mrt_sensitivity    = 7,	/* %,              %/nm (i.e. CMF) */
 	inst_mrt_frequency      = 8		/* Hz */
 } inst_meas_type;
 
@@ -156,6 +156,11 @@ int read_nxspect_2(cgats *icg);
 
 #endif /* !SALONEINSTLIB*/
 
+/* Get a (normalised) linearly or poly interpolated spectrum value. */
+/* Return NZ if value is valid, Z and last valid value */
+/* if outside the range */
+int getval_xspec(xspect *sp, double *rv, double wl) ;
+
 /* Get interpolated value at wavelenth (not normalised) */
 double value_xspect(xspect *sp, double wl);
 
@@ -178,7 +183,7 @@ void xspect_plot_w(xspect *sp1, xspect *sp2, xspect *sp3, int wait);
 /* Plot up to 3 spectra & wait for key */
 void xspect_plot(xspect *sp1, xspect *sp2, xspect *sp3);
 
-/* Plot up to 12 spectra in an array */
+/* Plot up to 12 spectra in an array & wait for key */
 void xspect_plotN(xspect *sp, int n);
 
 /* Plot up to 12 spectra pointed to by an array & wait for key */
@@ -213,10 +218,10 @@ typedef enum {
     icxIT_F10		 = 13,	/* Fluorescent Narrow Band 5000K, CRI 81 */
 	icxIT_Spectrocam = 14,	/* Spectrocam Xenon Lamp */
 #endif /* !SALONEINSTLIB*/
-    icxIT_ODtemp	 = 15,	/* Daylight at specified temperature */
-    icxIT_Dtemp		 = 16,	/* 15:2004 Daylight at specified temperature */
-    icxIT_OPtemp     = 17,	/* Planckian at specified temperature */
-    icxIT_Ptemp		 = 18	/* 15:2004 Planckian at specified temperature */
+    icxIT_ODtemp	 = 15,	/* Old daylight at specified temperature */
+    icxIT_Dtemp		 = 16,	/* CIE 15.2004 Appendix C daylight at specified temperature */
+    icxIT_OPtemp     = 17,	/* Old planckian at specified temperature */
+    icxIT_Ptemp		 = 18	/* CIE 15.2004 Planckian at specified temperature */
 } icxIllumeType;
 
 /* Fill in an xpsect with a standard illuminant spectrum */
@@ -263,6 +268,15 @@ int standardObserver(xspect *sp[3], icxObserverType obType);
 /* Return a string describing the standard observer */
 char *standardObserverDescription(icxObserverType obType);
 
+/* Type of density values */
+typedef enum {
+    icxDT_none	= 0,	/* No density */
+    icxDT_ISO	= 1,	/* ISO Visual + Type 1 + Type 2 */
+    icxDT_A		= 2,	/* Status A */
+    icxDT_M		= 3,	/* Status M */
+    icxDT_T		= 4,	/* Status T */
+    icxDT_E		= 5
+} icxDensityType;
 
 /* Clamping state */
 typedef enum {
@@ -549,6 +563,8 @@ int *invalid,			/* if not NULL, set to nz if invalid */
 xspect *sample			/* Illuminant sample to compute TLCI of */
 );
 
+#include "tm3015.h"		/* IES TM-30-15 */
+
 /* Return the maximum 24 hour exposure in seconds. */
 /* Limit is 8 hours */
 /* Returns -1 if the source sample doesn't go down to at least 350 nm */
@@ -567,11 +583,16 @@ void aprox_plankian(double Yxy[3], double ct);
 /* --------------------------- */
 /* Density and other functions */
 
-/* Given a reflectance or transmition spectral product, */
-/* return status T CMY + V density values */
-void xsp_Tdensity(double *out,			/* Return CMYV density */
-                 xspect *in				/* Spectral product to be converted */
-                );
+/* Given a reflectance or transmition spectral product, (Relative */
+/* to the scale factor), return CMYV log10 density values */
+void xsp_density(
+double out[4],				/* Return CMYV density */
+	xspect *in,				/* Spectral product to be converted */
+	icxDensityType dt		/* Density type */
+	);
+
+/* Return a string describing the type of density */
+char *xsp_density_desc(icxDensityType dt);
 
 /* Given a reflectance or transmission XYZ value, */
 /* return approximate status T CMYV log10 density values */
@@ -618,7 +639,6 @@ double *out,			/* Return approximate sRGB values */
 double wl,				/* Input wavelength in nm */
 double desat			/* 0.0 = full saturation, 1.0 = white */
 );
-
 
 #endif /* !SALONEINSTLIB*/
 

@@ -21,7 +21,8 @@ HDRS = ../h ../icc ../rspl ../cgats ../numlib ../gamut ../spectro ../profile
 
 # XICC library
 Library libxicc :  xicc.c xlutfix.c xspect.c xcolorants.c xutils.c iccjpeg.c xdevlin.c
-        xcam.c cam97s3.c cam02.c mpp.c ccmx.c ccss.c xfit.c xdgb.c moncurve.c xcal.c bt1886.c ;
+        xcam.c cam97s3.c cam02.c mpp.c ccmx.c ccss.c xfit.c xdgb.c moncurve.c xcal.c
+		bt1886.c tm3015.c ;
 
 # colorant library. Use instead of libxicc
 Object xcolorants2 : xcolorants.c ;
@@ -75,6 +76,9 @@ Main extractttag : extractttag.c : : : $(TIFFINC) $(JPEGINC) : : ;
 
 # xcolorant lookup test
 Main xcolorantslu : xcolorantslu.c ;
+
+# Individual stand alone test of IES TM-30-15 */
+MainVariant tm3015 : tm3015.c : : STANDALONE_TEST ;
 
 #test program for viewing inverse algorithm
 #Should be in JUNK ??

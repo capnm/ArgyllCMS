@@ -27,7 +27,7 @@
 	Should have an option to output .ti1 files instead of .ti3 ?
 
 	Should parse and support XRGA & Polarized tags.
-
+	We could then add an XRGA selection for the output.
 
 	~~
 

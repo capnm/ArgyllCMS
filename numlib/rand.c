@@ -141,7 +141,7 @@ double norm_rand_th(rand_state *p) {
 	if (p == NULL)
 		p = &g_rand;
 
-	if (p->r2 == 0) {
+	if (p->r2 == 0) {				/* No previously calculated number */
 		double v1, v2, t1, t2, r1;
 		do {
 			v1 = d_rand_th(p, -1.0, 1.0);
@@ -153,7 +153,7 @@ double norm_rand_th(rand_state *p) {
 		p->r2 = 1;
 		r1 = v1 * t2;
 		return r1;
-	} else {
+	} else {						/* Return previously calculated number */
 		p->r2 = 0;
 		return p->nr2;
 	}

@@ -7,6 +7,87 @@ Not included yet:
 
 * Started adding comms for Lumagen Radiance detection.
 
+Version 2.1.0  10th April 2019
+-------------
+
+* Added scanin .cht for Christophe Metairie's Digital Target 2019 with 522 patches.
+
+* Changed spotread -E option to work with all the spectral
+  instruments, and now argument should be a transmission spectrum
+  of the filter placed on the instrument.
+
+* Added targen options -M to generate device space cube surface steps,
+  and -n option to generate neutral axis steps based on a pre-conditioning
+  profile.
+
+* Added support for SpyderX colorimeter.
+
+* Fix bug in oeminst/oemdnld that causes crash.
+
+* Improved oeminst to look in WOW64 installation locations. 
+
+* Improve oeminst to cope with wider range of oem files,
+  and defined .edr technology type 23 as LCD IPS with WLED backlight,
+  since this seems to be what a Lenovo Thinkpad P70 has.
+
+* Added new disptech definitions to match latest X-Rite usage.
+
+* Added -s flag and -d option to specplot.
+
+* Added support for Lasersoft ISO12641-2 reflective and 3 part transmissive
+  charts (recognition files, cxf2ti3 tool, changes to average utility).
+
+* Added support for CMP_Digital_Target_Studio_Edition chart.
+
+* Change black ink "locus" rules (i.e. -K option) to just scale
+  from zero to maximum possible K, rather than minimum to maximum K.
+  This makes these rules much more usable, since the sharp increase
+  in minimum black near the black point will no longer badly distort
+  the curve shape. This affects colprof, collink and xicclu.
+
+* Changed colprof and collink to not use pseudo-least squares
+  averaging when generating B2A tables. This may reduce robustness
+  and average accuracy slightly, but seems to improve smoothness.
+
+* Minor fix to gamut clipping code.
+
+* Added Yu'v' support to xicclu.
+
+* Fixed error reporting bug in spectro/hidio.c - on failing to open
+  the instrument, the wrong last error value was reported. 
+  (Thanks to Florian Hoch)
+
+* Added dummy display option to dispwin, dispcal, dispread & ccxxmake,
+  to allow using the -C option without needing to create any sort
+  of test window. (Thanks to Florian Hoch)
+
+* Changed spotread so that spectral values are shown and logged
+  using %g format for better emissive precision.
+
+* Add IES TM-30-15 (Method for Evaluating Light Source Color Rendition)
+  to spotread.
+
+* Added optional spectrum save file argument to
+  spotread -O option.
+
+* Changed spotread so that plot option -S doesn't wait for a keystroke
+  before continuing.
+
+* Fix FWA bugs in spotread - wasn't saving FWA compensated
+  spectra, was double correcting reference spectra.
+ 
+* Fix FWA compensation bug that sometimes lead to silly values when
+  processing media with no FWA.
+
+* Changed colprof Display profile -ax option to create just
+  XYZ cLUT profiles, rather than including dummy channel swapped
+  matrix as well. This will force the use of the cLUT tags in
+  any application/CMM that uses an unconventional tag priority
+  when dealing with a profile that contains both cLUT and shaper/matrix tags.
+  The -aY option has been added to create a diagnostic cLUT display profile
+  that contains matrix tags with swapped color channels.
+
+
 Version 2.0.1  9th July 2018
 -------------
 
@@ -31,7 +112,10 @@ Version 2.0.1  9th July 2018
   a problem re-starting the driver.
 
 * Fixed i1Pro driver to cope with stripped down OEM i1Pro2 that is missing
-  one piece of calibration information.
+  one piece of calibration information. (Such instruments seem to be
+  missing ambient measurement, have a UV cut filter, lack a Wavelength
+  Calibration LED, lack Zebra Ruler stripe support, and lack of UV
+  illumination LED.)
  
 * Fixed display calibration selection to allow for more
   than 62 entries. This is to fix problem using Klein K10

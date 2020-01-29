@@ -24,6 +24,7 @@
 #include "conv.h"
 #include "dispwin.h"
 #include "webwin.h"
+#include "dummywin.h"
 #include "conv.h"
 #include "mongoose.h"
 

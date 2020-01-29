@@ -24,6 +24,7 @@ struct _disp_win_info {
 #ifdef NT
 	int madvrdisp;			/* NZ for MadVR display */
 #endif
+	int dummydisp;			/* NZ for dummy display */
 	disppath *disp;			/* display to calibrate. */
 	int out_tvenc;			/* 1 = use RGB Video Level encoding */
 	int fullscreen;			/* NZ if whole screen should be filled with black */
@@ -61,6 +62,7 @@ ccast_id *ccid,		/* non-NULL for ChromeCast */
 #ifdef NT
 int madvrdisp,		/* NZ for MadVR display */
 #endif
+int dummydisp,		/* NZ for dummy display */
 int out_tvenc,		/* 1 = use RGB Video Level encoding */
 int fullscreen,		/* NZ if whole screen should be filled with black */
 int override,		/* Override_redirect on X11 */
@@ -255,6 +257,7 @@ ccast_id *ccid,		/* non-NULL for ChromeCast */
 #ifdef NT
 int madvrdisp,		/* NZ for MadVR display */
 #endif
+int dummydisp,		/* NZ for dummy display */
 char *ccallout,		/* Shell callout on set color */
 char *mcallout,		/* Shell callout on measure color (forced fake) */
 //char *scallout,		/* Shell callout on results of measure color */

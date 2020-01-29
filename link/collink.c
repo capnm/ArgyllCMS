@@ -139,26 +139,23 @@
 
 */
 
-#undef USE_MERGE_CLUT_OPT	/* [Undef] When using inverse A2B table, merge the output luts */
+#undef USE_MERGE_CLUT_OPT	/* [und] When using inverse A2B table, merge the output luts */
 							/* with the clut for faster operation, and clipping in */
 							/* Jab space. Turned off because it affects the accuracy too much, */
 							/* and xicc handles Jab clip without this now. */
 
-#define USE_APXLS			/* [Define] Use least squares approximation setting cLUT */
-#define USE_CAM_CLIP_OPT	/* [Define] Clip out of gamut in CAM space rather than XYZ or L*a*b* */
-#define ENKHACK				/* [Define] Enable K hack code */
-#undef PRESERVE_SYNC		/* [Undef] Preserve video encoded sync level values */ 		
-#undef WARN_CLUT_CLIPPING	/* [Undef] Print warning if setting clut clips */
+#undef USE_APXLS			/* [und] Use least squares approximation setting cLUT */
+							/* (More accurate when on ?, but less smooth) */
+#define USE_CAM_CLIP_OPT	/* [def] Clip out of gamut in CAM space rather than XYZ or L*a*b* */
+#define ENKHACK				/* [def] Enable K hack code */
+#undef PRESERVE_SYNC		/* [und] Preserve video encoded sync level values */ 		
+#undef WARN_CLUT_CLIPPING	/* [und] Print warning if setting clut clips */
 
-#undef DEBUG		/* [Und] Report values of each sample transformed */
-#undef DEBUGC  		/* [Und] ie "if (tt)" */		/* Debug condition. Look for DEBUGC */
-#undef DEBUG_ONE	/* [Unf] test a single value out. Look for DBGNO to set value. */
-#undef NEUTKDEBUG	/* [Unf] print info about neutral L -> K mapping */
+#undef DEBUG		/* [und] Report values of each sample transformed */
+#undef DEBUGC  		/* [und] ie "if (tt)" */		/* Debug condition. Look for DEBUGC */
+#undef DEBUG_ONE	/* [und] test a single value out. Look for DBGNO to set value. */
+#undef NEUTKDEBUG	/* [und] print info about neutral L -> K mapping */
 
-
-#ifndef USE_APXLS
-# pragma message("!!!!!!!!!!!! USE_APXLS turned off  !!!!!!!!!")
-#endif
 
 #ifndef USE_CAM_CLIP_OPT
 # pragma message("!!!!!!!!!!!! USE_CAM_CLIP_OPT turned off  !!!!!!!!!")

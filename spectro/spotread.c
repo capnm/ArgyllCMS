@@ -74,6 +74,198 @@
 #include <conio.h>
 #endif
 
+#undef DO_TM3015_PLOT	/* Diagnostic */
+
+/* ----------------------------------------------------------------- */
+
+#ifdef DO_TM3015_PLOT
+
+#pragma message("#### spectro/spotread.c DO_TM3015_PLOT is enabled ####")
+
+#define SSAMP 4
+
+// Note that bins is modified
+static void tm3015_plot(double bins[IES_TM_30_15_BINS][2][3]) {
+	double rvecs[SSAMP * 16][2];	// DEBUG ref light circle vectors
+	double tvecs[SSAMP * 16][2];	// test light circle vectors
+	double shvec[2 * 16][2];		// Shift vectors
+	int i, j, k;
+	double maxr = 0.0;
+	plot_g gg = { 0 };
+	float lblack[3] = { 0.5, 0.5, 0.5 };
+	float lred[3]   = { 1.0, 0.5, 0.5 };
+	float black[3] = { 0.0, 0.0, 0.0 };
+	float red[3]   = { 1.0, 0.0, 0.0 };
+	float blue[3] = { 0.2, 0.2, 1.0 };
+
+#ifdef NEVER
+	clear_g(&gg);
+
+	for (i = 0; i < 16; i++) {
+		int ip1 = i < 15 ? i+1 : 0; 
+		
+		add_vec_g(&gg, bins[i][0][1], bins[i][0][2], bins[ip1][0][1], bins[ip1][0][2], lblack);
+		add_vec_g(&gg, bins[i][1][1], bins[i][1][2], bins[ip1][1][1], bins[ip1][1][2], lred);
+	}
+	do_plot_g(&gg, 0.0, 0.0, 0.0, 0.0, 1.0, 0, 1);
+#endif
+
+	clear_g(&gg);
+
+	/* Copy raw shift vectors */
+	for (i = 0; i < 16; i++) {
+		shvec[2 * i + 0][0] = bins[i][0][1];
+		shvec[2 * i + 0][1] = bins[i][0][2];
+		shvec[2 * i + 1][0] = bins[i][1][1];
+		shvec[2 * i + 1][1] = bins[i][1][2];
+	}
+
+	// Convert to angle & radius 
+	for (i = 0; i < 16; i++) {
+		for (j = 0; j < 2; j++) {
+			double x = bins[i][j][1];
+			double y = bins[i][j][2];
+
+			// atan2 returns -pi < val <= +pi
+			bins[i][j][1] = atan2(y, x);
+			bins[i][j][2] = sqrt(x * x + y * y);
+		}
+	}
+
+	// Interpolate test points, and normalize them by interp. reference points */
+	for (i = 0; i < 16; i++) {
+		int ip1 = i < 15 ? i+1 : 0; 
+		int k = i, kp1 = ip1;
+		for (j = 0; j < SSAMP; j++) {	// 4 x interpolation
+			double ra, rr, ta, tr;
+			double ra0, ra1, ta0, ta1;
+			double bl = (double)j/SSAMP;
+			double nf = 1.0;
+
+//printf("vec %d i %d j %d bl %f\n",SSAMP * i + j, i, j, bl);
+
+			ra0 = bins[i][0][1];
+			ra1 = bins[ip1][0][1];
+			ta0 = bins[i][1][1];
+			ta1 = bins[ip1][1][1];
+
+//printf("raw ra0 %f ra1 %f ta0 %f ta1 %f\n", ra0, ra1, ta0, ta1);
+
+			// Make sure pairs are ordered
+			if ((ra1 - ra0) > (1.0 * DBL_PI))
+				ra0 += 2.0 * DBL_PI;
+			else if ((ra1 - ra0) < -(1.0 * DBL_PI))
+				ra0 -= 2.0 * DBL_PI;
+
+			if ((ta1 - ta0) > (1.0 * DBL_PI))
+				ta0 += 2.0 * DBL_PI;
+			else if ((ta1 - ta0) < -(1.0 * DBL_PI))
+				ta0 -= 2.0 * DBL_PI;
+
+//printf("fix ra0 %f ra1 %f ta0 %f ta1 %f\n", ra0, ra1, ta0, ta1);
+
+			// Interpolated values
+			ra = (1.0 - bl) * ra0 + bl * ra1;
+			rr = (1.0 - bl) * bins[i][0][2] + bl * bins[ip1][0][2];
+			ta = (1.0 - bl) * ta0 + bl * ta1;
+			tr = (1.0 - bl) * bins[i][1][2] + bl * bins[ip1][1][2];
+
+//printf(" raw  ra %f rr %f ta %f tr %f\n",ra, rr, ta, tr);
+
+			nf = rr;		// Normalization factor
+
+			tr /= nf;
+			rr /= nf;
+
+			if (tr > maxr)
+				maxr = tr;
+
+//printf(" norm ra %f rr %f ta %f tr %f\n",ra, rr, ta, tr);
+
+			rvecs[SSAMP * i + j][0] = ra;
+			rvecs[SSAMP * i + j][1] = rr; 
+
+			tvecs[SSAMP * i + j][0] = ta;
+			tvecs[SSAMP * i + j][1] = tr; 
+
+			// Set shift vectors
+			if (j == 0) {
+				shvec[2 * i + 0][0] = ra;
+				shvec[2 * i + 0][1] = rr;
+				shvec[2 * i + 1][0] = ta; 
+				shvec[2 * i + 1][1] = tr; 
+//printf(" shft ra %f rr %f ta %f tr %f\n",ra, rr, ta, tr);
+			}
+//printf("\n");
+		}
+	}
+
+//printf("Done all, convert back\n");
+
+	// Convert back to cartesian
+	for (i = 0; i < (SSAMP * 16); i++) {
+		double a = tvecs[i][0];
+		double r = tvecs[i][1];
+
+		tvecs[i][0] = r * cos(a); 
+		tvecs[i][1] = r * sin(a);
+//printf(" tvecs[%d] a %f r %f x %f y %f\n",i,a,r,tvecs[i][0],tvecs[i][1]);
+	}
+
+	for (i = 0; i < (SSAMP * 16); i++) {
+		double a = rvecs[i][0];
+		double r = rvecs[i][1];
+
+		rvecs[i][0] = r * cos(a); 
+		rvecs[i][1] = r * sin(a);
+//printf(" rvecs[%d] a %f r %f x %f y %f\n",i,a,r,rvecs[i][0],rvecs[i][1]);
+	}
+
+	for (i = 0; i < (2 * 16); i++) {
+		double a = shvec[i][0];
+		double r = shvec[i][1];
+
+		shvec[i][0] = r * cos(a); 
+		shvec[i][1] = r * sin(a);
+//printf(" shvec[%d] a %f r %f x %f y %f\n",i,a,r,shvec[i][0],shvec[i][1]);
+	}
+
+//printf("About to plot\n");
+
+	for (i = 0; i < (SSAMP * 16); i++) {
+		int ip1 = i < (SSAMP * 16 -1) ? i+1 : 0; 
+		double x0, y0, x1, y1, r0, r1;
+
+		x0 = tvecs[i][0];
+		y0 = tvecs[i][1];
+		x1 = tvecs[ip1][0];
+		y1 = tvecs[ip1][1];
+
+		r0 = sqrt(x0 * x0 + y0 * y0);
+		r1 = sqrt(x1 * x1 + y1 * y1);
+
+		add_vec_g(&gg, x0/r0, y0/r0, x1/r1, y1/r1, black);
+//		add_vec_g(&gg, rvecs[i][0], rvecs[i][1], rvecs[ip1][0], rvecs[ip1][1], black);
+
+		add_vec_g(&gg, x0, y0, x1, y1, red);
+
+	}
+
+	for (i = 0; i < 16; i++) {
+		add_vec_g(&gg, shvec[2 * i + 0][0], shvec[2 * i + 0][1],
+		               shvec[2 * i + 1][0], shvec[2 * i + 1][1], blue);
+	}
+
+	do_plot_g(&gg, 0.0, 0.0, 0.0, 0.0, 1.0, 0, 1);
+	
+}
+
+#undef SSAMP
+
+#endif /* DO_TM3015_PLOT */
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 #ifdef NEVER	/* Not currently used */
 /* Convert control chars to ^[A-Z] notation in a string */
 static char *
@@ -209,21 +401,6 @@ static int ierror(inst *it, inst_code ic) {
 	return 0;
 }
 
-/* A color structure */
-/* This can hold all representations simultaniously */
-typedef struct {
-	double gy;
-	double r,g,b;
-	double cmyk[4];
-	double XYZ[4];		/* Colorimeter readings */
-	double eXYZ[4];		/* Expected XYZ values */
-	xspect sp;			/* Spectral reading */
-	
-	char *id;			/* Id string */
-	char *loc;			/* Location string */
-	int loci;			/* Location integer = pass * 256 + step */
-} col;
-
 #ifdef TEST_EVENT_CALLBACK
 	void test_event_callback(void *cntx, inst_event_type event) {
 		a1logd(g_log,0,"Got event_callback with 0x%x\n",event);
@@ -332,7 +509,7 @@ usage(char *diag, ...) {
 	fprintf(stderr,"    p                  Polarising filter\n");
 	fprintf(stderr,"    6                  D65\n");
 	fprintf(stderr,"    u                  U.V. Cut\n");
-	fprintf(stderr," -E extrafilterfile   Apply extra filter compensation file\n");
+	fprintf(stderr," -E customfilter.sp   Compensate for emission measurement filter\n");
 	fprintf(stderr," -A N|A|X|G           XRGA conversion (default N)\n");
 #ifndef SALONEINSTLIB
 	fprintf(stderr," -w                   Use -i param. illuminant for comuting L*a*b*\n");
@@ -344,11 +521,15 @@ usage(char *diag, ...) {
 #endif
 	fprintf(stderr," -V                   Show running average and std. devation from ref.\n");
 #ifndef SALONEINSTLIB
-	fprintf(stderr," -T                   Display correlated color temperatures, CRI and TLCI\n");
+	fprintf(stderr," -T                   Display correlated color temperatures, CRI, TLCI & IES TM-30-15\n");
 #endif /* !SALONEINSTLIB */
 //	fprintf(stderr," -K type              Run instrument calibration first\n");
 	fprintf(stderr," -N                   Disable auto calibration of instrument\n");
+#ifndef SALONEINSTLIB
+	fprintf(stderr," -O [fname.sp]        Do one cal. or measure and exit [save spectrum to file]\n");
+#else
 	fprintf(stderr," -O                   Do one cal. or measure and exit\n");
+#endif
 	fprintf(stderr," -H                   Start in high resolution spectrum mode (if available)\n");
 	if (cap2 & inst2_ccmx)
 		fprintf(stderr," -X file.ccmx         Apply Colorimeter Correction Matrix\n");
@@ -383,7 +564,8 @@ int main(int argc, char *argv[]) {
 	int debug = 0;
 	int docalib = 0;				/* Do a manual instrument calibration */
 	int nocal = 0;					/* Disable auto calibration */
-	int doone = 0;					/* Do one calibration or measure and exit */
+	int doone = 0;					/* 1 = Do one calibration or measure and exit */
+									/* 2 = + also save result to outspname */
 	int pspec = 0;					/* 1 = Print out the spectrum for each reading */
 									/* 2 = Plot out the spectrum for each reading */
 	int trans = 0;					/* Use transmissioin mode */
@@ -414,6 +596,7 @@ int main(int argc, char *argv[]) {
 	char filtername[MAXNAMEL+1] = "\000";  /* Filter compensation */
 	char wtilename[MAXNAMEL+1] = "\000";  /* White file spectrum */
 	char psetrefname[MAXNAMEL+1] = "\000";  /* Preset reference spectrum */
+	char outspname[MAXNAMEL+1] = "\000";  /* Save doone spectrum file */
 	FILE *fp = NULL;				/* Logfile */
 	icompaths *icmps = NULL;
 	int comport = COMPORT;				/* COM port used */
@@ -440,8 +623,8 @@ int main(int argc, char *argv[]) {
 	char labwpname[100] = "D50";	/* Name of Lab conversion wp */
 	icxObserverType obType = icxOT_default;		/* Default is 1931_2 */
 	xspect custObserver[3];			/* If obType = icxOT_custom */
-	xspect sp;						/* Last spectrum read */
-	xspect rsp;						/* Reference spectrum */
+	xspect sp;						/* Last spectrum read (fwa adjusted) */
+	xspect rsp;						/* Reference spectrum (fwa adjusted) */
 	xsp2cie *sp2cie = NULL;			/* default conversion */
 	xsp2cie *sp2cief[26];			/* FWA corrected conversions */
 	double wXYZ[3] = { -10.0, 0, 0 };/* White XYZ for display white relative */
@@ -812,6 +995,13 @@ int main(int argc, char *argv[]) {
 			/* Do one cal. or measure and exit */
 			} else if (argv[fa][1] == 'O') {
 				doone = 1;
+#ifndef SALONEINSTLIB
+				if (na != NULL) {
+					strncpy(outspname,na,MAXNAMEL-1); outspname[MAXNAMEL-1] = '\000';
+					doone = 2;
+					fa = nfa;
+				}
+#endif
 
 			/* High res mode */
 			} else if (argv[fa][1] == 'H') {
@@ -1370,13 +1560,15 @@ int main(int argc, char *argv[]) {
 			}
 		}
 
-		/* Apply Extra filter compensation */
+		/* Apply emission filter compensation */
 		if (filtername[0] != '\000') {
-			if ((rv = it->comp_filter(it, filtername)) != inst_ok) {
-				printf("\nSetting filter compensation failed with error :'%s' (%s)\n",
-			     	       it->inst_interp_error(it, rv), it->interp_error(it, rv));
-				it->del(it);
-				return -1;
+			xspect sp;
+			if (read_xspect(&sp, NULL, filtername) != 0)
+				error("Failed to emission filter compensation file '%s'",filtername);
+
+			if ((rv = it->get_set_opt(it, inst_opt_set_custom_filter, &sp)) != inst_ok) {
+				printf("Setting emission filter compensation failed with '%s' (%s) !!!\n",
+			       it->inst_interp_error(it, rv), it->interp_error(it, rv));
 			}
 		}
 
@@ -1649,7 +1841,7 @@ int main(int argc, char *argv[]) {
 
 	/* Read spots until the user quits */
 	for (ix = 1;; ix++) {
-		ipatch val;
+		ipatch val;								/* Raw measurement value */
 		double tXYZ[3];
 #ifndef SALONEINSTLIB
 		double cct, vct, vdt;
@@ -1712,7 +1904,10 @@ int main(int argc, char *argv[]) {
 				savdrd = 1;
 		}
 
-		/* Read a stored value */
+		/* We now wait for a user to trigger a measurement with a key, */
+		/* or issue a command using a key. */
+
+		/* Read a stored value from the instrument */
 		if (savdrd == 1) {
 			inst_code ev;
 
@@ -2138,21 +2333,13 @@ int main(int argc, char *argv[]) {
 		if (ch == 'S' || ch == 's') {	/* Save last spectral into file */
 			if (sp.spec_n > 0) {
 				char buf[500];
-				xspect tsp;
 
-				if (val.sp.spec_n <= 0)
-					error("Instrument didn't return spectral data");
-
-				tsp = val.sp;		/* Temp. save spectral reading */
-
-				/* Compute FWA corrected spectrum */
-				if (dofwa != 0) {
-					sp2cief[fidx]->sconvert(sp2cief[fidx], &tsp, NULL, &tsp);
-				}
+				if (sp.spec_n <= 0)
+					error("Save: Instrument didn't return spectral data");
 
 				printf("\nEnter filename (ie. xxxx.sp): "); fflush(stdout);
 				if (getns(buf, 500) != NULL && strlen(buf) > 0) {
-					if(write_xspect(buf, val.mtype, &tsp))
+					if(write_xspect(buf, val.mtype, &sp))
 						printf("\nWriting file '%s' failed\n",buf);
 					else
 						printf("\nWriting file '%s' succeeded\n",buf);
@@ -2335,13 +2522,15 @@ int main(int argc, char *argv[]) {
 
 		}
 
+		sp = val.sp;		/* Save as last spectral reading */
+
 		/* Setup FWA compensation */
 		if (sufwa) {
 			double FWAc;
 			xspect insp;			/* Instrument illuminant */
 
-			if (val.sp.spec_n <= 0) {
-				error("Instrument didn't return spectral data");
+			if (sp.spec_n <= 0) {
+				error("FWA Setup: Instrument didn't return spectral data");
 			}
 
 			if (inst_illuminant(&insp, it->get_itype(it)) != 0)
@@ -2354,7 +2543,7 @@ int main(int argc, char *argv[]) {
 					error("Creation of spectral conversion object failed");
 			}
 
-			if (sp2cief[fidx]->set_fwa(sp2cief[fidx], &insp, tillump, &val.sp)) 
+			if (sp2cief[fidx]->set_fwa(sp2cief[fidx], &insp, tillump, &sp)) 
 				error ("Set FWA on sp2cie failed");
 
 			sp2cief[fidx]->get_fwa_info(sp2cief[fidx], &FWAc);
@@ -2366,91 +2555,7 @@ int main(int argc, char *argv[]) {
 		}
 #endif /* !SALONEINSTLIB */
 
-		/* Print and/or plot out spectrum, */
-		/* even if it's an FWA setup */
-		if (pspec) {
-			xspect tsp;
-
-			if (val.sp.spec_n <= 0)
-				error("Instrument didn't return spectral data");
-
-			tsp = val.sp;		/* Temp. save spectral reading */
-
-			/* Compute FWA corrected spectrum */
-			if (dofwa != 0) {
-				sp2cief[fidx]->sconvert(sp2cief[fidx], &tsp, NULL, &tsp);
-			}
-
-			printf("Spectrum from %f to %f nm in %d steps\n",
-		                tsp.spec_wl_short, tsp.spec_wl_long, tsp.spec_n);
-
-			for (j = 0; j < tsp.spec_n; j++)
-				printf("%s%8.3f",j > 0 ? ", " : "", tsp.spec[j]);
-			printf("\n");
-
-#ifndef SALONEINSTLIB
-			/* Plot the spectrum */
-			if (pspec == 2) {
-				double xx[XSPECT_MAX_BANDS];
-				double yy[XSPECT_MAX_BANDS];
-				double yr[XSPECT_MAX_BANDS];
-				double xmin, xmax, ymin, ymax;
-				xspect trsp = rsp;
-				xspect *ss;		/* Spectrum range to use */
-				int nn;
-
-				if (dofwa != 0) {
-					sp2cief[fidx]->sconvert(sp2cief[fidx], &trsp, NULL, &tsp);
-				}
-
-				if (trsp.spec_n > 0) {
-					if ((tsp.spec_wl_long - tsp.spec_wl_short) > 
-					    (trsp.spec_wl_long - trsp.spec_wl_short))
-						ss = &tsp;
-					else
-						ss = &trsp;
-				} else 
-					ss = &tsp;
-
-				if (tsp.spec_n > trsp.spec_n)
-					nn = tsp.spec_n;
-				else
-					nn = trsp.spec_n;
-
-				if (nn > XSPECT_MAX_BANDS)
-					error("Got > %d spectral values (%d)",XSPECT_MAX_BANDS,nn);
-
-				for (j = 0; j < nn; j++) {
-#if defined(__APPLE__) && defined(__POWERPC__)
-					gcc_bug_fix(j);
-#endif
-					xx[j] = ss->spec_wl_short
-					      + j * (ss->spec_wl_long - ss->spec_wl_short)/(nn-1);
-
-					yy[j] = value_xspect(&tsp, xx[j]);
-
-					if (rLab[0] >= -1.0) {	/* If there is a reference */
-						yr[j] = value_xspect(&trsp, xx[j]);
-					}
-				}
-				
-				xmax = ss->spec_wl_long;
-				xmin = ss->spec_wl_short;
-				if (emiss || uvmode) {
-					ymin = ymax = 0.0;	/* let it scale */
-				} else {
-					ymin = 0.0;
-					ymax = 120.0;
-				}
-				do_plot_x(xx, yy, NULL, rLab[0] >= -1.0 ? yr : NULL, nn, 1,
-				          xmin, xmax, ymin, ymax, 2.0);
-			}
-#endif /* !SALONEINSTLIB */
-		}
-
-		if (sufwa == 0) {		/* Not setting up fwa, so show reading */
-
-			sp = val.sp;		/* Save as last spectral reading */
+		if (sufwa == 0) {		/* Not setting up fwa, so process reading */
 
 			/* Compute the XYZ & Lab */
 			if (dofwa == 0 && spec == 0) {
@@ -2464,14 +2569,14 @@ int main(int argc, char *argv[]) {
 				/* Compute XYZ given spectral */
 	
 				if (sp.spec_n <= 0) {
-					error("Instrument didn't return spectral data");
+					error("FAW Convert: Instrument didn't return spectral data");
 				}
 	
 				if (dofwa == 0) {
 					/* Convert it to XYZ space using uncompensated */
 					sp2cie->convert(sp2cie, XYZ, &sp);
 				} else {
-					/* Convert using compensated conversion */
+					/* Convert using FWA compensated conversion */
 					sp2cief[fidx]->sconvert(sp2cief[fidx], &sp, XYZ, &sp);
 				}
 				if (!(emiss || tele || ambient)) {
@@ -2479,6 +2584,81 @@ int main(int argc, char *argv[]) {
 						XYZ[j] *= 100.0;		/* 0..100 scale */
 				}
 			}
+
+			/* XYZ is 0 .. 100 for reflective/transmissive, and absolute for emissibe here */
+			/* XYZ is 0 .. 1 for reflective/transmissive, and absolute for emissibe here */
+		}
+
+		/* Print and/or plot out spectrum, */
+		/* even if it's an FWA setup */
+		if (pspec) {
+
+			if (sp.spec_n <= 0)
+				error("Print: Instrument didn't return spectral data");
+
+			printf("Spectrum from %.3f to %.3f nm in %d steps\n",
+		                sp.spec_wl_short, sp.spec_wl_long, sp.spec_n);
+
+			for (j = 0; j < sp.spec_n; j++)
+				printf("%s%g",j > 0 ? ", " : "", sp.spec[j]);
+			printf("\n");
+
+#ifndef SALONEINSTLIB
+			/* Plot the spectrum */
+			if (pspec == 2) {
+				double xx[XSPECT_MAX_BANDS];
+				double yy[XSPECT_MAX_BANDS];
+				double yr[XSPECT_MAX_BANDS];
+				double xmin, xmax, ymin, ymax;
+				xspect *ss;				/* Spectrum range to use */
+				int nn;
+
+				if (rsp.spec_n > 0) {
+					if ((sp.spec_wl_long - sp.spec_wl_short) > 
+					    (rsp.spec_wl_long - rsp.spec_wl_short))
+						ss = &sp;
+					else
+						ss = &rsp;
+				} else 
+					ss = &sp;
+
+				if (sp.spec_n > rsp.spec_n)
+					nn = sp.spec_n;
+				else
+					nn = rsp.spec_n;
+
+				if (nn > XSPECT_MAX_BANDS)
+					error("Got > %d spectral values (%d)",XSPECT_MAX_BANDS,nn);
+
+				for (j = 0; j < nn; j++) {
+#if defined(__APPLE__) && defined(__POWERPC__)
+					gcc_bug_fix(j);
+#endif
+					xx[j] = ss->spec_wl_short
+					      + j * (ss->spec_wl_long - ss->spec_wl_short)/(nn-1);
+
+					yy[j] = value_xspect(&sp, xx[j]);
+
+					if (rLab[0] >= -1.0) {	/* If there is a reference */
+						yr[j] = value_xspect(&rsp, xx[j]);
+					}
+				}
+				
+				xmax = ss->spec_wl_long;
+				xmin = ss->spec_wl_short;
+				if (emiss || uvmode) {
+					ymin = ymax = 0.0;	/* let it scale */
+				} else {
+					ymin = 0.0;
+					ymax = 120.0;
+				}
+				do_plot_x(xx, yy, NULL, rLab[0] >= -1.0 ? yr : NULL, nn, 0,
+				          xmin, xmax, ymin, ymax, 2.0);
+			}
+#endif /* !SALONEINSTLIB */
+		}
+
+		if (sufwa == 0) {		/* Not setting up fwa, so show reading */
 
 			/* XYZ is 0 .. 100 for reflective/transmissive, and absolute for emissibe here */
 			/* XYZ is 0 .. 1 for reflective/transmissive, and absolute for emissibe here */
@@ -2733,7 +2913,7 @@ int main(int argc, char *argv[]) {
 #endif
 			}
 #ifndef SALONEINSTLIB
-			if (val.sp.spec_n > 0 && (ambient || doCCT)) {
+			if (sp.spec_n > 0 && (ambient || doCCT)) {
 				int i, invalid = 0;
 				double RR[14];
 				double cri;
@@ -2747,11 +2927,24 @@ int main(int argc, char *argv[]) {
 				}
 				printf("\n");
 			}
-			if (val.sp.spec_n > 0 && (ambient || doCCT)) {
+			if (sp.spec_n > 0 && (ambient || doCCT)) {
 				int invalid = 0;
 				double tlci;
 				tlci = icx_EBU2012_TLCI(&invalid, &sp);
 				printf(" Television Lighting Consistency Index 2012 (Qa) = %.1f%s\n",tlci,invalid ? " (Caution)" : "");
+			}
+			if (sp.spec_n > 0 && (ambient || doCCT)) {
+				int invalid;
+				double Rf, Rg, cct, dc;
+				double bins[IES_TM_30_15_BINS][2][3];
+
+				invalid = icx_IES_TM_30_15(&Rf, &Rg, &cct, &dc, bins, &sp);
+
+				printf(" IES TM-30-15 Rf = %.2f Rg = %.2f CCT = %.0f Duv = %f%s\n", Rf, Rg, cct, dc, invalid ? " (Caution)" : "");
+
+#ifdef DO_TM3015_PLOT
+				tm3015_plot(bins);
+#endif
 			}
 #endif
 
@@ -2764,7 +2957,7 @@ int main(int argc, char *argv[]) {
 						for (j = 0; j < sp.spec_n; j++) {
 							double wvl = sp.spec_wl_short 
 								      + j * (sp.spec_wl_long - sp.spec_wl_short)/(sp.spec_n-1);
-							fprintf(fp,"\t%3f",wvl);
+							fprintf(fp,"\t%.3f",wvl);
 						}
 					}
 					fprintf(fp,"\n");
@@ -2777,11 +2970,24 @@ int main(int argc, char *argv[]) {
 	
 				if (pspec != 0) {
 					for (j = 0; j < sp.spec_n; j++)
-						fprintf(fp,"\t%8.3f",sp.spec[j]);
+						fprintf(fp,"\t%g",sp.spec[j]);
 				}
 				fprintf(fp,"\n");
 			}
 		}
+
+#ifndef SALONEINSTLIB
+		if (doone == 2) {
+			if (sp.spec_n <= 0)
+				error("Save: Instrument didn't return spectral data");
+
+			if (write_xspect(outspname, val.mtype, &sp))
+				printf("Writing file '%s' failed\n",outspname);
+			else
+				printf("Writing file '%s' succeeded\n",outspname);
+		}
+#endif
+
 		if (doone)
 			break;
 

@@ -23,9 +23,11 @@
         &nbsp;-l&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
+
         Match patches by sample location rather than id<br>
         &nbsp;-n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Normalise
+
 
 
 
@@ -45,8 +47,10 @@ Normalise
 
 
 
+
         each files reading to white XYZ<br>
         &nbsp;-m&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -55,9 +59,11 @@ Normalise
 
 
 
+
         Normalise both files reading to mean white XYZ<br>
         &nbsp;-D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Use
+
 
 
 
@@ -77,10 +83,12 @@ Use
 
 
 
+
         &nbsp; Show CIE94 delta E values<br>
         &nbsp;-k &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         &nbsp; &nbsp; Show CIEDE2000 delta E values<br>
         &nbsp;-h&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -91,6 +99,7 @@ Use
         &nbsp; &nbsp; Sort patch value by error<br>
         &nbsp;-w&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;
+
 
 
 
@@ -114,11 +123,13 @@ Use
 
 
 
+
         &nbsp; Use X3DOM axes<br>
         &nbsp;</small></tt><tt><small><small>-f
           [illum]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Use Fluorescent
           Whitening Agent compensation [opt. simulated inst. illum.:<br>
           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -141,6 +152,7 @@ Use
 
 
 
+
           A, C, D50 (def.), D50M2, D65, F5, F8, F10 or file.sp<br>
           &nbsp;-o observ&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; Choose
           CIE Observer for spectral data:<br>
@@ -153,7 +165,9 @@ Use
 
 
 
+
           1931_2 </small><small>(def.)</small><small>, 1964_10, </small></small></tt><tt><small><small><tt><small>2012_2,
+
 
               2012_10, </small></tt>S&amp;B 1955_2, shaw, J&amp;V
           1978_2 or file.cmf<br>
@@ -279,8 +293,9 @@ Use
     <br>
     The <b>-L</b><b> profile.icm</b> parameter causes colverify to
     ignore any patches from the first file that are out of gamut
-    according to the profile. This can be useful in evaluating accuracy
-    without tainting it by impossible to reach colors.<br>
+    according to the profile given by th -L argument. This can be useful
+    in evaluating accuracy without tainting it by impossible to reach
+    colors.<br>
     <br>
     The <b>-X</b><b> file.ccmx</b> option applies the given 3x3
     calibration matrix to the values from the second file before doing

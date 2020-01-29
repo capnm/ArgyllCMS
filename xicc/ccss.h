@@ -27,6 +27,13 @@
  * This object provides storage and application of emisive spectral
  * samples that can be used to compute calibration for suitable
  * colorimeters (such as the i1d3) tuned for particular types of displays.
+ * 
+ * (Note that I suggested this idea publically on the ArgyllCMS mailing
+ *  list in Jan 2008:
+ *  <https://www.freelists.org/post/argyllcms/Calibrate-a-HCFR-hardware,9>
+ *  well before X-Rite & DataColor released instruments that used this approach,
+ *  And in more detail in April 2010:
+ *  <https://www.freelists.org/post/argyllcms/Correction-for-wide-gamut-screens-andor-RGBLED,1>)
  */
 
 /* ------------------------------------------------------------------------------ */

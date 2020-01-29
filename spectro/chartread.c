@@ -61,7 +61,7 @@
 
 #undef TEST_EVENT_CALLBACK      /* Report async event callbacks, and implement beep prompt there. */
 
-#undef USESTRDELTA		/* [Und] Use patch delat's for correlation rather than match DE */
+#undef USESTRDELTA		/* [Und] Use patch delta's for correlation rather than match DE */
 						/* Doesn't seem to work as well. Why ? */
 
 #ifdef __MINGW32__
@@ -1117,7 +1117,8 @@ a1log *log			/* verb, debug & error log */
 
 			pai += paist;		/* Tracj next first pass in strip */
 			rpat -= npatch;		/* Track remaining patches */
-		}
+		}	/* Next pass */
+
 		for (k = 0; k < 3; k++) {
 			if (pn[k] != NULL)
 				free(pn[k]);

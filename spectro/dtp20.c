@@ -552,7 +552,8 @@ ipatch *vals) {		/* Pointer to array of values */
 		}
 
 		if (p->mode & inst_mode_spectral
-		 || XCALSTD_NEEDED(p->target_calstd, p->native_calstd)) {
+		 || XCALSTD_NEEDED(p->target_calstd, p->native_calstd)
+		 || p->custfilt_en) {
 
 			/* Gather the results in Spectral reflectance */
 			if ((ev = dtp20_command(p, "0318CF\r", buf, MAX_RD_SIZE, 0.5)) != inst_ok)
@@ -597,6 +598,10 @@ ipatch *vals) {		/* Pointer to array of values */
 	/* Apply any XRGA conversion */
 	ipatch_convert_xrga(vals, npatch, xcalstd_nonpol, p->target_calstd, p->native_calstd,
 	                    instClamp);
+
+	/* Apply custom filter compensation */
+	if (p->custfilt_en)
+		ipatch_convert_custom_filter(vals, npatch, &p->custfilt, instClamp);
 
 	return inst_ok;
 }
@@ -1547,6 +1552,73 @@ inst_opt_type m,	/* Requested status type */
 		return inst_no_coms;
 	if (!p->inited)
 		return inst_no_init;
+
+	/* Set xcalstd */
+	if (m == inst_opt_set_xcalstd) {
+		xcalstd standard;
+		va_list args;
+
+		va_start(args, m);
+		standard = va_arg(args, xcalstd);
+		va_end(args);
+
+		p->target_calstd = standard;
+
+		return inst_ok;
+	}
+
+	/* Get the current effective xcalstd */
+	if (m == inst_opt_get_xcalstd) {
+		xcalstd *standard;
+		va_list args;
+
+		va_start(args, m);
+		standard = va_arg(args, xcalstd *);
+		va_end(args);
+
+		if (p->target_calstd == xcalstd_native)
+			*standard = p->native_calstd;		/* If not overridden */
+		else
+			*standard = p->target_calstd;		/* Overidden std. */
+
+		return inst_ok;
+	}
+
+	if (m == inst_opt_set_custom_filter) {
+		va_list args;
+		xspect *sp = NULL;
+
+		va_start(args, m);
+
+		sp = va_arg(args, xspect *);
+
+		va_end(args);
+
+		if (sp == NULL || sp->spec_n == 0) {
+			p->custfilt_en = 0;
+			p->custfilt.spec_n = 0;
+		} else {
+			p->custfilt_en = 1;
+			p->custfilt = *sp;			/* Struct copy */
+		}
+		return inst_ok;
+	}
+
+	if (m == inst_stat_get_custom_filter) {
+		va_list args;
+		xspect *sp = NULL;
+
+		va_start(args, m);
+		sp = va_arg(args, xspect *);
+		va_end(args);
+
+		if (p->custfilt_en) {
+			*sp = p->custfilt;			/* Struct copy */
+		} else {
+			sp = NULL;
+		}
+		return inst_ok;
+	}
 
 	if (m == inst_stat_saved_readings) {
 		char buf[MAX_MES_SIZE];

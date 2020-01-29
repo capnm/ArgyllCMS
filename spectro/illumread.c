@@ -20,7 +20,12 @@
 /* and reflective (non-UV filtered) measurement, to measure an illuminant */
 /* spectrum that includes a UV estimate. */
 
-/* Based on spotread.c */
+/* This is documented in the paper: */
+/* "Estimating illuminant U.V. without a U.V. capable instrument", */
+/* Graeme W. Gill, IS&T 19th Color and Imaging Conference Final Program */
+/* and Proceedings, pp. 58-60(3) */ 
+
+/* Code based on spotread.c */
 
 /*
 	TTBD:

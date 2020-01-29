@@ -180,6 +180,9 @@ struct _munkiimp {
 	xcalstd native_calstd;		/* Instrument native calibration standard */
 	xcalstd target_calstd;		/* Returned calibration standard */
 
+	int custfilt_en;			/* Custom filter enabled */
+	xspect custfilt;			/* Custom filter */
+
 	/* Current state of hardware (~~99 are all these used ??) */
 	double c_inttime;			/* Integration period (=inttime + deadtime) */
 	int c_measmodeflags;		/* Measurement mode flags (set by trigger() */

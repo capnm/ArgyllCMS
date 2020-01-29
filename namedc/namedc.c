@@ -20,7 +20,7 @@
 /*
  * TTBD:
  *
- * Probably want to add some other formst:
+ * Probably want to add some other formats:
  * (see <http://www.selapa.net/swatchbooker/>
  *  and <http://www.selapa.net/swatches/colors/fileformats.php>  )
  *
@@ -116,7 +116,7 @@ static int pfxcmp(const char *s1, const char *s2) {
 }
 
 /* XML data type callback for mxmlLoadFile() */
-mxml_type_t
+static mxml_type_t
 type_cb(mxml_node_t *node) {
 	mxml_node_t *parent = mxmlGetParent(node);
 	const char *pname;
@@ -178,12 +178,11 @@ type_cb(mxml_node_t *node) {
 	  || pfxcmp(name, "FieldOfView") == 0))
 		return MXML_OPAQUE;		/* Don't split strings up */
 
-
 	return MXML_TEXT;
 }
 
 
-void sax_cb(mxml_node_t *node, mxml_sax_event_t event, void *data) {
+static void sax_cb(mxml_node_t *node, mxml_sax_event_t event, void *data) {
 	namedc *p = (namedc *)data;
 
 	if (event == MXML_SAX_ELEMENT_OPEN) {
@@ -197,7 +196,7 @@ void sax_cb(mxml_node_t *node, mxml_sax_event_t event, void *data) {
 		if ((p->options & NAMEDC_OP_NODATA) == 0
 		 || !p->indata) {
 //printf("~1 options 0x%x, indata %d, retaining '%s'\n",p->options,p->indata,pname);
-//a1logd(p->log, 4, "sax_cb: retaining %s\n",pname);
+a1logd(p->log, 4, "sax_cb: retaining %s\n",pname);
 			mxmlRetain(node);
 		}
 
@@ -219,17 +218,17 @@ void sax_cb(mxml_node_t *node, mxml_sax_event_t event, void *data) {
 
 
 /* Return a temporary key with prefix */
-char *pfx(namedc *p, char *key) {
+static char *pfx(namedc *p, char *key) {
 	if (p->pfx[0] == '\000')
 		return key;
 
-	snprintf(p->prefix, 200, "%s:%s", p->pfx, key);
+	snprintf(p->prefix, NAMEDC_PLEN, "%s:%s", p->pfx, key);
 
 	return p->prefix;
 }
 
 /* Return a temporary key with prefix at front and after each '/' */
-char *pfxp(namedc *p, char *path) {
+static char *pfxp(namedc *p, char *path) {
 	char *cp = p->prefix;
 	char *sp, *ep;
 	int plen, slen;
@@ -283,7 +282,7 @@ char *pfxp(namedc *p, char *path) {
 }
 
 /* Return a temporary key with suffix */
-char *sfx(namedc *p, char *key) {
+static char *sfx(namedc *p, char *key) {
 	if (p->pfx[0] == '\000')
 		return key;
 
@@ -1264,7 +1263,7 @@ void usage(char *diag, ...) {
 		va_end(args);
 		fprintf(stderr,"\n");
 	}
-	fprintf(stderr,"usage: namedc [-v level] infile\n");
+	fprintf(stderr,"usage: namedc [-D level] infile\n");
 	fprintf(stderr," -D level               Debug level 1-9\n");
 	exit(1);
 }

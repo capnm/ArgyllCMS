@@ -18,7 +18,6 @@
 #include <string.h>
 #ifdef NT
 # include <winsock2.h>
-# include <shlwapi.h>
 #endif
 #include "copyright.h"
 #include "aconfig.h"
@@ -63,10 +62,18 @@
 # define KEY_WOW64_32KEY (0x0200)
 #endif
 
-/* Incase shlwapi.h doesn't declare this */
+/* Avoid shlwapi.h since it's inclusion in SDK's is variable */
 #include <pshpack1.h>
-typedef struct _ADLLVERSIONINFO2
-{
+
+typedef struct _DLLVERSIONINFO {
+    DWORD cbSize;
+    DWORD dwMajorVersion;
+    DWORD dwMinorVersion;
+    DWORD dwBuildNumber; 
+    DWORD dwPlatformID; 
+} DLLVERSIONINFO;
+
+typedef struct _ADLLVERSIONINFO2 {
     DLLVERSIONINFO info1;
     DWORD dwFlags;
     ULONGLONG ullVersion;

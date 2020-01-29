@@ -461,7 +461,7 @@ if $(NT)
 		# Allow setting of flags, independent of compiler
 		DEFFLAG			?= -D ;
 		UNDEFFLAG		?= -U ;
-		CCOPTFLAG		?= -O3 ;
+		CCOPTFLAG		?= -O2 ;
 		if $(PROCESSOR_LEVEL) = 15 
 		{	# -mtune seems faster than -march !!!
 #			CCOPTFLAG	+= -mtune=pentium4 ;
@@ -490,6 +490,12 @@ if $(NT)
 		YACCGEN			?= .c ;
 		YACCFILES		?= y.tab ;
 		YACCFLAGS		?= -d ;
+
+# gcc assembler listing:
+# -g -O -Wa,-aslh source.cpp > list.txt
+# -save-temps
+# -fdump-tree-all'
+
 	}
 	else if $(MSVC)		# 
 	{
@@ -550,7 +556,7 @@ if $(NT)
 		STDHDRS			?= $(ICPP_COMPILER14)\\Include ;
 		DEFFLAG		 	?= /D ;				
 		UNDEFFLAG		?= /U ;
-		CCOPTFLAG		?= /O3 ; 
+		CCOPTFLAG		?= /O2 ; 
 
 		if $(MSVCVER) = 6 {
 			CCDEBUGFLAG		?= /Od /Z7 ;		# Include debugging into in each object		
@@ -582,12 +588,24 @@ if $(NT)
 			MSVCNT		?= $(MSVCDIR) ;		
 		}
 
-		if [ MATCH 12\\.(.*) : $(VisualStudioVersion) ] {
+		if [ MATCH 15\\.(.*) : $(VisualStudioVersion) ] {
+			ECHO "Compiler is VC++15 (AKA Community 2017)" ;
+			MSVCVER     = 15 ;
+		} else if [ MATCH 14\\.(.*) : $(VisualStudioVersion) ] {
+			ECHO "Compiler is VC++14 32 bit" ;
+			MSVCVER     = 14 ;
+		} else if [ MATCH 13\\.(.*) : $(VisualStudioVersion) ] {
+			ECHO "Compiler is VC++13 32 bit" ;
+			MSVCVER     = 13 ;
+		} else if [ MATCH 12\\.(.*) : $(VisualStudioVersion) ] {
 			ECHO "Compiler is VC++12 32 bit" ;
 			MSVCVER     = 12 ;
 		} else if [ MATCH 11\\.(.*) : $(VisualStudioVersion) ] {
 			ECHO "Compiler is VC++11 32 bit" ;
 			MSVCVER     = 11 ;
+		} else if $(VisualStudioVersion) {
+			ECHO "Compiler VC++, unknown version " ;
+			MSVCVER     = 15 ;
 		} else if [ MATCH (.*)VC\\+\\+10(.*) : $(MSVCNT) ] {
 			ECHO "Compiler is VC++10 32 bit" ;
 			MSVCVER     = 10 ;
@@ -628,7 +646,7 @@ if $(NT)
 		C++FLAGS		?= $(CCFLAGS) /GX ;		# GX enables syncronous exception handling
 		LINK			?= link /nologo ;
 		LINKOUTFLAG		?= /out: ;
-		LINKFLAGS		?= /INCREMENTAL:NO /LIBPATH:$(MSNTSDK)\\lib\\$(I) ;
+		LINKFLAGS		?= /STACK:16000000 /INCREMENTAL:NO /LIBPATH:$(MSNTSDK)\\lib\\$(I) ;
 		SHLINKFLAGS		?= ;
 
 		STDLIBS			?= 
@@ -656,7 +674,7 @@ if $(NT)
 		STDHDRS			?= $(MSNTSDK)\\Include ;
 		DEFFLAG		 	?= /D ;				
 		UNDEFFLAG		?= /U ;
-		CCOPTFLAG		?= /Ox ;		# MSVC9 doesn't understamd GB, G6 ?
+		CCOPTFLAG		?= /O2 ;		# MSVC9 doesn't understamd GB, G6 ?
 		if $(MSVCVER) = 6 {
 			CCDEBUGFLAG		?= /Od /Z7 ;		# Include debugging into in each object		
 			CCPROFFLAG		?= /Od /Z7 ;
@@ -995,6 +1013,19 @@ else if $(UNIX)
 		C++FLAGS   += -m64 ;
 	}
 
+
+	# Hmm. Newer linux gcc ar defaults to no timestamps
+	# and introduces a new option to get old behaviour,
+	# breaking the dependency determination.
+	# Older versions of ar will barf on the new option
+	# There seems no way of determining this short of checking
+	# the version of ar :-(:-(
+	# gcc seems oblivious to the pain caused by their change of behaviour.
+	# We use a hack - user has to set NEW_GNU_AR_OPTIONS
+	if $(JAM_NEW_GNU_AR_OPTIONS) != "" {
+		AR = ar ruscU ;
+	}
+
 	# Adding --hash-style=sysv to the compiler options
 	# might improve Linux compatibility with FC5 ?
 }
@@ -1059,8 +1090,13 @@ else if $(UNIX)
 	YACCFILES		?= ;
 	YACCFLAGS		?= ;
 
-	HDRPATTERN = 
-				"^[		 ]*#[		 ]*include[		 ]*[<\"]([^\">]*)[\">].*$" ;
+	# Scan both #include <xxx.h> and #include "xxx.h"
+	# HDRPATTERN = "^[		 ]*#[		 ]*include[		 ]*[<\"]([^\">]*)[\">].*$" ;
+
+	# Scan just #include "xxx.h"
+	# (Some linux systems hide standard .h files in directories that aren't in
+	# env. paths)
+	HDRPATTERN = "^[		 ]*#[		 ]*include[		 ]*[\"]([^\">]*)[\"].*$" ;
 
 	OSFULL = $(OS)$(OSVER)$(OSPLAT) $(OS)$(OSPLAT) $(OS)$(OSVER) $(OS) ;
 

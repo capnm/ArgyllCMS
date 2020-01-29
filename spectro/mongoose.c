@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+#undef DEBUG
+
 /*
 	Fedora 18+ and similar pose a problem with their use of FirewallD.
 

@@ -78,8 +78,8 @@
     doc sub-directory, and instrument USB drivers in the usb directory.<br>
     <br>
     <span style="font-weight: bold;">NOTE: </span><span
-      style="font-weight: bold;">Vista 64/Windows 7, 8 &amp; 8.1&nbsp;
-      64 bit</span> and <span style="font-weight: bold;">Beep</span>
+      style="font-weight: bold;">Vista 64/Windows 7, 8,8.1 &amp;
+      10&nbsp; 64 bit</span> and <span style="font-weight: bold;">Beep</span>
     prompt<span style="font-weight: bold;">: </span>Microsoft (in its
     infinite wisdom) has removed the built in speaker driver, and now
     relies on systems having a sound card and speakers's installed and
@@ -96,8 +96,8 @@
     <hr style="width: 100%; height: 2px;"><br>
     <span style="font-weight: bold;">NOTE</span> that if you wish to use
     Argyll tools (<a href="dispwin.html">dispwin</a>) to control display
-    calibration, that you will have to disable any other calibration
-    loader programs.<br>
+    calibration, that you will have to disable any other display
+    calibration loader programs.<br>
     <br>
     There are other programs that will interfere with calibration
     loading, such as igfxpers.exe that gets installed with nVidia
@@ -136,9 +136,13 @@
     If you are using the <b>JETI</b> specbos <b>1211</b><b>,&nbsp;</b><b>1201</b><b>,
       1511, 1501</b> and the <b>Klien K10A</b><b></b> then you may need
     to install the <a href="http://www.ftdichip.com/Drivers/VCP.htm">FTDI
+
+
       Virtual COM Port Drivers</a> (VCP), if they are not already on
     your system. You may have to update to the latest FTDI driver to
     work with the FTDI FT231XS chip that the <b>JETI</b> specbos <b>1511,
+
+
       1501</b> use.<br>
     <br>
     Jump to your operating system version:<br>
@@ -162,9 +166,14 @@
     drivers provided with Argyll, since you don't have to deal with the
     instrument already having an assigned driver.<br>
     <br>
-    Windows 8 does not automatically pop up a "New Hardware" dialog, so
-    you will have to open the Device Manager manually, and you will also
-    have to temporarily disable UBS driver .inf signature enforcement.<br>
+    Windows 8/8.1/10 does not automatically pop up a "New Hardware"
+    dialog, so you will have to open the Device Manager manually, and
+    you will also have to temporarily disable UBS driver .inf signature
+    enforcement.<br>
+    <br>
+    Please <b>NOTE</b> that on some versions of Windows 10, you may
+    have to temporarily <b>disable secure boot</b> in your UEFI BIOS to
+    be able to Disable Driver Signature Enforcement.<br>
     <br>
     <span style="text-decoration: underline;">To install the Argyll
       driver for the first instrument:</span><br>
@@ -185,14 +194,14 @@
     Close<br>
     <br style="text-decoration: underline;">
     <span style="text-decoration: underline;">On subsequent installation
-      of other instrument types:</span><br>
+      of other supported instrument types:</span><br>
     &nbsp;&nbsp;&nbsp; Simply plug the instrument in. The Argyll driver
     will be automatically selected.<br>
     <br>
     <br>
-    <span style="color: rgb(51, 153, 153); font-weight: bold;"><span
-        style="color: rgb(0, 0, 0); text-decoration: underline;">Adding
-        Argyll drivers to existing drivers:</span></span><br>
+    &nbsp; <span style="color: rgb(51, 153, 153); font-weight: bold;"><span
+        style="color: rgb(0, 0, 0); text-decoration: underline;">Using
+        Argyll drivers with existing OEM drivers:</span></span><br>
     <br>
     If you currently have applications other than Argyll accessing your
     USB connected instrument, then you will have to manually install the
@@ -236,10 +245,11 @@
         0, 0); text-decoration: underline;"><span style="font-weight:
           bold;">Un-installing Argyll driver:</span></span></span><br>
     <br>
-    If you are updating to a new version of Argyll, that it may be
-    necessary to uninstall all the existing Argyll USB driver, and do a
-    fresh re-install to update the relevant libusb system driver and
-    .inf file. (This is true for updating to Argyll Version 1.5.0). <br>
+    If you are updating to a new version of Argyll which adds support
+    for a new instrument that you want to use, then it may be necessary
+    to uninstall all the existing Argyll USB driver and do a fresh
+    re-install to update the relevant libusb system driver and .inf
+    file. (This is true for updating to Argyll Version 2.0.0). <br>
     <br>
     &nbsp;&nbsp;&nbsp; (Plug in the instrument)<br>
     &nbsp;&nbsp;&nbsp; Desktop -&gt; Settings -&gt; Control Panel -&gt;
@@ -294,8 +304,11 @@
     <br>
     <br>
     <span style="color: rgb(51, 153, 153); font-weight: bold;"><span
-        style="color: rgb(0, 0, 0); text-decoration: underline;">Adding
-        Argyll drivers to existing drivers:</span></span><br>
+        style="color: rgb(0, 0, 0); text-decoration: underline;"><span
+          style="color: rgb(51, 153, 153); font-weight: bold;"><span
+            style="color: rgb(0, 0, 0); text-decoration: underline;">Using
+
+            Argyll drivers with existing OEM drivers</span></span>:</span></span><br>
     <br>
     If you currently have applications other than Argyll accessing your
     USB connected instrument, then you will have to manually install the
@@ -333,10 +346,11 @@
         0, 0); text-decoration: underline;"><span style="font-weight:
           bold;">Un-installing Argyll driver:</span></span></span><br>
     <br>
-    If you are updating to a new version of Argyll, that it may be
-    necessary to uninstall all the existing Argyll USB driver, and do a
-    fresh re-install, to update the relevant libusb system driver and
-    .inf file. (This is true for updating to Argyll Version 1.5.0). <br>
+    If you are updating to a new version of Argyll which adds support
+    for a new instrument that you want to use, then it may be necessary
+    to uninstall all the existing Argyll USB driver and do a fresh
+    re-install to update the relevant libusb system driver and .inf
+    file. (This is true for updating to Argyll Version 2.0.0).&nbsp; <br>
     <br>
     &nbsp;&nbsp;&nbsp; (Plug in the instrument)<br>
     &nbsp;&nbsp;&nbsp; Start -&gt; Control Panel -&gt; Hardware and
@@ -394,8 +408,11 @@
     <br>
     <br>
     <span style="color: rgb(51, 153, 153); font-weight: bold;"><span
-        style="color: rgb(0, 0, 0); text-decoration: underline;">Adding
-        Argyll drivers to existing drivers:</span></span><br>
+        style="color: rgb(0, 0, 0); text-decoration: underline;"><span
+          style="color: rgb(51, 153, 153); font-weight: bold;"><span
+            style="color: rgb(0, 0, 0); text-decoration: underline;">Using
+
+            Argyll drivers with existing OEM drivers</span></span>:</span></span><br>
     <br>
     If you currently have applications other than Argyll accessing your
     USB connected instrument, then you will have to manually install the
@@ -439,10 +456,11 @@
         0, 0); text-decoration: underline;"><span style="font-weight:
           bold;">Un-installing Argyll driver:</span></span></span><br>
     <br>
-    If you are updating to a new version of Argyll, that it may be
-    necessary to uninstall all the existing Argyll USB driver, and do a
-    fresh re-install, to update the relevant libusb system driver and
-    .inf file. (This is true for updating to Argyll Version 1.5.0). <br>
+    If you are updating to a new version of Argyll which adds support
+    for a new instrument that you want to use, then it may be necessary
+    to uninstall all the existing Argyll USB driver and do a fresh
+    re-install to update the relevant libusb system driver and .inf
+    file. (This is true for updating to Argyll Version 2.0.0).&nbsp; <br>
     <br>
     &nbsp;&nbsp;&nbsp; (Plug in the instrument)<br>
     &nbsp;&nbsp; My Computer, Right Click -&gt; Manage -&gt; Device
@@ -509,8 +527,13 @@
     will be automatically installed.<br>
     <br>
     <span style="color: rgb(51, 153, 153); font-weight: bold;"><span
-        style="color: rgb(0, 0, 0); text-decoration: underline;">Adding
-        Argyll drivers to existing drivers:</span></span><br>
+        style="color: rgb(0, 0, 0); text-decoration: underline;"></span></span><span
+      style="color: rgb(51, 153, 153); font-weight: bold;"><span
+        style="color: rgb(0, 0, 0); text-decoration: underline;"><span
+          style="color: rgb(51, 153, 153); font-weight: bold;"><span
+            style="color: rgb(0, 0, 0); text-decoration: underline;">Using
+
+            Argyll drivers with existing OEM drivers</span></span>:</span></span><br>
     <br>
     If you currently have applications other than Argyll accessing your
     USB connected instrument, then you will have to manually install the
@@ -551,10 +574,11 @@
         0, 0); text-decoration: underline;"><span style="font-weight:
           bold;">Un-installing Argyll driver:</span></span></span><br>
     <br>
-    If you are updating to a new version of Argyll, that it may be
-    necessary to uninstall all the existing Argyll USB driver, and do a
-    fresh re-install, to update the relevant libusb system driver and
-    .inf file. (This is true for updating to Argyll Version 1.5.0). <br>
+    If you are updating to a new version of Argyll which adds support
+    for a new instrument that you want to use, then it may be necessary
+    to uninstall all the existing Argyll USB driver and do a fresh
+    re-install to update the relevant libusb system driver and .inf
+    file. (This is true for updating to Argyll Version 2.0.0).&nbsp; <br>
     <br>
     &nbsp;&nbsp;&nbsp; (Plug in the instrument)<br>
     &nbsp;&nbsp; My Computer, Right Click -&gt; Manage -&gt; Device

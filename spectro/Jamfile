@@ -1,7 +1,7 @@
 
 
-#PREF_CCFLAGS 	+= $(CCOPTFLAG) ;		# Turn optimisation on
-PREF_CCFLAGS    += $(CCDEBUGFLAG) ;		# Debugging flags
+PREF_CCFLAGS 	+= $(CCOPTFLAG) ;		# Turn optimisation on
+#PREF_CCFLAGS    += $(CCDEBUGFLAG) ;		# Debugging flags
 #PREF_CCFLAGS    += $(CCHEAPDEBUG) ;     # Heap Debugging & Debugging flags
 PREF_LINKFLAGS	+= $(LINKDEBUGFLAG) ;
 
@@ -9,6 +9,7 @@ PREF_LINKFLAGS	+= $(LINKDEBUGFLAG) ;
 if $(OS) = MACOSX {
 	ObjectCcFlags dispwin : -ObjC ;
 	ObjectCcFlags dispwin_dispwin : -ObjC ;
+	LINKFLAGS += -framework AudioToolbox ;
 }
 
 if $(USE_CMFM) = true {
@@ -100,7 +101,7 @@ HDRS = ../h ../numlib ../icc ../cgats ../rspl ../xicc ../gamut ../spectro
 SER_INSTS = dtp22.c dtp41.c dtp51.c ss.c ss_imp.c ;
 
 USB_INSTS = dtp20.c i1disp.c i1d3.c i1pro.c i1pro_imp.c
-                      munki.c munki_imp.c hcfr.c spyd2.c huey.c
+                      munki.c munki_imp.c hcfr.c spyd2.c spydX.c huey.c
                       colorhug.c ex1.c usbio.c hidio.c ;
 
 FAST_SER_INSTS = specbos.c kleink10.c smcube.c ;
@@ -154,7 +155,7 @@ Library libinst : inst.c insttypes.c icoms.c disptechs.c rspec.c xrga.c $(INST_S
 
 # Display access library 
 ObjectKeep mongoose.c ;
-Library libdisp : dispsup.c dispwin.c webwin.c ccwin.c
+Library libdisp : dispsup.c dispwin.c webwin.c ccwin.c dummywin.c
                   $(MADVRSOURCE) : : : $(LibWinH) : mongoose ;
 
 # Instrument and Display types utility functions library. Use these instead of libinst when */
@@ -227,7 +228,7 @@ Main dispread : dispread.c : : : : : libdisp ;
 #display test window test/Lut loader utility
 # [ Could avoid need for libinst libusb etc.
 #   by separating system dependent utils to a separate library .] 
-MainVariant dispwin : dispwin.c webwin.c ccwin.c $(MADVRSOURCE) : : STANDALONE_TEST : : mongoose : $(LibWin) ;
+MainVariant dispwin : dispwin.c webwin.c ccwin.c dummywin.c $(MADVRSOURCE) : : STANDALONE_TEST : : mongoose : $(LibWin) ;
 
 LINKLIBS = libinsttypes libdisptechs ../xicc/libxicc ../gamut/libgamut ../rspl/librspl
            ../cgats/libcgats ../icc/libicc ../plot/libplot ../numlib/libnum ../numlib/libui

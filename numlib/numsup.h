@@ -501,6 +501,9 @@ void vect_set(double *d, double v, int len);
 /* Copy zero based dvector */
 void vect_cpy(double *d, double *s, int len);
 
+/* Copy zero based dvector */
+#define vect_cpy(dd, ss, len) memmove((char *)(dd), (char *)(ss), (len) * sizeof(double))
+
 /* Negate and copy a vector, d = -v */
 /* d may be same as v */
 void vect_neg(double *d, double *s, int len);
@@ -509,19 +512,57 @@ void vect_neg(double *d, double *s, int len);
 /* d may be same as v */
 void vect_add(double *d, double *v, int len);
 
+/* Add two vectors, d = s1 + s2 */
+void vect_add3(double *d, double *s1, double *s2, int len);
+
 /* Subtract two vectors, d -= v */
 /* d may be same as v */
 void vect_sub(double *d, double *v, int len);
+
+/* Subtract two vectors, d =  s1 - s2 */
+void vect_sub3(double *d, double *s1, double *s2, int len);
+
+/* Invert and copy a vector, d = 1/s */
+void vect_invert(double *d, double *s, int len);
+
+/* Blend two vectors, d = bl * s1 + (1 - bl) * s2 */
+/* Blend between s0 and s1 for bl 0..1 */
+void vect_blend(double *d, double *s0, double *s1, double bl, int len);
 
 /* Scale a vector, */
 /* d may be same as v */
 void vect_scale(double *d, double *s, double scale, int len);
 
+/* Scale s and add to d */
+void vect_scaleadd(double *d, double *s, double scale, int len);
+
 /* Take dot product of two vectors */
 double vect_dot(double *s1, double *s2, int len);
 
-/* Return the vectors magnitude */
+/* Return the vectors magnitude (norm) */
 double vect_mag(double *s, int len);
+
+/* Return the magnitude (norm) of the difference between two vectors */
+double vect_diffmag(double *s1, double *s2, int len);
+
+/* Return the normalized vectors */
+/* Return nz if norm is zero */
+int vect_normalize(double *d, double *s, int len);
+
+/* Return the vectors elements maximum magnitude (+ve) */
+double vect_max(double *s, int len);
+
+/* Take absolute of each element */
+void vect_abs(double *d, double *s, int len);
+
+/* Take individual elements to signed power */
+void vect_spow(double *d, double *s, double pv, int len);
+
+/* Copy zero based ivector */
+#define ivect_cpy(dd, ss, len) memmove((char *)(dd), (char *)(ss), (len) * sizeof(int))
+
+/* Set zero based ivector */
+void ivect_set(int *d, int v, int len);
 
 /* Diagnostics */
 /* id identifies matrix/vector */
@@ -538,6 +579,14 @@ void adump_fvector(a1log *log, char *id, char *pfx, float *a, int nc);
 void adump_ivector(a1log *log, char *id, char *pfx, int *a, int nc);
 void adump_svector(a1log *log, char *id, char *pfx, short *a, int nc);
 
+/* Dump out matrix/vector as a C array to FILE */
+/* id is the variable name */
+/* pfx used at start of each line */
+/* hb sets horizontal element limit to wrap */
+/* Assumed indexed from 0 */
+
+void acode_dmatrix(FILE *fp, char *id, char *pfx, double **a, int nr,  int nc, int hb);
+
 /* ===================================================== */
 /* C matrix support */
 
@@ -548,6 +597,14 @@ double vect_ClipNmarg(int n, double *out, double *in);
 /* Multiply N vector by NxN transform matrix */
 /* Organization is mat[out][in] */
 void vect_MulByNxN(int n, double *out, double *mat, double *in);
+
+/* Multiply N vector by MxN transform matrix */
+/* Organization is mat[out][in] */
+void vect_MulByMxN(int n, int m, double *out, double *mat, double *in);
+
+/* Multiply N vector by transposed NxM transform matrix */
+/* Organization is mat[in][out] */
+void vect_MulByNxM(int n, int m, double *out, double *mat, double *in);
 
 /* Transpose an NxN matrix */
 void matrix_TransposeNxN(int n, double *out, double *in);
@@ -673,8 +730,8 @@ char *debPfv(int di, float *p);
 
 #ifndef isNan
 #define isNan(x) ((x) != (x))
-#define isFinite(x) ((x) == 0.0 || (x) * 1.0000001 != (x))
-#define isNFinite(x) ((x) != 0.0 && (x) * 1.0000001 == (x))
+#define isNFinite(x) ( isNan(x) || (x) < DBL_MIN || DBL_MAX < (x))
+#define isFinite(x) (!isNFinite(x))
 #endif
 
 

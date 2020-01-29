@@ -102,6 +102,9 @@ struct _dtp22 {
 	xcalstd native_calstd;		/* Instrument native calibration standard */
 	xcalstd target_calstd;		/* Returned calibration standard */
 
+	int custfilt_en;			/* Custom filter enabled */
+	xspect custfilt;			/* Custom filter */
+
 	}; typedef struct _dtp22 dtp22;
 
 /* Constructor */

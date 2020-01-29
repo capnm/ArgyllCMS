@@ -73,6 +73,10 @@
 //     i.e. modified transmissive mode where units are
 //     log10(incident/transmitted) = Beer-Lambert Law
 
+/* Note that flash modes subtract background light */
+/* It's not clear if that is the best thing to do in terms */
+/* of either exposure or color temperature. */
+
 /* Type of measurement result */
 typedef enum {						/* XYZ units,      Spectral units */
 	inst_mrt_none           = 0,	/* Not set */
@@ -421,7 +425,7 @@ typedef struct _inst_disptypesel {
 	// Stuff for ccss & ccmx
 	char *path;				/* Path to ccss or ccmx. NULL if not valid */
 	int cc_cbid;			/* cbid that matrix requires */
-	double mat[3][3];		/* ccmx matrix */
+	double mat[3][3];		/* ccmx or instrument matrix */
 	xspect *sets;   		/* ccss set of sample spectra. NULL if not valid */
 	int no_sets;    		/* ccs number of sets. 0 if not valid */
 
@@ -451,69 +455,81 @@ typedef enum {
 	inst_stat_battery           = 0x0006,	/* Return charged status of battery */
 											/* [1 argument type *double : range 0.0 - 1.0 ] */
 
-	inst_stat_get_filter        = 0x0007,	/* Get a filter configuration */
+	inst_stat_get_filter        = 0x0007,	/* Get a instrument filter configuration */
 											/* [1 argument type *inst_opt_filter ] */
 
-	inst_opt_initcalib          = 0x0008,	/* Enable initial calibration (default) [No args] */
-	inst_opt_noinitcalib        = 0x0009,	/* Disable initial calibration if < losecs since last */											/* opened, or losecs == 0 [int losecs] */
+	inst_stat_get_custom_filter = 0x0008,	/* Get a custom filter configuration. */
+											/* Will return NULL if none. */
+											/* [1 argument type xspect *] */
 
-	inst_opt_askcalib           = 0x000A,	/* Ask before proceeding with calibration (default) */
+	inst_opt_initcalib          = 0x0009,	/* Enable initial calibration (default) [No args] */
+	inst_opt_noinitcalib        = 0x000A,	/* Disable initial calibration if < losecs since last */											/* opened, or losecs == 0 [int losecs] */
+
+	inst_opt_askcalib           = 0x000B,	/* Ask before proceeding with calibration (default) */
 											/* [ No args] */
-	inst_opt_noaskcalib         = 0x000B,	/* Proceed with calibration immediately if possible */
+	inst_opt_noaskcalib         = 0x000C,	/* Proceed with calibration immediately if possible */
 											/* [ No args] */
 
-	inst_opt_set_ccss_obs       = 0x000C,	/* Set the observer used with ccss device types - */
+	inst_opt_set_ccss_obs       = 0x000D,	/* Set the observer used with ccss device types - */
 											/* Not applicable to any other type of instrument. */
 											/* [args: icxObserverType obType,*/
 	                                        /*        xspect custObserver[3] */
 
-	inst_opt_set_filter         = 0x000D,	/* Set a filter configuration */
+	inst_opt_set_filter         = 0x000E,	/* Set an instrument filter configuration */
+											/* Set this before calling init_coms() */
 											/* [1 argument type inst_opt_filter] */
 
-	inst_opt_trig_prog          = 0x000E,	/* Trigger progromatically [No args] */
-	inst_opt_trig_user          = 0x000F,	/* Trigger from user via uicallback [No args] */
-	inst_opt_trig_switch        = 0x0010,	/* Trigger directly using instrument switch [No args] */
-	inst_opt_trig_user_switch   = 0x0011,	/* Trigger from user via uicallback or switch (def) [No args] */
+	inst_opt_set_custom_filter  = 0x000F,	/* Set a custom filter configuration. */
+											/* Emmissive mmnts. are divided by filter values. */
+											/* Can be set any time. */
+											/* Independent of inst_opt_set_filter. */
+											/* Set to NULL to dispable. */
+											/* [1 argument type xspect *] */
 
-	inst_opt_highres            = 0x0012,	/* Enable high res spectral mode indep. of set_mode() */
-	inst_opt_stdres             = 0x0013,	/* Revert to standard resolution spectral mode */
+	inst_opt_trig_prog          = 0x0010,	/* Trigger progromatically [No args] */
+	inst_opt_trig_user          = 0x0011,	/* Trigger from user via uicallback [No args] */
+	inst_opt_trig_switch        = 0x0012,	/* Trigger directly using instrument switch [No args] */
+	inst_opt_trig_user_switch   = 0x0013,	/* Trigger from user via uicallback or switch (def) [No args] */
 
-	inst_opt_scan_toll          = 0x0014,	/* Modify the patch scan recognition tollnce [double] */
+	inst_opt_highres            = 0x0014,	/* Enable high res spectral mode indep. of set_mode() */
+	inst_opt_stdres             = 0x0015,	/* Revert to standard resolution spectral mode */
 
-	inst_opt_get_gen_ledmask    = 0x0015,	/* Get the bitmask for general indication LEDs [*int] */
+	inst_opt_scan_toll          = 0x0016,	/* Modify the patch scan recognition tollnce [double] */
+
+	inst_opt_get_gen_ledmask    = 0x0017,	/* Get the bitmask for general indication LEDs [*int] */
 											/* (More specialized indicator masks go here) */
-	inst_opt_set_led_state      = 0x0016,	/* Set the current LED state. 0 = off, 1 == on [int] */
-	inst_opt_get_led_state      = 0x0017,	/* Get the current LED state. 0 = off, 1 == on [*int] */
-	inst_opt_get_pulse_ledmask  = 0x0018,	/* Get the bitmask for pulseable ind. LEDs [*int] */
-	inst_opt_set_led_pulse_state= 0x0019,	/* Set the current LED state. [double period_in_secs, */
+	inst_opt_set_led_state      = 0x0018,	/* Set the current LED state. 0 = off, 1 == on [int] */
+	inst_opt_get_led_state      = 0x0019,	/* Get the current LED state. 0 = off, 1 == on [*int] */
+	inst_opt_get_pulse_ledmask  = 0x001A,	/* Get the bitmask for pulseable ind. LEDs [*int] */
+	inst_opt_set_led_pulse_state= 0x001B,	/* Set the current LED state. [double period_in_secs, */
 	                                        /* double on_time_prop, double trans_time_prop] */
-	inst_opt_get_led_pulse_state= 0x001A,	/* Get the current pulse LED state. [*double period] */
-	inst_opt_get_target_state   = 0x001B,	/* Get the aiming target state 0 = off, 1 == on [*int] */
-	inst_opt_set_target_state   = 0x001C,	/* Set the aiming target state 0 = off, 1 == on, 2 = toggle [int] */
+	inst_opt_get_led_pulse_state= 0x001C,	/* Get the current pulse LED state. [*double period] */
+	inst_opt_get_target_state   = 0x001D,	/* Get the aiming target state 0 = off, 1 == on [*int] */
+	inst_opt_set_target_state   = 0x001E,	/* Set the aiming target state 0 = off, 1 == on, 2 = toggle [int] */
 
-	inst_opt_get_min_int_time   = 0x001D,	/* Get the minimum integration time [*double time] */
-	inst_opt_set_min_int_time   = 0x001E,	/* Set the minimum integration time [double time] */
+	inst_opt_get_min_int_time   = 0x001F,	/* Get the minimum integration time [*double time] */
+	inst_opt_set_min_int_time   = 0x0020,	/* Set the minimum integration time [double time] */
 
-	inst_opt_opt_calibs_valid   = 0x001F,	/* Are optional (white/black/gloss etc.) calibrations */
+	inst_opt_opt_calibs_valid   = 0x0021,	/* Are optional (white/black/gloss etc.) calibrations */
 	                                        /* valid?                     [*int valid] */
-	inst_opt_clear_opt_calibs   = 0x0020,	/* Clear all optional calibrations. */
+	inst_opt_clear_opt_calibs   = 0x0022,	/* Clear all optional calibrations. */
 
-	inst_opt_get_cal_tile_sp    = 0x0021,	/* Return refl. white tile reference spectrum. */
-	                                        /* for current filter.          [*xspect tile] */
+	inst_opt_get_cal_tile_sp    = 0x0023,	/* Return refl. white tile reference spectrum. */
+	                                        /* for current instrument filter. [*xspect tile] */
 
-	inst_opt_set_xcalstd        = 0x0022,	/* Set the X-Rite reflective calibration standard */
+	inst_opt_set_xcalstd        = 0x0024,	/* Set the X-Rite reflective calibration standard */
 											/*                             [xcalstd standard] */
-	inst_opt_get_xcalstd        = 0x0023,	/* Get the effective X-Rite ref. cal. standard */
+	inst_opt_get_xcalstd        = 0x0025,	/* Get the effective X-Rite ref. cal. standard */
 											/*                             [xcalstd *standard] */
-	inst_opt_lamp_remediate     = 0x0024,	/* Remediate i1Pro lamp           [double seconds] */
+	inst_opt_lamp_remediate     = 0x0026,	/* Remediate i1Pro lamp           [double seconds] */
 
-	inst_opt_set_averages       = 0x0025	/* Set the number of measurements to average [int] */
+	inst_opt_set_averages       = 0x0027	/* Set the number of measurements to average [int] */
 											/* 0 for default */
 
 
 } inst_opt_type;
 
-/* Optional filter fitted to instrument (for inst_opt_set_filter) */
+/* Optional manufacturers instrument filter fitted to instrument (for inst_opt_set_filter) */
 /* Set this before calling init_coms() */
 typedef enum {
 	inst_opt_filter_unknown  = 0xffff,	/* Unspecified filter */
@@ -521,7 +537,7 @@ typedef enum {
 	inst_opt_filter_pol      = 0x0001,	/* Polarising filter */ 
 	inst_opt_filter_D65      = 0x0002,	/* D65 Illuminant filter */
 	inst_opt_filter_UVCut    = 0x0004,	/* U.V. Cut filter */
-	inst_opt_filter_Custom   = 0x0008	/* Custom Filter */
+	inst_opt_filter_Custom   = 0x0008	/* Manufacturers custom Filter */
 } inst_opt_filter;
 
 /* Off-line pending readings available (status) */
@@ -642,7 +658,7 @@ typedef enum {
 	inst_calc_id_filt_pol  = 0x00300000,	/* Request polarizing filter */
 	inst_calc_id_filt_D65  = 0x00400000,	/* Request D65 filter */
 	inst_calc_id_filt_UV   = 0x00500000,	/* Request UV cut filter */
-	inst_calc_id_filt_cust = 0x00600000		/* Request custom filter */
+	inst_calc_id_filt_cust = 0x00600000		/* Request instrument custom filter */
 } inst_calc_id_type;
 
 /* Clamping state */
@@ -1023,15 +1039,6 @@ typedef enum {
 		struct _inst *p,														\
 		double ref_rate);		/* Rate in Hz */								\
 																				\
-	/* Insert a compensation filter in the instrument readings */				\
-	/* This is typically needed if an adapter is being used, that alters */     \
-	/* the spectrum of the light reaching the instrument */                     \
-	/* Not fully implemented across all instrument types (spectrolino only ?) */ \
-	/* To remove the filter, pass NULL for the filter filename */               \
-	inst_code (*comp_filter)(											        \
-		struct _inst *p,														\
-		char *filtername);		/* File containing compensating filter */		\
-																				\
 	/* Insert a colorimetric correction matrix in the instrument XYZ readings */ \
 	/* This is only valid for colorimetric instruments, and can only be */		\
 	/* applied over a base calibration display type. Setting a display */		\
@@ -1204,6 +1211,13 @@ iccss *list_iccss(int *no);
 
 /* Free up a iccss list */
 void free_iccss(iccss *list);
+
+/* - - - - - - - - - - - - - - - - - - -- */
+/* Custom filter support */
+
+/* Apply a custom filer to an array of ipatch's */
+/* Spetral values are divided by filter spectrum and XYZ recomputed */
+void ipatch_convert_custom_filter(ipatch *vals, int nvals, xspect *filt, int clamp);
 
 /* - - - - - - - - - - - - - - - - - - -- */
 

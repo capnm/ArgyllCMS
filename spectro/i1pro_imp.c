@@ -10348,6 +10348,10 @@ i1pro_code i1pro_conv2XYZ(
 	/* Apply any XRGA conversion */
 	ipatch_convert_xrga(vals, nvals, xcalstd_nonpol, m->target_calstd, m->native_calstd, clamp);
 
+	/* Apply custom filter compensation */
+	if (m->custfilt_en)
+		ipatch_convert_custom_filter(vals, nvals, &m->custfilt, clamp);
+
 	return I1PRO_OK;
 }
 

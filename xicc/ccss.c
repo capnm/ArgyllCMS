@@ -29,8 +29,8 @@
 #include <math.h>
 #include <sys/types.h>
 #include <time.h>
-# include "aconfig.h"
 #ifndef SALONEINSTLIB
+# include "aconfig.h"
 # include "numlib.h"
 # include "icc.h"
 #  include "plot.h"			/* For debugging */

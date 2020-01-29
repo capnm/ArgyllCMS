@@ -85,6 +85,16 @@ char *src
 	return 0;
 }
 
+/* Compute a simple string hash value */
+unsigned int shash(char *c) {
+	unsigned int hash = 0;
+
+	for (; *c != '\000'; c++)
+		hash = hash * 67 + (unsigned char)(*c);
+
+	return hash;
+}
+
 void
 usage(void) {
 	fprintf(stderr,"Scanin, Version %s\n",ARGYLL_VERSION_STR);
@@ -1175,6 +1185,7 @@ int main(int argc, char *argv[])
 			int npat;			/* Number of test patches in it8 chart */
 			int nsetel = 0;		/* Number of output set elements */
 			cgats_set_elem *setel;  /* Array of set value elements */
+			unsigned int *idhash; 	/* Array of reference id hashes */
 	
 			icg = new_cgats();			/* Create a CGATS structure */
 			icg->add_other(icg, ""); 	/* Accept any type */
@@ -1326,32 +1337,51 @@ int main(int argc, char *argv[])
 			if ((setel = (cgats_set_elem *)malloc(sizeof(cgats_set_elem) * nsetel)) == NULL)
 				error("Malloc failed!");
 
-			/* Initialise, ready to read out all the values */
+			if ((idhash = (unsigned int *)malloc(sizeof(unsigned int) * npat)) == NULL)
+				error("Malloc failed!");
+
+			/* Setup hash list of reference labels to speed comparisons */
 			for (j = 0; j < npat; j++) {
-				char id[100];				/* Input patch id */
-	
-				/* Normalise labels */
-				fix_it8(id,((char *)icg->t[0].fdata[j][sx]));	/* Copy and fix */
-	
-				/* Search for matching id */
-				for (i = sr->reset(sr); i > 0; i--) {
-					char tod[100];		/* Output patch id */
-					char od[100];		/* Output patch id */
-					double P[4];		/* Robust/true mean values */
-					double sdP[4];		/* Standard deviation */
-					int pixcnt;			/* Pixel count */
+				char id[100];		/* Reference patch id */
 
-					if (tmean)
-						sr->read(sr, tod, NULL, P, sdP, &pixcnt);
-					else
-						sr->read(sr, tod, P, NULL, sdP, &pixcnt);
+				/* Normalise reference labels */
+				fix_it8(id, ((char *)icg->t[0].fdata[j][sx]));	/* Copy and fix */
 
-					if (pixcnt == 0)
-						pnotscan++;
+				idhash[j] = shash(id);
+			}
 
-					fix_it8(od,tod);
+			/* Initialise, ready to read out all the values */
+			for (i = sr->reset(sr); i > 0; i--) {
+				char tod[100];			/* Temp output patch id */
+				char od[100];			/* Output patch id */
+				unsigned int odhash;	/* Chart id hashes */
+				double P[4];			/* Robust/true mean values */
+				double sdP[4];			/* Standard deviation */
+				int pixcnt;				/* Pixel count */
+
+				if (tmean)
+					sr->read(sr, tod, NULL, P, sdP, &pixcnt);
+				else
+					sr->read(sr, tod, P, NULL, sdP, &pixcnt);
+
+				fix_it8(od, tod);
+
+				odhash = shash(od);
 		
-					if (strcmp(id,od) == 0) {
+				if (pixcnt == 0)
+					pnotscan++;
+
+				/* Search for matching id in reference */
+				for (j = 0; j < npat; j++) {
+					char id[100];		/* Reference patch id */
+
+					if (odhash != idhash[j])	/* Fast reject */
+						continue;
+
+					/* Normalise reference labels */
+					fix_it8(id, ((char *)icg->t[0].fdata[j][sx]));	/* Copy and fix */
+	
+					if (strcmp(id, od) == 0) {
 						int k = 0, m;
 						double XYZ[3];
 
@@ -1386,9 +1416,9 @@ int main(int argc, char *argv[])
 
 						break;
 					}
+					if (j >= npat && verb >= 1)
+						printf("Warning: Couldn't match field '%s'\n",od);
 				}
-				if (i <= 0 && verb >= 1)
-					printf("Warning: Couldn't match field '%s'\n",id);
 			}
 	
 			if (verb)
@@ -1397,6 +1427,7 @@ int main(int argc, char *argv[])
 			if (ocg->write_name(ocg, datout_name))
 				error("Output file '%s' write error : %s",datout_name, ocg->err);
 	
+			free(idhash);
 			free(setel);
 
 			ocg->del(ocg);		/* Clean up */

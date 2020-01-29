@@ -75,8 +75,6 @@ int plot_colors[MXGPHS][3] = {
 	{ 255, 191,  80}	/* Pink */
 };
 
-/* Information defining plot */
-/* There is one global instance of this. */
 struct _plot_info {
 	void *cx;				/* Other Context */
 
@@ -86,23 +84,32 @@ struct _plot_info {
 
 	/* Plot point information */
 	double mnx, mxx, mny, mxy;		/* Extrema of values to be plotted */
+
 	int graph;						/* NZ if graph, Z if vectors */
 	int revx;						/* reversed X axis */
 
-	double *x1, *x2;
-	double *yy[MXGPHS];				/* y1 - y10 */
-	plot_col *ncols;
-	char **ntext;
+	double *x1, *x2;				/* Graph of x1 vs yy[MXGPHS] */
+	double *yy[MXGPHS];				/* or vectors x1 yy[0] to x2, yy[1] if x2 != NULL */
+									/* Optional crosses if flags & PLOTF_VECCROSSES */
+	plot_col *ncols;				/* Override default vector, cross, text color */
+	char **ntext;					/* Optional text */
 	int n;
 
-	double *x7, *y7;
-	plot_col *mcols;
-	char **mtext;
-	int m;
+	double *x7, *y7;				/* Yellow diagonal crosses */
+	plot_col *mcols;				/* Override cross color */
+	char **mtext;					/* Optional text near cross */
+	int m;							/* Number crosses */
 
-	double *x8, *y8, *x9, *y9;
-	plot_col *ocols;
+	/* Hmm. Could implement all of above using these two.. */
+	double *x8, *y8, *x9, *y9;		/* Vectors with colors - default none */
+	plot_col *ocols;				/* Vector colors - default light blue */
 	int o;
+
+	double *xp, *yp;				/* Symbol position - default no symbol or text */
+	plot_sym *tp;					/* Symbol type - default none */
+	plot_col *pcols;				/* Symbol color - default plot colors */
+	char **ptext;					/* Text near symbol - defaul none */
+	int p;							/* Number of symbols */
 
 	/* Plot instance information */
 	int sx,sy;			/* Screen offset */
@@ -118,19 +125,25 @@ static plot_info pd;
 #define PLOTF_GRAPHCROSSES   0x0001			/* Plot crosses at each point on the graphs */
 #define PLOTF_VECCROSSES     0x0002			/* Plot crosses at the end of x1,y1 -> x2,y2 */
 
-/* Declaration of superset */
+/* Declaration of superset implementation funtion */
 static int do_plot_imp(
 	int flags,
     double xmin, double xmax, double ymin, double ymax,	/* Bounding box */
 	double ratio,	/* Aspect ratio of window, X/Y, 1.0 = nominal */
 	int dowait,		/* > 0 wait for user to hit space key, < 0 delat dowait seconds. */
+
 	double *x1, double *x2,
 	double *yy[MXGPHS], plot_col *ncols, char **ntext,
 	int n,
+
 	double *x7, double *y7, plot_col *mcols, char **mtext,
     int m,
+
 	double *x8, double *y8, double *x9, double*y9, plot_col *ocols,
-	int o
+	int o,
+
+	double *xp, double *yp, plot_sym *tp, plot_col *pcols, char **ptext,
+	int p
 );
 
 
@@ -188,6 +201,7 @@ int n) {
 	                   xmin, xmax, ymin, ymax, 1.0, 1,
 	                   x, NULL, yy, NULL, NULL, n,
 	                   NULL, NULL, NULL, NULL, 0,
+	                   NULL, NULL, NULL, NULL, NULL, 0,
 	                   NULL, NULL, NULL, NULL, NULL, 0); 
 }
 
@@ -260,6 +274,7 @@ int m) {
 	                   xmin, xmax, ymin, ymax, 1.0, 1,
 	                   x, NULL, yy, NULL, NULL, n,
 	                   x4, y4, NULL, NULL, m ,
+	                   NULL, NULL, NULL, NULL, NULL, 0,
 	                   NULL, NULL, NULL, NULL, NULL, 0); 
 }
 
@@ -335,6 +350,7 @@ double ratio
 	                   xmin, xmax, ymin, ymax, ratio, dowait,
 	                   x, NULL, yy, NULL, NULL, n,
 	                   NULL, NULL, NULL, NULL, 0,
+	                   NULL, NULL, NULL, NULL, NULL, 0,
 	                   NULL, NULL, NULL, NULL, NULL, 0); 
 }
 
@@ -397,6 +413,7 @@ int n) {	/* Number of values */
 	                   xmin, xmax, ymin, ymax, 1.0, 1,
 	                   x, NULL, yy, NULL, NULL, n,
 	                   NULL, NULL, NULL, NULL, n ,
+	                   NULL, NULL, NULL, NULL, NULL, 0,
 	                   NULL, NULL, NULL, NULL, NULL, 0); 
 }
 
@@ -476,6 +493,7 @@ int m) {
 	                   xmin, xmax, ymin, ymax, 1.0, 1,
 	                   x, NULL, yy, NULL, NULL, n,
 	                   xp, yp, NULL, NULL, m,
+	                   NULL, NULL, NULL, NULL, NULL, 0,
 	                   NULL, NULL, NULL, NULL, NULL, 0); 
 }
 
@@ -543,6 +561,7 @@ int zero		/* Flag - nz, make sure zero is in y range */
 	                   xmin, xmax, ymin, ymax, 1.0, dowait,
 	                   x, NULL, yy, NULL, NULL, n,
 	                   xp, yp, NULL, NULL, m,
+	                   NULL, NULL, NULL, NULL, NULL, 0,
 	                   NULL, NULL, NULL, NULL, NULL, 0); 
 }
 
@@ -694,6 +713,7 @@ int m			/* Number of points */
 	                   xmin, xmax, ymin, ymax, 1.0, dowait,
 	                   x1, x2, yy, NULL, NULL, n,
 	                   x3, y3, mcols, mtext, m,
+	                   NULL, NULL, NULL, NULL, NULL, 0,
 	                   NULL, NULL, NULL, NULL, NULL, 0); 
 }
 
@@ -736,7 +756,8 @@ int o			/* Number of vectors */
 	                   xmin, xmax, ymin, ymax, 1.0, dowait,
 	                   x1, x2, yy, NULL, ntext, n,
 	                   x3, y3, mcols, mtext, m,
-	                   x4, y4, x5, y5, ocols, o); 
+	                   x4, y4, x5, y5, ocols, o,
+	                   NULL, NULL, NULL, NULL, NULL, 0);
 }
 
 /* Plot a bunch of colored vectors + points + optional colored points & notation */
@@ -783,8 +804,256 @@ int o			/* Number of vectors */
 	                   xmin, xmax, ymin, ymax, 1.0, dowait,
 	                   x1, x2, yy, ncols, ntext, n,
 	                   x3, y3, mcols, mtext, m,
-	                   x4, y4, x5, y5, ocols, o); 
+	                   x4, y4, x5, y5, ocols, o,
+	                   NULL, NULL, NULL, NULL, NULL, 0);
 }
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+/* General plot */
+
+int do_plot_gen(
+double ixmin, double ixmax, double iymin, double iymax,		/* Graph range, */
+						/* xmin == xmax, ymin == ymax for auto bound on data */
+double ratio, 			/* X/Y graph ratio */
+int zero,				/* Force ymin to be zero */
+int dowait,				/* Wait for user key */
+double *x1, double *y1, double *x2, double *y2, plot_col *ocols, int o,		/* Line segments */
+double *x3, double *y3, plot_sym *tp, plot_col *pcols, char **ptext, int p	/* Symbols */
+) {
+	int i, j;
+	double xmin, xmax, ymin, ymax;
+
+	/* Determine min and max dimensions of plot */
+	xmin = ymin = 1e6;
+	xmax = ymax = -1e6;
+
+	if (x1 != NULL && x2 != NULL
+	 && y1 != NULL && y2 != NULL) {
+		for (i = 0; i < o; i++) {
+			if (xmin > x1[i])
+				xmin = x1[i];
+			if (xmax < x1[i])
+				xmax = x1[i];
+			if (xmin > x2[i])
+				xmin = x2[i];
+			if (xmax < x2[i])
+				xmax = x2[i];
+
+			if (ymin > y1[i])
+				ymin = y1[i];
+			if (ymax < y1[i])
+				ymax = y1[i];
+			if (ymin > y2[i])
+				ymin = y2[i];
+			if (ymax < y2[i])
+				ymax = y2[i];
+		}
+	}
+
+	if (x3 != NULL && y3 != NULL) {
+		for (i = 0; i < p; i++) {
+			if (xmin > x3[i])
+				xmin = x3[i];
+			if (xmax < x3[i])
+				xmax = x3[i];
+
+			if (ymin > y3[i])
+				ymin = y3[i];
+			if (ymax < y3[i])
+				ymax = y3[i];
+		}
+	}
+
+
+	if (zero && ymin > 0.0)
+		ymin = 0.0;
+
+	/* Hmm. Make sure graph is not zero sized */
+	if ((xmax - xmin) == 0.0)
+		xmax += 0.5, xmin -= 0.5;
+	if ((ymax - ymin) == 0.0)
+		ymax += 0.5, ymin -= 0.5;
+
+	
+	/* Should we use auto graphi size ? */
+	if (ixmin != ixmax) {
+		xmin = ixmin;
+		xmax = ixmax;
+	}
+
+	if (iymin != iymax) {
+		ymin = iymin;
+		ymax = iymax;
+	}
+
+	if (ratio == 0.0)
+		ratio = 1.0;
+
+	return do_plot_imp(
+		0,
+		xmin, xmax, ymin, ymax, ratio, dowait,
+		NULL, NULL, NULL, NULL, NULL, 0,
+		NULL, NULL, NULL, NULL, 0,
+		x1, y1, x2, y2, ocols, o,
+		x3, y3, tp, pcols, ptext, p);
+}
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+/* General plot using allocation helper */
+
+/* rgb, text may be NULL for default/none */
+/* plot also clears gen */
+void init_g(plot_g *g) {
+	memset((void *)g, 0, sizeof(plot_g));
+}
+
+void add_vec_g(plot_g *g, double x1, double y1, double x2, double y2, float *rgb) {
+
+	if (g->o >= g->oa) {
+		g->oa = 2 * g->oa + 10;
+
+		g->x1 = (double *)realloc(g->x1, sizeof(double) * g->oa);
+		g->y1 = (double *)realloc(g->y1, sizeof(double) * g->oa);
+		g->x2 = (double *)realloc(g->x2, sizeof(double) * g->oa);
+		g->y2 = (double *)realloc(g->y2, sizeof(double) * g->oa);
+		g->ocols = (plot_col *)realloc(g->ocols, sizeof(plot_col) * g->oa);
+
+		if (g->x1 == NULL || g->y1 == NULL || g->x2 == NULL || g->y2 == NULL || g->ocols == NULL)
+			error("add_vec_g malloc faile in %s line %d",__FILE__,__LINE__);
+	}
+
+	g->x1[g->o] = x1;
+	g->y1[g->o] = y1;
+	g->x2[g->o] = x2;
+	g->y2[g->o] = y2;
+	if (rgb != NULL) {
+		g->ocols[g->o].rgb[0] = rgb[0];
+		g->ocols[g->o].rgb[1] = rgb[1];
+		g->ocols[g->o].rgb[2] = rgb[2];
+	} else {
+		g->ocols[g->o].rgb[0] = -1.0;
+		g->ocols[g->o].rgb[1] = -1.0;
+		g->ocols[g->o].rgb[2] = -1.0;
+	}
+	g->o++;
+}
+
+void add_sym_g(plot_g *g, double x3, double y3, plot_sym st, float *rgb, char *ptext) {
+
+	if (g->p >= g->pa) {
+		g->pa = 2 * g->pa + 10;
+
+		g->x3 = (double *)realloc(g->x3, sizeof(double) * g->pa);
+		g->y3 = (double *)realloc(g->y3, sizeof(double) * g->pa);
+		g->tp = (plot_sym *)realloc(g->tp, sizeof(plot_sym) * g->pa);
+		g->pcols = (plot_col *)realloc(g->pcols, sizeof(plot_col) * g->pa);
+		g->ptext = (char **)realloc(g->ptext, sizeof(char *) * g->pa);
+
+		if (g->x3 == NULL || g->y3 == NULL || g->tp == NULL || g->pcols == NULL || g->ptext == NULL)
+			error("add_sym_g malloc faile in %s line %d",__FILE__,__LINE__);
+	}
+
+	g->x3[g->p] = x3;
+	g->y3[g->p] = y3;
+	g->tp[g->p] = st;
+	if (rgb != NULL) {
+		g->pcols[g->p].rgb[0] = rgb[0];
+		g->pcols[g->p].rgb[1] = rgb[1];
+		g->pcols[g->p].rgb[2] = rgb[2];
+	} else {
+		g->pcols[g->p].rgb[0] = -1.0;
+		g->pcols[g->p].rgb[1] = -1.0;
+		g->pcols[g->p].rgb[2] = -1.0;
+	}
+	if (ptext != NULL) {
+		g->ptext[g->p] = strdup(ptext);
+		if (g->ptext[g->p] == NULL)
+			error("add_sym_g malloc faile in %s line %d",__FILE__,__LINE__);
+	} else {
+		g->ptext[g->p] = NULL;
+	}
+	g->p++;
+}
+
+/* Fetch point at index. Return nz if out of range */
+int get_xy_g(plot_g *g, double xy[2], int ix) {
+	if (ix < 0 || ix >= (2 * g->o + g->p))
+		return 1;
+
+	if (ix < (2 * g->o)) {
+		if (ix & 1) {
+			xy[0] = g->x1[ix >> 1];
+			xy[1] = g->y1[ix >> 1];
+		} else {
+			xy[0] = g->x2[ix >> 1];
+			xy[1] = g->y2[ix >> 1];
+		}
+	} else {
+		ix -= 2 * g->o;
+		xy[0] = g->x3[ix];
+		xy[1] = g->y3[ix];
+	}
+	return 0;
+}
+
+/* Change point value at index. Return nz if out of range */
+int set_xy_g(plot_g *g, double xy[2], int ix) {
+	if (ix < 0 || ix >= (2 * g->o + g->p))
+		return 1;
+
+	if (ix < (2 * g->o)) {
+		if (ix & 1) {
+			g->x1[ix >> 1] = xy[0];
+			g->y1[ix >> 1] = xy[1];
+		} else {
+			g->x2[ix >> 1] = xy[0];
+			g->y2[ix >> 1] = xy[1];
+		}
+	} else {
+		ix -= 2 * g->o;
+		g->x3[ix] = xy[0];
+		g->y3[ix] = xy[1];
+	}
+	return 0;
+}
+
+/* Get the combined index number for current vector values */
+int get_vxyix_g(plot_g *g) {
+	return 2 * g->o;
+}
+
+
+/* Plot, but don't clear (i.e. free) lists */
+void do_plot_g(
+plot_g *g,
+double xmin, double xmax, double ymin, double ymax,
+double ratio, int zero, int dowait
+) {
+	do_plot_gen(xmin, xmax, ymin, ymax, ratio, zero, dowait,
+	g->x1, g->y1, g->x2, g->y2, g->ocols, g->o,
+	g->x3, g->y3, g->tp, g->pcols, g->ptext, g->p);
+}
+
+void clear_g(plot_g *g) {
+	int i;
+
+	free(g->x1);
+	free(g->y1);
+	free(g->x2);
+	free(g->y2);
+	free(g->ocols);
+	free(g->x3);
+	free(g->y3);
+	free(g->pcols);
+	free(g->tp);
+	for (i = 0; i < g->p; i++) {
+		free(g->ptext[i]);
+	}
+	free(g->ptext);
+
+	memset((void *)g, 0, sizeof(plot_g));
+}
+
 
 /* ********************************** NT version ********************** */
 #ifdef NT
@@ -897,7 +1166,9 @@ static int do_plot_imp(
 	double *x7, double *y7, plot_col *mcols, char **mtext,
     int m,
 	double *x8, double *y8, double *x9, double*y9, plot_col *ocols,
-	int o
+	int o,
+	double *xp, double *yp, plot_sym *tp, plot_col *pcols, char **ptext,
+	int p
 ) {
 	pd.flags = flags;
 	pd.dowait = 10 * dowait;
@@ -925,13 +1196,18 @@ static int do_plot_imp(
 
 		/* Transfer raw point info */
 		if (x2 == NULL)
-			pd.graph = 1;		/* 6 graphs + points */
+			pd.graph = 1;		/* MXGPHS graphs + points */
 		else
 			pd.graph = 0;		/* vectors + optional crosses */
 		pd.x1 = x1;
 		pd.x2 = x2;
-		for (j = 0; j < MXGPHS; j++)
-			pd.yy[j] = yy[j];
+		if (yy != NULL) {
+			for (j = 0; j < MXGPHS; j++)
+				pd.yy[j] = yy[j];
+		} else {
+			for (j = 0; j < MXGPHS; j++)
+				pd.yy[j] = NULL;
+		}
 		pd.ncols = ncols;
 		pd.ntext = ntext;
 		pd.n = abs(n);
@@ -957,6 +1233,13 @@ static int do_plot_imp(
 		pd.y9 = y9;
 		pd.ocols = ocols;
 		pd.o = abs(o);
+
+		pd.xp = xp;
+		pd.yp = yp;
+		pd.tp = tp;
+		pd.pcols = pcols;
+		pd.ptext = ptext;
+		pd.p = abs(p);
 	}
 
 	/* ------------------------------------------- */
@@ -1165,14 +1448,14 @@ plot_info *p
 			for (i = 0; i < p->n; i++) {
 				int cx,cy;
 				cx = (int)((p->x1[i] - p->mnx) * p->scx + 0.5);
-				cy = (int)((     yp[i] - p->mny) * p->scy + 0.5);
+				cy = (int)((   yp[i] - p->mny) * p->scy + 0.5);
 	
 				MoveToEx(hdc, 10 + lx, p->sh - 10 - ly, NULL);
-				LineTo(hdc, 10 + cx, p->sh - 10 - cy);
+				LineTo(hdc,   10 + cx, p->sh - 10 - cy);
 				if (p->flags & PLOTF_GRAPHCROSSES) {
 					MoveToEx(hdc, 10 + cx - 5, p->sh - 10 - cy - 5, NULL);
-					LineTo(hdc, 10 + cx + 5, p->sh - 10 - cy + 5);
-					LineTo(hdc, 10 + cx - 5, p->sh - 10 - cy + 5);
+					LineTo(hdc,   10 + cx + 5, p->sh - 10 - cy + 5);
+					LineTo(hdc,   10 + cx - 5, p->sh - 10 - cy + 5);
 				}
 				lx = cx;
 				ly = cy;
@@ -1248,7 +1531,7 @@ plot_info *p
 
 	/* Extra points */
 	if (p->x7 != NULL && p->y7 != NULL && p->m > 0 ) {
-		pen = CreatePen(PS_SOLID,ILTHICK,RGB(210,150,0));
+		pen = CreatePen(PS_SOLID,ILTHICK,RGB(210,150,0));		/* Yellow */
 		SelectObject(hdc,pen);
 		
 		if (p->mtext != NULL) {
@@ -1300,9 +1583,10 @@ plot_info *p
 		}
 		DeleteObject(pen);
 	}
-	/* Extra vectors */
+
+	/* General vectors */
 	if (p->x8 != NULL && p->y8 != NULL && p->x9 != NULL && p->y9 && p->o > 0 ) {
-		pen = CreatePen(PS_SOLID,ILTHICK,RGB(150,255,255));
+		pen = CreatePen(PS_SOLID,ILTHICK,RGB(150,255,255));		/* Light Blue */
 		SelectObject(hdc,pen);
 		
 		for (i = 0; i < p->o; i++) {
@@ -1323,12 +1607,115 @@ plot_info *p
 				DeleteObject(pen);
 				pen = CreatePen(PS_SOLID,ILTHICK,RGB(rgb[0],rgb[1],rgb[2]));
 				SelectObject(hdc,pen);
-
-				if (p->mtext != NULL)
-					SetTextColor(hdc, RGB(rgb[0],rgb[1],rgb[2]));
 			}
 			MoveToEx(hdc, 10 + lx, p->sh - 10 - ly, NULL);
 			LineTo(hdc, 10 + cx, p->sh - 10 - cy);
+		}
+		DeleteObject(pen);
+	}
+
+	/* General symbols and text */
+	if (p->xp != NULL && p->yp != NULL && p->p > 0) {
+
+		if (p->ptext != NULL) {
+			HFONT fon;
+
+			fon = CreateFont(12, 0, 0, 0, FW_LIGHT, FALSE, FALSE, FALSE, ANSI_CHARSET,
+			                 OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
+			                 FF_DONTCARE, NULL);
+
+			if (fon == NULL)
+				fprintf(stderr,"plot: CreateFont returned NULL\n");
+			else {
+				SelectObject(hdc,fon);
+				DeleteObject(fon);
+			}
+		}
+
+		for (i = 0; i < p->p; i++) {
+			int cx,cy;
+			int rgb[3];
+
+			if (p->pcols != NULL &&
+			    p->pcols[i].rgb[0] >= 0.0 &&
+			    p->pcols[i].rgb[1] >= 0.0 &&
+			    p->pcols[i].rgb[2] >= 0.0
+			) {
+				for (j = 0; j < 3; j++)
+					rgb[j] = (int)(p->pcols[i].rgb[j] * 255.0 + 0.5);
+
+			} else {
+				for (j = 0; j < 3; j++)
+					rgb[j] = plot_colors[i % MXGPHS][j]; 
+			}
+
+			DeleteObject(pen);
+			pen = CreatePen(PS_SOLID,ILTHICK,RGB(rgb[0],rgb[1],rgb[2]));
+			SelectObject(hdc,pen);
+
+			if (p->ptext != NULL)
+				SetTextColor(hdc, RGB(rgb[0],rgb[1],rgb[2]));
+
+			cx = (int)((p->xp[i] - p->mnx) * p->scx + 0.5);
+			cy = (int)((p->yp[i] - p->mny) * p->scy + 0.5);
+
+			/* Allow for margin and y being top to bottom */
+			cx += 10;
+			cy += 10;
+			cy = p->sh - cy;
+
+			switch (p->tp[i]) {
+    			case plotDiagCross:
+					MoveToEx(hdc, cx - 5, cy - 5, NULL);
+					LineTo(hdc,   cx + 5, cy + 5);
+					MoveToEx(hdc, cx + 5, cy - 5, NULL);
+					LineTo(hdc,   cx - 5, cy + 5);
+					break;
+    			case plotOrthCross:
+					MoveToEx(hdc, cx - 5, cy, NULL);
+					LineTo(hdc,   cx + 5, cy);
+					MoveToEx(hdc, cx,     cy - 5, NULL);
+					LineTo(hdc,   cx,     cy + 5);
+					break;
+    			case plotSquare:
+					MoveToEx(hdc, cx - 5, cy - 5, NULL);
+					LineTo(hdc,   cx + 5, cy - 5);
+					LineTo(hdc,   cx + 5, cy + 5);
+					LineTo(hdc,   cx - 5, cy + 5);
+					LineTo(hdc,   cx - 5, cy - 5);
+					break;
+    			case plotDiamond:
+					MoveToEx(hdc, cx    , cy - 5, NULL);
+					LineTo(hdc,   cx + 5, cy    );
+					LineTo(hdc,   cx    , cy + 5);
+					LineTo(hdc,   cx - 5, cy    );
+					LineTo(hdc,   cx    , cy - 5);
+					break;
+    			case plotUpTriang:
+					MoveToEx(hdc, cx - 5, cy + 5, NULL);
+					LineTo(hdc,   cx    , cy - 5);
+					LineTo(hdc,   cx + 5, cy + 5);
+					LineTo(hdc,   cx - 5, cy + 5);
+					break;
+    			case plotDownTriang:
+					MoveToEx(hdc, cx - 5, cy - 5, NULL);
+					LineTo(hdc,   cx + 5, cy - 5);
+					LineTo(hdc,   cx    , cy + 5);
+					LineTo(hdc,   cx - 5, cy - 5);
+					break;
+				plotNoSym:
+				default:
+					break;
+			}
+
+			if (p->ptext != NULL && p->ptext[i] != NULL) {
+				RECT rct;
+				rct.right = 
+				rct.left = cx + 10;
+				rct.top = 
+				rct.bottom = cy + 13;
+				DrawText(hdc, p->ptext[i], -1, &rct, DT_SINGLELINE | DT_CENTER | DT_VCENTER | DT_NOCLIP);
+			}
 		}
 		DeleteObject(pen);
 	}
@@ -1515,7 +1902,9 @@ static int do_plot_imp(
 	double *x7, double *y7, plot_col *mcols, char **mtext,
     int m,
 	double *x8, double *y8, double *x9, double*y9, plot_col *ocols,
-	int o
+	int o,
+	double *xp, double *yp, plot_sym *tp, plot_col *pcols, char **ptext,
+	int p
 ) {
 	/* Put information in global pd */
 	{
@@ -1550,8 +1939,13 @@ static int do_plot_imp(
 			pd.graph = 0;
 		pd.x1 = x1;
 		pd.x2 = x2;
-		for (j = 0; j < MXGPHS; j++)
-			pd.yy[j] = yy[j];
+		if (yy != NULL) {
+			for (j = 0; j < MXGPHS; j++)
+				pd.yy[j] = yy[j];
+		} else {
+			for (j = 0; j < MXGPHS; j++)
+				pd.yy[j] = NULL;
+		}
 		pd.ncols = ncols;
 		pd.ntext = ntext;
 		pd.n = abs(n);
@@ -1577,6 +1971,13 @@ static int do_plot_imp(
 		pd.y9 = y9;
 		pd.ocols = ocols;
 		pd.o = abs(o);
+
+		pd.xp = xp;
+		pd.yp = yp;
+		pd.tp = tp;
+		pd.pcols = pcols;
+		pd.ptext = ptext;
+		pd.p = abs(p);
 	}
 
 	ui_UsingGUI();
@@ -1922,7 +2323,7 @@ static void DoPlot(NSRect *rect, plot_info *pdp) {
 		}
 	}
 
-	/* Extra vectors */
+	/* General vectors */
 	if (pdp->x8 != NULL && pdp->y8 != NULL && pdp->x9 != NULL && pdp->y9 && pdp->o > 0 ) {
 		[[NSColor colorWithCalibratedRed: 0.5		/* Light blue */
 		                           green: 0.9
@@ -1953,6 +2354,88 @@ static void DoPlot(NSRect *rect, plot_info *pdp) {
 			ADrawLine(path, 20.0 + lx, 20.0 + ly, 20.0 + cx, 20.0 + cy);
 		}
 	}
+
+	/* General symbols and text */
+	if (pdp->xp != NULL && pdp->yp != NULL && pdp->p > 0 ) {
+		int ss = 7;
+
+		for (i = 0; i < pdp->p; i++) {
+			int cx,cy;
+
+			if (pdp->pcols != NULL) {
+				[[NSColor colorWithCalibratedRed: pdp->pcols[i].rgb[0]
+				                           green: pdp->pcols[i].rgb[1]
+				                            blue: pdp->pcols[i].rgb[2]
+				                           alpha: 1.0] setStroke];
+
+				if (pdp->ptext != NULL) {
+					tcol = [NSColor colorWithCalibratedRed: pdp->pcols[i].rgb[0]
+					                           green: pdp->pcols[i].rgb[1]
+					                            blue: pdp->pcols[i].rgb[2]
+					                           alpha: 1.0];
+				}
+			} else {
+				[[NSColor colorWithCalibratedRed: plot_colors[i % MXGPHS][0]/255.0
+				                           green: plot_colors[i % MXGPHS][1]/255.0
+				                            blue: plot_colors[i % MXGPHS][2]/255.0
+				                           alpha: 1.0] setStroke];
+				if (pdp->ptext != NULL) {
+					tcol = [NSColor colorWithCalibratedRed: plot_colors[i % MXGPHS][0]
+					                           green: plot_colors[i % MXGPHS][1]
+					                            blue: plot_colors[i % MXGPHS][2]
+					                           alpha: 1.0];
+				}
+			}
+
+			cx = (int)((pdp->xp[i] - pdp->mnx) * pdp->scx + 0.5);
+			cy = (int)((pdp->yp[i] - pdp->mny) * pdp->scy + 0.5);
+
+			/* Allow for margin and y being top to bottom */
+			cx += 20;
+			cy += 20;
+
+			switch (pdp->tp[i]) {
+    			case plotDiagCross:
+					ADrawLine(path, cx - ss, cy + ss, cx + ss, cy - ss);
+					ADrawLine(path, cx + ss, cy + ss, cx - ss, cy - ss);
+					break;
+    			case plotOrthCross:
+					ADrawLine(path, cx - ss, cy     , cx + ss, cy    );
+					ADrawLine(path, cx,      cy + ss, cx,      cy - ss);
+					break;
+    			case plotSquare:
+					ADrawLine(path, cx - ss, cy + ss, cx + ss, cy + ss);
+					ADrawLine(path, cx + ss, cy + ss, cx + ss, cy - ss);
+					ADrawLine(path, cx + ss, cy - ss, cx - ss, cy - ss);
+					ADrawLine(path, cx - ss, cy - ss, cx - ss, cy + ss);
+					break;
+    			case plotDiamond:
+					ADrawLine(path, cx     , cy + ss, cx + ss, cy    );
+					ADrawLine(path, cx + ss, cy     , cx     , cy - ss);
+					ADrawLine(path, cx     , cy - ss, cx - ss, cy    );
+					ADrawLine(path, cx - ss, cy     , cx     , cy + ss);
+					break;
+    			case plotUpTriang:
+					ADrawLine(path, cx - ss, cy - ss, cx     , cy + ss);
+					ADrawLine(path, cx     , cy + ss, cx + ss, cy - ss);
+					ADrawLine(path, cx + ss, cy - ss, cx - ss, cy - ss);
+					break;
+    			case plotDownTriang:
+					ADrawLine(path, cx - ss, cy + ss, cx + ss, cy + ss);
+					ADrawLine(path, cx + ss, cy + ss, cx     , cy - ss);
+					ADrawLine(path, cx     , cy - ss, cx - ss, cy + ss);
+					break;
+				plotNoSym:
+				default:
+					break;
+			}
+
+			if (pdp->ptext != NULL && pdp->ptext[i] != NULL) {
+				ADrawText(tcol, 9.0, cx + 9, cy - 18, 0x1, pdp->ptext[i]);
+			}
+		}
+	}
+
 }
 
 #else /* Assume UNIX + X11 */
@@ -1994,7 +2477,9 @@ static int do_plot_imp(
 	double *x7, double *y7, plot_col *mcols, char **mtext,
     int m,
 	double *x8, double *y8, double *x9, double*y9, plot_col *ocols,
-	int o
+	int o,
+	double *xp, double *yp, plot_sym *tp, plot_col *pcols, char **ptext,
+	int p
 ) {
 	{
 		int j;
@@ -2028,8 +2513,13 @@ static int do_plot_imp(
 			pd.graph = 0;
 		pd.x1 = x1;
 		pd.x2 = x2;
-		for (j = 0; j < MXGPHS; j++)
-			pd.yy[j] = yy[j];
+		if (yy != NULL) {
+			for (j = 0; j < MXGPHS; j++)
+				pd.yy[j] = yy[j];
+		} else {
+			for (j = 0; j < MXGPHS; j++)
+				pd.yy[j] = NULL;
+		}
 		pd.ncols = ncols;
 		pd.ntext = ntext;
 		pd.n = abs(n);
@@ -2055,6 +2545,13 @@ static int do_plot_imp(
 		pd.y9 = y9;
 		pd.ocols = ocols;
 		pd.o = abs(o);
+
+		pd.xp = xp;
+		pd.yp = yp;
+		pd.tp = tp;
+		pd.pcols = pcols;
+		pd.ptext = ptext;
+		pd.p = abs(p);
 	}
 
 	{
@@ -2374,7 +2871,7 @@ plot_info *pdp
 		}
 	}
 
-	/* Extra vectors */
+	/* General vectors */
 	if (pdp->x8 != NULL && pdp->y8 != NULL && pdp->x9 != NULL && pdp->y9 && pdp->o > 0 ) {
 		col.red = 150 * 256; col.green = 255 * 256; col.blue = 255 * 256;
 		XAllocColor(mydisplay, mycmap, &col);
@@ -2401,6 +2898,77 @@ plot_info *pdp
 			}
 
 			XDrawLine(mydisplay, mywindow, mygc, 10 + lx, pdp->sh - 10 - ly, 10 + cx, pdp->sh - 10 - cy);
+		}
+	}
+
+	/* General symbols and text */
+	if (pdp->xp != NULL && pdp->yp != NULL && pdp->p > 0 ) {
+		XSetLineAttributes(mydisplay, mygc, ILTHICK, LineSolid, CapButt, JoinBevel);
+
+		for (i = 0; i < pdp->p; i++) {
+			int cx,cy;
+
+			if (pdp->mcols != NULL) {
+				col.red = (int)(pdp->mcols[i].rgb[0] * 65535.0 + 0.5);
+				col.green = (int)(pdp->mcols[i].rgb[1] * 65535.0 + 0.5);
+				col.blue = (int)(pdp->mcols[i].rgb[2] * 65535.0 + 0.5);
+
+			} else {
+				col.red   = plot_colors[i % MXGPHS][0] * 256;
+				col.green = plot_colors[i % MXGPHS][1] * 256;
+				col.blue  = plot_colors[i % MXGPHS][2] * 256;
+			}
+
+			XAllocColor(mydisplay, mycmap, &col);
+			XSetForeground(mydisplay,mygc, col.pixel);
+
+			cx = (int)((pdp->xp[i] - pdp->mnx) * pdp->scx + 0.5);
+			cy = (int)((pdp->yp[i] - pdp->mny) * pdp->scy + 0.5);
+
+			/* Allow for margin and y being top to bottom */
+			cx += 10;
+			cy += 10;
+			cy = pdp->sh - cy;
+
+			switch (pdp->tp[i]) {
+    			case plotDiagCross:
+					XDrawLine(mydisplay, mywindow, mygc, cx - 5, cy - 5, cx + 5, cy + 5);
+					XDrawLine(mydisplay, mywindow, mygc, cx + 5, cy - 5, cx - 5, cy + 5);
+					break;
+    			case plotOrthCross:
+					XDrawLine(mydisplay, mywindow, mygc, cx - 5, cy    , cx + 5, cy);
+					XDrawLine(mydisplay, mywindow, mygc, cx,     cy - 5, cx,     cy + 5);
+					break;
+    			case plotSquare:
+					XDrawLine(mydisplay, mywindow, mygc, cx - 5, cy - 5, cx + 5, cy - 5);
+					XDrawLine(mydisplay, mywindow, mygc, cx + 5, cy - 5, cx + 5, cy + 5);
+					XDrawLine(mydisplay, mywindow, mygc, cx + 5, cy + 5, cx - 5, cy + 5);
+					XDrawLine(mydisplay, mywindow, mygc, cx - 5, cy + 5, cx - 5, cy - 5);
+					break;
+    			case plotDiamond:
+					XDrawLine(mydisplay, mywindow, mygc, cx    , cy - 5, cx + 5, cy    );
+					XDrawLine(mydisplay, mywindow, mygc, cx + 5, cy    , cx    , cy + 5);
+					XDrawLine(mydisplay, mywindow, mygc, cx    , cy + 5, cx - 5, cy    );
+					XDrawLine(mydisplay, mywindow, mygc, cx - 5, cy    , cx    , cy - 5);
+					break;
+    			case plotUpTriang:
+					XDrawLine(mydisplay, mywindow, mygc, cx - 5, cy + 5, cx    , cy - 5);
+					XDrawLine(mydisplay, mywindow, mygc, cx    , cy - 5, cx + 5, cy + 5);
+					XDrawLine(mydisplay, mywindow, mygc, cx + 5, cy + 5, cx - 5, cy + 5);
+					break;
+    			case plotDownTriang:
+					XDrawLine(mydisplay, mywindow, mygc, cx - 5, cy - 5, cx + 5, cy - 5);
+					XDrawLine(mydisplay, mywindow, mygc, cx + 5, cy - 5, cx    , cy + 5);
+					XDrawLine(mydisplay, mywindow, mygc, cx    , cy + 5, cx - 5, cy - 5);
+					break;
+				plotNoSym:
+				default:
+					break;
+			}
+
+			if (pdp->ptext != NULL && pdp->ptext[i] != NULL)
+				XDrawImageString(mydisplay, mywindow, mygc, cx + 10, cy +13,
+				                 pdp->ptext[i], strlen(pdp->ptext[i]));
 		}
 	}
 }
@@ -2559,18 +3127,37 @@ int main(int argc, char *argv[]) {
 	double Bx2[10] = {0.1, 0.8, 0.1, 0.2};
 	double By2[10] = {0.1, 1.8, 2.0, 0.5};
 
-	double Bx3[10] = {0.8, 0.4, 1.3, 0.5, 0.23};
-	double By3[10] = {0.5, 1.3, 0.4, 0.7, 0.77};
+	double Bx3[10] = {0.8, 0.4, 1.3, 0.5, 0.23, 0.3, 0.7, 0.5 };
+	double By3[10] = {0.5, 1.3, 0.4, 0.7, 0.77, 0.1, 0.8, 0.5 };
 
-	plot_col mcols[5] = {
+	char *ntext[5] = { "A", "B", "C", "D" };
+	char *mtext[5] = { "10", "20", "30", "40", "50" };
+
+	plot_col mcols[8] = {
 	{ 1.0, 0.0, 0.0 },
 	{ 0.0, 1.0, 0.0 },
 	{ 0.0, 0.0, 1.0 },
 	{ 0.6, 0.6, 0.6 },
-	{ 1.0, 1.0, 0.0 } };
+	{ 1.0, 1.0, 0.0 },
+	{ 0.0, 1.0, 1.0 },
+	{ 1.0, 0.0, 1.0 },
+	{ 0.97, 0.37, 0.0 } };
 
-	char *ntext[5] = { "A", "B", "C", "D" };
-	char *mtext[5] = { "10", "20", "30", "40", "50" };
+	plot_sym syms[8] = {
+		plotNoSym,
+		plotDiagCross,
+		plotOrthCross,
+		plotSquare,
+		plotDiamond,
+		plotUpTriang,
+		plotDownTriang,
+		plotDiagCross,
+	};
+
+	char *ptext[8] = { "NoSym", "DiagCross", "OrthCross", "Square", "Diamond", "UpTriang", "DownTriang", NULL };
+
+	plot_g gg = { 0 };
+	int i;
 
 	printf("Doing first plot\n");
 	if (do_plot(x,y1,y2,y3,4) < 0)
@@ -2595,6 +3182,34 @@ int main(int argc, char *argv[]) {
 	if (do_plot_vec2(0.0, 1.4, 0.0, 2.0, Bx1, By1, Bx2, By2, ntext, 4, 1, Bx3, By3, mcols, mtext, 5,
 	                x,y1,y2,y3,mcols,4))
 		printf("Error - do_plot_vec returned -1!\n");
+
+	printf("Doing general vector plot with colors\n");
+	if (do_plot_gen(0.0, 0.0, 0.0, 0.0, 1.0, 0, 1,
+		            Bx1, By1, Bx2, By2, mcols, 4,
+					NULL, NULL, NULL, NULL, NULL, 0))
+		printf("Error - do_plot_gen returned -1!\n");
+
+	printf("Doing general symbols and text\n");
+	if (do_plot_gen(0.0, 0.0, 0.0, 0.0, 1.0, 0, 1,
+		            NULL, NULL, NULL, NULL, NULL, 0,
+					Bx3, By3, syms, mcols, ptext, 8))
+		printf("Error - do_plot_gen returned -1!\n");
+
+	clear_g(&gg);
+
+	printf("Doing general vector plot with colors using plot_g\n");
+	for (i = 0; i < 4; i++)
+		add_vec_g(&gg, Bx1[i], By1[i], Bx2[i], By2[i], mcols[i].rgb);
+
+	do_plot_g(&gg, 0.0, 0.0, 0.0, 0.0, 1.0, 0, 1);
+
+	printf("Doing general symbols and text using plot_g\n");
+	for (i = 0; i < 8; i++)
+		add_sym_g(&gg, Bx3[i], By3[i], syms[i], mcols[i].rgb, ptext[i]);
+
+	do_plot_g(&gg, 0.0, 0.0, 0.0, 0.0, 1.0, 0, 1);
+
+	clear_g(&gg);
 
 	printf("We're done\n");
 	return 0;

@@ -18,6 +18,9 @@
   credit is given to the original author and
   anyone who has modified the code through
   a header comment, such as this one.
+
+  Various changes by Graeme W. Gill.
+  See aatree.c
 */
 
 #ifdef __cplusplus

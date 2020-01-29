@@ -94,7 +94,18 @@
     </p>
     <p>Also on Linux and OSX you may have to make sure that certain
       environment variables such as <b>HOSTTYPE</b> are exported, so
-      that other programs can see them.</p>
+      that other programs can see them.<br>
+    </p>
+    <p>On newer Linux systems that make use of versions of the <b>ar</b>
+      utility that default to so called "deterministic builds" you
+      should set the <b>JAM_NEW_GNU_AR_OPTIONS</b> environment <br>
+      variable so that the ar U option is set:<br>
+    </p>
+    <p>&nbsp;&nbsp;&nbsp; export <b>JAM_NEW_GNU_AR_OPTIONS=true<br>
+        <br>
+      </b>&nbsp;Not doing this will cause libraries to be re-built all
+      the time.<br>
+    </p>
     <p>You may also have to set the appropriate environment variable to
       tell the Jambase which compiler you are using.<br>
     </p>

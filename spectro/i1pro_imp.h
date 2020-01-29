@@ -191,6 +191,9 @@ struct _i1proimp {
 	xcalstd native_calstd;		/* Instrument native calibration standard */
 	xcalstd target_calstd;		/* Returned calibration standard */
 
+	int custfilt_en;			/* Custom filter enabled */
+	xspect custfilt;			/* Custom filter */
+
 	double intclkp;				/* Integration clock period (typically 68 usec) */
 	int subclkdiv;				/* Sub clock divider ratio */
 	int subtmode;				/* Reading 127 subtract mode (version 301 or greater) */

@@ -36,9 +36,15 @@
 
 	Should auxil return multiple solutions if it finds them ???
 
+	Sometimes slivers remain in the surface in the exact
+	direction of the focal point. See test/HarveyMiller colprof -qu
+	with #define REVVRML. Probably not actually a problem, just not 100%
+	correct gamut surface.
+
  */
 
 /* TTBD:
+
 	Get rid of error() calls - return status instead
 
 	Need to add a hefty overview and explanation of
@@ -3988,7 +3994,7 @@ double *err		/* Output error (weighted) distance at solution point */
 				/* Solve second triangle */
 				if ((wsrv2 = lchw_tri_solve(s, xv2, p, b->v, v)) != 0) {
 
-					dist2 = sqrt(lchw_sq(s, b->v, xv));
+					dist2 = sqrt(lchw_sq(s, b->v, xv2));
 
 					/* Use this second solution */
 					if (wsrv == 0 || dist2 < dist) {

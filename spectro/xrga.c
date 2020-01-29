@@ -220,3 +220,4 @@ void ipatch_convert_xrga(ipatch *vals, int nvals,
 	if (conv != NULL)
 		conv->del(conv);
 }
+

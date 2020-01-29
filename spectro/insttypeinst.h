@@ -35,6 +35,7 @@
 # include "i1pro.h"
 # include "munki.h"
 # include "spyd2.h"
+# include "spydX.h"
 # include "huey.h"
 # include "ex1.h"
 # include "hcfr.h"
