@@ -7,8 +7,23 @@ Not included yet:
 
 * Started adding comms for Lumagen Radiance detection.
 
+Version 2.1.1  29th April 2019
+-------------
+
+* Fix typo in usb/55-Argyll.rules for i1Studio
+
+* Added SpyderX support for inst_opt_noinitcalib option, so that
+  the -N flag can be honoured. (Thanks to Florian Hoch)
+
 Version 2.1.0  10th April 2019
 -------------
+
+* Changed dispwin -X daemon loader so that it doesn't use the 
+  RROutputPropertyNotifyMask, as this seems to cause a poll loop storm
+  in recent X11 servers.
+
+* Added dispwin -x option that loads all profiles for given X11 server. This
+  is useful for involking from a udev script on display change.
 
 * Added scanin .cht for Christophe Metairie's Digital Target 2019 with 522 patches.
 

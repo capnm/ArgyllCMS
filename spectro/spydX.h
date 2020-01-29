@@ -62,6 +62,11 @@ typedef int spydX_code;
 #define SPYDX_BAD_PARAM				0x01		/* Parameter out of range ? */
 
 
+/* Internal error codes */
+#define SPYDX_INT_CAL_SAVE           0xE009		/* Saving calibration to file failed */
+#define SPYDX_INT_CAL_RESTORE        0xE00A		/* Restoring calibration to file failed */
+#define SPYDX_INT_CAL_TOUCH          0xE00B		/* Touching calibration to file failed */
+ 
 /* Extra native calibration info */
 typedef struct {
 	int ix;					/* Native index */
@@ -121,7 +126,11 @@ struct _spydX {
 	double ccmat[3][3];			/* Current colorimeter correction matrix, unity if none */
 
 	int bcal_done;
-	int bcal[3];			/* Black offset calibration values */
+	int bcal[3];				/* Black offset calibration values */
+	time_t bdate;				/* Date/time of last black calibration */
+
+	int noinitcalib;		 	/* Don't do initial calibrate */
+	int lo_secs;				/* Seconds since last opened (from calibration file mod time) */ 
 
 }; typedef struct _spydX spydX;
 

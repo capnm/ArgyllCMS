@@ -59,6 +59,12 @@ char *meas_type2str(inst_meas_type mt);
 /* NOTE :- should ditch norm, and replace it by */
 /* "units", ie. reflectance/transmittance 0..1, 0..100%, */
 /* W/nm/m^2 or mW/nm/m^2 */
+
+/* NOTE :- there is an assumption in the .sp file format that */
+/* resolution is always >= 1nm. Realistically this could only be */
+/* lifted by making the spec[] allocation dynamic, which would involve */
+/* a huge number of code changes. */
+
 #define XSPECT_MAX_BANDS 601		/* Enought for 1nm from 300 to 900 */
 
 typedef struct {

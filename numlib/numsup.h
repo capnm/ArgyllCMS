@@ -525,6 +525,9 @@ void vect_sub3(double *d, double *s1, double *s2, int len);
 /* Invert and copy a vector, d = 1/s */
 void vect_invert(double *d, double *s, int len);
 
+/* Multiply the elements of two vectors, d = s1 * s2 */
+void vect_mul3(double *d, double *s1, double *s2, int len);
+
 /* Blend two vectors, d = bl * s1 + (1 - bl) * s2 */
 /* Blend between s0 and s1 for bl 0..1 */
 void vect_blend(double *d, double *s0, double *s1, double bl, int len);

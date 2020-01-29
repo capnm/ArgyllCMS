@@ -1985,6 +1985,15 @@ void vect_invert(double *d, double *s, int len) {
 		d[i] = 1.0/s[i];
 }
 
+/* Multiply the elements of two vectors, d = s1 * s2 */
+void vect_mul3(
+	double *d, double *s1, double *s2, int len
+) {
+	int i;
+	for (i = 0; i < len; i++)
+		d[i] = s1[i] * s2[i];
+}
+
 /* Scale a vector, */
 /* d may be same as v */
 void vect_scale(double *d, double *s, double scale, int len) {

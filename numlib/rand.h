@@ -35,6 +35,9 @@ double d2_rand(double min, double max);
 /* and an average deviation of 0.564 */
 double norm_rand(void);
 
+/* Scale normal value by this to give it a mean absolute deviation of 1.0 */
+#define NORM_RAND_ABS_SCALE 0.62665706865775
+
 /* - - - - - - - - - - - - - - - */
 /* Explicit state random generator */
 /* Use NULL for global state */

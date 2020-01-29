@@ -36,10 +36,6 @@
 
 /* TTBD:
 
-	* Could save black calibration to file so that inst_opt_noinitcalib can be honoured.
-	
-	* Add timeout for black calibration ??
-
 */
 
 #include <stdio.h>
@@ -63,9 +59,17 @@
 #include "insttypes.h"
 #include "conv.h"
 #include "icoms.h"
+#include "rspec.h"
 #include "spydX.h"
 
+#define ENABLE_NONVCAL /* [Def] Enable saving calibration state between program runs in a file */
+#define DCALTOUT (30 * 60) /* [30 Minutes] Dark Calibration timeout in seconds */
+
 static inst_code spydX_interp_code(inst *pp, int ec);
+static int spydX_save_calibration(spydX *p);
+static int spydX_restore_calibration(spydX *p);
+static int spydX_touch_calibration(spydX *p);
+ 
 
 /* ------------------------------------------------------------------------ */
 /* Implementation */
@@ -731,6 +735,16 @@ spydX_init_inst(inst *pp) {
 		return ev;
 	}
 
+	p->lo_secs = 2000000000;			/* A very long time */
+
+#ifdef ENABLE_NONVCAL
+	/* Restore the all modes calibration from the local system */
+	spydX_restore_calibration(p);
+
+	/* Touch it so that we know when the instrument was last opened */
+	spydX_touch_calibration(p);
+#endif
+
 	/* Do an ambient measurement to initialize it */
 	{
 		int ap[2] = { 101, 0x10 }, raw[4];
@@ -882,12 +896,17 @@ double mtx[3][3]
 /* Return needed and available inst_cal_type's */
 static inst_code spydX_get_n_a_cals(inst *pp, inst_cal_type *pn_cals, inst_cal_type *pa_cals) {
 	spydX *p = (spydX *)pp;
-
+	time_t curtime = time(NULL);
 	inst_cal_type n_cals = inst_calt_none;
 	inst_cal_type a_cals = inst_calt_none;
+	
+	if ((curtime - p->bdate) > DCALTOUT) {
+		a1logd(p->log,2,"Invalidating black cal as %d secs from last cal\n",curtime - p->bdate);
+		p->bcal_done = 0;
+	}
 		
 	if (!IMODETST(p->mode, inst_mode_emis_ambient)) {
-		if (!p->bcal_done)
+		if (!p->bcal_done || !p->noinitcalib)
 			n_cals |= inst_calt_emis_offset;
 		a_cals |= inst_calt_emis_offset;
 	}
@@ -946,6 +965,7 @@ char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 
 	/* Black calibration: */
 	if (*calt & inst_calt_emis_offset) {
+		time_t cdate = time(NULL);
 
 		if ((*calc & inst_calc_cond_mask) != inst_calc_man_em_dark) {
 			*calc = inst_calc_man_em_dark;
@@ -956,7 +976,13 @@ char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 		if ((ev = spydX_BlackCal(p)) != inst_ok)
 			return ev;
 		p->bcal_done = 1;
+		p->bdate = cdate;
 	}
+
+#ifdef ENABLE_NONVCAL
+	/* Save the calibration to a file */
+	spydX_save_calibration(p);
+#endif
 
 	return inst_ok;
 }
@@ -975,6 +1001,12 @@ spydX_interp_error(inst *pp, int ec) {
 			return "Not a Spyder 2, 3, 4 or 5";
 		case SPYDX_DATA_PARSE_ERROR:
 			return "Data from i1 Display didn't parse as expected";
+		case SPYDX_INT_CAL_SAVE:
+			return "Saving calibration file failed";
+		case SPYDX_INT_CAL_RESTORE:
+			return "Restoring calibration file failed";
+		case SPYDX_INT_CAL_TOUCH:
+			return "Touching calibration file failed";
 
 		case SPYDX_OK:
 			return "No device error";
@@ -1021,10 +1053,27 @@ spydX_interp_code(inst *pp, int ec) {
 static void
 spydX_del(inst *pp) {
 	spydX *p = (spydX *)pp;
+
+#ifdef ENABLE_NONVCAL
+	/* Touch it so that we know when the instrument was last open */
+	spydX_touch_calibration(p);
+#endif
+
 	if (p->icom != NULL)
 		p->icom->del(p->icom);
 	p->vdel(pp);
 	free(p);
+}
+
+/* Set the noinitcalib mode */
+static void spydX_set_noinitcalib(spydX *p, int v, int losecs) {
+
+	/* Ignore disabling init calib if more than losecs since instrument was open */
+	if (v && losecs != 0 && p->lo_secs >= losecs) {
+		a1logd(p->log,3,"initcalib disable ignored because %d >= %d secs\n",p->lo_secs,losecs);
+		return;
+	}
+	p->noinitcalib = v;
 }
 
 /* Return the instrument mode capabilities */
@@ -1340,6 +1389,22 @@ spydX_get_set_opt(inst *pp, inst_opt_type m, ...) {
 	spydX *p = (spydX *)pp;
 	inst_code ev = inst_ok;
 
+	if (m == inst_opt_initcalib) {			/* default */
+		spydX_set_noinitcalib(p, 0, 0);
+		return inst_ok;
+
+	} else if (m == inst_opt_noinitcalib) {		/* Disable initial calibration */
+		va_list args;
+		int losecs = 0;
+
+		va_start(args, m);
+		losecs = va_arg(args, int);
+		va_end(args);
+
+		spydX_set_noinitcalib(p, 1, losecs);
+		return inst_ok;
+	}
+
 	/* Record the trigger mode */
 	if (m == inst_opt_trig_prog
 	 || m == inst_opt_trig_user) {
@@ -1396,5 +1461,143 @@ extern spydX *new_spydX(icoms *icom, instType dtype) {
 	p->dtech = disptech_unknown;
 
 	return p;
+}
+
+
+/* =============================================================================== */
+/* Calibration info save/restore to file */
+
+static int spydX_save_calibration(spydX *p) {
+	int ev = SPYDX_OK;
+	int i;
+	char fname[100];		/* Name */
+	calf x;
+	int argyllversion = ARGYLL_VERSION;
+	int ss;
+
+	snprintf(fname, 99, ".spydX_%s.cal", p->serno);
+
+	if (calf_open(&x, p->log, fname, 1)) {
+		x.ef = 2;
+		goto done;
+	}
+
+	ss = sizeof(spydX);
+
+	/* Some file identification */
+	calf_wints(&x, &argyllversion, 1);
+	calf_wints(&x, &ss, 1);
+	calf_wstrz(&x, p->serno);
+
+	/* Save the black calibration if it's valid */
+	calf_wints(&x, &p->bcal_done, 1);
+	calf_wtime_ts(&x, &p->bdate, 1);
+	calf_wints(&x, p->bcal, 3);
+
+	a1logd(p->log,3,"nbytes = %d, Checkum = 0x%x\n",x.nbytes,x.chsum);
+	calf_wints(&x, (int *)(&x.chsum), 1);
+
+	if (calf_done(&x))
+		x.ef = 3;
+
+  done:;
+	if (x.ef != 0) {
+		a1logd(p->log,2,"Writing calibration file failed with %d\n",x.ef);
+		ev = SPYDX_INT_CAL_SAVE;
+	} else {
+		a1logd(p->log,2,"Writing calibration file succeeded\n");
+	}
+
+	return ev;
+}
+
+/* Restore the black calibration from the local system */
+static int spydX_restore_calibration(spydX *p) {
+	int ev = SPYDX_OK;
+	int i, j;
+	char fname[100];		/* Name */
+	calf x;
+	int argyllversion;
+	int ss, nbytes, chsum1, chsum2;
+	char *serno = NULL;
+
+	snprintf(fname, 99, ".spydX_%s.cal", p->serno);
+
+	if (calf_open(&x, p->log, fname, 0)) {
+		x.ef = 2;
+		goto done;
+	}
+
+	/* Last modified time */
+	p->lo_secs = x.lo_secs;
+
+	/* Do a dumy read to check the checksum, then a real read */
+	for (x.rd = 0; x.rd < 2; x.rd++) {
+		calf_rewind(&x);
+
+		/* Check the file identification */
+		calf_rints2(&x, &argyllversion, 1);
+		calf_rints2(&x, &ss, 1);
+		calf_rstrz2(&x, &serno);
+
+		if (x.ef != 0
+		 || argyllversion != ARGYLL_VERSION
+		 || ss != (sizeof(spydX))
+		 || strcmp(serno, p->serno) != 0) {
+			a1logd(p->log,2,"Identification didn't verify\n");
+			if (x.ef == 0)
+				x.ef = 4;
+			goto done;
+		}
+
+		/* Read the black calibration if it's valid */
+		calf_rints(&x, &p->bcal_done, 1);
+		calf_rtime_ts(&x, &p->bdate, 1);
+		calf_rints(&x, p->bcal, 3);
+
+		/* Check the checksum */
+		chsum1 = x.chsum;
+		nbytes = x.nbytes;
+		calf_rints2(&x, &chsum2, 1);
+	
+		if (x.ef != 0
+		 || chsum1 != chsum2) {
+			a1logd(p->log,2,"Checksum didn't verify, bytes %d, got 0x%x, expected 0x%x\n",nbytes,chsum1, chsum2);
+			if (x.ef == 0)
+				x.ef = 5;
+			goto done;
+		}
+	}
+
+	a1logd(p->log, 3, "Restored spydX_BlackCal: offsets %d %d %d\n",p->bcal[0], p->bcal[1], p->bcal[2]);
+
+	a1logd(p->log,5,"spydX_restore_calibration done\n");
+ done:;
+
+	free(serno);
+	if (calf_done(&x))
+		x.ef = 3;
+
+	if (x.ef != 0) {
+		a1logd(p->log,2,"Reading calibration file failed with %d\n",x.ef);
+		ev = SPYDX_INT_CAL_RESTORE;
+	}
+
+	return ev;
+}
+
+static int spydX_touch_calibration(spydX *p) {
+	int ev = SPYDX_OK;
+	char fname[100];		/* Name */
+	int rv;
+
+	snprintf(fname, 99, ".spydX_%s.cal", p->serno);
+
+	if (calf_touch(p->log, fname)) {
+		a1logd(p->log,2,"Touching calibration file time failed with\n");
+		return SPYDX_INT_CAL_TOUCH;
+	}
+
+	return SPYDX_OK;
 }
 
