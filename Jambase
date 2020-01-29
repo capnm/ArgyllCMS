@@ -588,7 +588,10 @@ if $(NT)
 			MSVCNT		?= $(MSVCDIR) ;		
 		}
 
-		if [ MATCH 15\\.(.*) : $(VisualStudioVersion) ] {
+		if [ MATCH 16\\.(.*) : $(VisualStudioVersion) ] {
+			ECHO "Compiler is VC++16 (AKA Community 2019)" ;
+			MSVCVER     = 16 ;
+		} else if [ MATCH 15\\.(.*) : $(VisualStudioVersion) ] {
 			ECHO "Compiler is VC++15 (AKA Community 2017)" ;
 			MSVCVER     = 15 ;
 		} else if [ MATCH 14\\.(.*) : $(VisualStudioVersion) ] {
@@ -664,6 +667,7 @@ if $(NT)
 						ws2_32.lib
 						Wbemuuid.lib
 						Version.lib
+#						Winmm.lib
 						;
 		if $(MSVCVER) >= 8 {
 			STDLIBS += psapi.lib ;

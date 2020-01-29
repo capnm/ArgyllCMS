@@ -175,7 +175,8 @@ void usage(int flag, char *diag, ...) {
 		} else
 			fprintf(stderr,"    ** No ports found **\n");
 	}
-	fprintf(stderr," -p                   Use telephoto mode (ie. for a projector) (if available)\n");
+	fprintf(stderr," -p                   Use telephoto mode (ie. for a projector, if available)\n");
+	fprintf(stderr," -a                   Use ambient measurement mode (ie. for a projector, if available)\n");
 	cap2 = inst_show_disptype_options(stderr, " -y                   ", icmps, 0);
 	fprintf(stderr," -k file.cal          Load calibration file into display while reading\n");
 	fprintf(stderr," -K file.cal          Apply calibration file to test values while reading\n");
@@ -208,6 +209,7 @@ void usage(int flag, char *diag, ...) {
 	fprintf(stderr," -Y R:rate            Override measured refresh rate with rate Hz\n");
 	fprintf(stderr," -Y A                 Use non-adaptive integration time mode (if available).\n");
 	fprintf(stderr," -Y p                 Don't wait for the instrument to be placed on the display\n");
+	fprintf(stderr," -Y k                 Omit the file.cal information from the .ti3 file\n"); 
 	fprintf(stderr," -C \"command\"         Invoke shell \"command\" each time a color is set\n");
 	fprintf(stderr," -M \"command\"         Invoke shell \"command\" each time a color is measured\n");
 //	fprintf(stderr," -x [lx]              Take manually entered values, either L*a*b* (-xl) or XYZ (-xx).\n");
@@ -245,6 +247,7 @@ int main(int argc, char *argv[]) {
 	int wdrift = 0;						/* Flag, nz for white drift compensation */
 	int ditype = 0;						/* Display type selection charater(s) */
 	int tele = 0;						/* NZ if telephoto mode */
+	int ambient = 0;					/* NZ if ambient mode */
 	int noautocal = 0;					/* Disable auto calibration */
 	int noplace = 0;					/* Disable user instrument placement */
 	int donorm = 1;						/* Enable Y = 100 normalisation */
@@ -273,8 +276,11 @@ int main(int argc, char *argv[]) {
 										/* X1 = set native linear output and use ramdac high prec */
 										/* 0X = use current color management cLut (MadVR) */
 										/* 1X = disable color management cLUT (MadVR) */
+										/* Note that if calname, X0 loads calfile into hardware */
+										/* and X1 applied soft calibration. */
 	double cal[3][MAX_CAL_ENT];			/* Display calibration */
 	int ncal = 256;						/* Default number of cal entries used */
+	int nocaloutput = 0;				/* NZ to omit calibration info from .ti3 */
 	cgats *icg;							/* input cgats structure */
 	cgats *ocg;							/* output cgats structure */
 	time_t clk = time(0);
@@ -427,6 +433,12 @@ int main(int argc, char *argv[]) {
 			/* Telephoto */
 			} else if (argv[fa][1] == 'p') {
 				tele = 1;
+				ambient = 0;
+
+			/* Request ambient measurement */
+			} else if (argv[fa][1] == 'a') {
+				ambient = 1;
+				tele = 0;
 
 			/* Display type */
 			} else if (argv[fa][1] == 'y') {
@@ -604,7 +616,7 @@ int main(int argc, char *argv[]) {
 				g_log->debug = debug;
 				callback_ddebug = 1;		/* dispwin global */
 
-			/* Extra flags */
+			/* Extra misc. flags */
 			} else if (argv[fa][1] == 'Y') {
 				if (na == NULL)
 					usage(0,"Flag '-Y' expects extra flag");
@@ -619,6 +631,8 @@ int main(int argc, char *argv[]) {
 					noplace = 1;
 				} else if (na[0] == 'A') {
 					nadaptive = 1;
+				} else if (na[0] == 'k') {
+					nocaloutput = 1;
 				} else {
 					usage(0,"Flag '-Y %c' not recognised",na[0]);
 				}
@@ -710,7 +724,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (docalib) {
-		if ((rv = disprd_calibration(ipath, fc, ditype, -1, 0, tele, nadaptive, noautocal, 
+		if ((rv = disprd_calibration(ipath, fc, ditype, -1, 0, tele, ambient, nadaptive, noautocal, 
 			                         disp, webdisp, ccid,
 #ifdef NT
 			                         madvrdisp,
@@ -928,7 +942,7 @@ int main(int argc, char *argv[]) {
 		cal[0][0] = -1.0;	/* Not used */
 	}
 
-	if ((dr = new_disprd(&errc, ipath, fc, ditype, -1, 0, tele, nadaptive, noautocal, noplace,
+	if ((dr = new_disprd(&errc, ipath, fc, ditype, -1, 0, tele, ambient, nadaptive, noautocal, noplace,
 	                     highres, refrate, native, &noramdac, &nocm, cal, ncal, disp,
 		                 out_tvenc, fullscreen, override, webdisp, ccid,
 #ifdef NT
@@ -1098,8 +1112,8 @@ int main(int argc, char *argv[]) {
 	else
 		ocg->add_kword(ocg, 0, "NORMALIZED_TO_Y_100","NO", NULL);
 
-	/* Write out the calibration if we have it */
-	if (cal[0][0] >= 0.0) {
+	/* Write out the calibration if we have it and we want to save it */
+	if (cal[0][0] >= 0.0 && !nocaloutput) {
 		ocg->add_other(ocg, "CAL"); 		/* our special type is Calibration file */
 		ocg->add_table(ocg, tt_other, 1);	/* Add another table for RAMDAC values */
 		ocg->add_kword(ocg, 1, "DESCRIPTOR", "Argyll Device Calibration State",NULL);

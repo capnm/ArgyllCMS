@@ -14,7 +14,7 @@ Libraries = libicc ;
 Executables = iccdump icclu ;
 Headers = icc.h ;
 Samples = sRGB.icm ClayRGB1998.icm EBU3213_PAL.icm SMPTE_RP145_NTSC.icm Rec709.icm
-          Rec2020.icm SMPTE431_P3.icm ProPhoto.icm ProPhotoLin.icm lab2lab.icm ;
+          Rec2020.icm SMPTE431_P3.icm ACES_P3.icm DisplayP3.icm ProPhoto.icm ProPhotoLin.icm lab2lab.icm ;
 # Remember to add samples to ref/afiles !
 
 #Install
@@ -62,6 +62,8 @@ if $(BUILD_JUNK) {
 	MainsFromSources mkRec709.c ;
 	MainsFromSources mkRec2020.c ;
 	MainsFromSources mkSMPTE431_P3.c ;
+	MainsFromSources mkACES_P3.c ;
+	MainsFromSources mkDisplayP3.c ;
 	MainsFromSources mkProPhoto.c ;
 #	MainsFromSources icm2ary.c ;
 

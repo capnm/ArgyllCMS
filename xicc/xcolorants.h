@@ -274,12 +274,12 @@ inkmask icx_icc_to_colorant_comb(icColorSpaceSignature sig, icProfileClassSignat
 inkmask icx_icc_cv_to_colorant_comb(icColorSpaceSignature sig, icProfileClassSignature deviceClass,
                                     double cvals[][3]);
 
+#endif /* !SALONEINSTLIB */
+
 /* Given an colorant combination mask */
 /* return the primary matching ICC colorspace signature. */ 
 /* return 0 if there is no match */
 icColorSpaceSignature icx_colorant_comb_to_icc(inkmask mask);
-
-#endif /* !SALONEINSTLIB */
 
 /* --------------------------------------------------------- */
 /* An aproximate device colorant model object lookup object: */

@@ -2091,8 +2091,10 @@ a1log *log			/* verb, debug & error log */
 				scols[pix]->rr = 1;		/* Has been read */
 				printf(" Patch read OK\n");
 
+#ifndef SALONEINSTLIB
 				if (doplot && val.sp.spec_n > 0)
 					xspect_plot_w(&val.sp, NULL, NULL, 0);
+#endif
 
 				/* Advance to next patch. */
 				incflag = 1;

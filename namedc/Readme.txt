@@ -1,1 +1,1 @@
-Library for loading named color files of varoius types.
+Library for loading named color files of various types.

@@ -18,7 +18,7 @@
 
 /* Basic idea:
 
-	Given to .ti3 files (or equivalent CGATS files), one containing a
+	Given two .ti3 files (or equivalent CGATS files), one containing a
 	spread of target patch values (XYZ, Lab or spectral), and the
 	other containing the corresponding measured values, a PCS->PCS
 	correction RSPL mapping is created to adjust for any innacuracy
@@ -38,7 +38,7 @@
 		they will lead to out of control regions on the gamut surface.
 		- need output profile to clip changes to gamut surface.
 
-		Refinement feedback could go unstable.
+		Refinement feedback could be unstable.
 		- use a damping factor to improve stability.
 
 	Currently the way out of gamut value are handled is to

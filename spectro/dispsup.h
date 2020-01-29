@@ -54,6 +54,7 @@ int ditype,			/* Display type selection character(s) */
 int sditype,		/* Spectro ditype, use ditype if -1 */
 int docbid,			/* NZ to only allow cbid ditypes */
 int tele,			/* NZ for tele mode */
+int ambient,		/* NZ for ambient mode */
 int nadaptive,		/* NZ for non-adaptive mode */
 int noinitcal,		/* NZ to disable initial instrument calibration */
 disppath *screen,	/* Screen to calibrate. */
@@ -124,6 +125,7 @@ struct _disprd {
 	int refrmode;		/* Refresh display mode, -1 if unknow, 0 = if no, 1 if yes */
 	int cbid;			/* The current Calibration Base display mode ID, 0 if unknown */
 	int tele;			/* NZ for tele mode */
+	int ambient;		/* NZ for ambient mode */
 	int nadaptive;		/* NZ for non-adaptive mode */
 	int highres;		/* Use high res mode if available */
 	double refrate;		/* If != 0.0, set display refresh rate calibration */
@@ -199,7 +201,7 @@ struct _disprd {
 	/* 4 = user hit terminate key */
 	/* 5 = system error */
 	/* 8 = no ambient capability */
-	int (*ambient)(struct _disprd *p,
+	int (*meas_ambient)(struct _disprd *p,
 		double *ambient,	/* return ambient in cd/m^2 */
 		int tc				/* If nz, termination key */
 	);
@@ -235,6 +237,7 @@ int ditype,			/* Display type selection character(s) */
 int sditype,		/* Spectro ditype, use ditype if -1 */
 int docbid,			/* NZ to only allow cbid ditypes */
 int tele,			/* NZ for tele mode */
+int ambient,		/* NZ for ambient mode */
 int nadaptive,		/* NZ for non-adaptive mode */
 int noinitcal,		/* No initial instrument calibration */
 int noinitplace,	/* Don't wait for user to place instrument on screen */

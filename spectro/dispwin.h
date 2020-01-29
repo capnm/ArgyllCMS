@@ -176,6 +176,10 @@ struct _ramdac {
 	/* Set the curves to linear */
 	void (*setlin)(struct _ramdac *p);
 
+	/* Check if the lut has sane display values. */
+	/* Return 0 if not sane */
+	int (*sane)(struct _ramdac *p);
+
 	/* Destroy ourselves */
 	void (*del)(struct _ramdac *p);
 }; typedef struct _ramdac ramdac;
@@ -428,6 +432,7 @@ int dispwin_compute_delay(dispwin *p, double *orgb);
 
 ramdac *dispwin_clone_ramdac(ramdac *r);
 void dispwin_setlin_ramdac(ramdac *r);
+int dispwin_sane_ramdac(ramdac *r);
 void dispwin_del_ramdac(ramdac *r);
 
 

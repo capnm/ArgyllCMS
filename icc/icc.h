@@ -2033,6 +2033,12 @@ double icmDot2(double in1[2], double in2[2]);
 /* 1->2 and 3->4 */
 double icmDot22(double in1[2], double in2[2], double in3[2], double in4[2]);
 
+/* Normalise a 2 vector to the given length. Return nz if not normalisable */
+int icmNormalize2(double out[2], double in[2], double len);
+
+/* Return an orthogonal vector */
+void icmOrthog2(double out[2], double in[2]);
+
 /* Given 2 2D points, compute a plane equation. */
 /* The normal will be right handed given the order of the points */
 /* The plane equation will be the 2 normal components and the constant. */
@@ -2063,7 +2069,7 @@ int icmLinePointClosest2(double cp[2], double *pa,
 int icmLineIntersect2(double res[2], double p1[2], double p2[2], double p3[2], double p4[2]);
 
 /* Given two finite 2D lines define by 4 points, compute their paramaterized intersection. */
-/* aprm may be NULL. Param is prop. from p1 -> p2, p3 -> p4 */
+/* res[] and/or aprm[] may be NULL. Param is prop. from p1 -> p2, p3 -> p4 */
 /* Return 2 if there is no intersection (lines are parallel) */
 /* Return 1 lines do not cross within their length */
 int icmParmLineIntersect2(double ares[2], double aprm[2], double p1[2], double p2[2], double p3[2], double p4[2]);

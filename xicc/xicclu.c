@@ -1071,6 +1071,7 @@ main(int argc, char *argv[]) {
 
 	} else {	/* See if it's a .cal */
 		icco->del(icco);
+		icco = NULL;
 		fp->del(fp);
 		fp = NULL;
 

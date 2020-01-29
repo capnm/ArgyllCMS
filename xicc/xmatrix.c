@@ -752,6 +752,7 @@ double scale		/* Scale device values */
 	int maxits = 200;			/* Optimisation stop params */
 	double stopon = 0.01;		/* Absolute delta E change to stop on */
 	cow *points;				/* Lab copy of ipoints */
+	int wix = -1;				/* White patch index */
 	double rerr;
 
 #ifdef DEBUG_PLOT
@@ -809,72 +810,85 @@ double scale		/* Scale device values */
 	if (os->norders > MXNORDERS)
 		os->norders = MXNORDERS;
 	
-	/* Setup points ready for optimisation and do an initial Lab conversion */
-	for (i = 0; i < nodp; i++) {
-		for (e = 0; e < inputChan; e++)
-			points[i].p[e] = ipoints[i].p[e];
-		
-		for (f = 0; f < outputChan; f++)
-			points[i].v[f] = ipoints[i].v[f];
-
-		points[i].w = ipoints[i].w;
-	}
-
 	/* Pick a white point for the real Lab conversion */
 	{
-		double wp[3];
 		double wpy = -1e60;
-		int wix = -1;
+		double wp[3];
 
 		/* We assume that the input target is well behaved, */
 		/* and that it includes a white point patch, */
 		/* and that it has an extreme L value */
 
+		wix = -1;
 		for (i = 0; i < nodp; i++) {
+			double lab[3];
 			double yv;
 
+			/* Get the Lab value of this point */
+			if (isLab)
+				icmCpy3(lab, ipoints[i].v);
+			else
+				icmXYZ2Lab(&icmD50, lab, ipoints[i].v);
+			
 			/* Tilt things towards D50 neutral white patches */
-			yv = points[i].v[0] - 0.3 * sqrt(points[i].v[1] * points[i].v[1]
-			                                + points[i].v[2] * points[i].v[2]);
+			yv = lab[0] - 0.3 * sqrt(lab[1] * lab[1] + lab[2] * lab[2]);
+
 			if (yv > wpy) {
 				wpy = yv;
 				wix = i;
+				icmCpy3(wp, lab);
 			}
 		}
-//printf("~1 picked point %d as white\n",wix);
-		icmLab2XYZ(&icmD50, wp, points[wix].v);
-		wp[0] /= wp[1];
+//printf("~1 picked point %d as Lab %f %f %f as white\n",wix,wp[0],wp[1],wp[2]);
+		icmLab2XYZ(&icmD50, wp, wp);
+		wp[0] /= wp[1];			/* Normalize */
 		wp[2] /= wp[1];
 		wp[1] = 1.0;
 		icmAry2XYZ(os->wp, wp);
 
 		/* We'll use this wp for delta E calculation when creating the matrix */
 //		if (os->verb) printf("Switching to L*a*b* white point %f %f %f\n",os->wp.X,os->wp.Y,os->wp.Z);
-		if (nweight < 1.0)		/* Sanity */
-			nweight = 1.0;
-		for (i = 0; i < nodp; i++) {
-			double lch[3];
-			if (isLab)
-				icmLab2XYZ(&icmD50, points[i].v, points[i].v);
-			icmXYZ2Lab(&os->wp, points[i].v, points[i].v);
-			icmLab2LCh(lch, points[i].v);
+	}
 
-			/* Apply any neutral weighting */
-			if (lch[1] < 10.0) {
-				double w = nweight;
-				if (lch[1] > 5.0)
-					w = 1.0 + (nweight - 1.0) * (10.0 - lch[1])/(10.0 - 5.0);
-				points[i].w *= w;
-			}
-//printf("~1 patch %d = Lab %f %f %f, C = %f w = %f\n",i,points[i].v[0], points[i].v[1], points[i].v[2], lch[1],points[i].w);
+	if (nweight < 1.0)		/* Sanity */
+		nweight = 1.0;
+
+	/* Setup points ready for optimisation by converting */
+	/* data to Lab relative to our chosen white point */
+	for (i = 0; i < nodp; i++) {
+		double lch[3];
+
+		/* Copy input values */
+		for (e = 0; e < inputChan; e++)
+			points[i].p[e] = ipoints[i].p[e];
+		
+		points[i].w = ipoints[i].w;
+
+		/* First copy and convert to XYZ */
+		if (isLab)
+			icmLab2XYZ(&icmD50, points[i].v, ipoints[i].v);
+		else
+			icmCpy3(points[i].v, ipoints[i].v);
+
+		/* Then to our wp relative Lab */
+		icmXYZ2Lab(&os->wp, points[i].v, points[i].v);
+		icmLab2LCh(lch, points[i].v);
+
+		/* Apply any neutral weighting */
+		if (lch[1] < 10.0) {
+			double w = nweight;
+			if (lch[1] > 5.0)
+				w = 1.0 + (nweight - 1.0) * (10.0 - lch[1])/(10.0 - 5.0);
+			points[i].w *= w;
 		}
+//printf("~1 patch %d = Lab %f %f %f, C = %f w = %f\n",i,points[i].v[0], points[i].v[1], points[i].v[2], lch[1],points[i].w);
+	}
 
 #if !defined(NOT_PRIVATE) && defined(HACK)
 # pragma message("!!!!!!!!!!!!!!! xicc/xmatrix.c HACK code enabled !!!!!!!!!!!!!!!!!!")
-		printf("!!!! HACK: setting white point ixt %d weight to zero\n",wix);
-		points[wix].w = 0.0;
+	printf("!!!! HACK: setting white point ixt %d weight to zero\n",wix);
+	points[wix].w = 0.0;
 #endif
-	}
 
 	/* Set initial matrix optimisation values */
 	os->v[0] = 0.4;  os->v[1] = 0.4;  os->v[2] = 0.2;		/* Matrix */

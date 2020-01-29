@@ -218,6 +218,7 @@ int ditype,				/* Display type selection character(s) */
 int sditype,			/* Spectro ditype, use ditype if -1 */
 int docbid,				/* NZ to only allow cbid ditypes */
 int tele,				/* NZ for tele mode, falls back to spot mode */
+int ambient,			/* NZ for ambient mode */
 int nadaptive,			/* NZ for non-adaptive mode */ 
 int noinitcal,			/* NZ to disable initial instrument calibration */
 disppath *disp,			/* display to calibrate. */
@@ -294,24 +295,34 @@ a1log *log				/* Verb, debug & error log */
 	itype = p->get_itype(p);			/* Actual type */
 	p->capabilities(p, &cap, &cap2, &cap3);
 
+	if (tele)
+		ambient = 0;
+
 	if (tele && p->check_mode(p, inst_mode_emis_tele) != inst_ok) {
 		printf("Want telephoto measurement capability but instrument doesn't support it\n");
 		printf("so falling back to emissive spot mode.\n");
 		tele = 0;
 	}
 	
-	if (!tele && p->check_mode(p, inst_mode_emis_spot) != inst_ok) {
+	if (ambient && p->check_mode(p, inst_mode_emis_ambient) != inst_ok) {
+		printf("Want ambient measurement capability but instrument doesn't support it\n");
+		printf("so falling back to emissive spot mode.\n");
+		ambient = 0;
+	}
+	
+	if (!tele && !ambient && p->check_mode(p, inst_mode_emis_spot) != inst_ok) {
 		printf("Want emissive spot measurement capability but instrument doesn't support it\n");
 		printf("so switching to telephoto spot mode.\n");
 		tele = 1;
 	}
 	
-	if (( tele && p->check_mode(p, inst_mode_emis_tele) != inst_ok)
-	 || (!tele && p->check_mode(p, inst_mode_emis_spot) != inst_ok)) {
-		printf("Need %s emissive measurement capability,\n", tele ? "telephoto" : "spot");
+	if (( tele && !ambient && p->check_mode(p, inst_mode_emis_tele) != inst_ok)
+	 || (!tele &&  ambient && p->check_mode(p, inst_mode_emis_ambient) != inst_ok)
+	 || (!tele && !ambient && p->check_mode(p, inst_mode_emis_spot) != inst_ok)) {
+		printf("Need %s emissive measurement capability,\n", tele ? "telephoto" : ambient ? "ambient" : "spot");
 		printf("but instrument doesn't support it\n");
 		a1logd(p->log,1,"Need %s emissive measurement capability but device doesn't support it,\n",
-		       tele ? "telephoto" : "spot");
+		       tele ? "telephoto" : ambient ? "ambient" : "spot");
 		p->del(p);
 		return -1;
 	}
@@ -319,6 +330,8 @@ a1log *log				/* Verb, debug & error log */
 	/* Set to emission mode to read a display */
 	if (tele)
 		mode = inst_mode_emis_tele;
+	else if (ambient)
+		mode = inst_mode_emis_ambient;
 	else
 		mode = inst_mode_emis_spot;
 	if (nadaptive)
@@ -2180,18 +2193,26 @@ static int config_inst_displ(disprd *p) {
 		p->tele = 0;
 	}
 	
-	if (!p->tele && p->it->check_mode(p->it, inst_mode_emis_spot) != inst_ok) {
+	if (p->ambient && p->it->check_mode(p->it, inst_mode_emis_ambient) != inst_ok) {
+		printf("Want ambient measurement capability but instrument doesn't support it\n");
+		printf("so falling back to spot mode.\n");
+		a1logd(p->log,1,"No telephoto mode so falling back to spot mode.\n");
+		p->ambient = 0;
+	}
+	
+	if (!p->tele && !p->ambient && p->it->check_mode(p->it, inst_mode_emis_spot) != inst_ok) {
 		printf("Want emissive spot measurement capability but instrument doesn't support it\n");
 		printf("so switching to telephoto spot mode.\n");
 		p->tele = 1;
 	}
 	
-	if (( p->tele && p->it->check_mode(p->it, inst_mode_emis_tele) != inst_ok)
-	 || (!p->tele && p->it->check_mode(p->it, inst_mode_emis_spot) != inst_ok)) {
-		printf("Need %s emissive measurement capability,\n", p->tele ? "telephoto" : "spot");
+	if (( p->tele && !p->ambient && p->it->check_mode(p->it, inst_mode_emis_tele) != inst_ok)
+	 || (!p->tele &&  p->ambient && p->it->check_mode(p->it, inst_mode_emis_spot) != inst_ok)
+	 || (!p->tele && !p->ambient && p->it->check_mode(p->it, inst_mode_emis_spot) != inst_ok)) {
+		printf("Need %s emissive measurement capability,\n", p->tele ? "telephoto" : p->ambient ? "ambient" : "spot");
 		printf("but instrument doesn't support it\n");
 		a1logd(p->log,1,"Need %s emissive measurement capability but device doesn't support it,\n",
-		       p->tele ? "telephoto" : "spot");
+		       p->tele ? "telephoto" : p->ambient ? "ambient" : "spot");
 		return 2;
 	}
 	
@@ -2227,6 +2248,8 @@ static int config_inst_displ(disprd *p) {
 	
 	if (p->tele) {
 		mode = inst_mode_emis_tele;
+	} else if (p->ambient) {
+		mode = inst_mode_emis_ambient;
 	} else {
 		mode = inst_mode_emis_spot;
 	}
@@ -2373,6 +2396,7 @@ int ditype,			/* Display type selection character(s) */
 int sditype,		/* Spectro ditype, use ditype if -1 */
 int docbid,			/* NZ to only allow cbid ditypes */
 int tele,			/* NZ for tele mode. Falls back to display mode */
+int ambient,		/* NZ for ambient mode */
 int nadaptive,		/* NZ for non-adaptive mode */
 int noinitcal,		/* No initial instrument calibration */
 int noinitplace,	/* Don't wait for user to place instrument on screen */
@@ -2437,7 +2461,7 @@ a1log *log      	/* Verb, debug & error log */
 	p->get_disptype = disprd_get_disptype;
 	p->reset_targ_w = disprd_reset_targ_w;
 	p->change_drift_comp = disprd_change_drift_comp;
-	p->ambient = disprd_ambient;
+	p->meas_ambient = disprd_ambient;
 	p->fake_name = fake_name;
 
 	p->cc_dtech = cc_dtech;
@@ -2456,6 +2480,9 @@ a1log *log      	/* Verb, debug & error log */
 	p->refrmode = -1;			/* Unknown */
 	p->cbid = 0;				/* Unknown */
 	p->tele = tele;
+	if (tele)
+		ambient = 0;
+	p->ambient = ambient;
 	p->nadaptive = nadaptive;
 	p->noinitcal = noinitcal;
 	p->noinitplace = noinitplace;

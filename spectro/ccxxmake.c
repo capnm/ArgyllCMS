@@ -166,7 +166,8 @@ usage(int flag, char *diag, ...) {
 #endif
 	fprintf(stderr," -d dummy          Dummy (non-existant, invisible) display\n");
 //	fprintf(stderr," -d fake           Use a fake (ICC profile) display device for testing, fake%s if present\n",ICC_FILE_EXT);
-	fprintf(stderr," -p                Use telephoto mode (ie. for a projector) (if available)\n");
+	fprintf(stderr," -p                Use telephoto mode (ie. for a projector, if available)\n");
+	fprintf(stderr," -a                Use ambient measurement mode (ie. for a projector, if available)\n");
 	cap = inst_show_disptype_options(stderr, " -y c|l                 ", icmps, 1);
 	fprintf(stderr," -z disptype       Different display type for spectrometer (see -y)\n");
 	fprintf(stderr," -P ho,vo,ss[,vs]  Position test window and scale it\n");
@@ -180,6 +181,7 @@ usage(int flag, char *diag, ...) {
 	fprintf(stderr," -H                Use high resolution spectrum mode (if available)\n");
 //	fprintf(stderr," -V                Use adaptive measurement mode (if available)\n");
 	fprintf(stderr," -C \"command\"      Invoke shell \"command\" each time a color is set\n");
+	fprintf(stderr," -M \"command\"      Invoke shell \"command\" each time a color is measured\n");
 	fprintf(stderr," -o observ         Choose CIE Observer for CCMX spectrometer data:\n");
 	fprintf(stderr,"                    1931_2 (def), 1964_10, 2012_2, 2012_10, S&B 1955_2, shaw, J&V 1978_2 or file.cmf\n");
 	fprintf(stderr," -s steps          Override default patch sequence combination steps  (default %d)\n",DEFAULT_MSTEPS);
@@ -237,6 +239,7 @@ int main(int argc, char *argv[]) {
 	int cbid = 0;						/* Calibration base display mode ID */
 	int nadaptive = 0;					/* Use non-adaptive mode if available */
 	int tele = 0;						/* NZ if telephoto mode */
+	int ambient = 0;					/* NZ if ambient mode */
 	int noinitcal = 0;					/* Disable initial calibration */
 	int webdisp = 0;					/* NZ for web display, == port number */
 	int ccdisp = 0;			 			/* NZ for ChromeCast, == list index */
@@ -247,6 +250,7 @@ int main(int argc, char *argv[]) {
 #endif
 	int dummydisp = 0;					/* NZ for dummy display */
 	char *ccallout = NULL;				/* Change color Shell callout */
+	char *mcallout = NULL;				/* Measure color Shell callout */
 	int msteps = DEFAULT_MSTEPS;		/* Patch surface size */
 	int npat = 0;						/* Number of patches/colors */
 	ary3 *refs = NULL;					/* Reference XYZ values */
@@ -413,6 +417,12 @@ int main(int argc, char *argv[]) {
 			/* Telephoto */
 			} else if (argv[fa][1] == 'p') {
 				tele = 1;
+				ambient = 0;
+
+			/* Ambient */
+			} else if (argv[fa][1] == 'a') {
+				ambient = 1;
+				tele = 0;
 
 			/* Display type */
 			} else if (argv[fa][1] == 'y') {
@@ -513,6 +523,12 @@ int main(int argc, char *argv[]) {
 				fa = nfa;
 				if (na == NULL) usage(0,"Parameter expected after -C");
 				ccallout = na;
+
+			/* Measure color callout */
+			} else if (argv[fa][1] == 'M') {
+				fa = nfa;
+				if (na == NULL) usage(0,"Parameter expected after -M");
+				mcallout = na;
 
 			/* Serial port flow control */
 			} else if (argv[fa][1] == 'W') {
@@ -1270,14 +1286,14 @@ int main(int argc, char *argv[]) {
 
 				/* Should we use current cal rather than native ??? */
 				if ((dr = new_disprd(&errc, icmps->get_path(icmps, comno),
-				                     fc, ditype, sditype, 1, tele, nadaptive,
+				                     fc, ditype, sditype, 1, tele, ambient, nadaptive,
 				                     noinitcal, 0, highres, refrate, 3, NULL, NULL,
 					                 NULL, 0, disp, 0, fullscreen,
 				                     override, webdisp, ccid,
 #ifdef NT
 					                 madvrdisp,
 #endif
-									 dummydisp, ccallout, NULL, 0,
+									 dummydisp, ccallout, mcallout, 0,
 					                 100.0 * hpatscale, 100.0 * vpatscale, ho, vo,
 					                 disptech_unknown, 0, NULL, NULL, 0, 2, icxOT_default, NULL, 
 				                     0, 0, "fake" ICC_FILE_EXT, g_log)) == NULL) {

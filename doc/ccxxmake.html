@@ -39,6 +39,8 @@
 
 
 
+
+
     <span style="font-weight: bold;">ccxxmake</span> allows a creation
     of a calibration spectral sample (<a href="File_Formats.html#.ccss">ccss</a>)
     for a particular <span style="font-weight: bold;">Display</span>,
@@ -89,20 +91,20 @@
 
 
 
+
+
       &nbsp; &nbsp; &nbsp; Verbose mode</small><br>
     &nbsp; <tt></tt><tt><a href="#S">-S</a></tt><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-      Create
-      CCSS
-      rather than CCMX</tt><tt><br>
+
+
+      Create CCSS rather than CCMX</tt><tt><br>
     </tt><tt>&nbsp;</tt><tt><a href="#f">-f ref.ti3[,targ.ti3]</a></tt><tt>
-      Create
-      from
-      one
-      or
-      two .ti3 files rather than measure.</tt><br style="font-family:
-      monospace;">
+      Create from one or two .ti3 files rather than measure.</tt><br
+      style="font-family: monospace;">
     <span style="font-family: monospace;">&nbsp;</span><font
       style="font-family: monospace;" size="-1"><a href="#display">-display
+
+
 
 
 
@@ -169,8 +171,12 @@ m
 
 
 
+
+
       for VideoLUT access.</font><br style="font-family: monospace;">
     <font style="font-family: monospace;" size="-1">&nbsp;<a href="#d">-d
+
+
 
 
 
@@ -229,12 +235,16 @@ list
 
 
 
+
+
       (default 1)</font><br>
     <span style="font-family: monospace;">&nbsp;<a href="#dweb">-d
         web[:port]</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
       Display via a web server at port (default 8080)<br>
     </span><span style="font-family: monospace;"><tt>&nbsp;</tt><tt><a
           href="#dcc">-d cc[:n]</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
       </tt><tt>Display via n'th ChromeCast (default 1, ? for list)<br>
       </tt></span>&nbsp; <span style="font-family: monospace;"><a
@@ -273,11 +283,46 @@ list
 
 
 
-      Use telephoto mode (ie. for a projector) (if available)</font><br
-      style="font-family: monospace;">
-    &nbsp; <tt></tt><tt><font size="-1"><a href="#y">-y X</a>
+
+
+      Use telephoto mode (ie. for a projector, if available)<br>
+    </font><font style="font-family: monospace;" size="-1"><font
+        style="font-family: monospace;" size="-1">&nbsp;</font><font
+        style="font-family: monospace;" size="-1"><a href="#a">-a</a>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        Use ambient mode (ie. for a projector, if available)</font><br>
+    </font>&nbsp; <tt></tt><tt><font size="-1"><a href="#y">-y X</a>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;
+
+
 
 
 
@@ -313,8 +358,12 @@ list
 
 
 
+
+
       Different display type for spectrometer (see -y)</tt><tt><br>
     </tt><tt> </tt><tt>&nbsp;</tt><tt><a href="#P">-P ho,vo,ss[,vs]</a></tt><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -332,6 +381,8 @@ left/top,
 0.5
 =
 center,
+
+
 
 
 
@@ -391,8 +442,12 @@ normal,
 
 
 
+
+
       2.0 = double etc.</font><br>
     <font size="-1"><span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -417,6 +472,8 @@ normal,
     <font style="font-family: monospace;" size="-1">&nbsp;</font><font
       style="font-family: monospace;" size="-1"><a href="#F">-F</a>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -479,9 +536,13 @@ on
 
 
 
+
+
       test window<br>
     </small><font style="font-family: monospace;" size="-1">&nbsp;<a
         href="#N">-N</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -537,6 +598,8 @@ on
 
 
 
+
+
       Use high resolution spectrum mode (if available)</font><font
       style="font-family: monospace;" size="-1"></font><br
       style="font-family: monospace;">
@@ -566,8 +629,17 @@ on
 
 
 
+
+
         "command"</a> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-      Invoke shell "command" each time a color is set<br>
+      Invoke shell "command" each time a color is set</font><br>
+    <font style="font-family: monospace;" size="-1"><font
+        style="font-family: monospace;" size="-1">&nbsp;<a href="#M">-M
+          "command"</a> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      </font></font><font style="font-family: monospace;" size="-1"><font
+        style="font-family: monospace;" size="-1"><font size="-1"><span
+            style="font-family: monospace;">Invoke shell "command" each
+            time a color is measured</span></font></font><br>
     </font><small style="font-family: monospace;">&nbsp;<a href="#o">-o
         <i>observ</i></a>&nbsp; &nbsp; &nbsp; &nbsp;
       &nbsp;&nbsp;&nbsp;&nbsp; Choose CIE Observer for CCMX spectral
@@ -580,6 +652,8 @@ on
 
 
 
+
+
       1955_2, shaw, J&amp;V 1978_2 or file.cmf<br>
     </small><font style="font-family: monospace;" size="-1">&nbsp;<a
         href="#s">-s steps</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
@@ -587,6 +661,8 @@ Override
 default
 patch
 sequence
+
+
 
 
 
@@ -640,6 +716,8 @@ sequence
 
 
 
+
+
         n|h|x</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Override
 serial
@@ -648,6 +726,8 @@ flow
 control:
 n
 =
+
+
 
 
 
@@ -709,6 +789,8 @@ overall
 
 
 
+
+
       description</small><br>
     <small style="font-family: monospace;">&nbsp;<a href="#I">-I
         "displayname"</a> &nbsp;&nbsp;&nbsp;&nbsp; </small><span
@@ -716,6 +798,8 @@ overall
       description</span><small style="font-family: monospace;">
       (optional)<br>
       &nbsp;</small><small style="font-family: monospace;"><a href="#T">-t
+
+
 
 
 
@@ -739,9 +823,13 @@ overall
 
 
 
+
+
       CRT<br>
       &nbsp;&nbsp;&nbsp;
       m&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -763,6 +851,8 @@ overall
 
 
 
+
+
       LCD<br>
       &nbsp;&nbsp;&nbsp;
       1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
@@ -775,9 +865,13 @@ overall
 
 
 
+
+
       LCD CCFL<br>
       &nbsp;&nbsp;&nbsp;
       2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -801,11 +895,15 @@ overall
 
 
 
+
+
     </small><small style="font-family: monospace;"><small
         style="font-family: monospace;">&nbsp;&nbsp;&nbsp; </small>LCD
       CCFL VPA<br>
       &nbsp;&nbsp;&nbsp;
       4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -829,11 +927,15 @@ overall
 
 
 
+
+
     </small><small style="font-family: monospace;"><small
         style="font-family: monospace;">&nbsp;&nbsp;&nbsp; </small>LCD
       CCFL Wide Gamut<br>
       &nbsp;&nbsp;&nbsp;
       5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -857,11 +959,15 @@ overall
 
 
 
+
+
     </small><small style="font-family: monospace;"><small
         style="font-family: monospace;">&nbsp;&nbsp;&nbsp; </small>LCD
       CCFL Wide Gamut VPA<br>
       &nbsp;&nbsp;&nbsp;
       7&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -885,11 +991,15 @@ overall
 
 
 
+
+
     </small><small style="font-family: monospace;"><small
         style="font-family: monospace;">&nbsp;&nbsp;&nbsp; </small>LCD
       White LED<br>
       &nbsp;&nbsp;&nbsp;
       8&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -913,11 +1023,15 @@ overall
 
 
 
+
+
     </small><small style="font-family: monospace;"><small
         style="font-family: monospace;">&nbsp;&nbsp;&nbsp; </small>LCD
       White LED VPA<br>
       &nbsp;&nbsp;&nbsp;
       a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -941,11 +1055,15 @@ overall
 
 
 
+
+
     </small><small style="font-family: monospace;"><small
         style="font-family: monospace;">&nbsp;&nbsp;&nbsp; </small>LCD
       RGB LED<br>
       &nbsp;&nbsp;&nbsp;
       b&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -969,11 +1087,15 @@ overall
 
 
 
+
+
     </small><small style="font-family: monospace;"><small
         style="font-family: monospace;">&nbsp;&nbsp;&nbsp; </small>LCD
       RGB LED VPA<br>
       &nbsp;&nbsp;&nbsp;
       d&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -997,11 +1119,15 @@ overall
 
 
 
+
+
     </small><small style="font-family: monospace;"><small
         style="font-family: monospace;">&nbsp;&nbsp;&nbsp; </small>LCD
       RG Phosphor<br>
       &nbsp;&nbsp;&nbsp;
       e&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -1025,6 +1151,8 @@ overall
 
 
 
+
+
     </small><small style="font-family: monospace;"><small
         style="font-family: monospace;">&nbsp;&nbsp;&nbsp; </small>LCD
       RG Phosphor VPA<br>
@@ -1039,35 +1167,55 @@ overall
 
 
 
+
+
     </small><small style="font-family: monospace;"><small
         style="font-family: monospace;">&nbsp;&nbsp;&nbsp; </small>LCD
       RG Phosphor TFT<br>
       &nbsp;&nbsp;&nbsp;
       r&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
       LCD PFS Phosphor<br>
       &nbsp;&nbsp;&nbsp;
       s&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
       LCD PFS Phosphor IPS<br>
       &nbsp;&nbsp;&nbsp;
       t&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
       LCD PFS Phosphor VPA<br>
       &nbsp;&nbsp;&nbsp;
       v&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
       LCD PFS Phosphor TFT<br>
       &nbsp;&nbsp;&nbsp;
       i&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
       LCD GB-R Phosphor<br>
       &nbsp;&nbsp;&nbsp;
       x&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
       LCD GB-R Phosphor IPS<br>
       &nbsp;&nbsp;&nbsp;
       y&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
       LCD GB-R Phosphor VPA<br>
       &nbsp;&nbsp;&nbsp;
       z&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
       LCD GB-R Phosphor TFT<br>
       &nbsp;&nbsp;&nbsp;
       o&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -1091,14 +1239,20 @@ overall
 
 
 
+
+
     </small><small style="font-family: monospace;"><small
         style="font-family: monospace;">&nbsp;&nbsp;&nbsp; </small>LED
       AMOLED<br>
       &nbsp;&nbsp;&nbsp;
       w&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
       LED WOLED<br>
       &nbsp;&nbsp;&nbsp;
       p&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -1122,11 +1276,15 @@ overall
 
 
 
+
+
     </small><small style="font-family: monospace;"><small
         style="font-family: monospace;">&nbsp;&nbsp;&nbsp; </small>DLP
       Projector RGB Filter Wheel<br>
       &nbsp;&nbsp;&nbsp;
       i&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -1150,6 +1308,8 @@ overall
 
 
 
+
+
     </small><small style="font-family: monospace;"><small
         style="font-family: monospace;">&nbsp;&nbsp;&nbsp; </small>DLP
       Projector RGBCMY Filter Wheel<br>
@@ -1164,9 +1324,13 @@ overall
 
 
 
+
+
     </small><small style="font-family: monospace;"><small
         style="font-family: monospace;">&nbsp;&nbsp;&nbsp; </small>Unknown<br>
     </small> <tt>&nbsp;<a href="#U">-U c</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -1205,9 +1369,13 @@ overall
 
 
 
+
+
         &nbsp;&nbsp;&nbsp;&nbsp; Override refresh, non-refresh display
         mode</span></font><br>
     <tt>&nbsp;<a href="#YR">-Y R:<i>rate</i></a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -1330,6 +1498,8 @@ overall
 
 
 
+
+
       1,2</span> . Some experimentation may be needed using <a
       href="dispwin.html">dispwin</a> on such systems, to discover what
     screen has access to the VideoLUT hardware, and which screens the
@@ -1385,6 +1555,14 @@ overall
     projector type displays. If a device does not support a specific
     telephoto mode, then the normal emissive mode may be suitable for
     measuring projectors.<br>
+    <br>
+    <a name="a"></a>The <span style="font-weight: bold;">-a</span> flag
+    allows measuring in ambient mode, using instruments that support
+    this mode. This typically would be used for measuring projector type
+    displays when the light levels reflected from the projection surface
+    are very low. Note that this means that the color value will not be
+    quite as accurate, because the effect the projection surface has on
+    the color is not taken into account.<br>
     <br>
     <a name="y"></a> The <span style="font-weight: bold;">-y</span>
     flag allows setting the Display Type used as a base for color
@@ -1487,6 +1665,8 @@ overall
 
 
 
+
+
       of particular instruments</a> for more details. This may give
     better accuracy for display measurements.<br>
     <br>
@@ -1502,7 +1682,22 @@ overall
     the screen in some manner (e.g. by generating a raster file of the
     given color and sending it to the display being profiled), before
     returning. Note that a test window will also be created on the
-    system running dispread.<br>
+    system running ccxxmake.<br>
+    <br>
+    <a name="M"></a>The -<span style="font-weight: bold;">M</span> <span
+      style="font-weight: bold;">"command" </span>option allows a
+    method of gathering each test value from some external source, such
+    as an instrument that is not directly supported by Argyll. The given
+    command is invoked to the shell, with six arguments. The first three
+    arguments are the RGB test color as integers in the range 0 to 255,
+    the second three parameters are the RGB test color as floating point
+    numbers in the range 0.0 to 1.0. The script or tool should create a
+    file called <span style="font-weight: bold;">"command.meas</span>"
+    that contains the XYZ values for the given RGB (or measured from the
+    test window) in cd/m^2 as three numbers separated by spaces, before
+    returning. If the command returns a non-zero return value, cxxmake
+    will abort. Note that a test window will also be created on the
+    system running ccxxmake.<br>
     <br>
     <a name="o"></a> (CCMX creation) The <b>-o</b> flag allows
     specifying a tristimulus observer, and is used to compute
@@ -1587,6 +1782,8 @@ overall
     can be used.<br>
     <br>
     <a name="Yrn"></a>The -<span style="font-weight: bold;">Y r </span>and
+
+
 
 
 

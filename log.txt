@@ -7,6 +7,65 @@ Not included yet:
 
 * Started adding comms for Lumagen Radiance detection.
 
+
+Version 2.1.2 14th January 2020 
+-------------
+
+* Added -d option to spotread to print out Density values.
+
+* Improved i1Pro2 emissive measurement compatibility with X-Rite driver.
+
+  Removed mistaken attempt to make i1Pro2 calibration align with
+  legacy calibration - the wavlength conversions don't match, for
+  some reason that only X-Rite knows. (This amounts to about
+  a 1 delta E difference for display white measurement.)
+
+  Also fixed a bug where i1Pro2 style calibration wasn't being fully restored
+  from calibration file. This shows up when the -N flag is used.
+  This bug reveals the discrepancy between the legacy wavelength
+  conversion and the i1Pro2 one.
+
+* Changed targen round down/up to 0%/100% to have a tighter
+  tollerance of 0.5% rather than 2%, so that -n values of
+  L* 1 and 99 are not rounded. 
+
+* Fix bug in xicclu -v2 option when operating on a .cal file.
+  (Thanks to Matjaz Kljun for noticing this.)
+
+* Added -M option to ccxxmake.
+
+* Added -Yk flag to spectro/dispread, to restore a workflow in which
+  display calibration is done without using vcgt hardware.
+
+* Fixed bug in xicc/xmatrix.c when creating input profile from XYZ input data -
+  white point wasn't being computed correctly. (Thanks to Matjaz Kljun for noticing this.)
+
+* Modified txt2ti3 to cope with files that don't have SampleName/SampleID fields,
+  such as CoPrA sample files.
+
+* Added instrument ambient mode (-a flag) to dispcal, dispread and ccxxmake,
+  to allow use of direct projector to ambient mode measurement.
+
+* Fixed latent data sensitivity problem with i1Pro and Munki Spectro high res-mode
+  that sometimes caused crashes or faulty luminance readings.
+
+* Fixed problem with i1Pro2 EO2-XR-UF model crashing when high-res mode used. 
+
+* Added spotread -rw option, to return chromatically adjusted
+  white relative reflection values.
+
+* Added check in dispwin for sanity of calibration curves. Will
+  fail to set or install calibration with contrast too low for
+  display to be readable.
+
+* Added spectral support to namedc/cxf parser.
+
+* Fixed profile/txt2ti3.c to properly handle i1profiler SPECTRAL_NMXXX format.
+
+* Changed dispcal ADJ_THRESH mode MIN_THRESH value to 0.25 from 0.05, as
+  well as restricting it to the last pass, to reduce pointless repeats
+  of dark values.
+
 Version 2.1.1  29th April 2019
 -------------
 
@@ -30,10 +89,13 @@ Version 2.1.0  10th April 2019
 * Changed spotread -E option to work with all the spectral
   instruments, and now argument should be a transmission spectrum
   of the filter placed on the instrument.
+  Corresponding change to instlib API is that comp_filter() method has been
+  replaced by the inst_opt_set_custom_filter and inst_stat_get_custom_filter
+  functions used with the get_set_opt() method.
 
 * Added targen options -M to generate device space cube surface steps,
   and -n option to generate neutral axis steps based on a pre-conditioning
-  profile.
+  profile (Sometimes called "tracking neutrals").
 
 * Added support for SpyderX colorimeter.
 
@@ -109,7 +171,7 @@ Version 2.0.1  9th July 2018
 * Increased maximum render channels to 16
 
 * Added -O option to collink to allow creating a link
-  purely from calibration file.
+  purely from a calibration file.
 
 * Fixed JETI specbos & specval timeout when in averaging mode
   and dark measurement.
@@ -130,7 +192,8 @@ Version 2.0.1  9th July 2018
   one piece of calibration information. (Such instruments seem to be
   missing ambient measurement, have a UV cut filter, lack a Wavelength
   Calibration LED, lack Zebra Ruler stripe support, and lack of UV
-  illumination LED.)
+  illumination LED.) These instruments appear to have part number EO2-XR-UF.
+  [Normal retail i1pro2's have part no. EO2-XR-ULZW].
  
 * Fixed display calibration selection to allow for more
   than 62 entries. This is to fix problem using Klein K10
@@ -139,7 +202,7 @@ Version 2.0.1  9th July 2018
 * Changed spec2cie to add extra informational L*a*b* output fields, if
   a non D50 illuminant (-i option) is used.
 
-* Added -w parameter to spotread, to use the -i parameter illuminant
+* Added -w parameter to spotread to use the -i parameter illuminant
   for L*a*b* calculation.
 
 * Fixed bug in spec2cie - XRGA conversion wasn't saving spectrum out.

@@ -197,12 +197,28 @@
 
 
 
+
+
+
+
       and profiling a display that doesn't have VideoLUT access</a>.<br>
     <br>
     <h3><a name="PM1b"></a>Adjusting and Calibrating Displays</h3>
     Please read <a href="calvschar.html">What's the difference between
       Calibration and Characterization ?</a> if you are unclear as to
     the difference .<br>
+    <br>
+    <u>Note</u> that if your display has a good luminous response
+    characteristic, that you may get a better overall result by
+    adjusting the display curves to your desired white point and
+    brightness using displcal, and then skipping the creation of
+    calibration curves. Apart from saving time, this may give an overall
+    smoother looking result, depending on the<br>
+    hardware resolution available in the 1D lookup tables used for
+    calibration. In this case, after adjusting the display, exit from
+    dispcal and skip to <a
+      href="file:///D:/src/argyll/doc/Scenarios.html#PM2">Profiling in
+      several steps: Creating display test values</a>).<br>
     <br>
     The first step is to decide what the target should be for adjustment
     and calibration. This boils down to three things: The desired
@@ -219,6 +235,10 @@
     your display is currently set up. (you may have to run this as <span
       style="text-decoration: underline; color: rgb(204, 51, 204);">dispcal
 -yl
+
+
+
+
 
 
 
@@ -511,9 +531,9 @@
     <br>
     <a href="colprof.html">colprof</a> <a href="colprof.html#v">-v</a>
     <a href="colprof.html#E">-D"Display A"</a> <a href="colprof.html#q">-qm</a>
-    <a href="file:///D:/src/argyll/doc/colprof.html#S">-S</a><a
-      href="colprof.html#S"> 20</a> <a href="colprof.html#c">-cpp</a> <a
-      href="colprof.html#d">-dmt</a> <a href="colprof.html#p1">DisplayA</a><br>
+    <a href="colprof.html#S">-S</a><a href="colprof.html#S"> 20</a> <a
+      href="colprof.html#c">-cpp</a> <a href="colprof.html#d">-dmt</a>
+    <a href="colprof.html#p1">DisplayA</a><br>
     <br>
     Make sure you check the delta E report at the end of the profile
     creation, to see if the sample data and profile is behaving
@@ -698,6 +718,10 @@
 
 
 
+
+
+
+
     (<span style="font-weight: bold;">-Iw</span>) changes by doing on
     the fly calibrations during the measurements. Instrument black level
     drift and display white level drift can be combined (<span
@@ -713,6 +737,10 @@
     displays,&nbsp; (ie. you have a Wide Gamut Display), then you may
     get disappointing results with a Colorimeter. One way of addressing
     this problem is to use a <a href="File_Formats.html#.ccmx">Colorimeter
+
+
+
+
 
 
 
@@ -807,8 +835,10 @@
       hardware, and this hardware is what is usually used to implement
       display calibration. This could be because the display is being
       accessed via a web server, or because the driver or windowing
-      system doesn't support VideoLUT access.<br>
-    </p>
+      system doesn't support VideoLUT access. You may also have chosen
+      to not use calibration curves because your display inherently has
+      good luminous response characteristic, and hence want to just
+      profile the display (option 1 below). </p>
     <p>There are two basic options in this situation:<br>
     </p>
     <p>&nbsp; 1) Don't attempt to calibrate, just profile the display.<br>
@@ -816,7 +846,7 @@
       way in the workflow.<br>
     </p>
     <p>The first case requires nothing special - just skip calibration
-      (see the previous section <a href="#PM7">Profiling in several
+      (see the previous section <a href="#PM2">Profiling in several
         steps: Creating display test values</a>).</p>
     <p> In the second case, there are three choices:<br>
     </p>
@@ -829,7 +859,7 @@
       colprof to create a profile, and then apply the calibration after
       the profile in a cctiff workflow.<br>
     </p>
-    <p>The first case requires nothing special, use dispcal in a normal
+    <p>Case 2a) requires nothing special, use dispcal in a normal
       fashioned with the <span style="font-weight: bold;">-o</span>
       option to generate a quick profile.The profile created will <span
         style="text-decoration: underline;">not</span> contain a 'vcgt'
@@ -844,13 +874,13 @@
       the display say as GUI decoration elements or other application
       windows.<br>
     </p>
-    <p>In the second case, the calibration file created using dispcal
-      should be provided to dispread using the <span
-        style="font-weight: bold;">-K</span> flag:<br>
+    <p>In case 2b), the calibration file created using dispcal should be
+      provided to dispread using the <span style="font-weight: bold;">-K</span>
+      option and <b>-Y p</b> flag:<br>
     </p>
     <p><a href="dispread.html">dispread</a> <a href="dispread.html#v">-v</a>
       <a href="dispread.html#K">-K TargetA.cal</a> <a
-        href="dispread.html#p1">DisplayA</a></p>
+        href="dispread.html#Yk">-Y k</a> <a href="dispread.html#p1">DisplayA</a></p>
     <p><span style="font-weight: bold;"></span>Create the profile as
       usual using colprof. but note that colprof will ignore the
       calibration, and that no 'vcgt' tag will be added to the profile.<br>
@@ -861,7 +891,7 @@
       R=G=B=1.0 probably not longer corresponds with the PCS white or
       the white point.<br>
     </p>
-    In the third case, the same procedure as above is used to create a
+    In case 2c), the same procedure as above is used to create a
     profile, but the calibration is applied in a raster transformation
     workflow explicitly, e.g.:<br>
     <br>
@@ -979,6 +1009,10 @@ href="https://www.xrite.com/categories/calibration-profiling/colorchecker-digita
 
 
 
+
+
+
+
       SG</a> charts:<br>
     <br>
     <img src="DC.jpg" alt="GretagMacbeth ColorChecker DC chart"
@@ -997,6 +1031,10 @@ href="https://www.xrite.com/categories/calibration-profiling/colorchecker-passpo
       2px solid ; width: 200px; height: 140px;"><br>
     <br>
     Also supported is the <a href="http://www.hutchcolor.com/hct.htm">HutchColor
+
+
+
+
 
 
 
@@ -1172,6 +1210,10 @@ href="https://www.xrite.com/categories/calibration-profiling/colorchecker-passpo
 
 
 
+
+
+
+
       Imaging DCPro Target</a>:<br>
     <br>
     <img style="width: 153px; height: 122px;" alt="LaserSoft DCPro
@@ -1251,6 +1293,10 @@ href="https://www.silverfast.com/buyonline/en.html?type=&amp;productline=scanner
 
 
 
+
+
+
+
       Imaging ISO12641-2 reflective target</a>:<br>
     <br>
     <img src="ISO12641_2.jpg" alt="ISO12641-2 reflection target"
@@ -1258,6 +1304,10 @@ href="https://www.silverfast.com/buyonline/en.html?type=&amp;productline=scanner
     <br>
     and the <a
 href="https://www.silverfast.com/buyonline/en.html?type=&amp;productline=scanner&amp;special=it8order_no_sf&amp;filter=it8">LaserSoft
+
+
+
+
 
 
 
@@ -1420,8 +1470,16 @@ href="https://www.bhphotovideo.com/c/product/286652-REG/QP_Card_GQP201.html">QPc
 
 
 
+
+
+
+
       201</a>:&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; <a
 href="https://www.bhphotovideo.com/c/product/849459-REG/QP_Card_GQP202_QP_Card_202.html">QPcard
+
+
+
+
 
 
 
@@ -1641,6 +1699,10 @@ href="http://xritephoto.com/documents/apps/public/digital_colorchecker_sg_l_a_b.
 
 
 
+
+
+
+
         header</a>, and appending <a href="SG_footer.txt">this footer</a>,
       making sure there are no blank lines inserted in the process. Name
       the resulting file <b>ColorCheckerSG.cie</b>.<br>
@@ -1711,12 +1773,10 @@ href="http://xritephoto.com/documents/apps/public/digital_colorchecker_sg_l_a_b.
       patches, the <span style="font-weight: bold;">ref/CMP_Digital_Target_2019.cht</span>
       file should be used, and the spectral .txt file provided with the
       chart&nbsp; should be converted to a cie reference file:<br>
-      &nbsp;&nbsp;&nbsp; <a
-        href="file:///D:/src/argyll/doc/txt2ti3.html">txt2ti3</a> "DT
-      SPECT 451.txt" temp<br>
-      &nbsp;&nbsp;&nbsp; <a
-        href="file:///D:/src/argyll/doc/spec2cie.html">spec2cie</a>
-      temp.ti3 DT_SPECT_451.cie<br>
+      &nbsp;&nbsp;&nbsp; <a href="txt2ti3.html">txt2ti3</a> "DT SPECT
+      451.txt" temp<br>
+      &nbsp;&nbsp;&nbsp; <a href="spec2cie.html">spec2cie</a> temp.ti3
+      DT_SPECT_451.cie<br>
       <br>
       For the Christophe Métairie's Digital Target Studio Edition chart
       with 988 patches, the <span style="font-weight: bold;">ref/CMP_Digital_Target_Studio.cht</span>
@@ -1736,6 +1796,10 @@ href="http://xritephoto.com/documents/apps/public/digital_colorchecker_sg_l_a_b.
         website</a>.<br>
       <br>
       For the LaserSoft <b>ISO 12641-2</b> reflective chart, the <b>ref/ISO12641_2_1.cht
+
+
+
+
 
       </b>file should be used, and reference <span style="font-weight:
         bold;">.CxF</span> file downloaded from the <a
@@ -1787,6 +1851,10 @@ href="https://www.datacolor.com/wp-content/uploads/2018/01/SpyderCheckr_Color_Da
 
 
 
+
+
+
+
       </span>file made from measuring a sample chart is also available.
       Alternately you could create your own reference file by
       transcribing the <a
@@ -1808,6 +1876,10 @@ href="https://www.datacolor.com/wp-content/uploads/2018/01/SpyderCheckr_Color_Da
     For any other type of chart, a chart recognition template file will
     need to be created (this is beyond the scope of the current
     documentation, although see&nbsp; the <a href="cht_format.html">.cht_format
+
+
+
+
 
 
 
@@ -2232,27 +2304,27 @@ href="https://www.datacolor.com/wp-content/uploads/2018/01/SpyderCheckr_Color_Da
       href="Scenarios.html#PP5">Creating a printer profile</a>.<br>
     <br>
     <h4><a name="PP4"></a>Reading a print test chart using a scanner or
-      camera<br>
+      camera (NOT recommended)<br>
     </h4>
-    <br>
     Argyll supports using a scanner or even a camera as a substitute for
-    a colorimeter. While a scanner or camera is no replacement for a
-    color measurement instrument, it may give acceptable results in some
-    situations, and may give better results than a generic profile for a
-    printing device.<br>
+    a colorimeter. Note though that this rarely gives good results. A
+    scanner or camera is no replacement for a color measurement
+    instrument.<br>
     <br>
-    The main limitation of the scanner-as-colorimeter approach are:<br>
-    <br>
-    * The scanner dynamic range and/or precision may not match the
-    printers or what is required for a good profile.<br>
-    * The spectral interaction of the scanner test chart and printer
-    test chart with the scanner spectral response can cause color
-    errors.<br>
-    * Spectral differences caused by different black amounts in the
-    print test chart can cause color errors. <br>
-    * The scanner reference chart gamut may be much smaller than the
-    printers gamut, making the scanner profile too inaccurate to be
-    useful. <br>
+    The main problems of the scanner-as-colorimeter approach are:<br>
+    <ul>
+      <li>The spectral interaction of the scanner test chart and printer
+        test chart with the scanner spectral response can cause color
+        errors (i.e. a scanner or camera typically has quite different
+        spectral sensitivities than a human&nbsp; observer).</li>
+      <li> Spectral differences caused by different black amounts in the
+        print test chart can cause color errors. </li>
+      <li> The scanner reference chart gamut may be much smaller than
+        the printers gamut, making the scanner profile too inaccurate to
+        be useful.</li>
+      <li>The scanner dynamic range and/or precision may not match the
+        printers or what is required for a good profile.</li>
+    </ul>
     <br>
     As well as some of the above, a camera may not be suitable if it
     automatically adjusts exposure or white point when taking a picture,
@@ -2260,7 +2332,6 @@ href="https://www.datacolor.com/wp-content/uploads/2018/01/SpyderCheckr_Color_Da
     <br>
     The end result is often a profile that has a noticeable color cast,
     compared to a profile created using a colorimeter or spectrometer.<br>
-    <br>
     <br>
     It is assumed that you have created a scanner or camera profile
     following the <a
@@ -2277,6 +2348,10 @@ href="https://www.datacolor.com/wp-content/uploads/2018/01/SpyderCheckr_Color_Da
     <br>
     Scan or photograph your printer chart (or charts) on the scanner or
     camera previously profiled. <big><span style="font-weight: bold;">The
+
+
+
+
 
 
 
@@ -2446,6 +2521,10 @@ href="https://www.datacolor.com/wp-content/uploads/2018/01/SpyderCheckr_Color_Da
 
 
 
+
+
+
+
       parameter</a>. <br>
     <br>
     If you are creating a profile for a specific purpose, intending to
@@ -2456,6 +2535,10 @@ href="https://www.datacolor.com/wp-content/uploads/2018/01/SpyderCheckr_Color_Da
     going to be used with a "smart" CMM (e.g. <a href="collink.html">collink</a>
     <a href="collink.html#g">-g</a> or <a href="collink.html#G">-G</a>),
 then
+
+
+
+
 
 
 
@@ -2563,9 +2646,9 @@ then
     <br>
     <a href="colprof.html">colprof</a> <a href="colprof.html#v">-v</a>
     <a href="colprof.html#E">-D"Printer A"</a> <a href="colprof.html#q">-qm</a>
-    <a href="file:///D:/src/argyll/doc/colprof.html#S">-S</a><a
-      href="colprof.html#S"> 20</a> <a href="colprof.html#c">-cmt</a> <a
-      href="colprof.html#d">-dpp</a> <a href="colprof.html#p1">PrinterA</a><br>
+    <a href="colprof.html#S">-S</a><a href="colprof.html#S"> 20</a> <a
+      href="colprof.html#c">-cmt</a> <a href="colprof.html#d">-dpp</a>
+    <a href="colprof.html#p1">PrinterA</a><br>
     <br>
     Make sure you check the delta E report at the end of the profile
     creation, to see if the sample data and profile is behaving
@@ -2614,6 +2697,10 @@ then
     profile (using <a href="colprof.html#q">-ql</a> <a
       href="colprof.html#b">-b</a> <a href="colprof.html#ni">-no</a>, <a
       href="colprof.html#no">-ni</a> and no <a href="colprof.html#S">-S</a>),
+
+
+
+
 
 
 
@@ -3166,6 +3253,10 @@ chart,
 
 
 
+
+
+
+
     and/or to have it included in .ti3 file.<br>
     &nbsp;&nbsp;&nbsp; <a href="cctiff.html#p2">cctiff</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 To
@@ -3176,6 +3267,10 @@ and
 calibration
 to
 an
+
+
+
+
 
 
 
@@ -3322,6 +3417,10 @@ an
 
 
 
+
+
+
+
     To incorporate calibration into an ICC profile.<br>
     &nbsp;&nbsp;&nbsp; <a href="chartread.html#I">chartread</a>&nbsp;&nbsp;
 To
@@ -3332,6 +3431,10 @@ assumed
 when
 reading
 a
+
+
+
+
 
 
 
@@ -3761,6 +3864,10 @@ a
 
 
 
+
+
+
+
       madvr</b>" in dispcal, dispread and dispwin. Leave the MadTPG
     "VideoLUT" and "3dluts" buttons in their default&nbsp; (enabled)
     state, as the various tools will automatically take care of
@@ -3838,6 +3945,10 @@ a
 
 
 
+
+
+
+
         interactive adjustment mode can be used to set the white point.
         Note that while adjusting the neutral axis for neutrality may
         help, the Device Link will override the transfer curve
@@ -3860,6 +3971,10 @@ a
         taken, then the resulting calibration file should be provided to
         dispread as the <a href="dispcal.html#k">-k parameter</a> or <a
           href="dispcal.html#K">-K parameter</a>.&nbsp; See also below <b>Choice
+
+
+
+
 
 
 
@@ -4394,9 +4509,17 @@ a
 
 
 
+
+
+
+
         TV.cal </tt>EBU3213_PAL.icm TV.icm SD_PAL.icm</tt><tt><br>
     </tt><tt> </tt><tt><br>
     </tt><tt> &nbsp;&nbsp;&nbsp; collink -v -3m -et -Et -Ib -b -G -ir </tt><tt><tt>-H
+
+
+
+
 
 
 
@@ -4483,9 +4606,17 @@ a
 
 
 
+
+
+
+
         TV.cal </tt>EBU3213_PAL.icm TV.icm SD_PAL.icm</tt><tt><br>
     </tt><tt> </tt><tt><br>
     </tt><tt> &nbsp;&nbsp;&nbsp; collink -v -3m -et -Et -Ib -b -G -ir </tt><tt><tt>-a
+
+
+
+
 
 
 

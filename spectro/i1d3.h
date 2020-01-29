@@ -83,7 +83,7 @@
 typedef enum {
 	i1d3_disppro        = 0,	/* i1 DisplayPro */
 	i1d3_munkdisp       = 1,	/* ColorMunki Display */
-	i1d3_oem            = 2,	/* Generic OEM */
+	i1d3_dpp_oem        = 2,	/* i1 DisplayPro Plus, Generic OEM */
 	i1d3_nec_ssp        = 3, 	/* NEC SpectraSensor Pro */
 	i1d3_quato_sh3      = 4, 	/* Quato Silver Haze 3 */
 	i1d3_hp_dreamc      = 5, 	/* HP DreameColor */

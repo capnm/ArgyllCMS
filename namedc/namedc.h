@@ -20,6 +20,8 @@
  * This class provides storage for a list of named colors
  * in a file format independent fashiom.
  *
+ * Currently supports CxF2, CxF3 & ICC named color profiles.
+ *
  * Currently these are all assumed to be reflective colors.
  *
  * Current implementation is read only, but it could be converted

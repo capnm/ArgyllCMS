@@ -91,6 +91,13 @@ typedef struct {
  (PDST)->spec_wl_long = (PSRC)->spec_wl_long,				\
  (PDST)->norm = (PSRC)->norm
 
+/* True if the two xspecs match */
+#define XSPECT_SAME_INFO(PDST, PSRC)	 					\
+ ((PDST)->spec_n == (PSRC)->spec_n							\
+ && (PDST)->spec_wl_short == (PSRC)->spec_wl_short			\
+ && (PDST)->spec_wl_long == (PSRC)->spec_wl_long			\
+ && (PDST)->norm == (PSRC)->norm)
+
 /* Given an index and the sampling ranges, compute the sample wavelength */
 #define XSPECT_WL(SHORT, LONG, N, IX) \
 ((SHORT) + (double)(IX) * ((LONG) - (SHORT))/((N)-1.0))
@@ -119,12 +126,12 @@ typedef struct {
 #define XSPECT_WLI(PXSP) \
 ((((PXSP)->spec_wl_long) - ((PXSP)->spec_wl_short))/(((PXSP)->spec_n)-1.0))
 
-#ifndef SALONEINSTLIB
-
-/* Single spectrum utility functions. Return NZ if error */
 int write_xspect(char *fname, inst_meas_type mt, xspect *s);
 int read_xspect(xspect *sp, inst_meas_type *mt, char *fname);
 
+#ifndef SALONEINSTLIB
+
+/* Single spectrum utility functions. Return NZ if error */
 /* Two step write & read spectrum, to be able to write & read extra kewords values */
 
 /* Prepare to write spectrum, and return cgats */
@@ -138,11 +145,6 @@ int read_xspect_1(cgats **picg, xspect *sp, inst_meas_type *mt, char *fname);
 
 /* Complete reading spectrum */
 int read_xspect_2(cgats *icg);
-
-/* CMF utility functions. Return NZ if error */
-/* (See cmf/pcmf.h for write/read pcmf) */
-int write_cmf(char *fname, xspect cmf[3]);
-int read_cmf(xspect cmf[3], char *fname);
 
 /* Save a set of nspec spectrum to a CGATS file. Return NZ if error */
 /* type 0 = SPECT, 1 = CMF */
@@ -161,6 +163,11 @@ int read_nxspect_1(cgats **picg, xspect *sp, inst_meas_type *mt, char *fname,
 int read_nxspect_2(cgats *icg);
 
 #endif /* !SALONEINSTLIB*/
+
+/* CMF utility functions. Return NZ if error */
+/* (See cmf/pcmf.h for write/read pcmf) */
+int write_cmf(char *fname, xspect cmf[3]);
+int read_cmf(xspect cmf[3], char *fname);
 
 /* Get a (normalised) linearly or poly interpolated spectrum value. */
 /* Return NZ if value is valid, Z and last valid value */
@@ -277,10 +284,10 @@ char *standardObserverDescription(icxObserverType obType);
 /* Type of density values */
 typedef enum {
     icxDT_none	= 0,	/* No density */
-    icxDT_ISO	= 1,	/* ISO Visual + Type 1 + Type 2 */
-    icxDT_A		= 2,	/* Status A */
-    icxDT_M		= 3,	/* Status M */
-    icxDT_T		= 4,	/* Status T */
+    icxDT_ISO	= 1,	/* ISO Visual, Type 1, Type 2 */
+    icxDT_A		= 2,	/* Status A CMYV */
+    icxDT_M		= 3,	/* Status M CMYV */
+    icxDT_T		= 4,	/* Status T CMYV */
     icxDT_E		= 5
 } icxDensityType;
 
@@ -340,7 +347,11 @@ struct _xsp2cie {
 					 xspect *in			/* Spectrum to be converted */
 				  	);
 
+#ifndef SALONEINSTLIB
 	/* Convert (and possibly fwa correct) reflectance spectrum */
+#else
+	/* Convert reflectance spectrum */
+#endif
 	/* Note that the input spectrum normalisation value is used. */
 	/* Note that the returned XYZ is 0..1 range for reflectanc. */
 	/* Emissive spectral values are assumed to be in mW/nm, and sampled */
@@ -434,6 +445,38 @@ xsp2cie *new_xsp2cie(
 	icxClamping clamp				/* NZ to clamp XYZ/Lab to be +ve */
 );
 
+/* ------------------------------------------------- */
+
+/* Given a reflectance/transmittance spectrum, */
+/* an illuminant definition and an observer model, return */
+/* the XYZ value for that spectrum. */
+/* Return 0 on sucess, 1 on error */
+/* (One shot version of xsp2cie etc.) */
+int icx_sp2XYZ(
+double xyz[3],			/* Return XYZ value */
+icxObserverType obType,	/* Observer */
+xspect custObserver[3],	/* Optional custom observer */
+icxIllumeType ilType,	/* Type of illuminant, icxIT_[O]Dtemp or icxIT_[O]Ptemp */
+double ct,				/* Input temperature in degrees K */
+xspect *custIllum,		/* Optional custom illuminant */
+xspect *sp				/* Spectrum to be converted */
+);
+
+/* Given an illuminant definition and an observer model, return */
+/* the normalised XYZ value for that spectrum. */
+/* Return 0 on sucess, 1 on error */
+/* (One shot version of xsp2cie etc.) */
+int icx_ill_sp2XYZ(
+double xyz[3],			/* Return XYZ value with Y == 1 */
+icxObserverType obType,	/* Observer */
+xspect custObserver[3],	/* Optional custom observer */
+icxIllumeType ilType,	/* Type of illuminant */
+double temp,			/* Input temperature in degrees K */
+xspect *custIllum,		/* Optional custom illuminant */
+int abs					/* If nz return absolute value in cd/m^2 or Lux */
+						/* else return Y = 1 normalised value */
+);
+
 #ifndef SALONEINSTLIB
 
 /* --------------------------- */
@@ -500,38 +543,6 @@ xslpoly *chrom_locus_poligon(icxLocusType locus_type, icxObserverType obType, in
 /* Return 0 if within locus */
 /* Return 1 if outside locus */
 int icx_outside_spec_locus(xslpoly *p, double xyz[3]);
-
-/* ------------------------------------------------- */
-
-/* Given a reflectance/transmittance spectrum, */
-/* an illuminant definition and an observer model, return */
-/* the XYZ value for that spectrum. */
-/* Return 0 on sucess, 1 on error */
-/* (One shot version of xsp2cie etc.) */
-int icx_sp2XYZ(
-double xyz[3],			/* Return XYZ value */
-icxObserverType obType,	/* Observer */
-xspect custObserver[3],	/* Optional custom observer */
-icxIllumeType ilType,	/* Type of illuminant, icxIT_[O]Dtemp or icxIT_[O]Ptemp */
-double ct,				/* Input temperature in degrees K */
-xspect *custIllum,		/* Optional custom illuminant */
-xspect *sp				/* Spectrum to be converted */
-);
-
-/* Given an illuminant definition and an observer model, return */
-/* the normalised XYZ value for that spectrum. */
-/* Return 0 on sucess, 1 on error */
-/* (One shot version of xsp2cie etc.) */
-int icx_ill_sp2XYZ(
-double xyz[3],			/* Return XYZ value with Y == 1 */
-icxObserverType obType,	/* Observer */
-xspect custObserver[3],	/* Optional custom observer */
-icxIllumeType ilType,	/* Type of illuminant */
-double temp,			/* Input temperature in degrees K */
-xspect *custIllum,		/* Optional custom illuminant */
-int abs					/* If nz return absolute value in cd/m^2 or Lux */
-						/* else return Y = 1 normalised value */
-);
 
 /* ------------------------------------------------- */
 /* Color temperature and CRI */

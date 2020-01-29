@@ -480,6 +480,8 @@ main(int argc, char *argv[]) {
 
 	/* Look through the color specifications and see if there are spectral details */
 	pnode = mxmlFindPathNode(cxf, pfxp(&ctx,"Resources/ColorSpecificationCollection/ColorSpecification/WavelengthRange"));
+	if (pnode == NULL)
+		pnode = mxmlFindPathNode(cxf, pfxp(&ctx,"Resources/ColorSpecificationCollection/ColorSpecification/MeasurementSpec/WavelengthRange"));
 	while (pnode != NULL) {
 		name = mxmlElementGetAttr(pnode, "StartWL");
 		if (name != NULL) {
@@ -698,7 +700,7 @@ main(int argc, char *argv[]) {
 				}
 
 				if (specmin == 0 || specinc == 0)
-					error("specmin %d specint %d from '%s'",specmin,specinc,inname);
+					error("specmin %d specinc %d from '%s'",specmin,specinc,inname);
 
 				/* mxml stashes multiple elements as children.. */
 				if ((val = mxmlGetFirstChild(pvals)) == NULL)
@@ -715,6 +717,7 @@ main(int argc, char *argv[]) {
 				spect.spec_wl_short = (double)specmin;
 				specmax  = specmin + (spect.spec_n-1) * specinc;
 				spect.spec_wl_long = (double)specmax;
+				spect.norm = 100.0;
 
 				a1logd(g_log, 6, "cxf2ti3: wl num %d short %f long %f\n",spect.spec_n,spect.spec_wl_short,spect.spec_wl_long);
 

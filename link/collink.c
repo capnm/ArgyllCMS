@@ -17,6 +17,10 @@
 
 /* TTBD:
  *
+ * Add support for Autodesk CTL (or CLF ?) output rather than ICC link, to allow
+ * proofing using OCIO. See:
+ * <http://help.autodesk.com/view/FLAME/2019/ENU/?guid=GUID-460BA05D-3AB7-4BE2-AD30-01F9D3440CD8>
+ *
  * Device curve resolution should be taken from the device profiles,
  * rather than depending on the quality settings (scRGB compression curves)
  *

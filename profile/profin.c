@@ -46,14 +46,14 @@
 #include "rspl.h"
 #include "prof.h"
 
-#define DOB2A			/* Create B2A table as well (not implemented) */
-#define NO_B2A_PCS_CURVES       /* PCS curves seem to make B2A less accurate. Why ? */
-#define USE_CAM_CLIP_OPT        /* Clip out of gamut in CAM space rather than XYZ or L*a*b* */
-#undef USE_EXTRA_FITTING       	/* Turn on data point error compensation */
-#define USE_2ASS_SMOOTHING      /* Turn on Gaussian smoothing */
-#undef WARN_CLUT_CLIPPING		/* Print warning if setting clut clips */
-#define EXTRAP_MAXPNTS 10		/* Maximum number of extra extrapolated points per direction */
-#define EXTRAP_WEIGHT 1.0		/* Extra extrapolated point weighting */
+#define DOB2A					/* [def] Create B2A table as well */
+#define NO_B2A_PCS_CURVES       /* [def] PCS curves seem to make B2A less accurate. Why ? */
+#define USE_CAM_CLIP_OPT        /* [def] Clip out of gamut in CAM space rather than XYZ or L*a*b* */
+#undef USE_EXTRA_FITTING       	/* [und] Turn on data point error compensation */
+#define USE_2ASS_SMOOTHING      /* [def] Turn on Gaussian smoothing */
+#undef WARN_CLUT_CLIPPING		/* [und] Print warning if setting clut clips */
+#define EXTRAP_MAXPNTS 10		/* [10] Maximum no. of extra extrapolated points per direction */
+#define EXTRAP_WEIGHT 1.0		/* [1.0] Extra extrapolated point weighting */
 
 /*
    Basic algorithm outline:
@@ -245,7 +245,9 @@ void in_b2a_output(void *cntx, double out[4], double in[4]) {
 	DBG(("in_b2a_output returning DEV %f %f %f\n",out[0],out[1],out[2]))
 }
 
-#endif /* DOB2A */
+#else /* !DOB2A */
+# pragma message("!!!!!!! profin DOB2A not defined !!!!!!!!")
+#endif /* !DOB2A */
 /* ---------------------------------------- */
 
 /* Make an input device profile, where we create an A2B lut */

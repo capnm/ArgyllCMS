@@ -583,9 +583,9 @@ static int create_fserexcl(icompaths *p) {
 /* exclusion list */
 static int icompaths_fs_excluded(icompaths *p, icompath *path) {
 	
+#if defined(ENABLE_SERIAL) || defined(ENABLE_FAST_SERIAL)
 	a1logd(p->log, 5, "fs_excluded check '%s'\n",path->spath);
 
-#if defined(ENABLE_SERIAL) || defined(ENABLE_FAST_SERIAL)
 	if (p->exlist != NULL) {
 		int i;
 

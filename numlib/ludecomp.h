@@ -75,6 +75,15 @@ int     *pivx		/* Pivoting row permutations record */
 /* Return 1 if the matrix is singular, 0 if OK */
 int
 lu_invert(
+double **a,	/* A[][] input matrix, returns inversion of A transposed */
+int      n	/* Dimensionality */
+);
+
+/* Invert a matrix A using lu decomposition */
+/* The normal convention inverse is returned */
+/* Return 1 if the matrix is singular, 0 if OK */
+int
+lu_invert_normal(
 double **a,	/* A[][] input matrix, returns inversion of A */
 int      n	/* Dimensionality */
 );

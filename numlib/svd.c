@@ -371,6 +371,8 @@ int      dof	/* Expected degree of freedom */
 }
 
 /* --------------------------- */
+#ifndef NEVER		/* [und] Use debug version */
+
 /* Use output of svdcmp() to solve overspecified and/or */
 /* singular equation A.x = b */
 int svdbacksub(
@@ -438,6 +440,69 @@ int      n		/* Number of unknowns */
 		free_dvector(tmp, 0, n-1);
 	return 0;
 }
+
+#else	/* Diagnostic version */
+
+/* Use output of svdcmp() to solve overspecified and/or */
+/* singular equation A.x = b */
+int svdbacksub(
+double **u,		/* U[0..m-1][0..n-1] U, W, V SVD decomposition of A[][] */
+double  *w,		/* W[0..n-1] */
+double **v,		/* V[0..n-1][0..n-1] (not transpose!) */
+double b[],		/* B[0..m-1]  Right hand side of equation */
+double x[],		/* X[0..n-1]  Return solution. (May be the same as b[]) */
+int      m,		/* Number of equations */
+int      n		/* Number of unknowns */
+) {
+	int i, j;
+	double *tmp, TMP[100]; /* Intermediate value of B . U-1 . W-1 */
+
+	printf("svdbacksub diag:\n");
+
+	if (n <= 100)
+		tmp = TMP;
+	else
+		tmp = dvector(0, n-1);
+
+	/* A . X = B == U . W . Vt . X = B */
+	/* and U, W, and Vt are trivialy invertable */
+
+	/* Compute B . U-1 . W-1 */
+	for (j = 0; j < n; j++) {
+		if (w[j]) {
+			double s = 0.0;
+			i = 0;
+			for (; i < m; i++) {
+				s += b[i] * u[i][j];
+				printf("s += b[%d] %f * u[%d][%d] %f => %f\n", i, b[i], i, j, u[i][j], s);
+			}
+			s /= w[j];
+			printf("s /= w[%d] %f => %f\n", j, w[j], s);
+			tmp[j] = s;
+		} else {
+			tmp[j] = 0.0;
+		}
+	}
+	/* Compute T. V-1 */
+	for (j = 0; j < n; j++) {
+		double s = 0.0;
+		i = 0;
+		for (; i < n; i++) {
+			s += v[j][i] * tmp[i];
+			printf("s += v[%d][%d] %f * tmp[%d] %f => %f\n", j, i, v[j][i], i, tmp[i], s);
+		}
+		x[j] = s;
+		printf("x[%d] = %f\n", j, x[j]);
+	}
+	if (tmp != TMP)
+		free_dvector(tmp, 0, n-1);
+
+	printf("svdbacksub done:\n");
+
+	return 0;
+}
+
+#endif
 
 
 /* --------------------------- */

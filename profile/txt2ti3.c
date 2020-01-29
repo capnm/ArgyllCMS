@@ -19,6 +19,7 @@
 /* TTBD
 	
 	Need to add support for SPECTRAL_NM SPECTRAL_PCT type spectral values.
+	i.e. format with wavlength then corrsponding value.
 	See /src/argyll/test/JosvanRiswick/R080505.cgt
 
 	Do we need to worry about normalising display values to Y = 100, or marking
@@ -280,12 +281,14 @@ int main(int argc, char *argv[])
 	 && (f_id1 = cmy->find_field(cmy, 0, "Sample_Name")) < 0
 	 && (f_id1 = cmy->find_field(cmy, 0, "SAMPLE_NAME")) < 0
 	 && (f_id1 = cmy->find_field(cmy, 0, "SAMPLE_ID")) < 0
-	 && (f_id1 = cmy->find_field(cmy, 0, "SampleID")) < 0)
-		error("Input file '%s' doesn't contain field SampleName, Sample_Name, SAMPLE_NAME, SAMPLE_ID or SampleID",devname);
-	if (cmy->t[0].ftype[f_id1] != nqcs_t
-	 && cmy->t[0].ftype[f_id1] != cs_t
-	 && cmy->t[0].ftype[f_id1] != i_t)
-		error("Field SampleName (%s) from CMYK/RGB file '%s' is wrong type",cmy->t[0].fsym[f_id1],devname);
+	 && (f_id1 = cmy->find_field(cmy, 0, "SampleID")) < 0) {
+		warning("Input file '%s' doesn't contain field SampleName, Sample_Name, SAMPLE_NAME, SAMPLE_ID or SampleID",devname);
+	} else {
+		if (cmy->t[0].ftype[f_id1] != nqcs_t
+		 && cmy->t[0].ftype[f_id1] != cs_t
+		 && cmy->t[0].ftype[f_id1] != i_t)
+			error("Field SampleName (%s) from CMYK/RGB file '%s' is wrong type",cmy->t[0].fsym[f_id1],devname);
+	}
 
 	if (cmy->find_field(cmy, 0, "RGB_R") >= 0) {
 		ndchan = 3;
@@ -386,12 +389,15 @@ int main(int argc, char *argv[])
 	 && (f_id2 = ncie->find_field(ncie, 0, "Sample_Name")) < 0
 	 && (f_id2 = ncie->find_field(ncie, 0, "SAMPLE_NAME")) < 0
 	 && (f_id2 = ncie->find_field(ncie, 0, "SAMPLE_ID")) < 0
-	 && (f_id2 = ncie->find_field(ncie, 0, "SampleID")) < 0)
-		error("Input file '%s' doesn't contain field SampleName, Sample_Name, SAMPLE_NAME, SAMPLE_ID or SampleID",ciename);
-	if (ncie->t[0].ftype[f_id2] != nqcs_t
-	 && ncie->t[0].ftype[f_id2] != cs_t
-	 && ncie->t[0].ftype[f_id2] != i_t)
-		error("Field SampleName (%s) from cie file '%s' is wrong type",ncie->t[0].fsym[f_id2],ciename);
+	 && (f_id2 = ncie->find_field(ncie, 0, "SampleID")) < 0) {
+		if (strcmp(devname, ciename))
+			warning("Input file '%s' doesn't contain field SampleName, Sample_Name, SAMPLE_NAME, SAMPLE_ID or SampleID",ciename);
+	} else {
+		if (ncie->t[0].ftype[f_id2] != nqcs_t
+		 && ncie->t[0].ftype[f_id2] != cs_t
+		 && ncie->t[0].ftype[f_id2] != i_t)
+			error("Field SampleName (%s) from cie file '%s' is wrong type",ncie->t[0].fsym[f_id2],ciename);
+	}
 
 	if (ncie->find_field(ncie, 0, "XYZ_X") < 0
 	 && ncie->find_field(ncie, 0, "LAB_L") < 0
@@ -402,7 +408,8 @@ int main(int argc, char *argv[])
 		 && ncie->find_field(ncie, 0, "NM_500") < 0
 		 && ncie->find_field(ncie, 0, "SPECTRAL_NM_500") < 0
 		 && ncie->find_field(ncie, 0, "R_500") < 0
-		 && ncie->find_field(ncie, 0, "SPECTRAL_500") < 0)
+		 && ncie->find_field(ncie, 0, "SPECTRAL_500") < 0
+		 && ncie->find_field(ncie, 0, "SPECTRAL_NM500") < 0)
 			error("Input file '%s' doesn't contain field XYZ_X, LAB_L or spectral",ciename);	/* Nope */
 
 		/* We have a spectral file only. Fix things and drop through */
@@ -423,7 +430,8 @@ int main(int argc, char *argv[])
 		 || ncie->find_field(ncie, 0, "NM_500") < 0
 		 || ncie->find_field(ncie, 0, "SPECTRAL_NM_500") >= 0
 		 || ncie->find_field(ncie, 0, "R_500") >= 0
-		 || ncie->find_field(ncie, 0, "SPECTRAL_500") >= 0) {
+		 || ncie->find_field(ncie, 0, "SPECTRAL_500") >= 0
+		 || ncie->find_field(ncie, 0, "SPECTRAL_NM500") >= 0) {
 			if (verb) printf("Found spectral values\n");
 			/* It's got spectral data too. Make sure we read it */
 			strcpy(specname, ciename);
@@ -483,12 +491,15 @@ int main(int argc, char *argv[])
 		 && (f_id3 = spec->find_field(spec, 0, "Sample_Name")) < 0
 		 && (f_id3 = spec->find_field(spec, 0, "SAMPLE_NAME")) < 0
 		 && (f_id3 = spec->find_field(spec, 0, "SAMPLE_ID")) < 0
-		 && (f_id3 = spec->find_field(spec, 0, "SampleID")) < 0)
-			error("Input file '%s' doesn't contain field SampleName, Sample_Name, SAMPLE_NAME, SAMPLE_ID or SampleID",specname);
-		if (spec->t[0].ftype[f_id3] != nqcs_t
-		 && spec->t[0].ftype[f_id3] != cs_t
-		 && spec->t[0].ftype[f_id3] != i_t)
-			error("Field SampleName (%s) from spec file '%s' is wrong type",spec->t[0].fsym[f_id3],specname);
+		 && (f_id3 = spec->find_field(spec, 0, "SampleID")) < 0) {
+			if (strcmp(devname, specname))
+				warning("Input file '%s' doesn't contain field SampleName, Sample_Name, SAMPLE_NAME, SAMPLE_ID or SampleID",specname);
+		} else {
+			if (spec->t[0].ftype[f_id3] != nqcs_t
+			 && spec->t[0].ftype[f_id3] != cs_t
+			 && spec->t[0].ftype[f_id3] != i_t)
+				error("Field SampleName (%s) from spec file '%s' is wrong type",spec->t[0].fsym[f_id3],specname);
+		}
 
 		/* Find the spectral readings nm range */
 		for (specmin = 500; specmin >= 300; specmin -= 10) {
@@ -727,13 +738,28 @@ int main(int argc, char *argv[])
 		     sizeof(cgats_set_elem) * ocg->t[0].nfields)) == NULL)
 			error("Malloc failed!");
 
+		if (ncie != NULL && strcmp(ciename, devname)) {
+			if (f_id1 < 0)
+				error("Input file '%s' needs SampleName, Sample_Name, SAMPLE_NAME, SAMPLE_ID or SampleID to synchronize samples",devname);
+			if (f_id2 < 0)
+				error("Input file '%s' needs SampleName, Sample_Name, SAMPLE_NAME, SAMPLE_ID or SampleID to synchronize samples",ciename);
+		}
+
+		if (spec != NULL && strcmp(specname, devname)) {
+			if (f_id1 < 0)
+				error("Input file '%s' needs SampleName, Sample_Name, SAMPLE_NAME, SAMPLE_ID or SampleID to synchronize samples",devname);
+			if (f_id3 < 0)
+				error("Input file '%s' needs SampleName, Sample_Name, SAMPLE_NAME, SAMPLE_ID or SampleID to synchronize samples",specname);
+		}
+
+
 		/* Write out the patch info to the output CGATS file */
 		for (i = 0; i < npat; i++) {
 			char id[100];
 			char loc[100];
 			int k = 0;
 
-			if (ncie != NULL) {
+			if (ncie != NULL && f_id1 >= 0 && f_id1 >= 0) {
 				if (strcmp(((char *)cmy->t[0].rfdata[i][f_id1]), 
 				           ((char *)ncie->t[0].rfdata[i][f_id2])) != 0) {
 					error("Patch label mismatch to CIE values, patch %d, '%s' != '%s'\n",
@@ -742,7 +768,7 @@ int main(int argc, char *argv[])
 				}
 			}
 
-			if (spec != NULL) {
+			if (spec != NULL && f_id1 >= 0 && f_id3 >= 0) {
 				if (strcmp(((char *)cmy->t[0].rfdata[i][f_id1]), 
 				           ((char *)spec->t[0].rfdata[i][f_id3])) != 0) {
 					error("Patch label mismatch to spectral values, patch %d, '%s' != '%s'\n",
@@ -885,6 +911,9 @@ int main(int argc, char *argv[])
 				ocg2->add_field(ocg2, 0, "XYZ_Z", r_t);
 			}
 		}
+
+		if (f_id1 < 0)
+			error("Input file '%s' needs SampleName, Sample_Name, SAMPLE_NAME, SAMPLE_ID or SampleID to be able to generate .ti2 file",devname);
 
 		/* Write out the patch info to the output CGATS file */
 		{

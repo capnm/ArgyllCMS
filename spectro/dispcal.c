@@ -20,6 +20,15 @@
 
 /* TTBD
 
+	Would be good to automaticall invoke -k0 if this display looks
+	like it has black at zero and has a proportional characteristic
+	from zero. 
+ 
+	Would be nice to have option of using existing display profile
+	as source of measurements (including VCGT curves) in a similar
+	way to -dfake, to allow re-generating a new calibration with different
+	parameters.
+
 	Should shift to using xicc code for BT.1886 and target response
 	curve, for consistency with collink etc.
 
@@ -170,8 +179,8 @@
 #define REFN_DIST_POW 1.6	/* Power used to distribute test samples for grey axis refinement */
 #define CHECK_DIST_POW 1.6	/* Power used to distribute test samples for grey axis checking */
 #define THRESH_SCALE_POW 0.5 /* Amount to loosen threshold for first itterations */
-#define ADJ_THRESH			/* Adjust threshold to be half a step */
-#define MIN_THRESH 0.05	 	/* Minimum stopping threshold to allow in ADJ_THRESH */
+#define ADJ_THRESH			/* Adjust threshold to be half a step on final pass */
+#define MIN_THRESH 0.25	 	/* Minimum stopping threshold to allow in ADJ_THRESH */
 #define POWERR_THR 0.05		/* Point near black to start weighting +ve error */
 #define POWERR_WEIGHT 999.0	/* Weight to give +ve delta E at black */
 #define POWERR_WEIGHT_POW 4.0	/* Curve to plend from equal weight to +ve extra weight */
@@ -1602,7 +1611,8 @@ void usage(int flag, char *diag, ...) {
 	fprintf(stderr," -u                   Update previous calibration and (if -o used) ICC profile VideoLUTs\n");
 	fprintf(stderr," -q [vlmh]            Quality - Very Low, Low, Medium (def), High\n");
 //	fprintf(stderr," -q [vfmsu]           Speed - Very Fast, Fast, Medium (def), Slow, Ultra Slow\n");
-	fprintf(stderr," -p                   Use telephoto mode (ie. for a projector) (if available)\n");
+	fprintf(stderr," -p                   Use telephoto mode (ie. for a projector, if available)\n");
+	fprintf(stderr," -a                   Use ambient mode (ie. for a projector, if available)\n");
 	cap2 = inst_show_disptype_options(stderr, " -y                   ", icmps, 0);
 	fprintf(stderr," -t [temp]            White Daylight locus target, optional target temperaturee in deg. K (deflt.)\n");
 	fprintf(stderr," -T [temp]            White Black Body locus target, optional target temperaturee in deg. K\n");
@@ -1686,7 +1696,8 @@ int main(int argc, char *argv[]) {
 	icompath *ipath = NULL;
 	flow_control fc = fc_nc;			/* Default flow control */
 	int ditype = 0;						/* Display type selection charater(s) */
-	int tele  = 0;						/* nz if telephoto mode */
+	int tele = 0;						/* nz if telephoto mode */
+	int ambient = 0;					/* nz if ambient mode */
 	int nocal = 0;						/* Disable auto calibration */
 	int noplace = 0;					/* Disable initial user placement check */
 	int highres = 0;					/* Use high res mode if available */
@@ -1701,7 +1712,7 @@ int main(int argc, char *argv[]) {
 	double tbright = 0.0;				/* Target white brightness ( 0.0 == max)  */
 	double gamma = 0.0;					/* Advertised Gamma target */
 	double egamma = 0.0;				/* Effective Gamma target, NZ if set */
-	double ambient = 0.0;				/* NZ if viewing cond. adjustment to be used (Lux) */
+	double ambientl = 0.0;				/* NZ if viewing cond. adjustment to be used (Lux) */
 	double bkcorrect = -1.0;			/* Level of black point correction, < 0 = auto */ 
 	int bkhack = 0;
 	double bkbright = 0.0;				/* Target black brightness ( 0.0 == min)  */
@@ -2202,13 +2213,16 @@ int main(int argc, char *argv[]) {
 						usage(0,"-f parameter %f out of range",x.oofff);
 				}
 
-			/* Ambient light level */
+			/* Ambient mode or Ambient light level */
 			} else if (argv[fa][1] == 'a') {
 				fa = nfa;
-				if (na == NULL) usage(0,"Parameter expected after -a");
-				ambient = atof(na);
-				if (ambient < 0.0)
-					usage(0,"-a parameter %f out of range",ambient);
+				if (na == NULL) {
+					ambient = 1;
+				} else {
+					ambientl = atof(na);
+					if (ambientl < 0.0)
+						usage(0,"-a parameter %f out of range",ambientl);
+				}
 
 			/* Test patch offset and size */
 			} else if (argv[fa][1] == 'P') {
@@ -2351,7 +2365,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (docalib) {
-		if ((rv = disprd_calibration(ipath, fc, ditype, -1, 0, tele, nadaptive, nocal, disp,
+		if ((rv = disprd_calibration(ipath, fc, ditype, -1, 0, tele, ambient, nadaptive, nocal, disp,
 		                             webdisp, ccid,
 #ifdef NT
 			                         madvrdisp,
@@ -2393,7 +2407,7 @@ int main(int argc, char *argv[]) {
 		native = 0;	/* But measure current calibrated & CM response for verify or report calibrated */ 
 
 	/* Get ready to do some readings */
-	if ((dr = new_disprd(&errc, ipath, fc, ditype, -1, 0, tele, nadaptive, nocal, noplace,
+	if ((dr = new_disprd(&errc, ipath, fc, ditype, -1, 0, tele, ambient, nadaptive, nocal, noplace,
 	                     highres, refrate, native, &noramdac, &nocm, NULL, 0,
 		                 disp, out_tvenc, fullscreen, override, webdisp, ccid,
 #ifdef NT
@@ -3781,7 +3795,7 @@ int main(int argc, char *argv[]) {
 			
 			/* Measure and set ambient for viewing condition adjustment */
 			} else if (c == '6') {
-				if ((rv = dr->ambient(dr, &ambient, 1)) != 0) {
+				if ((rv = dr->meas_ambient(dr, &ambientl, 1)) != 0) {
 					if (rv == 8) {
 						printf("Instrument doesn't have an ambient reading capability\n");
 					} else {
@@ -3789,7 +3803,7 @@ int main(int argc, char *argv[]) {
 						error("ambient measure failed with '%s'\n",disprd_err(rv));
 					}
 				} else {
-					printf("Measured ambient level = %.1f Lux\n",ambient);
+					printf("Measured ambient level = %.1f Lux\n",ambientl);
 				}
 
 			} else if (c == '7') {
@@ -4392,7 +4406,7 @@ int main(int argc, char *argv[]) {
 		printf("Gamma curve input offset = %f, output offset = %f, power = %f\n",x.gioff,x.gooff,x.egamma);
 
 	/* For ambient light compensation, we make use of CIECAM02 */
-	if (ambient > 0.0) {
+	if (ambientl > 0.0) {
 		double xyz[3], Jab[3];
 		double t1, t0, a1, a0;
 
@@ -4433,7 +4447,7 @@ int main(int argc, char *argv[]) {
 		/* The display we're calibratings situation */
 		x.dvc->set_view(x.dvc, vc_none,
 			x.nwh,				/* Display normalised white point */
-			0.2 * ambient/3.1415,	/* Adapting luminence, 20% of ambient in cd/m^2 */
+			0.2 * ambientl/3.1415,	/* Adapting luminence, 20% of ambient in cd/m^2 */
 			0.2,				/* Background relative to reference white */
 			x.twh[1],			/* Target white level (cd/m^2) */
 	        0.0, 0.01, x.nwh,	/* 0% flare and 1% glare same white point */
@@ -4656,7 +4670,7 @@ int main(int argc, char *argv[]) {
 #ifdef ADJ_THRESH
 			/* Adjust the termination threshold to make sure it is less than */
 			/* half a step */
-			{
+			if (it == (mxits-1)) {		/* If final pass */
 				double de;
 				if (i < (rsteps-1)) {
 					de = 0.5 * icmXYZLabDE(&x.twN, asgrey.s[i].tXYZ, asgrey.s[i+1].tXYZ);

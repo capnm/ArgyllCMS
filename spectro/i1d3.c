@@ -593,7 +593,7 @@ i1d3_unlock(
 	} codes[] = {
 		{ "i1Display3 ",         { 0xe9622e9f, 0x8d63e133 }, i1d3_disppro,  i1d3_disppro },
 		{ "Colormunki Display ", { 0xe01e6e0a, 0x257462de }, i1d3_munkdisp, i1d3_munkdisp },
-		{ "i1Display3 ",         { 0xcaa62b2c, 0x30815b61 }, i1d3_disppro,  i1d3_oem },
+		{ "i1Display3 ",         { 0xcaa62b2c, 0x30815b61 }, i1d3_disppro,  i1d3_dpp_oem },
 		{ "i1Display3 ",         { 0xa9119479, 0x5b168761 }, i1d3_disppro,  i1d3_nec_ssp },
 		{ "i1Display3 ",         { 0x160eb6ae, 0x14440e70 }, i1d3_disppro,  i1d3_quato_sh3 },
 		{ "i1Display3 ",         { 0x291e41d7, 0x51937bdd }, i1d3_disppro,  i1d3_hp_dreamc },
@@ -1993,7 +1993,7 @@ i1d3_take_XYZ_measurement(
  			return ev;
 	
 		if (pos != 1)
-			return i1d3_interp_code((inst *)p, I1D3_SPOS_EMIS);
+			return i1d3_interp_code((inst *)p, I1D3_SPOS_AMB);
 
 		/* Best type of reading, including refresh support */
 		if ((ev = i1d3_take_emis_measurement(p, mmode, XYZ)) != inst_ok)

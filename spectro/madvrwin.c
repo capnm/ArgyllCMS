@@ -229,6 +229,7 @@ static ramdac *madvrwin_get_ramdac(dispwin *p) {
 
 	r->clone =  dispwin_clone_ramdac;
 	r->setlin = dispwin_setlin_ramdac;
+	r->sane   = dispwin_sane_ramdac;
 	r->del =    dispwin_del_ramdac;
 
 	for (j = 0; j < 3; j++) {

@@ -142,6 +142,7 @@
 #undef ANALIZE_EXISTING		/* Analize the manufacturers existing filter shape */
 #undef PLOT_BLACK_SUBTRACT	/* Plot temperature corrected black subtraction */
 #undef FAKE_AMBIENT		/* Fake the ambient mode for a Rev A */
+#undef FAKE_EEPROM				/* Get EEPROM data from i1pro_fake_eeprom.h */
 
 #undef USE_SPOT_OMD				/* [Und] Use Original Manufacturers Driver timing. Reduce */
 								/* integration time and lamp turn on time. */
@@ -448,6 +449,11 @@ void del_i1proimp(i1pro *p) {
 /* ============================================================ */
 /* High level functions */
 
+#ifdef FAKE_EEPROM
+# pragma message("######### i1pro_imp.c FAKE EEPROM compiled !!!!! ########")
+# include "i1pro_fake_eeprom.h"
+#endif
+
 /* Initialise our software state from the hardware */
 i1pro_code i1pro_imp_init(i1pro *p) {
 	i1proimp *m = (i1proimp *)p->m;
@@ -519,6 +525,18 @@ i1pro_code i1pro_imp_init(i1pro *p) {
 		p->dtype = instI1Pro;
 	}
 
+/* Get EEPROM data from i1pro_fake_eeprom.h */
+#ifdef FAKE_EEPROM
+	m->eesize = FAKE_EEPROM_SIZE;
+
+	if ((eeprom = (unsigned char *)malloc(m->eesize)) == NULL) {
+		a1logd(p->log,1,"Malloc %d bytes for eeprom failed\n",m->eesize);
+		return I1PRO_INT_MALLOC;
+	}
+
+	memcpy(eeprom, fake_eeprom_data, m->eesize);
+
+#else
 	/* Get the EEProm size */
 	m->eesize = 8192;		/* Rev A..D */
 	if (p->dtype == instI1Pro2) {
@@ -550,6 +568,7 @@ i1pro_code i1pro_imp_init(i1pro *p) {
 		free(eeprom);
 		return ev;
 	}
+#endif /* FAKE_EEPROM */
 
 	if (p->dtype == instI1Pro2) {
 		/* Get the Chip ID (This doesn't work until after reading the EEProm !) */
@@ -945,7 +964,7 @@ i1pro_code i1pro_imp_init(i1pro *p) {
 		if ((m->wlpoly1 = m->data->get_doubles(m->data, &count, key2_wlpoly_1)) == NULL || count != 4) {
 			/* Hmm. no key2_wlpoly_1. This seems to be the case for */
 			/* some stripped down OEM instruments. Use key2_wlpoly_2 instead */
-			if ((m->wlpoly2 = m->data->get_doubles(m->data, &count, key2_wlpoly_2)) == NULL
+			if ((m->wlpoly1 = m->data->get_doubles(m->data, &count, key2_wlpoly_2)) == NULL
 				                                                              || count != 4) {
 				a1logd(p->log,7,"Missing key2_wlpoly_1 and key2_wlpoly_2\n");
 				return I1PRO_HW_CALIBINFO;
@@ -989,7 +1008,7 @@ i1pro_code i1pro_imp_init(i1pro *p) {
 			}
 		}
 
-#ifdef NEVER
+#ifdef PLOT_DEBUG
 	/* Plot raw2wav polinomials for Rev E */
 	{
 		double *xx;
@@ -1333,6 +1352,30 @@ i1pro_code i1pro_imp_init(i1pro *p) {
 #ifdef ENABLE_NONVCAL
 	/* Restore the all modes calibration from the local system */
 	i1pro_restore_calibration(p);
+
+	/* If this is a rev E, and we have valid led wl calibration info, */
+	/* compute the wl corrected wavelength sampling filters */
+	if (m->ms[0].wl_valid) {		/* All modes will have it set if it is set */
+
+		/* Compute normal res. emissive/transmissive wavelength corrected filters */
+		if ((ev = i1pro_compute_wav_filters(p, 0, 0)) != I1PRO_OK) {
+			a1logd(p->log,2,"i1pro_compute_wav_filters() failed\n");
+			return ev;
+		}
+
+		/* Compute normal res. reflective wavelength corrected filters */
+		if ((ev = i1pro_compute_wav_filters(p, 0, 1)) != I1PRO_OK) {
+			a1logd(p->log,2,"i1pro_compute_wav_filters() failed\n");
+			return ev;
+		}
+
+		/* Re-compute high res. wavelength corrected filters */
+		if (m->hr_inited && (ev = i1pro_create_hr(p)) != I1PRO_OK) {
+			a1logd(p->log,2,"i1pro_create_hr() failed\n");
+			return ev;
+		}
+	}
+
 	/* Touch it so that we know when the instrument was last opened */
 	i1pro_touch_calibration(p);
 #endif
@@ -3441,7 +3484,6 @@ i1pro_code i1pro_imp_meas_refrate(
 		}
 
 #ifdef NEVER
-
 		/* Plot interpolated values */
 		{
 			double *xx;
@@ -7590,7 +7632,7 @@ void i1pro_absraw_to_abswav(
 		/* For each output wavelength */
 		for (cx = j = 0; j < m->nwav[highres]; j++) {
 			double oval = 0.0;
-	
+
 			/* For each matrix value */
 			sx = m->mtx[highres][refl].index[j];		/* Starting index */
 			for (k = 0; k < m->mtx[highres][refl].nocoef[j]; k++, cx++, sx++) {
@@ -7729,6 +7771,7 @@ static double i1pro_raw2wav(i1pro *p, int refl, double raw) {
 
 		/* Correct for CCD offset and scale back to reference */
 		raw = raw - s->wl_led_off + m->wl_led_ref_off;
+//printf("~1 i1pro_raw2wav: in %f - wl_led_off %f + wl_led_ref_off %f = %f\n", raw, s->wl_led_off, m->wl_led_ref_off, raw - s->wl_led_off + m->wl_led_ref_off);
 
 		raw = 128.0 - raw;		/* Quadratic expects +ve correlation */
 		
@@ -7740,6 +7783,7 @@ static double i1pro_raw2wav(i1pro *p, int refl, double raw) {
 			for (ov = m->wlpoly2[4-1], k = 4-2; k >= 0; k--)
 				ov = ov * raw + m->wlpoly2[k];
 		}
+//printf("~1 returning %f\n",ov);
 	} else {
 		co pp;
 
@@ -8162,8 +8206,11 @@ i1pro_code i1pro_compute_wav_filters(i1pro *p, int hr, int refl) {
 	double *wlcop;		/* This wavelength base filter coefficient pointer */
 	double trh, trx;	/* Triangle height and triangle equation x weighting */
 	int i, j, k;
+	int r2wt = refl;		/* raw2wav lookup table to use */
 
-	a1logd(p->log,2,"i1pro_compute_wav_filters called with correction %f raw\n",s->wl_led_off - m->wl_led_ref_off);
+//printf("i1pro_compute_wav_filters called hr %d refl %d with correction %f raw\n",hr,refl,s->wl_led_off - m->wl_led_ref_off);
+
+	a1logd(p->log,2,"i1pro_compute_wav_filters called hr %d refl %d with correction %f raw\n",hr,refl,s->wl_led_off - m->wl_led_ref_off);
 
 	twidth = (m->wl_long[hr] - m->wl_short[hr])/(m->nwav[hr] - 1.0);	/* Filter width */
 
@@ -8205,9 +8252,8 @@ i1pro_code i1pro_compute_wav_filters(i1pro *p, int hr, int refl) {
 
 		/* Do a dumb search from high to low nm */
 		for (six = 0; six < m->nraw; six++) {
-//printf("~1 (raw2wav (six %d) %f <? (owl %f + twidth %f) %f\n",six,i1pro_raw2wav(p, refl, (double)six),owl,twidth,owl + twidth);
-
-			if (i1pro_raw2wav(p, refl, (double)six) < (owl + twidth))
+//printf("~1 (raw2wav (six %d) %f <? (owl %f + twidth %f) %f\n",six,i1pro_raw2wav(p, r2wt, (double)six),owl,twidth,owl + twidth);
+			if (i1pro_raw2wav(p, r2wt, (double)six) < (owl + twidth))
 				break;
 		}
 
@@ -8219,7 +8265,7 @@ i1pro_code i1pro_compute_wav_filters(i1pro *p, int hr, int refl) {
 		six -= 2;		/* Outside */
 
 		for (; eix < m->nraw; eix++) {
-			if (i1pro_raw2wav(p, refl, (double)eix) <= (owl - twidth))
+			if (i1pro_raw2wav(p, r2wt, (double)eix) <= (owl - twidth))
 				break;
 		}
 		if (eix > (m->nraw - 2) ) {
@@ -8229,7 +8275,7 @@ i1pro_code i1pro_compute_wav_filters(i1pro *p, int hr, int refl) {
 		eix += 2;		/* Outside */
 
 //		for (j = six; j < eix; j++)
-//			printf("Using raw %d @ %.1f nm\n",j, i1pro_raw2wav(p, refl, (double)j));
+//			printf("Using raw %d @ %.1f nm\n",j, i1pro_raw2wav(p, r2wt, (double)j));
 
 		/* Set start index for this wavelength */
 		m->mtx_c[hr][refl].index[wlix] = six;
@@ -8247,7 +8293,7 @@ i1pro_code i1pro_compute_wav_filters(i1pro *p, int hr, int refl) {
 			wlcop[i] = 0.0;
 		
 		/* for each Lagrange interpolation position (adjacent CCD locations) */
-		/* create the Lagrange and then accuumulate the integral of the convolution */
+		/* create the Lagrange and then acumulate the integral of the convolution */
 		/* of the overlap of the central region, with the triangle of our */
 		/* underlying re-sampling filter. */
 		/* (If we were to run out of enough source points for the Lagrange to */
@@ -8261,7 +8307,7 @@ i1pro_code i1pro_compute_wav_filters(i1pro *p, int hr, int refl) {
 		
 			/* Relative wavelengths to owl of each basis point */
 			for (i = 0; i < 4; i++)
-				rwav[i] = i1pro_raw2wav(p, refl, (double)lip + i) - owl;
+				rwav[i] = i1pro_raw2wav(p, r2wt, (double)lip + i) - owl;
 //			printf("\n~1 rwav = %f %f %f %f\n", rwav[0], rwav[1], rwav[2], rwav[3]);
 
 			/* Compute each basis points Lagrange denominator values */
@@ -8362,7 +8408,7 @@ i1pro_code i1pro_compute_wav_filters(i1pro *p, int hr, int refl) {
 
 						/* Compute ihigh - ilow and add to filter weightings */
 						wlcop[lip -six + i] += (nvalh - nvall)/den[i];
-//						printf("~1 k = %d, comp %d weight += %e now %e\n",k,lip-six+i,(nvalh - nvall)/den[i], wlcop[lip-six+i]);
+//						printf("~1 k = %d, comp %d weight += %e den %e now %e\n",k,lip-six+i,(nvalh - nvall)/den[i], den[i], wlcop[lip-six+i]);
 					}
 				}
 			}
@@ -8373,8 +8419,10 @@ i1pro_code i1pro_compute_wav_filters(i1pro *p, int hr, int refl) {
 
 		wlcop += m->mtx_c[hr][refl].nocoef[wlix];		/* Next group of weightings */
 	}
+
 #ifdef DEBUG 
-	/* Check against orginal filters */
+	/* Check comuter low res. against orignal filters */
+	/* (Turns out that there are discrepancies, even in X-Rite driver) */
 	if (!hr) {
 		int ix1, ix1c;
 		double aerr = 0.0;
@@ -8394,16 +8442,19 @@ i1pro_code i1pro_compute_wav_filters(i1pro *p, int hr, int refl) {
 				eix = m->mtx_o.index[i] + m->mtx_o.nocoef[i];
 			else
 				eix = m->mtx_o.index[i] + m->mtx_o.nocoef[i];
-//			printf("~1 filter %d from %d to %d\n",i,six,eix);
+//			printf(" filter %d from %d to %d\n",i,six,eix);
 
 			err = 0.0;
 			for (j = six; j < eix; j++) {
 		 		double w1, w1c;	
 
+				/* Original */
 				if (j < m->mtx_o.index[i] || j >= (m->mtx_o.index[i] + m->mtx_o.nocoef[i]))
 					w1 = 0.0;
 				else
 					w1 = m->mtx_o.coef[ix1 + j - m->mtx_o.index[i]];
+
+				/* Computed */
 				if (j < m->mtx_c[0][refl].index[i]
 				 || j >= (m->mtx_c[0][refl].index[i] + m->mtx_c[0][refl].nocoef[i]))
 					w1c = 0.0;
@@ -8411,9 +8462,9 @@ i1pro_code i1pro_compute_wav_filters(i1pro *p, int hr, int refl) {
 					w1c = m->mtx_c[0][refl].coef[ix1c + j - m->mtx_c[0][refl].index[i]];
 
 				err += fabs(w1 - w1c);
-//				printf("Weight %d, %e should be %e\n", j, w1c, w1);
+//				printf(" weight %d, %e should be %e\n", j, w1c, w1);
 			}
-//			printf("Filter %d average weighting error = %f\n",i, err/j);
+//			printf(" filter %d average weighting error = %f\n",i, err/j);
 			aerr += err/j;
 
 			ix1 += m->mtx_o.nocoef[i];
@@ -8422,6 +8473,137 @@ i1pro_code i1pro_compute_wav_filters(i1pro *p, int hr, int refl) {
 		a1logd(p->log,2,"Overall average filter weighting change = %f\n",aerr/m->nwav[0]);
 	}
 #endif /* DEBUG */
+
+#ifdef PLOT_DEBUG			/* Show relation between computed CCD sum values and original */
+		{
+			double x[4], y[4];
+			int maxix[2];
+			double avg[2], max[2];
+			double ccdsum[2][128];			/* Target weight/actual for each CCD */
+			double dth[2];
+			int cx, sx;
+
+			avg[0] = avg[1] = 0.0;
+			max[0] = max[1] = 0.0;
+			for (j = 0; j < 128; j++) {
+				ccdsum[0][j] = 0.0;
+				ccdsum[1][j] = 0.0;
+			}
+
+			/* Compute the weighting of each CCD value in the normal output */
+			for (cx = j = 0; j < m->nwav[0]; j++) { /* For each wavelength */
+
+				/* For each matrix value */
+				sx = m->mtx_o.index[j];		/* Starting index */
+				for (k = 0; k < m->mtx_o.nocoef[j]; k++, cx++, sx++) {
+					ccdsum[0][sx] += m->mtx_o.coef[cx];
+//printf("~1 Leg. CCD [%d] %f += [%d] %f\n",sx,ccdsum[0][sx],cx, m->mtx_o.coef[cx]);
+				}
+			}
+
+			/* Compute the weighting of each CCD value in the computed output */
+			for (cx = j = 0; j < m->nwav[hr]; j++) { /* For each wavelength */
+
+				/* For each matrix value */
+				sx = m->mtx_c[hr][refl].index[j];		/* Starting index */
+				for (k = 0; k < m->mtx_c[hr][refl].nocoef[j]; k++, cx++, sx++) {
+					ccdsum[1][sx] += m->mtx_c[hr][refl].coef[cx];
+//printf("~1 Calc CCD [%d] %f += [%d] %f\n",sx,ccdsum[1][sx],cx, m->mtx_c[hr][refl].coef[cx]);
+				}
+			}
+
+			/* Figure valid range and extrapolate to edges */
+			dth[0] = 0.0;		/* ref */
+			dth[1] = 0.004;		/* hires */
+
+			for (k = 0; k < 2; k++) {		/* For each set of curves */
+
+				for (i = 0; i < 128; i++) {
+					if (ccdsum[k][i] > max[k]) {
+						max[k] = ccdsum[k][i];
+						maxix[k] = i;
+					}
+				}
+
+//printf("~1 max[%d] = %f @ ix %d\n",k, max[k],maxix[k]);
+
+				/* Figure out the valid range */
+				for (i = maxix[k]; i >= 0; i--) {
+					if (ccdsum[k][i] > (0.8 * max[k])) {
+						x[0] = (double)i;
+//printf("~1 x[0] = %d\n",i);
+					} else {
+						break;
+					}
+				}
+
+				for (i = maxix[k]; i < 128; i++) {
+					if (ccdsum[k][i] > (0.8 * max[k])) {
+						x[3] = (double)i;
+//printf("~1 x[3] = %d\n",i);
+					} else {
+						break;
+					}
+				}
+
+				/* Space off the last couple of entries */
+				x[0] += (3.0 + 3.0);
+				x[3] -= (3.0 + 3.0);
+				x[1] = floor((2 * x[0] + x[3])/3.0);
+				x[2] = floor((x[0] + 2 * x[3])/3.0);
+//printf("~1 x[0] %f x[1] %f x[2] %f x[3] %f\n",x[0],x[1],x[2],x[3]);
+
+				for (i = 0; i < 4; i++) {
+					y[i] = 0.0;
+					for (j = -3; j < 4; j++) {
+						y[i] += ccdsum[k][(int)x[i]+j];
+					}
+					y[i] /= 7.0;
+				}
+
+//printf("~1 extrap nodes %f, %f, %f, %f\n",x[0],x[1],x[2],x[3]);
+//printf("~1 extrap value %f, %f, %f, %f\n",y[0],y[1],y[2],y[3]);
+
+				for (i = 0; i < 128; i++) {
+					double xw, yw;
+
+					xw = (double)i;
+	
+					/* Compute interpolated value using Lagrange: */
+					yw = y[0] * (xw-x[1]) * (xw-x[2]) * (xw-x[3])
+						      /((x[0]-x[1]) * (x[0]-x[2]) * (x[0]-x[3]))
+					   + y[1] * (xw-x[0]) * (xw-x[2]) * (xw-x[3])
+						      /((x[1]-x[0]) * (x[1]-x[2]) * (x[1]-x[3]))
+					   + y[2] * (xw-x[0]) * (xw-x[1]) * (xw-x[3])
+						      /((x[2]-x[0]) * (x[2]-x[1]) * (x[2]-x[3]))
+					   + y[3] * (xw-x[0]) * (xw-x[1]) * (xw-x[2])
+						      /((x[3]-x[0]) * (x[3]-x[1]) * (x[3]-x[2]));
+	
+					if ((xw < x[0] || xw > x[3])
+					 && fabs(ccdsum[k][i] - yw)/yw > dth[k]) {
+						ccdsum[k][i] = yw;
+					}
+					avg[k] += ccdsum[k][i];
+				}
+				avg[k] /= 128.0;
+			}
+
+			/* Plot target CCD values */
+			{
+				double xx[128], y1[128], y2[128];
+	
+				for (i = 0; i < 128; i++) {
+					xx[i] = i;
+					y1[i] = ccdsum[0][i]/avg[0];
+					y2[i] = ccdsum[1][i]/avg[1];
+//printf("i %d xx %f y1 %f y2 %f\n",i,xx[i],y1[i],y2[i]);
+				}
+	
+				printf("Target and actual CCD weight sums hr %d refl %d:\n",hr,refl);
+				do_plot(xx, y1, y2, NULL, 128);
+			}
+		}
+#endif /* PLOT_DEBUG */
 
 	/* Switch normal res. to use wavelength calibrated version */
 	m->mtx[hr][refl] = m->mtx_c[hr][refl];
@@ -8456,10 +8638,6 @@ i1pro_code i1pro_compute_wav_filters(i1pro *p, int hr, int refl) {
 #undef USE_BLACKMAN			/* [und] Use Blackman windowed sinc shape */
 #define USE_GAUSSIAN		/* [def] Use gaussian filter shape*/
 #undef USE_CUBIC			/* [und] Use cubic spline filter */
-
-#define DO_CCDNORM			/* [def] Normalise CCD values to original */
-#define DO_CCDNORMAVG		/* [und ???] Normalise averages rather than per CCD bin */
-							/* (We relly on fine cal & white cal to fix it) */
 
 #define BOX_INTEGRATE    	/* [und] Integrate raw samples as if they were +/-0.5 boxes */
 							/*       (This improves coeficient consistency a bit ?) */
@@ -8782,6 +8960,8 @@ i1pro_code i1pro_create_hr_calfactors(i1pro *p, int eonly) {
 	i1proimp *m = (i1proimp *)p->m;
 	i1pro_code ev = I1PRO_OK;
 	int i, j;
+
+//	printf("i1pro_create_hr_calfactors called with eonly %d\n",eonly);
 
 	/* Generate high res. per mode calibration factors. */
 	if (m->hr_inited) {
@@ -9742,24 +9922,6 @@ i1pro_code i1pro_create_hr(i1pro *p) {
 	
 //		printf("~1 fshmax = %f\n",fshmax);
 
-#ifdef HIGH_RES_DEBUG
-		/* Check that the filter sums to a constant */
-		{
-			double x, sum;
-	
-			for (x = 0.0; x < 5.0; x += 0.1) {
-				sum = 0;
-				sum += lin_fshape(fshape, ncp, x - 15.0);
-				sum += lin_fshape(fshape, ncp, x - 10.0);
-				sum += lin_fshape(fshape, ncp, x -  5.0);
-				sum += lin_fshape(fshape, ncp, x -  0.0);
-				sum += lin_fshape(fshape, ncp, x +  5.0);
-				sum += lin_fshape(fshape, ncp, x + 10.0);
-				printf("Offset %f, sum %f\n",x, sum);
-			}
-		}
-#endif /* HIGH_RES_DEBUG */
-
 		/* Create all the filters */
 		if (m->mtx_c[1][refl].nocoef != NULL)
 			free(m->mtx_c[1][refl].nocoef);
@@ -9894,7 +10056,7 @@ i1pro_code i1pro_create_hr(i1pro *p) {
 
 				/* For each matrix value */
 				for (k = 0; k < m->mtx_c[1][refl].nocoef[j]; k++) {
-					yy[5][coeff2[j][k].ix] += 0.5 * coeff2[j][k].we;
+					yy[5][coeff2[j][k].ix] += 0.5 * coeff2[j][k].we;	/* Sum of coefs */
 					yy[i][coeff2[j][k].ix] = coeff2[j][k].we;
 				}
 			}
@@ -9948,158 +10110,6 @@ i1pro_code i1pro_create_hr(i1pro *p) {
 			return ev;
 		}
 #endif	/* USE_TRI_LAGRANGE */
-
-		/* Normalise the filters area in CCD space, while maintaining the */
-		/* total contribution of each CCD at the target too. */
-		/* Hmm. This will wreck super-sample. We should fix it */
-#ifdef DO_CCDNORM			/* Normalise CCD values to original */
-		{
-			double x[4], y[4];
-			double avg[2], max[2];
-			double ccdsum[2][128];			/* Target weight/actual for each CCD */
-			double dth[2];
-
-			avg[0] = avg[1] = 0.0;
-			max[0] = max[1] = 0.0;
-			for (j = 0; j < 128; j++) {
-				ccdsum[0][j] = 0.0;
-				ccdsum[1][j] = 0.0;
-			}
-
-			/* Compute the weighting of each CCD value in the normal output */
-			for (cx = j = 0; j < m->nwav[0]; j++) { /* For each wavelength */
-
-				/* For each matrix value */
-				sx = m->mtx_o.index[j];		/* Starting index */
-				for (k = 0; k < m->mtx_o.nocoef[j]; k++, cx++, sx++) {
-					ccdsum[0][sx] += m->mtx_o.coef[cx];
-//printf("~1 Norm CCD [%d] %f += [%d] %f\n",sx,ccdsum[0][sx],cx, m->mtx_o.coef[cx]);
-				}
-			}
-
-			/* Compute the weighting of each CCD value in the hires output */
-			for (cx = j = 0; j < m->nwav[1]; j++) { /* For each wavelength */
-
-				/* For each matrix value */
-				sx = m->mtx_c[1][refl].index[j];		/* Starting index */
-				for (k = 0; k < m->mtx_c[1][refl].nocoef[j]; k++, cx++, sx++) {
-					ccdsum[1][sx] += m->mtx_c[1][refl].coef[cx];
-//printf("~1 HiRes CCD [%d] %f += [%d] %f\n",sx,ccdsum[1][sx],cx, m->mtx_c[1][refl].coef[cx]);
-				}
-			}
-
-			/* Figure valid range and extrapolate to edges */
-			dth[0] = 0.0;		/* ref */
-//			dth[1] = 0.007;		/* hires */
-			dth[1] = 0.004;		/* hires */
-
-			for (k = 0; k < 2; k++) {
-
-				for (i = 0; i < 128; i++) {
-					if (ccdsum[k][i] > max[k])
-						max[k] = ccdsum[k][i];
-				}
-
-//printf("~1 max[%d] = %f\n",k, max[k]);
-				/* Figure out the valid range */
-				for (i = 64; i >= 0; i--) {
-					if (ccdsum[k][i] > (0.8 * max[k])) {
-						x[0] = (double)i;
-					} else {
-						break;
-					}
-				}
-				for (i = 64; i < 128; i++) {
-					if (ccdsum[k][i] > (0.8 * max[k])) {
-						x[3] = (double)i;
-					} else {
-						break;
-					}
-				}
-				/* Space off the last couple of entries */
-				x[0] += (3.0 + 3.0);
-				x[3] -= (3.0 + 3.0);
-				x[1] = floor((2 * x[0] + x[3])/3.0);
-				x[2] = floor((x[0] + 2 * x[3])/3.0);
-
-				for (i = 0; i < 4; i++) {
-					y[i] = 0.0;
-					for (j = -3; j < 4; j++) {
-						y[i] += ccdsum[k][(int)x[i]+j];
-					}
-					y[i] /= 7.0;
-				}
-
-//printf("~1 extrap nodes %f, %f, %f, %f\n",x[0],x[1],x[2],x[3]);
-//printf("~1 extrap value %f, %f, %f, %f\n",y[0],y[1],y[2],y[3]);
-
-				for (i = 0; i < 128; i++) {
-					double xw, yw;
-
-					xw = (double)i;
-	
-					/* Compute interpolated value using Lagrange: */
-					yw = y[0] * (xw-x[1]) * (xw-x[2]) * (xw-x[3])
-						      /((x[0]-x[1]) * (x[0]-x[2]) * (x[0]-x[3]))
-					   + y[1] * (xw-x[0]) * (xw-x[2]) * (xw-x[3])
-						      /((x[1]-x[0]) * (x[1]-x[2]) * (x[1]-x[3]))
-					   + y[2] * (xw-x[0]) * (xw-x[1]) * (xw-x[3])
-						      /((x[2]-x[0]) * (x[2]-x[1]) * (x[2]-x[3]))
-					   + y[3] * (xw-x[0]) * (xw-x[1]) * (xw-x[2])
-						      /((x[3]-x[0]) * (x[3]-x[1]) * (x[3]-x[2]));
-	
-					if ((xw < x[0] || xw > x[3])
-					 && fabs(ccdsum[k][i] - yw)/yw > dth[k]) {
-						ccdsum[k][i] = yw;
-					}
-					avg[k] += ccdsum[k][i];
-				}
-				avg[k] /= 128.0;
-			}
-
-#ifdef HIGH_RES_PLOT
-			/* Plot target CCD values */
-			{
-				double xx[128], y1[128], y2[128];
-	
-				for (i = 0; i < 128; i++) {
-					xx[i] = i;
-					y1[i] = ccdsum[0][i]/avg[0];
-					y2[i] = ccdsum[1][i]/avg[1];
-				}
-	
-				printf("Target and actual CCD weight sums:\n");
-				do_plot(xx, y1, y2, NULL, 128);
-			}
-#endif
-
-#ifdef DO_CCDNORMAVG	/* Just correct by average */
-			for (cx = j = 0; j < m->nwav[1]; j++) { /* For each wavelength */
-
-				/* For each matrix value */
-				sx = m->mtx_c[1][refl].index[j];		/* Starting index */
-				for (k = 0; k < m->mtx_c[1][refl].nocoef[j]; k++, cx++, sx++) {
-					m->mtx_c[1][refl].coef[cx] *= 10.0/twidth * avg[0]/avg[1];
-				}
-			}
-
-#else			/* Correct by CCD bin */
-
-			/* Correct the weighting of each CCD value in the hires output */
-			for (i = 0; i < 128; i++) {
-				ccdsum[1][i] = 10.0/twidth * ccdsum[0][i]/ccdsum[1][i];		/* Correction factor */
-			}
-			for (cx = j = 0; j < m->nwav[1]; j++) { /* For each wavelength */
-
-				/* For each matrix value */
-				sx = m->mtx_c[1][refl].index[j];		/* Starting index */
-				for (k = 0; k < m->mtx_c[1][refl].nocoef[j]; k++, cx++, sx++) {
-					m->mtx_c[1][refl].coef[cx] *= ccdsum[1][sx];
-				}
-			}
-#endif
-		}
-#endif /* DO_CCDNORM */
 
 #ifdef HIGH_RES_PLOT
 		{

@@ -155,13 +155,14 @@ typedef struct {
 	double *coef;		/* [nwav * mtx_nocoef] Matrix cooeficients to compute each wavelength */
 } i1pro_r2wtab;
 
-/* RevE capability bits */
-#define I1PRO_CAP2_AMBIENT		0x01		/* Has ambient measurement capability */	
-#define I1PRO_CAP2_WL_LED		0x02		/* Has wavelenght LED */	
-#define I1PRO_CAP2_UV_LED		0x04		/* Has Ultra Violet LED */	
-#define I1PRO_CAP2_ZEB_RUL		0x08		/* Has zerbra ruler sensor */	
-#define I1PRO_CAP2_IND_LED		0x10		/* Has indicator LEDs */
-#define I1PRO_CAP2_UV_FILT		0x20		/* Has Ultra Violet Filter */
+/* RevE capability bits stored in capabilities2 */
+/* (Letters in brackets may correspond with part number letters) */
+#define I1PRO_CAP2_AMBIENT		0x01		/* Has ambient measurement capability (L) */	
+#define I1PRO_CAP2_WL_LED		0x02		/* Has wavelenght LED (W) */	
+#define I1PRO_CAP2_UV_LED		0x04		/* Has Ultra Violet LED (not F ?) */	
+#define I1PRO_CAP2_ZEB_RUL		0x08		/* Has zerbra ruler sensor (Z) */	
+#define I1PRO_CAP2_IND_LED		0x10		/* Has user indicator LEDs (U) */
+#define I1PRO_CAP2_UV_FILT		0x20		/* Has Ultra Violet Filter (F) */
 
 /* I1PRO implementation class */
 struct _i1proimp {

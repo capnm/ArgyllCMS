@@ -10,6 +10,13 @@
  */
 
 /* TTBD:
+ * 
+ *	It would be nice to be able to select a data format as output for use with
+ *	other software, i.e. meshlab.
+ *
+ */
+
+/* NOTES:
 
 	X3DOM commands:
 

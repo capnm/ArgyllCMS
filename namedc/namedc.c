@@ -14,7 +14,7 @@
  */
 
 /*
- * Currently supports CxF2, CxF3 & ICC names color profiles.
+ * Currently supports CxF2, CxF3 & ICC named color profiles.
  */
 
 /*
@@ -118,16 +118,21 @@ static int pfxcmp(const char *s1, const char *s2) {
 /* XML data type callback for mxmlLoadFile() */
 static mxml_type_t
 type_cb(mxml_node_t *node) {
-	mxml_node_t *parent = mxmlGetParent(node);
-	const char *pname;
 	const char *name = node->value.element.name;
+	mxml_node_t *parent = mxmlGetParent(node);
+	const char *pname = NULL;
 
-	if (parent == NULL)
+	if (parent != NULL)
+		pname = parent->value.element.name;
+
+//	printf("~1 type_cb got node named '%s', parent '%s'\n",name,pname);
+
+	if (pname == NULL)
 		return MXML_TEXT;
 
-	pname = parent->value.element.name;
-
-//	printf("~1 type_cb got node named '%s'\n",name);
+	if (pfxcmp(pname, "ColorValues") == 0
+	 && pfxcmp(name, "ReflectanceSpectrum") == 0)
+		return MXML_REAL;
 
 	if ((pfxcmp(pname, "ColorCIELab") == 0
 	  || pfxcmp(pname, "ColorSpaceCIELab") == 0)
@@ -142,11 +147,6 @@ type_cb(mxml_node_t *node) {
 	  || pfxcmp(name, "Y") == 0
 	  || pfxcmp(name, "Z") == 0))
 		return MXML_REAL;
-
-	// ReflectanceSpectrum
-	// Example doesn't have NumPoints, Increment
-	// <ReflectanceSpectrum MeasureDate="2003-09-28T12:15:33-05:00"_ColorSpecification="CSD65-2" Name="45/0 Spectral" StartWL="400" NumPoints="31" Increment="10">
-	// 0.0580 0.0594 0.0594 0.0584 0.0581 0.0591 0.0599 0.0601 0.0603 0.0610 0.0634 0.0695 0.0760 0.0786 0.0798 0.0826 0.0897 0.1024 0.1197 0.1350 0.1434 0.1455 0.1499 0.1594 0.1721 0.1842 0.1913 0.1928 0.1878 0.1734 0.1704
 
 	if ((pfxcmp(pname, "ColorSRGB") == 0
 	  || pfxcmp(pname, "ColorSpaceSRGB") == 0)
@@ -299,6 +299,7 @@ static int read_cxf(namedc *p, const char *filename, int options) {
     mxml_node_t *tree, *cxf, *pnode, *node;
 	const char *attr, *name;
 	int cxf2 = 0;
+	int specmin = 0, specinc = 0;
 	int i, j;
 
 	a1logd(p->log, 1, "read_cxf: file '%s' options 0x%x\n",filename,options);
@@ -419,14 +420,34 @@ static int read_cxf(namedc *p, const char *filename, int options) {
 	
 		p->hash = do_hash2(p->filename, p->description);
 	}
-		
+
+	/* Look through the color specifications and see if there are spectral details */
+	pnode = mxmlFindPathNode(cxf, pfxp(p,"Resources/ColorSpecificationCollection/ColorSpecification/WavelengthRange"));
+	if (pnode == NULL)
+		pnode = mxmlFindPathNode(cxf, pfxp(p,"Resources/ColorSpecificationCollection/ColorSpecification/MeasurementSpec/WavelengthRange"));
+	while (pnode != NULL) {
+		name = mxmlElementGetAttr(pnode, "StartWL");
+		if (name != NULL) {
+			specmin = atoi(name);
+			a1logd(p->log, 2, "read_cxf: got StartWL %d\n",specmin);
+		}
+		name = mxmlElementGetAttr(pnode, "Increment");
+		if (name != NULL) {
+			specinc = atoi(name);
+			a1logd(p->log, 2, "read_cxf: got Increment %d\n",specinc);
+		}
+		pnode = mxmlGetNextSibling(pnode);
+	}
+
 	if ((p->options & NAMEDC_OP_NODATA) == 0) {
 		char *SampleKey = NULL;
 		char *SampleNameKey = NULL;
 		char *SampleLabKey = NULL;
+		const char *SpectSpecification = NULL;
 		char *SampleXYZKey = NULL;
 		char *SampleCMYKKey = NULL;
 		const char *colorSpecification = NULL;	/* cxf3 ColorSpecification of Lab or XYZ */
+		xsp2cie *sp2cie = NULL;
 
 		if (cxf2) {
 			/* Locate the Palette/ColorSet node */
@@ -467,6 +488,7 @@ static int read_cxf(namedc *p, const char *filename, int options) {
 			const char *name;
 			double Lab[3];
 			int Lab_v = 0;
+			xspect *sp = NULL;
 			double dev[MAX_CHAN];
 			int dev_n = 0;
 			icColorSpaceSignature devSig = icMaxEnumData;
@@ -518,9 +540,82 @@ static int read_cxf(namedc *p, const char *filename, int options) {
 				ppvals = node;
 			}
 
-			if ((p->options & NAMEDC_OP_NOSPEC) == 0) {
-				/* ~~~~9999 should look for spectral */
+			/* Read any spectral values */
+			if ((p->options & NAMEDC_OP_NOSPEC) == 0
+			 && (pvals = mxmlFindElement(ppvals, ppvals, pfx(p,"ReflectanceSpectrum"), NULL, NULL, MXML_DESCEND_FIRST)) != NULL) {
+				const char *elem = NULL;
+
+				a1logd(p->log, 4, "read_cxf: got ReflectanceSpectrum\n");
+
+				/* Check which color specification is being used with XYZ */
+				if (SpectSpecification == NULL) {
+					SpectSpecification = mxmlElementGetAttr(pvals, "ColorSpecification");
+					a1logd(p->log, 4, "read_cxf: got SpectSpecification '%s'\n",SpectSpecification); 
+				}
+
+				if ((elem = mxmlElementGetAttr(pvals, "StartWL")) != NULL) {
+					int minwl = 0;
+					a1logd(p->log, 4, "read_cxf: got StartWL '%s'\n",elem); 
+					minwl = atoi(elem);
+
+					if (specmin != 0) {
+						if (specmin != minwl) {
+							a1logd(p->log,1,"Inconsistent StartWL %d vs. %d from '%s'\n",specmin,minwl,p->filename);
+							goto skip_spectral;
+						}
+					} else {
+						specmin = minwl;
+					}
+				}
+
+				if ((elem = mxmlElementGetAttr(pvals, "Increment")) != NULL) {
+					int inc = 0;
+					a1logd(p->log, 4, "read_cxf: got Increment '%s'\n",elem); 
+					inc = atoi(elem);
+
+					if (specinc != 0) {
+						if (specinc != inc) {
+							a1logd(p->log,1,"Inconsistent Increment %d vs. %d from '%s'\n",specinc,inc,p->filename);
+							goto skip_spectral;
+						}
+					} else {
+						specinc = inc;
+					}
+				}
+
+				if (specmin == 0 || specinc == 0) {
+					a1logd(p->log,1,"Missing: specmin %d specinc %d from '%s'\n",specmin,specinc,p->filename);
+					goto skip_spectral;
+				}
+
+				/* mxml stashes multiple elements as children.. */
+				if ((val = mxmlGetFirstChild(pvals)) == NULL) {
+					a1logd(p->log,1,"No spectral values in '%s'\n",p->filename);
+					goto skip_spectral;
+				}
+
+				if ((sp = calloc(1, sizeof(xspect))) == NULL) {
+					snprintf(p->err, NAMEDC_ERRL, "Malloc of xspect failed");
+					a1logd(p->log, 1, "read_cxf: %s\n",p->err);
+					mxmlDelete(tree);
+					return p->errc = 2;
+				}
+
+				for (j = 0; j < XSPECT_MAX_BANDS; j++) {
+					sp->spec[j] = 100.0 * mxmlGetReal(val);
+					a1logd(p->log, 6, "read_cxf: got spect component %d value %f\n",j,sp->spec[j]);
+					val = mxmlGetNextSibling(val);
+					if (val == NULL)
+						break;
+				}
+				sp->spec_n = j+1;
+				sp->spec_wl_short = (double)specmin;
+				sp->spec_wl_long = (double)(specmin + (sp->spec_n-1) * specinc);
+				sp->norm = 100.0;
+
+				a1logd(p->log, 6, "read_cxf: wl num %d short %f long %f\n",sp->spec_n,sp->spec_wl_short,sp->spec_wl_long);
 			}
+		  skip_spectral:;
 
 			/* See if there is ColorCIELab */
 			if ((pvals = mxmlFindElement(ppvals, ppvals, pfx(p,SampleLabKey), NULL, NULL, MXML_DESCEND_FIRST)) != NULL) {
@@ -571,8 +666,8 @@ static int read_cxf(namedc *p, const char *filename, int options) {
 				}
 			}
 
-			if (!Lab_v) {
-				a1logd(p->log, DEB6, "read_cxf: no CIE value found - skipping color\n");
+			if (sp == NULL && !Lab_v) {
+				a1logd(p->log, DEB6, "read_cxf: no spectral or CIE value found - skipping color\n");
 				goto next;
 			}
 		
@@ -631,10 +726,28 @@ static int read_cxf(namedc *p, const char *filename, int options) {
 				return p->errc = 2;
 			}
 			
+			if (sp != NULL) {
+				p->data[p->count].sp = sp;
+			}
+
 			if (Lab_v) {
 				p->data[p->count].Lab[0] = Lab[0];
 				p->data[p->count].Lab[1] = Lab[1];
 				p->data[p->count].Lab[2] = Lab[2];
+				p->data[p->count].Lab_v = 1;
+
+			} else {
+
+				/* match() expects lab values */
+				if (sp2cie == NULL) {
+					if ((sp2cie = new_xsp2cie(p->ill, 0.0, NULL, p->obs, NULL, icSigLabData, 0)) == NULL) {
+						snprintf(p->err, NAMEDC_ERRL, "creating spectral conversion failed");
+						a1logd(p->log, 1, "read_cxf: %s\n",p->err);
+						mxmlDelete(tree);
+						return p->errc = 2;
+					}
+				}
+				sp2cie->convert(sp2cie, p->data[p->count].Lab, p->data[p->count].sp); 
 				p->data[p->count].Lab_v = 1;
 			}
 
@@ -1087,14 +1200,14 @@ int match(struct _namedc *p, double *de, double *pLab, xspect *rspect, int deTyp
 
 			if (p->sp2cie == NULL) {
 				if ((p->sp2cie = new_xsp2cie(p->ill, 0.0, NULL, p->obs, NULL, icSigLabData, 0)) == NULL) {
-					snprintf(p->err, NAMEDC_ERRL, "creating spetral conversion failed");
+					snprintf(p->err, NAMEDC_ERRL, "creating spectral conversion failed");
 					a1logd(p->log, 1, "match: %s\n",p->err);
 					return -1;
 					
 				}
 			}
 
-			/* Convert spectrum to the XYZ we want */
+			/* Convert spectrum to the Lab we want */
 			p->sp2cie->convert(p->sp2cie, Lab, rspect); 
 
 		} else {
@@ -1109,7 +1222,7 @@ int match(struct _namedc *p, double *de, double *pLab, xspect *rspect, int deTyp
 					xspect ts;
 					// Get the XYZ of the given white point for the illuminant and observer
 					if ((tt = new_xsp2cie(p->ill, 0.0, NULL, p->obs, NULL, icSigXYZData, 0)) == NULL) {
-						snprintf(p->err, NAMEDC_ERRL, "creating spetral conversion failed");
+						snprintf(p->err, NAMEDC_ERRL, "creating spectral conversion failed");
 						a1logd(p->log, 1, "match: %s\n",p->err);
 						return -1;
 					}

@@ -7091,6 +7091,7 @@ munki_code munki_create_hr(munki *p, int ref) {
 #ifdef DO_CCDNORM			/* Normalise CCD values to original */
 		{
 			double x[4], y[4];
+			int maxix[2];
 			double avg[2], max[2];
 			double ccdsum[2][128];			/* Target weight/actual for each CCD */
 			double dth[2];
@@ -7155,20 +7156,22 @@ munki_code munki_create_hr(munki *p, int ref) {
 			for (k = 0; k < 2; k++) {
 
 				for (i = 0; i < 128; i++) {
-					if (ccdsum[k][i] > max[k])
+					if (ccdsum[k][i] > max[k]) {
 						max[k] = ccdsum[k][i];
+						maxix[k] = i;
+					}
 				}
 
 //printf("~1 max[%d] = %f\n",k, max[k]);
 				/* Figure out the valid range */
-				for (i = 64; i >= 0; i--) {
+				for (i = maxix[k]; i >= 0; i--) {
 					if (ccdsum[k][i] > (0.8 * max[k])) {
 						x[0] = (double)i;
 					} else {
 						break;
 					}
 				}
-				for (i = 64; i < 128; i++) {
+				for (i = maxix[k]; i < 128; i++) {
 					if (ccdsum[k][i] > (0.8 * max[k])) {
 						x[3] = (double)i;
 					} else {

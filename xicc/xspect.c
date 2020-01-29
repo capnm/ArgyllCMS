@@ -5949,6 +5949,75 @@ icxClamping clamp				/* NZ to clamp XYZ/Lab to be +ve */
 	return p;
 }
 
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+/* Given a reflectance/transmittance spectrum, */
+/* an illuminant definition and an observer model, return */
+/* the XYZ value for that spectrum. */
+/* Return 0 on sucess, 1 on error */
+/* (One shot version of xsp2cie etc.) */
+int icx_sp2XYZ(
+double xyz[3],			/* Return XYZ value */
+icxObserverType obType,	/* Observer */
+xspect custObserver[3],	/* Optional custom observer */
+icxIllumeType ilType,	/* Type of illuminant, icxIT_[O]Dtemp or icxIT_[O]Ptemp */
+double ct,				/* Input temperature in degrees K */
+xspect *custIllum,		/* Optional custom illuminant */
+xspect *sp				/* Spectrum to be converted */
+) {
+	xsp2cie *conv;		/* Means of converting spectrum to XYZ */
+
+	if ((conv = new_xsp2cie(ilType, ct, custIllum, obType, custObserver, icSigXYZData, 1)) == NULL)
+		return 1;
+
+	conv->convert(conv, xyz, sp);
+
+	conv->del(conv);
+
+	return 0;
+}
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+/* Given an illuminant definition and an observer model, return */
+/* the normalised XYZ value for that spectrum. */
+/* Return 0 on sucess, 1 on error */
+/* (One shot version of xsp2cie etc.) */
+int icx_ill_sp2XYZ(
+double xyz[3],			/* Return XYZ value with Y == 1 */
+icxObserverType obType,	/* Observer */
+xspect custObserver[3],	/* Optional custom observer */
+icxIllumeType ilType,	/* Type of illuminant, icxIT_[O]Dtemp or icxIT_[O]Ptemp */
+double ct,				/* Input temperature in degrees K */
+xspect *custIllum,		/* Optional custom illuminant */
+int abs					/* If nz return absolute value in cd/m^2 or Lux */
+						/* else return Y = 1 normalised value */
+) {
+	xspect sp;			/* Xspect to fill in */
+	xsp2cie *conv;		/* Means of converting spectrum to XYZ */
+
+	if (ilType == icxIT_custom)
+		sp = *custIllum;
+	else if (standardIlluminant(&sp, ilType, ct) != 0)
+		return 1;
+
+	if ((conv = new_xsp2cie(icxIT_none, 0.0, NULL, obType, custObserver, icSigXYZData, 1)) == NULL)
+		return 1;
+
+	conv->convert(conv, xyz, &sp);
+
+	conv->del(conv);
+
+	if (!abs) {
+		/* Normalise */
+		xyz[0] /= xyz[1];
+		xyz[2] /= xyz[1];
+		xyz[1] /= xyz[1];
+	}
+
+	return 0;
+}
+
 
 #ifndef SALONEINSTLIB
 
@@ -8396,75 +8465,6 @@ double ct				/* Input temperature in degrees K */
 }
 
 #endif
-
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - */
-
-/* Given a reflectance/transmittance spectrum, */
-/* an illuminant definition and an observer model, return */
-/* the XYZ value for that spectrum. */
-/* Return 0 on sucess, 1 on error */
-/* (One shot version of xsp2cie etc.) */
-int icx_sp2XYZ(
-double xyz[3],			/* Return XYZ value */
-icxObserverType obType,	/* Observer */
-xspect custObserver[3],	/* Optional custom observer */
-icxIllumeType ilType,	/* Type of illuminant, icxIT_[O]Dtemp or icxIT_[O]Ptemp */
-double ct,				/* Input temperature in degrees K */
-xspect *custIllum,		/* Optional custom illuminant */
-xspect *sp				/* Spectrum to be converted */
-) {
-	xsp2cie *conv;		/* Means of converting spectrum to XYZ */
-
-	if ((conv = new_xsp2cie(ilType, ct, custIllum, obType, custObserver, icSigXYZData, 1)) == NULL)
-		return 1;
-
-	conv->convert(conv, xyz, sp);
-
-	conv->del(conv);
-
-	return 0;
-}
-
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - */
-
-/* Given an illuminant definition and an observer model, return */
-/* the normalised XYZ value for that spectrum. */
-/* Return 0 on sucess, 1 on error */
-/* (One shot version of xsp2cie etc.) */
-int icx_ill_sp2XYZ(
-double xyz[3],			/* Return XYZ value with Y == 1 */
-icxObserverType obType,	/* Observer */
-xspect custObserver[3],	/* Optional custom observer */
-icxIllumeType ilType,	/* Type of illuminant, icxIT_[O]Dtemp or icxIT_[O]Ptemp */
-double ct,				/* Input temperature in degrees K */
-xspect *custIllum,		/* Optional custom illuminant */
-int abs					/* If nz return absolute value in cd/m^2 or Lux */
-						/* else return Y = 1 normalised value */
-) {
-	xspect sp;			/* Xspect to fill in */
-	xsp2cie *conv;		/* Means of converting spectrum to XYZ */
-
-	if (ilType == icxIT_custom)
-		sp = *custIllum;
-	else if (standardIlluminant(&sp, ilType, ct) != 0)
-		return 1;
-
-	if ((conv = new_xsp2cie(icxIT_none, 0.0, NULL, obType, custObserver, icSigXYZData, 1)) == NULL)
-		return 1;
-
-	conv->convert(conv, xyz, &sp);
-
-	conv->del(conv);
-
-	if (!abs) {
-		/* Normalise */
-		xyz[0] /= xyz[1];
-		xyz[2] /= xyz[1];
-		xyz[1] /= xyz[1];
-	}
-
-	return 0;
-}
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - */
 /* Aproximate CCT using polinomial. No good < 3000K */

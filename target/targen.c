@@ -18,6 +18,8 @@
 
 /* TTBD:
 
+	Include command line aruments in resulting .ti1 file.
+
 	Should add an option to generate other PCS based pattern
 	test points based on the previous profile. (i.e. near neutral
 	clusters ?)
@@ -120,7 +122,7 @@
 #define DEMPH_DEFAULT 1.0	/* Default dark region emphasis == none */
 #define DEFANGLE 0.3333	/* For simdlat and simplat */
 #define SIMDLAT_TYPE SIMDLAT_BCC	/* Simdlat geometry type */
-#define MATCH_TOLL 1e-3	/* Tollerance of device value to consider a patch a duplicate */
+#define MATCH_TOLL 1e-4	/* Tollerance of device value to consider a patch a duplicate */
 
 /* Display rise and fall time delay model. This is CRT like */
 #define DISPLAY_RISE_TIME DISPTECH_WORST_RISE		/* Assumed rise time to 90% of target level */ 
@@ -567,9 +569,9 @@ pcpt_rLab_to_dev(pcpt *s, double *out, double *in) {
 
 	/* Filter out silly values */
 	for (e = 0; e < di; e++) {
-		if (out[e] <= 0.02)
+		if (out[e] <= 0.005)
 			out[e] = 0.0;
-		else if (out[e] >= 0.98)
+		else if (out[e] >= 0.995)
 			out[e] = 1.0;
 	}
 //printf("~1 returning device values %f %f %f\n",out[0],out[1],out[2]);

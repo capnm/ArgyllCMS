@@ -347,7 +347,7 @@ int     *pivx		/* Pivoting row permutations record */
 /* Return 1 if the matrix is singular, 0 if OK */
 int
 lu_invert(
-double **a,	/* A[][] input matrix, returns inversion of A */
+double **a,	/* A[][] input matrix, returns inversion of A transposed*/ 
 int      n	/* Dimensionality */
 ) {
 	int i, j;
@@ -388,6 +388,23 @@ int      n	/* Dimensionality */
 		free_ivector(pivx, 0, n-1);
 
 	return 0;
+}
+
+/* Invert a matrix A using lu decomposition */
+/* The normal convention (NOT transpose) inverse is returned */
+/* Return 1 if the matrix is singular, 0 if OK */
+int
+lu_invert_normal(
+double **a,	/* A[][] input matrix, returns inversion of A */
+int      n	/* Dimensionality */
+) {
+	int rv;
+
+	if ((rv = lu_invert(a, n)) != 0)
+		return rv;
+	sym_matrix_trans(a, n);
+
+	return rv;
 }
 
 /* Invert a matrix A using lu decomposition, and polish it. */

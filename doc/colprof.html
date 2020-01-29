@@ -67,6 +67,8 @@
 
 
 
+
+
       &nbsp; &nbsp; &nbsp; &nbsp; Verbose mode<br>
       &nbsp;<a href="#A">-A "manufacturer"</a>&nbsp; Set the
       manufacturer description string<br>
@@ -85,12 +87,14 @@
       &nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Default intent:
       Perceptual, Rel. Colorimetric, Saturation, Abs. Colorimetric</tt><tt><br>
     </tt><tt> </tt><tt>&nbsp;<a href="#q">-q lmhu</a> &nbsp;&nbsp;
-      &nbsp; &nbsp; &nbsp;&nbsp;&nbsp; Quality - Low, Medium (def),
-      High, Ultra<br>
+      &nbsp; &nbsp; &nbsp;&nbsp;&nbsp; Table resolution - Low, Medium
+      (def), High, Ultra<br>
       &nbsp;<a href="#b">-b [lmhun]</a>&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;
       &nbsp; Low quality B2A table - or specific B2A quality or none for
       input device<br>
       &nbsp;<a href="#ni">-ni</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -197,6 +201,8 @@
 
 
 
+
+
       &nbsp; &nbsp; &nbsp; &nbsp; Don't create output (PCS) shaper
       curves<br>
     </tt><tt>&nbsp;<a href="#nc">-nc</a>
@@ -235,14 +241,22 @@
       Algorithm type override<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
+
+
       l = Lab cLUT (def.), x = XYZ cLUT,<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
       X = display XYZ cLUT + matrix, Y = display XYZ cLUT + debug matrix<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
+
+
       g = gamma+matrix, s = shaper+matrix, m = matrix only,<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
       G = single gamma+matrix, S = single shaper+matrix<br>
       &nbsp;<a href="#u">-u</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
@@ -250,6 +264,8 @@
 &nbsp;
 &nbsp;
 &nbsp;
+
+
 
 
 
@@ -360,8 +376,12 @@ and
 
 
 
+
+
       primaries to be +ve</tt><tt><br>
       &nbsp;<a href="#B">-B X,Y,Z</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -420,12 +440,16 @@ and
 
 
 
+
+
       Degree of dark region cLUT grid emphasis 1.0-3.0 (default 1.00 =
       none)<br>
     </tt><tt>&nbsp;</tt><tt><a href="#f">-f [<i>illum</i>]</a>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Use Fluorescent
       Whitening Agent compensation [opt. simulated inst. illum.:<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -540,9 +564,13 @@ and
 
 
 
+
+
       Use colormetric source gamut to make output profile perceptual
       table<br>
       &nbsp;<a href="#nS">-nS</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -604,6 +632,8 @@ and
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Override gamut mapping
       intent for output profile perceptual table:<br>
       &nbsp;<a href="#T">-T intent</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -722,8 +752,12 @@ and
 
 
 
+
+
       pa - Perceptual Appearance</tt><br>
     <tt><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -789,8 +823,12 @@ and
 
 
 
+
+
       rl - White Point Matched Colorimetric (Lab)<br>
       &nbsp;<a href="#c">-c viewcond</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -894,8 +932,12 @@ and
 
 
 
+
+
       either an enumerated choice, or a parameter<br>
       &nbsp;<a href="#d">-d viewcond</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -999,8 +1041,12 @@ and
 
 
 
+
+
       either an enumerated choice, or a parameter:value change<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -1103,11 +1149,15 @@ and
 
 
 
+
+
       Enumerated Viewing Conditions:<br>
     </tt><tt>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;
       &nbsp; </tt><tt><tt>pc - Critical print evaluation environment
         (ISO-3664 P1)</tt><tt><br>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -1144,6 +1194,8 @@ and
       &nbsp; &nbsp;&nbsp;&nbsp; s:surround n = auto, a = average, m =
       dim, d = dark,<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -1257,6 +1309,8 @@ and
 
 
 
+
+
         g:glare&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Glare light % of
         ambient (default 5)</span><br style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp; &nbsp; &nbsp; &nbsp;
@@ -1278,6 +1332,8 @@ and
               effect scale factor (default 1.0)<br>
             </span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
             &nbsp;&nbsp; </span><span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -1352,9 +1408,13 @@ and
 
 
 
+
+
       Create gamut gammap_p.x3d.html and gammap_s.x3d.html diagostics<br>
     </tt><tt>&nbsp;<a href="#O">-O outputfile</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Override
+
+
 
 
 
@@ -1479,7 +1539,7 @@ Override
     default intent that they will use.<br>
     <br>
     <a name="q"></a> The <b>-q</b> parameter sets the level of effort
-    and/or detail in the resulting profile. For table based profiles
+    and/or resolution in the resulting profile. For table based profiles
     ("cLUT" profiles), it sets the main lookup table size, and hence
     detail in the resulting profile. For matrix profiles it sets the per
     channel curve detail level and fitting "effort". It is <span
@@ -1579,10 +1639,14 @@ the
 
 
 
+
+
     device and CIE/spectral sample data and calibration curves used to
     create a profile is stored in the <span style="font-weight: bold;">'targ'</span>
     text tag in the resulting ICC profile. To suppress this and make the
     resulting profile smaller, use the <span style="font-weight: bold;">-nc
+
+
 
 
 
@@ -1720,9 +1784,13 @@ the
 
 
 
+
+
       |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; &nbsp;
       &nbsp;_______&nbsp; enle<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -1825,8 +1893,12 @@ the
 
 
 
+
+
       |&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; &nbsp; /<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -1929,6 +2001,8 @@ the
 
 
 
+
+
       |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; /<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
       stle&nbsp; | ------/<br>
@@ -1939,6 +2013,8 @@ the
       stpo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 1.0<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
 
@@ -2219,6 +2295,8 @@ White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
     using, you should specify the spectrum of the illuminant you are <span
       style="text-decoration: underline;">actually using</span> for the
     proofing, including its <span style="text-decoration: underline;">Ultra
+
+
 
 
 
@@ -2618,8 +2696,9 @@ White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
     Unix platforms). The <span style="font-weight: bold;">-O</span>
     parameter will override this default.<br>
     <br>
-    For information on typical usage, see the <a
-      href="file:///Users/graeme/src/argyll/doc/Scenarios.html">Typical
+    For information on typical usage, see the <a href="Scenarios.html">Typical
+
+
       Usage Scenarios</a> page.
     <h3><a name="Di"></a>Discussion</h3>
     Note that monochrome profiling isn't currently supported. It may be

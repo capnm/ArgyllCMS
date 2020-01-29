@@ -22,14 +22,12 @@
 /* TTBD
  *
  *  Add option to automatically read continuously, until stopped. (A bit like -O)
-
+ *
  *	Make -V average the spectrum too (if present), and allow it to
  *  be saved to a .sp file.
  *
  *  Should fix plot so that it is a separate object running its own thread,
  *  so that it can be sent a graph without needing to be clicked in all the time.
- *
- *  Should add option to show reflective/tranmsission density values.
  *
  *  Should add option for Y u' v' values.
  */
@@ -484,6 +482,7 @@ usage(char *diag, ...) {
 	fprintf(stderr," -pw                  Use projector white point relative chromatically adjusted mode\n");
 	fprintf(stderr," -a                   Use ambient measurement mode (absolute results)\n");
 	fprintf(stderr," -f                   Use ambient flash measurement mode (absolute results)\n");
+	fprintf(stderr," -rw                  Use reflection white point relative chromatically adjusted mode\n");
 	cap2 = inst_show_disptype_options(stderr, " -y                   ", icmps, 0);
 #ifndef SALONEINSTLIB
 	fprintf(stderr," -I illum             Set simulated instrument illumination using FWA (def -i illum):\n");
@@ -522,6 +521,7 @@ usage(char *diag, ...) {
 	fprintf(stderr," -V                   Show running average and std. devation from ref.\n");
 #ifndef SALONEINSTLIB
 	fprintf(stderr," -T                   Display correlated color temperatures, CRI, TLCI & IES TM-30-15\n");
+	fprintf(stderr," -d                   Display density values\n");
 #endif /* !SALONEINSTLIB */
 //	fprintf(stderr," -K type              Run instrument calibration first\n");
 	fprintf(stderr," -N                   Disable auto calibration of instrument\n");
@@ -568,6 +568,7 @@ int main(int argc, char *argv[]) {
 									/* 2 = + also save result to outspname */
 	int pspec = 0;					/* 1 = Print out the spectrum for each reading */
 									/* 2 = Plot out the spectrum for each reading */
+	int refwr = 0;					/* Reflection mode white relative mode */
 	int trans = 0;					/* Use transmissioin mode */
 	int emiss = 0;					/* 1 = Use emissive mode, 2 = display bright rel. */
 	                                /* 3 = display white rel. */
@@ -587,6 +588,7 @@ int main(int argc, char *argv[]) {
 	int doYuv= 0;					/* Display Yuv instead of Lab */
 #endif
 	int doCCT= 0;					/* Display correlated color temperatures */
+	int doDensity= 0;				/* Display density values */
 	inst_mode mode = 0, smode = 0;	/* Normal mode and saved readings mode */
 	inst_opt_type trigmode = inst_opt_unknown;	/* Chosen trigger mode */
 	inst_opt_filter fe = inst_opt_filter_unknown;
@@ -853,10 +855,7 @@ int main(int argc, char *argv[]) {
 				ambient = 0;		/* Default normal diffuse/90 geometry trans. */
 
 			/* Request emissive measurement */
-			} else if (argv[fa][1] == 'e' || argv[fa][1] == 'd') {
-
-				if (argv[fa][1] == 'd')
-					warning("spotread -d flag is deprecated");
+			} else if (argv[fa][1] == 'e') {
 
 				emiss = 1;
 				trans = 0;
@@ -869,7 +868,7 @@ int main(int argc, char *argv[]) {
 					else if (argv[fa][2] == 'w' || argv[fa][2] == 'W')
 						emiss = 3;
 					else
-						usage("-d modifier '%c' not recognised",argv[fa][2]);
+						usage("-e modifier '%c' not recognised",argv[fa][2]);
 				}
 
 			/* Request telephoto measurement */
@@ -907,6 +906,21 @@ int main(int argc, char *argv[]) {
 				trans = 0;
 				tele = 0;
 				ambient = 2;
+
+			/* Request reflective white point relative measurement */
+			} else if (argv[fa][1] == 'r') {
+
+				emiss = 0;
+				trans = 0;
+				tele = 0;
+				ambient = 0;
+
+				if (argv[fa][2] != '\000') {
+					if (argv[fa][2] == 'w' || argv[fa][2] == 'W')
+						refwr = 1;
+					else
+						usage("-r modifier '%c' not recognised",argv[fa][2]);
+				}
 
 			/* Filter configuration */
 			} else if (argv[fa][1] == 'F') {
@@ -977,6 +991,11 @@ int main(int argc, char *argv[]) {
 			/* Show CCT etc. */
 			} else if (argv[fa][1] == 'T') {
 				doCCT = 1;
+
+			/* Show densities */
+			} else if (argv[fa][1] == 'd') {
+				doDensity = 1;
+
 #endif /* !SALONEINSTLIB */
 
 			/* Manual calibration */
@@ -1768,6 +1787,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (spec || psetrefname[0] != '\000') {
+
 		/* Any non-illuminated mode has no illuminant */
 		if (emiss || ambient)
 			illum = icxIT_none;
@@ -2059,7 +2079,7 @@ int main(int argc, char *argv[]) {
 				} else {
 
 					/* If this is display white brightness relative, read the white */
-					if ((emiss > 1  || tele > 1) && wXYZ[0] < 0.0)
+					if ((refwr != 0 || emiss > 1 || tele > 1) && wXYZ[0] < 0.0)
 						printf("\nPlace instrument on white reference spot,\n");
 					else {
 						printf("\nPlace instrument on spot to be measured,\n");
@@ -2757,7 +2777,7 @@ int main(int argc, char *argv[]) {
 			Lab2LCh(LCh, Lab);
 #endif /* SALONEINSTLIB */
 
-			if (emiss > 1 || tele > 1) {
+			if (refwr != 0 || emiss > 1 || tele > 1) {
 				if (wXYZ[0] < 0.0) {		/* If we haven't save a white ref. yet */
 					if (XYZ[1] < 10.0)
 						error ("White of XYZ %f %f %f doesn't seem reasonable",XYZ[0], XYZ[1], XYZ[2]);
@@ -2782,7 +2802,7 @@ int main(int argc, char *argv[]) {
 					XYZ[2] = 100.0 * XYZ[2] / wXYZ[1];
 				} 
 #ifndef SALONEINSTLIB
-				  else {	/* emiss == 3, white point relative */
+				  else {	/* refwr != 0 || emiss == 3, white point relative */
 
 					/* Normalize to white and scale to 0..100 */
 					icmMulBy3x3(XYZ, chmat, XYZ);
@@ -2946,7 +2966,26 @@ int main(int argc, char *argv[]) {
 				tm3015_plot(bins);
 #endif
 			}
-#endif
+			
+			if (sp.spec_n > 0 && doDensity) {
+				double den[4];
+
+				xsp_density(den, &sp, icxDT_ISO);
+				printf("ISO Vis, Type 1, Type 2 Density: %f %f %f\n", den[0],den[1],den[2]);
+
+				xsp_density(den, &sp, icxDT_A);
+				printf("Status A CMYV Density: %f %f %f %f\n", den[0], den[1], den[2], den[3]);
+
+				xsp_density(den, &sp, icxDT_M);
+				printf("Status M CMYV Density: %f %f %f %f\n", den[0], den[1], den[2], den[3]);
+
+				xsp_density(den, &sp, icxDT_T);
+				printf("Status T CMYV Density: %f %f %f %f\n", den[0], den[1], den[2], den[3]);
+
+				xsp_density(den, &sp, icxDT_E);
+				printf("Status E CMYV Density: %f %f %f %f\n", den[0], den[1], den[2], den[3]);
+			}
+#endif	/* !SALONEINSTLIB */
 
 			/* Save reading to the log file */
 			if (fp != NULL) {

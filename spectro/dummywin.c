@@ -205,7 +205,7 @@ dispwin *p
 
 /* ----------------------------------------------- */
 
-/* Create a web display test window, default grey */
+/* Create a dummy display test window, default grey */
 dispwin *new_dummywin(
 double width, double height,	/* Width and height in mm - turned into % of screen */
 double hoff, double voff,		/* Offset from center in fraction of screen - ignored */

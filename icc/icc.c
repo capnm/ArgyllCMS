@@ -14674,6 +14674,27 @@ double icmDot22(double in1[2], double in2[2], double in3[2], double in4[2]) {
 	     + (in2[1] - in1[1]) * (in4[1] - in3[1]);
 }
 
+/* Normalise a 2 vector to the given length. Return nz if not normalisable */
+int icmNormalize2(double out[2], double in[2], double len) {
+	double tt = sqrt(in[0] * in[0] + in[1] * in[1]);
+	
+	if (tt < ICM_SMALL_NUMBER)
+		return 1;
+	tt = len/tt;
+	out[0] = in[0] * tt;
+	out[1] = in[1] * tt;
+	return 0;
+}
+
+/* Return an orthogonal vector */
+/* (90 degree rotate = swap and negate X ) */
+void icmOrthog2(double out[2], double in[2]) {
+	double tt;
+	tt = in[0];
+	out[0] = -in[1];
+	out[1] = tt;
+}
+
 /* Given 2 2D points, compute a plane equation (implicit line equation). */
 /* The normal will be right handed given the order of the points */
 /* The plane equation will be the 2 normal components and the constant. */
@@ -14805,7 +14826,7 @@ int icmLineIntersect2(double res[2], double p1[2], double p2[2], double p3[2], d
 }
 
 /* Given two finite 2D lines define by 4 points, compute their paramaterized intersection. */
-/* aprm may be NULL. Param is prop. from p1 -> p2, p3 -> p4 */
+/* res[] and/or aprm[] may be NULL. Param is prop. from p1 -> p2, p3 -> p4 */
 /* Return 2 if there is no intersection (lines are parallel) */
 /* Return 1 lines do not cross within their length */
 int icmParmLineIntersect2(double res[2], double aprm[2], double p1[2], double p2[2], double p3[2], double p4[2]) {

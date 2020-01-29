@@ -17,6 +17,9 @@
 
 /* TTBD
  *
+ * Should sanity check calibrations before installing them and issue warning
+ * if they will make display unusable.
+ *
  * OS X Night Shift interferes with calibration & profiling. Can it be detected
  * or turned off progromatically ?
  * - Seems to be controlled by CoreBrightness Framework.
@@ -1359,6 +1362,7 @@ static ramdac *dispwin_get_ramdac(dispwin *p) {
 	r->nent   = p->nent;
 	r->clone  = dispwin_clone_ramdac;
 	r->setlin = dispwin_setlin_ramdac;
+	r->sane   = dispwin_sane_ramdac;
 	r->del =    dispwin_del_ramdac;
 
 	for (j = 0; j < 3; j++) {
@@ -1422,8 +1426,9 @@ static ramdac *dispwin_get_ramdac(dispwin *p) {
 	r->rdepth = p->rdepth;
 	r->ndepth = p->ndepth;
 	r->nent   = p->nent;
-	r->clone =  dispwin_clone_ramdac;
+	r->clone  = dispwin_clone_ramdac;
 	r->setlin = dispwin_setlin_ramdac;
+	r->sane   = dispwin_sane_ramdac;
 	r->del =    dispwin_del_ramdac;
 	for (j = 0; j < 3; j++) {
 
@@ -1538,6 +1543,7 @@ static ramdac *dispwin_get_ramdac(dispwin *p) {
 	r->nent   = p->nent;
 	r->clone  = dispwin_clone_ramdac;
 	r->setlin = dispwin_setlin_ramdac;
+	r->sane   = dispwin_sane_ramdac;
 	r->del = dispwin_del_ramdac;
 	for (j = 0; j < 3; j++) {
 
@@ -1833,11 +1839,21 @@ static void *cur_colorsync_ref(dispwin *p) {
 /* Return 2 for OS X when the current profile is a system profile */
 static int dispwin_set_ramdac(dispwin *p, ramdac *r, int persist) {
 	int i, j;
-
 #ifdef NT
 	WORD vals[3][256];		/* 16 bit elements */
+#endif
+#if defined(UNIX_X11)
+	unsigned short vals[3][16384];
+#endif
 
 	debugr("dispwin_set_ramdac called\n");
+
+	if (!r->sane(r)) {
+		debugr("dispwin_set_ramdac: calibration isn't sane\n");
+		return 1;
+	}
+
+#ifdef NT
 
 #ifdef NEVER	/* Doesn't seem to return correct information on win2K systems */
 	if ((GetDeviceCaps(p->hdc, COLORMGMTCAPS) & CM_GAMMA_RAMP) == 0) {
@@ -1872,8 +1888,6 @@ static int dispwin_set_ramdac(dispwin *p, ramdac *r, int persist) {
 	{		/* Transient first */
 		CGGammaValue vals[3][16384];
 	
-		debugr("dispwin_set_ramdac called\n");
-
 		for (j = 0; j < 3; j++) {
 			for (i = 0; i < r->nent; i++) {
 				double vv = r->v[j][i];
@@ -2305,9 +2319,6 @@ static int dispwin_set_ramdac(dispwin *p, ramdac *r, int persist) {
 #endif /* UNIX_APPLE */
 
 #if defined(UNIX_X11)
-	unsigned short vals[3][16384];
-
-	debugr("dispwin_set_ramdac called\n");
 
 	for (j = 0; j < 3; j++) {
 		for (i = 0; i < r->nent; i++) {
@@ -2431,6 +2442,29 @@ void dispwin_setlin_ramdac(ramdac *r) {
 			r->v[j][i] = val;
 		}
 	}
+}
+
+/* Check if the lut has sane display values. */
+/* We check for monotonicity and a minimum contrast between */
+/* black and white */
+/* Return 0 if not sane */
+int dispwin_sane_ramdac(ramdac *r) {
+	int i, j;
+	int sane = 1;
+
+	debug("dispwin_sane_ramdac called\n");
+	for (i = 1; i < r->nent; i++) {
+		for (j = 0; j < 3; j++) {
+			if (r->v[j][i] - r->v[j][i-1] < -0.05)		/* Goes 5% backwards */
+				sane = 0;
+		}
+	}
+	for (j = 0; j < 3; j++) {
+		if ((r->v[j][r->nent-1] - r->v[j][0]) < 0.1)	/* Has less than 10% overal contrast */
+			sane = 0; 
+	}
+
+	return sane;
 }
 
 /* We're done with a ramdac structure */
@@ -2595,6 +2629,12 @@ int dispwin_checkfor_colord(dispwin *p) {
 /* Return nz if failed */
 int dispwin_install_profile(dispwin *p, char *fname, ramdac *r, p_scope scope) {
 	debugr2((errout,"dispwin_install_profile '%s'\n",fname));
+
+	if (r != NULL && !r->sane(r)) {
+		debugr("dispwin_install_profile: calibration isn't sane\n");
+		return 1;
+	}
+
 #ifdef NT
 	{
 		char *fullpath;

@@ -49,12 +49,14 @@
 
 
 
+
       Verbose</span><br style="font-family: monospace;">
     &nbsp; <span style="font-family: monospace;">-d
       sres&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Surface resolution
       details 1.0 - 50.0</span><br style="font-family: monospace;">
     <span style="font-family: monospace;">&nbsp;-w&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 emit
+
 
 
 
@@ -73,10 +75,12 @@ Don't
 
 
 
+
       add X3DOM axes or white/black point</span><br style="font-family:
       monospace;">
     <span style="font-family: monospace;">&nbsp;-k&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Add
+
 
 
 
@@ -100,6 +104,7 @@ s
 
 
 
+
       = saturation, a = absolute (default), d = profile default</span><span
       style="font-family: monospace;"></span><br style="font-family:
       monospace;">
@@ -109,6 +114,7 @@ s
       matrix &gt; monochrome)</span><br style="font-family: monospace;">
     <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 r
+
 
 
 
@@ -137,6 +143,7 @@ either
 
 
 
+
       an enumerated choice, or a parameter:value change</span><span
       style="font-family: monospace;"></span><br style="font-family:
       monospace;">
@@ -144,6 +151,7 @@ either
       &nbsp; &nbsp;&nbsp; &nbsp; </tt><tt><tt>pc - Critical print
         evaluation environment (ISO-3664 P1)</tt><tt><br>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </tt>pp
+
       - Practical Reflection Print (ISO-3664 P2)<br>
       &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; &nbsp; pe - Print evaluation
       environment (CIE 116-1995)<br>
@@ -155,6 +163,7 @@ either
       style="font-family: monospace;">
     <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;
+
 
 
 
@@ -191,10 +200,12 @@ s:surround&nbsp;&nbsp;
 
 
 
+
       n = auto, a = average, m = dim, d = dark,</span><br
       style="font-family: monospace;">
     <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;
+
 
 
 
@@ -213,10 +224,12 @@ w:X:Y:Z&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
+
       Adapted white point as XYZ (default media white)</span><br
       style="font-family: monospace;">
     <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 w:x:y&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -235,10 +248,12 @@ a:adaptation
 
 
 
+
       Adaptation luminance in cd.m^2 (default 50.0)</span><br
       style="font-family: monospace;">
     <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 b:background
+
 
 
 
@@ -256,6 +271,7 @@ b:background
         luminance (default 1)<br>
       </span>&nbsp;</span><span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
+
       g:glare&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Glare light % of ambient
       (default 5)</span><br style="font-family: monospace;">
     <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp; &nbsp;
@@ -269,15 +285,18 @@ b:background
 
 
 
+
       g:x:y&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Glare color as x,
       y</span><br>
     <span style="font-family: monospace;"><tt><span style="font-family:
           monospace;"><tt><span style="font-family: monospace;"><span
                 style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
+
                 h:hkscale&nbsp;&nbsp;&nbsp; Helmholtz-Kohlrausch effect
                 scale factor (default 1.0)<br>
               </span></span><span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -288,10 +307,12 @@ b:background
               style="font-family: monospace;">
             <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
+
               m:X:Y:Z&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Mid-tone Adaptation
               white as XYZ (default D50)</span><br style="font-family:
               monospace;">
             <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
               m:x:y&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Mid-tone
               Adaptation white as x, y</span></tt></span></tt><br>
@@ -300,7 +321,12 @@ b:background
         pcent&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Expand/compress gamut
         cylindrically by percent</span><br>
       &nbsp;-O outputfile Override the default output filename &amp;
-      extension.</span><small><span style="font-family: monospace;"><br
+      extension.</span><small><span style="font-family: monospace;"><br>
+        &nbsp;[profile.icm | embedded.tif/jpg]&nbsp;&nbsp;&nbsp;&nbsp;
+        File specifying device to CIE conversion<br>
+        &nbsp;infile1.tif/jpg
+        ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        One or more raster files to create gamut from<br
           style="font-family: monospace;">
       </span></small><br>
     <h3>Usage Details and Discussion<br>

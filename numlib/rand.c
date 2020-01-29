@@ -71,8 +71,7 @@ double norm_rand(void) {
 void rand_init(rand_state *p) {
 	if (p == NULL)
 		p = &g_rand;
-	p->pvs_inited = 0;
-	p->ran = 0;
+	memset((void *)p, 0, sizeof(rand_state));
 }
 
 /* Return a 32 bit number between 0 and 4294967295 */
@@ -88,7 +87,7 @@ unsigned int seed		/* Optional seed. Non-zero re-initialized with that seed */
 
 	if (seed != 0) {
 //printf("~1 rand 0x%x seed 0x%x\n",p,seed);
-		p->pvs_inited = 0;
+		rand_init(p);
 		p->ran = seed;
 	}
 

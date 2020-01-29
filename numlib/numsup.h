@@ -1,6 +1,9 @@
 #ifndef NUMSUP_H
 
-/* Numerical routine general support declarations */
+/*
+ * Numerical routine general support declarations
+ * + other common Argyll wide support functions.
+ */
 
 /*
  * Copyright 2000-2010 Graeme W. Gill
@@ -8,6 +11,15 @@
  *
  * This material is licenced under the GNU GENERAL PUBLIC LICENSE Version 2 or later :-
  * see the License2.txt file for licencing details.
+ */
+
+/*
+ * TTBD:
+ *
+ * Would be good to have a safe C string library availble, to simplify
+ * string handling and provide UTF8/16 bit support.
+ * See mgs/casting/str.hpp and sds library.
+ *
  */
 
 #include <stdio.h>
@@ -463,7 +475,7 @@ void matrix_trans(double **d, double **s, int nr,  int nc);
 /* Transpose a 0 base symetrical matrix in place */
 void sym_matrix_trans(double **m, int n);
 
-/* Matrix multiply 0 based matricies */
+/* Matrix multiply 0 based matricies together */
 int matrix_mult(
 	double **d,  int nr,  int nc,
 	double **s1, int nr1, int nc1,
@@ -477,6 +489,14 @@ int matrix_trans_mult(
 	double **d,  int nr,  int nc,
 	double **ts1, int nr1, int nc1,
 	double **s2, int nr2, int nc2
+);
+
+/* Matrix multiply s1 by transpose of s2 */
+/* 0 based matricies,  */
+int matrix_mult_trans(
+	double **d,  int nr,  int nc,
+	double **s1, int nr1, int nc1,
+	double **ts2, int nr2, int nc2
 );
 
 /* Multiply a 0 based matrix by a vector */
@@ -495,11 +515,24 @@ int matrix_trans_vect_mult(
 	double *v, int nv
 );
 
+/* Add 0 based matricies */
+void matrix_add(double **d,  double **s1, double **s2, int nr,  int nc);
+
+/* Add scaled 0 based matricies */
+void matrix_scaled_add(double **d,  double **s1, double scale, double **s2, int nr,  int nc);
+
+/* Copy a 0 base matrix */
+void matrix_cpy(double **d, double **s, int nr,  int nc);
+
+/* Set a 0 base matrix */
+void matrix_set(double **d, double v, int nr,  int nc);
+
+/* Return the maximum absolute difference between any corresponding elemnt */
+double matrix_max_diff(double **d, double **s, int nr,  int nc);
+
+
 /* Set zero based dvector */
 void vect_set(double *d, double v, int len);
-
-/* Copy zero based dvector */
-void vect_cpy(double *d, double *s, int len);
 
 /* Copy zero based dvector */
 #define vect_cpy(dd, ss, len) memmove((char *)(dd), (char *)(ss), (len) * sizeof(double))
@@ -528,6 +561,9 @@ void vect_invert(double *d, double *s, int len);
 /* Multiply the elements of two vectors, d = s1 * s2 */
 void vect_mul3(double *d, double *s1, double *s2, int len);
 
+/* Divide the elements of two vectors, d = s1 / s2 */
+void vect_div3(double *d, double *s1, double *s2, int len);
+
 /* Blend two vectors, d = bl * s1 + (1 - bl) * s2 */
 /* Blend between s0 and s1 for bl 0..1 */
 void vect_blend(double *d, double *s0, double *s1, double bl, int len);
@@ -545,6 +581,9 @@ double vect_dot(double *s1, double *s2, int len);
 /* Return the vectors magnitude (norm) */
 double vect_mag(double *s, int len);
 
+/* Return the vectors magnitude squared (norm squared) */
+double vect_magsq(double *s, int len);
+
 /* Return the magnitude (norm) of the difference between two vectors */
 double vect_diffmag(double *s1, double *s2, int len);
 
@@ -561,6 +600,12 @@ void vect_abs(double *d, double *s, int len);
 /* Take individual elements to signed power */
 void vect_spow(double *d, double *s, double pv, int len);
 
+/* Clip to a range */
+void vect_clip(double *d, double *s, double min, double max, int len);
+
+/* Compare two vectors and return nz if they are the same */
+int vect_cmp(double *s1, double *s2, int len);
+
 /* Copy zero based ivector */
 #define ivect_cpy(dd, ss, len) memmove((char *)(dd), (char *)(ss), (len) * sizeof(int))
 
@@ -572,23 +617,35 @@ void ivect_set(int *d, int v, int len);
 /* pfx used at start of each line */
 /* Assumed indexed from 0 */
 
-void adump_dmatrix(a1log *log, char *id, char *pfx, double **a, int nr,  int nc);
-void adump_fmatrix(a1log *log, char *id, char *pfx, float **a, int nr,  int nc);
-void adump_imatrix(a1log *log, char *id, char *pfx, int **a, int nr,  int nc);
-void adump_smatrix(a1log *log, char *id, char *pfx, short **a, int nr,  int nc);
+void dump_dmatrix(FILE *fp, char *id, char *pfx, double **a, int nr, int nc);
+void dump_fmatrix(FILE *fp, char *id, char *pfx, float **a, int nr, int nc);
+void dump_imatrix(FILE *fp, char *id, char *pfx, int **a, int nr, int nc);
+void dump_smatrix(FILE *fp, char *id, char *pfx, short **a, int nr, int nc);
+
+void dump_dvector(FILE *fp, char *id, char *pfx, double *a, int nc);
+void dump_fvector(FILE *fp, char *id, char *pfx, float *a, int nc);
+void dump_ivector(FILE *fp, char *id, char *pfx, int *a, int nc);
+void dump_svector(FILE *fp, char *id, char *pfx, short *a, int nc);
+
+void dump_dmatrix_fmt(FILE *fp, char *id, char *pfx, double **a, int nr, int nc, char *fmt);
+void dump_dvector_fmt(FILE *fp, char *id, char *pfx, double *a, int nc, char *fmt);
+
+
+void adump_dmatrix(a1log *log, char *id, char *pfx, double **a, int nr, int nc);
+void adump_fmatrix(a1log *log, char *id, char *pfx, float **a, int nr, int nc);
+void adump_imatrix(a1log *log, char *id, char *pfx, int **a, int nr, int nc);
+void adump_smatrix(a1log *log, char *id, char *pfx, short **a, int nr, int nc);
 
 void adump_dvector(a1log *log, char *id, char *pfx, double *a, int nc);
 void adump_fvector(a1log *log, char *id, char *pfx, float *a, int nc);
 void adump_ivector(a1log *log, char *id, char *pfx, int *a, int nc);
 void adump_svector(a1log *log, char *id, char *pfx, short *a, int nc);
 
-/* Dump out matrix/vector as a C array to FILE */
-/* id is the variable name */
-/* pfx used at start of each line */
-/* hb sets horizontal element limit to wrap */
-/* Assumed indexed from 0 */
+void adump_dmatrix_fmt(a1log *log, char *id, char *pfx, double **a, int nr, int nc, char *fmt);
+void adump_dvector_fmt(a1log *log, char *id, char *pfx, double *a, int nc, char *fmt);
 
-void acode_dmatrix(FILE *fp, char *id, char *pfx, double **a, int nr,  int nc, int hb);
+/* Dump C type matrix */
+void adump_C_dmatrix(a1log *log, char *id, char *pfx, double *a, int nr,  int nc);
 
 /* ===================================================== */
 /* C matrix support */
@@ -612,8 +669,13 @@ void vect_MulByNxM(int n, int m, double *out, double *mat, double *in);
 /* Transpose an NxN matrix */
 void matrix_TransposeNxN(int n, double *out, double *in);
 
-/* Dump C type matrix */
-void adump_C_dmatrix(a1log *log, char *id, char *pfx, double *a, int nr,  int nc);
+/* Dump out matrix/vector as a C array to FILE */
+/* id is the variable name */
+/* pfx used at start of each line */
+/* hb sets horizontal element limit to wrap */
+/* Assumed indexed from 0 */
+
+void acode_dmatrix(FILE *fp, char *id, char *pfx, double **a, int nr,  int nc, int hb);
 
 /* =========================================================== */
 

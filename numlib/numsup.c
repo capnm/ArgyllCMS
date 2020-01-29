@@ -348,7 +348,7 @@ static char *get_sys_info() {
 #ifdef UNIX
 
 static char *get_sys_info() {
-	static char sysinfo[200] = { "Unknown" };
+	static char sysinfo[300] = { "Unknown" };
 	struct utsname ver;
 
 	if (uname(&ver) == 0)
@@ -1778,6 +1778,7 @@ int matrix_mult(
 	double **s2, int nr2, int nc2
 ) {
 	int i, j, k;
+	double **_d = d;
 
 	/* s1 and s2 must mesh */
 	if (nc1 != nr2)
@@ -1789,15 +1790,23 @@ int matrix_mult(
 
 	/* Output colums = s2 columns */
 	if (nc != nc2)
-		return 2;
+		return 3;
+
+	if (d == s1 || d == s2)
+		_d = dmatrix(0, nr-1, 0, nc-1);
 
 	for (i = 0; i < nr1; i++) {
 		for (j = 0; j < nc2; j++) { 
-			d[i][j] = 0.0;  
+			_d[i][j] = 0.0;  
 			for (k = 0; k < nc1; k++) {
-				d[i][j] += s1[i][k] * s2[k][j];
+				_d[i][j] += s1[i][k] * s2[k][j];
 			}
 		}
+	}
+
+	if (_d != d) {
+		copy_dmatrix(d, _d, 0, nr-1, 0, nc-1);
+		free_dmatrix(_d, 0, nr-1, 0, nc-1);
 	}
 
 	return 0;
@@ -1812,26 +1821,77 @@ int matrix_trans_mult(
 	double **s2, int nr2, int nc2
 ) {
 	int i, j, k;
+	double **_d = d;
 
 	/* s1 and s2 must mesh */
 	if (nr1 != nr2)
 		return 1;
 
-	/* Output rows = s1 rows */
+	/* Output rows = s1 columns */
 	if (nr != nc1)
 		return 2;
 
 	/* Output colums = s2 columns */
 	if (nc != nc2)
-		return 2;
+		return 3;
+
+	if (d == ts1 || d == s2)
+		_d = dmatrix(0, nr-1, 0, nc-1);
 
 	for (i = 0; i < nc1; i++) {
 		for (j = 0; j < nc2; j++) { 
-			d[i][j] = 0.0;  
+			_d[i][j] = 0.0;  
 			for (k = 0; k < nr1; k++) {
-				d[i][j] += ts1[k][i] * s2[k][j];
+				_d[i][j] += ts1[k][i] * s2[k][j];
 			}
 		}
+	}
+
+	if (_d != d) {
+		copy_dmatrix(d, _d, 0, nr-1, 0, nc-1);
+		free_dmatrix(_d, 0, nr-1, 0, nc-1);
+	}
+
+	return 0;
+}
+
+/* Matrix multiply s1 by transpose of s2 */
+/* 0 based matricies,  */
+int matrix_mult_trans(
+	double **d,  int nr,  int nc,
+	double **s1, int nr1, int nc1,
+	double **ts2, int nr2, int nc2
+) {
+	int i, j, k;
+	double **_d = d;
+
+	/* s1 and s2 must mesh */
+	if (nc1 != nc2)
+		return 1;
+
+	/* Output rows = s1 rows */
+	if (nr != nr1)
+		return 2;
+
+	/* Output colums = s2 rows */
+	if (nc != nr2)
+		return 3;
+
+	if (d == s1 || d == ts2)
+		_d = dmatrix(0, nr-1, 0, nc-1);
+
+	for (i = 0; i < nr1; i++) {
+		for (j = 0; j < nr2; j++) { 
+			_d[i][j] = 0.0;  
+			for (k = 0; k < nc1; k++) {
+				_d[i][j] += s1[i][k] * ts2[j][k];
+			}
+		}
+	}
+
+	if (_d != d) {
+		copy_dmatrix(d, _d, 0, nr-1, 0, nc-1);
+		free_dmatrix(_d, 0, nr-1, 0, nc-1);
 	}
 
 	return 0;
@@ -1863,12 +1923,13 @@ int matrix_vect_mult(
 
 	/* Output vector must match matrix rows */
 	if (nd != nr)
-		return 1;
+		return 2;
 
 	for (i = 0; i < nd; i++) {
 		d[i] = 0.0;  
-		for (j = 0; j < nv; j++)
+		for (j = 0; j < nv; j++) {
 			d[i] += m[i][j] * _v[j];
+		}
 	}
 
 	if (_v != v && _v != vv)
@@ -1903,7 +1964,7 @@ int matrix_trans_vect_mult(
 
 	/* Output vector must match matrix rows */
 	if (nd != nc)
-		return 1;
+		return 2;
 
 	for (i = 0; i < nd; i++) {
 		d[i] = 0.0;  
@@ -1915,6 +1976,58 @@ int matrix_trans_vect_mult(
 		free_dvector(_v, 0, nv-1);
 
 	return 0;
+}
+
+/* Add 0 based matricies */
+void matrix_add(double **d,  double **s1, double **s2, int nr,  int nc) {
+	int i, j;
+	for (i = 0; i < nr; i++) {
+		for (j = 0; j < nc; j++)
+			d[i][j] = s1[i][j] + s2[i][j];
+	}
+}
+
+/* Add scaled 0 based matricies */
+void matrix_scaled_add(double **d,  double **s1, double scale, double **s2, int nr,  int nc) {
+	int i, j;
+	for (i = 0; i < nr; i++) {
+		for (j = 0; j < nc; j++)
+			d[i][j] = s1[i][j] + scale * s2[i][j];
+	}
+}
+
+/* Copy a 0 base matrix */
+void matrix_cpy(double **d, double **s, int nr,  int nc) {
+	int i, j;
+	for (i = 0; i < nr; i++) {
+		for (j = 0; j < nc; j++)
+			d[i][j] = s[i][j];
+	}
+}
+
+/* Set a 0 base matrix */
+void matrix_set(double **d, double v, int nr,  int nc) {
+	int i, j;
+	for (i = 0; i < nr; i++) {
+		for (j = 0; j < nc; j++)
+			d[i][j] = v;
+	}
+}
+
+/* Return the maximum absolute difference between any corresponding elemnt */
+double matrix_max_diff(double **d, double **s, int nr,  int nc) {
+	int i, j;
+	double md = 0.0;
+
+	for (i = 0; i < nr; i++) {
+		for (j = 0; j < nc; j++) {
+			double tt = d[i][j] - s[i][j];
+			tt = fabs(tt);
+			if (tt > md)
+				md = tt;
+		}
+	}
+	return md;
 }
 
 
@@ -1994,6 +2107,13 @@ void vect_mul3(
 		d[i] = s1[i] * s2[i];
 }
 
+/* Divide the elements of two vectors, d = s1 / s2 */
+void vect_div3(double *d, double *s1, double *s2, int len) {
+	int i;
+	for (i = 0; i < len; i++)
+		d[i] = s1[i] / s2[i];
+}
+
 /* Scale a vector, */
 /* d may be same as v */
 void vect_scale(double *d, double *s, double scale, int len) {
@@ -2039,6 +2159,17 @@ double vect_mag(double *s, int len) {
 	return sqrt(rv);
 }
 
+/* Return the vectors magnitude squared (norm squared) */
+double vect_magsq(double *s, int len) {
+	int i;
+	double rv = 0.0;
+
+	for (i = 0; i < len; i++)
+		rv += s[i] * s[i];
+
+	return rv;
+}
+
 /* Return the magnitude (norm) of the difference between two vectors */
 double vect_diffmag(double *s1, double *s2, int len) {
 	int i;
@@ -2065,7 +2196,7 @@ int vect_normalize(double *d, double *s, int len) {
 
 	if (nv < 1e-9) {
 		nv = 1.0;
-		rv = 0;
+		rv = 1;
 	}
 
 	for (i = 0; i < len; i++)
@@ -2118,6 +2249,31 @@ void vect_spow(double *d, double *s, double pv, int len) {
 	}
 }
 
+/* Clip to a range */
+void vect_clip(double *d, double *s, double min, double max, int len) {
+	int i;
+
+	for (i = 0; i < len; i++) {
+		if (s[i] < min)
+			d[i] = min;
+		else if (s[i] > max)
+			d[i] = max;
+		else
+			d[i] = s[i];
+	}
+}
+
+/* Compare two vectors and return nz if they are the same */
+int vect_cmp(double *s1, double *s2, int len) {
+	int i;
+
+	for (i = 0; i < len; i++) {
+		if (s1[i] != s2[i])
+			return 0;
+	}
+	return 1;
+}
+
 /* - - - - - - - - - - - - - - - - - - - - - - */
 
 /* Set zero based ivector */
@@ -2134,6 +2290,180 @@ void ivect_set(int *d, int v, int len) {
 
 /* - - - - - - - - - - - - - - - - - - - - - - */
 
+/* Print double matrix to FILE * */
+/* id identifies matrix */
+/* pfx used at start of each line */
+/* Assumed indexed from 0 */
+void dump_dmatrix(FILE *fp, char *id, char *pfx, double **a, int nr,  int nc) {
+	int i, j;
+	fprintf(fp, "%s%s[%d][%d]\n",pfx,id,nr,nc);
+
+	for (j = 0; j < nr; j++) {
+		fprintf(fp, "%s ",pfx);
+		for (i = 0; i < nc; i++)
+			fprintf(fp, "%f%s",a[j][i], i < (nc-1) ? ", " : "");
+		fprintf(fp, "\n");
+	}
+}
+
+/* Print double matrix to FILE * with formatting */
+/* id identifies matrix */
+/* pfx used at start of each line */
+/* Assumed indexed from 0 */
+void dump_dmatrix_fmt(FILE *fp, char *id, char *pfx, double **a, int nr, int nc, char *fmt) {
+	int i, j;
+	fprintf(fp, "%s%s[%d][%d]\n",pfx,id,nr,nc);
+
+	for (j = 0; j < nr; j++) {
+		fprintf(fp, "%s ",pfx);
+		for (i = 0; i < nc; i++) {
+			fprintf(fp, fmt, a[j][i]);
+			if (i < (nc-1))
+				fprintf(fp, "%s",", ");
+		}
+		fprintf(fp, "\n");
+	}
+}
+
+/* Print float matrix to FILE * */
+/* id identifies matrix */
+/* pfx used at start of each line */
+/* Assumed indexed from 0 */
+void dump_fmatrix(FILE *fp, char *id, char *pfx, float **a, int nr,  int nc) {
+	int i, j;
+	fprintf(fp, "%s%s[%d][%d]\n",pfx,id,nr,nc);
+
+	for (j = 0; j < nr; j++) {
+		fprintf(fp, "%s ",pfx);
+		for (i = 0; i < nc; i++)
+			fprintf(fp, "%f%s",a[j][i], i < (nc-1) ? ", " : "");
+		fprintf(fp, "\n");
+	}
+}
+
+/* Print int matrix to FILE * */
+/* id identifies matrix */
+/* pfx used at start of each line */
+/* Assumed indexed from 0 */
+void dump_imatrix(FILE *fp, char *id, char *pfx, int **a, int nr,  int nc) {
+	int i, j;
+	fprintf(fp, "%s%s[%d][%d]\n",pfx,id,nr,nc);
+
+	for (j = 0; j < nr; j++) {
+		fprintf(fp, "%s ",pfx);
+		for (i = 0; i < nc; i++)
+			fprintf(fp, "%d%s",a[j][i], i < (nc-1) ? ", " : "");
+		fprintf(fp, "\n");
+	}
+}
+
+/* Print short matrix to FILE * */
+/* id identifies matrix */
+/* pfx used at start of each line */
+/* Assumed indexed from 0 */
+void dump_smatrix(FILE *fp, char *id, char *pfx, short **a, int nr,  int nc) {
+	int i, j;
+	fprintf(fp, "%s%s[%d][%d]\n",pfx,id,nr,nc);
+
+	for (j = 0; j < nr; j++) {
+		fprintf(fp, "%s ",pfx);
+		for (i = 0; i < nc; i++)
+			fprintf(fp, "%d%s",a[j][i], i < (nc-1) ? ", " : "");
+		fprintf(fp, "\n");
+	}
+}
+
+/* Print double vector to FILE * */
+/* id identifies vector */
+/* pfx used at start of each line */
+/* Assumed indexed from 0 */
+void dump_dvector(FILE *fp, char *id, char *pfx, double *a, int nc) {
+	int i;
+	fprintf(fp, "%s%s[%d]\n",pfx,id,nc);
+	fprintf(fp, "%s ",pfx);
+	for (i = 0; i < nc; i++)
+		fprintf(fp, "%f%s",a[i], i < (nc-1) ? ", " : "");
+	fprintf(fp, "\n");
+}
+
+/* Print double vector to FILE * with formatting */
+/* id identifies vector */
+/* pfx used at start of each line */
+/* Assumed indexed from 0 */
+void dump_dvector_fmt(FILE *fp, char *id, char *pfx, double *a, int nc, char *fmt) {
+	int i;
+	fprintf(fp, "%s%s[%d]\n",pfx,id,nc);
+	fprintf(fp, "%s ",pfx);
+	for (i = 0; i < nc; i++) {
+		fprintf(fp, fmt, a[i]);
+		if (i < (nc-1))
+			fprintf(fp, "%s",", ");
+	}
+	fprintf(fp, "\n");
+}
+
+/* Print float vector to FILE * */
+/* id identifies vector */
+/* pfx used at start of each line */
+/* Assumed indexed from 0 */
+void dump_fvector(FILE *fp, char *id, char *pfx, float *a, int nc) {
+	int i;
+	fprintf(fp, "%s%s[%d]\n",pfx,id,nc);
+	fprintf(fp, "%s ",pfx);
+	for (i = 0; i < nc; i++)
+		fprintf(fp, "%f%s",a[i], i < (nc-1) ? ", " : "");
+	fprintf(fp, "\n");
+}
+
+/* Print int vector to FILE * */
+/* id identifies vector */
+/* pfx used at start of each line */
+/* Assumed indexed from 0 */
+void dump_ivector(FILE *fp, char *id, char *pfx, int *a, int nc) {
+	int i;
+	fprintf(fp, "%s%s[%d]\n",pfx,id,nc);
+	fprintf(fp, "%s ",pfx);
+	for (i = 0; i < nc; i++)
+		fprintf(fp, "%d%s",a[i], i < (nc-1) ? ", " : "");
+	fprintf(fp, "\n");
+}
+
+/* Print short vector to FILE * */
+/* id identifies vector */
+/* pfx used at start of each line */
+/* Assumed indexed from 0 */
+void dump_svector(FILE *fp, char *id, char *pfx, short *a, int nc) {
+	int i;
+	fprintf(fp, "%s%s[%d]\n",pfx,id,nc);
+	fprintf(fp, "%s ",pfx);
+	for (i = 0; i < nc; i++)
+		fprintf(fp, "%d%s",a[i], i < (nc-1) ? ", " : "");
+	fprintf(fp, "\n");
+}
+
+/* Format double matrix as C code to FILE */
+/* id is variable name */
+/* pfx used at start of each line */
+/* hb sets horizontal element limit to wrap */
+/* Assumed indexed from 0 */
+void acode_dmatrix(FILE *fp, char *id, char *pfx, double **a, int nr,  int nc, int hb) {
+	int i, j;
+	fprintf(fp, "%sdouble %s[%d][%d] = {\n",pfx,id,nr,nc);
+
+	for (j = 0; j < nr; j++) {
+		fprintf(fp, "%s\t{ ",pfx);
+		for (i = 0; i < nc; i++) {
+			fprintf(fp, "%f%s",a[j][i], i < (nc-1) ? ", " : "");
+			if ((i % hb) == (hb-1))
+				fprintf(fp, "\n%s\t  ",pfx);
+		}
+		fprintf(fp, " }%s\n", j < (nr-1) ? "," : "");
+	}
+	fprintf(fp, "%s};\n",pfx);
+}
+
+/* - - - - - - - - - - - - - - - - - - - - - - */
+
 /* Print double matrix to g_log debug */
 /* id identifies matrix */
 /* pfx used at start of each line */
@@ -2146,6 +2476,25 @@ void adump_dmatrix(a1log *log, char *id, char *pfx, double **a, int nr,  int nc)
 		a1logd(g_log, 0, "%s ",pfx);
 		for (i = 0; i < nc; i++)
 			a1logd(g_log, 0, "%f%s",a[j][i], i < (nc-1) ? ", " : "");
+		a1logd(g_log, 0, "\n");
+	}
+}
+
+/* Print double matrix to g_log debug with formatting */
+/* id identifies matrix */
+/* pfx used at start of each line */
+/* Assumed indexed from 0 */
+void adump_dmatrix_fmt(a1log *log, char *id, char *pfx, double **a, int nr, int nc, char *fmt) {
+	int i, j;
+	a1logd(g_log, 0, "%s%s[%d][%d]\n",pfx,id,nr,nc);
+
+	for (j = 0; j < nr; j++) {
+		a1logd(g_log, 0, "%s ",pfx);
+		for (i = 0; i < nc; i++) {
+			a1logd(g_log, 0, fmt, a[j][i]);
+			if (i < (nc-1))
+				a1logd(g_log, 0, "%s",", ");
+		}
 		a1logd(g_log, 0, "\n");
 	}
 }
@@ -2198,27 +2547,6 @@ void adump_smatrix(a1log *log, char *id, char *pfx, short **a, int nr,  int nc) 
 	}
 }
 
-/* Format double matrix as C code to FILE */
-/* id is variable name */
-/* pfx used at start of each line */
-/* hb sets horizontal element limit to wrap */
-/* Assumed indexed from 0 */
-void acode_dmatrix(FILE *fp, char *id, char *pfx, double **a, int nr,  int nc, int hb) {
-	int i, j;
-	fprintf(fp, "%sdouble %s[%d][%d] = {\n",pfx,id,nr,nc);
-
-	for (j = 0; j < nr; j++) {
-		fprintf(fp, "%s\t{ ",pfx);
-		for (i = 0; i < nc; i++) {
-			fprintf(fp, "%f%s",a[j][i], i < (nc-1) ? ", " : "");
-			if ((i % hb) == (hb-1))
-				fprintf(fp, "\n%s\t  ",pfx);
-		}
-		fprintf(fp, " }%s\n", j < (nr-1) ? "," : "");
-	}
-	fprintf(fp, "%s};\n",pfx);
-}
-
 /* Print double vector to g_log debug */
 /* id identifies vector */
 /* pfx used at start of each line */
@@ -2229,6 +2557,22 @@ void adump_dvector(a1log *log, char *id, char *pfx, double *a, int nc) {
 	a1logd(g_log, 0, "%s ",pfx);
 	for (i = 0; i < nc; i++)
 		a1logd(g_log, 0, "%f%s",a[i], i < (nc-1) ? ", " : "");
+	a1logd(g_log, 0, "\n");
+}
+
+/* Print double vector to g_log debug with formatting */
+/* id identifies vector */
+/* pfx used at start of each line */
+/* Assumed indexed from 0 */
+void adump_dvector_fmt(a1log *log, char *id, char *pfx, double *a, int nc, char *fmt) {
+	int i;
+	a1logd(g_log, 0, "%s%s[%d]\n",pfx,id,nc);
+	a1logd(g_log, 0, "%s ",pfx);
+	for (i = 0; i < nc; i++) {
+		a1logd(g_log, 0, fmt, a[i]);
+		if (i < (nc-1))
+			a1logd(g_log, 0, "%s",", ");
+	}
 	a1logd(g_log, 0, "\n");
 }
 
@@ -2269,6 +2613,22 @@ void adump_svector(a1log *log, char *id, char *pfx, short *a, int nc) {
 	for (i = 0; i < nc; i++)
 		a1logd(g_log, 0, "%d%s",a[i], i < (nc-1) ? ", " : "");
 	a1logd(g_log, 0, "\n");
+}
+
+/* Print C double matrix to g_log debug */
+/* id identifies matrix */
+/* pfx used at start of each line */
+/* Assumed indexed from 0 */
+void adump_C_dmatrix(a1log *log, char *id, char *pfx, double *a, int nr, int nc) {
+	int i, j;
+	a1logd(g_log, 0, "%s%s[%d][%d]\n",pfx,id,nr,nc);
+
+	for (j = 0; j < nr; j++, a += nc) {
+		a1logd(g_log, 0, "%s ",pfx);
+		for (i = 0; i < nc; i++)
+			a1logd(g_log, 0, "%f%s",a[i], i < (nc-1) ? ", " : "");
+		a1logd(g_log, 0, "\n");
+	}
 }
 
 /* ============================================================================ */
@@ -2415,22 +2775,6 @@ void matrix_TransposeNxN(int n, double *out, double *in) {
 				out[j * n + i] = tt;
 			}
 		}
-	}
-}
-
-/* Print C double matrix to g_log debug */
-/* id identifies matrix */
-/* pfx used at start of each line */
-/* Assumed indexed from 0 */
-void adump_C_dmatrix(a1log *log, char *id, char *pfx, double *a, int nr, int nc) {
-	int i, j;
-	a1logd(g_log, 0, "%s%s[%d][%d]\n",pfx,id,nr,nc);
-
-	for (j = 0; j < nr; j++, a += nc) {
-		a1logd(g_log, 0, "%s ",pfx);
-		for (i = 0; i < nc; i++)
-			a1logd(g_log, 0, "%f%s",a[i], i < (nc-1) ? ", " : "");
-		a1logd(g_log, 0, "\n");
 	}
 }
 

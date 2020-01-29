@@ -104,6 +104,8 @@ void usage(void) {
 	fprintf(stderr,"         m:x:y         Mid-tone Adaptation white as x, y\n");
     fprintf(stderr," -x pcent      Expand/compress gamut cylindrically by percent\n");
 	fprintf(stderr," -O outputfile Override the default output filename.\n");
+	fprintf(stderr," [profile.icm | embedded.tif/jpg]     File specifying device to CIE conversion\n");
+	fprintf(stderr," infile1.tif/jpg ...                  One or more raster files to create gamut from\n");
 	exit(1);
 }
 
